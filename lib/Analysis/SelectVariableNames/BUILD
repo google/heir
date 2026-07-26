@@ -12,6 +12,7 @@ cc_library(
     hdrs = ["SelectVariableNames.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:EmitCDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

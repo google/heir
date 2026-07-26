@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <vector>
 
 #include "gmock/gmock.h"              // from @googletest
@@ -25,8 +26,8 @@ CryptoContextT override_crypto_context() {
   params.SetScalingTechnique(FIXEDMANUAL);
   params.SetScalingModSize(55);
   params.SetFirstModSize(60);
-  params.SetRingDim(2048);
-  params.SetBatchSize(1024);
+  params.SetRingDim(128);
+  params.SetBatchSize(8);
   params.SetSecurityLevel(HEStd_NotSet);
   CryptoContextT cc = GenCryptoContext(params);
   cc->Enable(PKE);
@@ -39,8 +40,8 @@ CryptoContextT override_crypto_context() {
 CryptoContextT override_configure_crypto_context(CryptoContextT cc,
                                                  PrivateKeyT sk) {
   cc->EvalMultKeyGen(sk);
-  cc->EvalBootstrapSetup({3, 3});
-  cc->EvalBootstrapKeyGen(sk, 1024);
+  cc->EvalBootstrapSetup({3, 3}, {0, 0}, 8);
+  cc->EvalBootstrapKeyGen(sk, 8);
   return cc;
 }
 
@@ -59,12 +60,16 @@ TEST(LoopTest, RunTest) {
                                  -1.74687019, -2.29543899, -3.19507837,
                                  -4.66914279, -7.};
 
-  auto arg0Encrypted = loop__encrypt__arg0(cryptoContext, arg0, publicKey);
-  auto outputEncrypted = loop(cryptoContext, secretKey, arg0Encrypted);
-  auto actual =
+  auto arg0Encrypted =
+      loop__encrypt__arg0(cryptoContext, arg0.data(), publicKey);
+  auto outputEncrypted = loop(cryptoContext, arg0Encrypted);
+  auto actual_ptr =
       loop__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
-
+  std::vector<float> actual(actual_ptr, actual_ptr + 8);
   EXPECT_THAT(actual, Pointwise(DoubleNear(1e-03), expected));
+  std::free(actual_ptr);
+  heir_free(arg0Encrypted);
+  heir_free(outputEncrypted);
 }
 
 }  // namespace openfhe

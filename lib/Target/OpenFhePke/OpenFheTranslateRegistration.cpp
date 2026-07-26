@@ -19,7 +19,9 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlow.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
@@ -87,12 +89,13 @@ void registerTranslateOptions() {
 
 // Common func to register dialects
 static void registerRelevantDialects(DialectRegistry& registry) {
-  registry.insert<affine::AffineDialect, arith::ArithDialect,
-                  cf::ControlFlowDialect, func::FuncDialect, lwe::LWEDialect,
-                  memref::MemRefDialect, mod_arith::ModArithDialect,
-                  openfhe::OpenfheDialect, polynomial::PolynomialDialect,
-                  rns::RNSDialect, scf::SCFDialect, tensor::TensorDialect,
-                  tensor_ext::TensorExtDialect>();
+  registry.insert<
+      affine::AffineDialect, arith::ArithDialect, cf::ControlFlowDialect,
+      emitc::EmitCDialect, bufferization::BufferizationDialect,
+      func::FuncDialect, lwe::LWEDialect, memref::MemRefDialect,
+      mod_arith::ModArithDialect, openfhe::OpenfheDialect,
+      polynomial::PolynomialDialect, rns::RNSDialect, scf::SCFDialect,
+      tensor::TensorDialect, tensor_ext::TensorExtDialect>();
 }
 
 void registerToOpenFhePkeTranslation() {

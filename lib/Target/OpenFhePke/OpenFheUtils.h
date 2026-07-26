@@ -5,6 +5,7 @@
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
@@ -75,6 +76,12 @@ using TypeEmitterFn =
 // a following semicolon or function body.
 LogicalResult funcDeclarationHelper(
     ::mlir::func::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
+    SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
+    ErrorEmitterFn emitError);
+
+LogicalResult funcDeclarationHelper(
+    ::mlir::emitc::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
     SelectVariableNames* variableNames,
     ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
     ErrorEmitterFn emitError);

@@ -110,7 +110,7 @@ def openfhe_lib(
 
         deps = deps + [debug_lib_target]
 
-    heir_translate_cc_flags = heir_translate_source_relative_flags + ["--emit-openfhe-pke"]
+    heir_translate_cc_flags = heir_translate_source_relative_flags + ["--emit-openfhe-emitc"]
     heir_translate_h_flags = heir_translate_source_relative_flags + ["--emit-openfhe-pke-header"]
 
     heir_translate(

@@ -110,4 +110,22 @@ def AllocToInPlace : Pass<"openfhe-alloc-to-inplace"> {
   let dependentDialects = ["mlir::heir::openfhe::OpenfheDialect"];
 }
 
+def AddOpenFhePybind : Pass<"openfhe-add-pybind", "mlir::ModuleOp"> {
+  let summary = "Add a nested module for pybind generation";
+  let description = [{
+    This pass creates a nested module `@pybind_bindings` inside the top-level module
+    and clones the signatures of all public functions as private declarations into it.
+    It also attaches metadata attributes for pybind generation.
+  }];
+  let dependentDialects = [
+    "mlir::func::FuncDialect"
+  ];
+  let options = [
+    Option<"pybindModuleName", "pybind-module-name", "std::string",
+           /*default=*/"", "The name of the generated Python module">,
+    ListOption<"pybindImports", "pybind-imports", "std::string",
+               "Headers to import in the generated pybind file">
+  ];
+}
+
 #endif  // LIB_DIALECT_OPENFHE_TRANSFORMS_PASSES_TD_

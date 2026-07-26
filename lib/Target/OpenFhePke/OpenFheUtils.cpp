@@ -11,6 +11,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -64,6 +65,9 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
       .Case<openfhe::PublicKeyType>(
           [&](auto ty) { return std::string("PublicKeyT"); })
       .Case<IndexType>([&](auto ty) { return std::string("size_t"); })
+      .Case<emitc::SizeTType>([&](auto ty) { return std::string("size_t"); })
+      .Case<emitc::PtrDiffTType>(
+          [&](auto ty) { return std::string("ptrdiff_t"); })
       .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();
         if (width == 1) {
@@ -107,6 +111,13 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
         auto result = "std::vector<" + eltTyResult.value() + ">";
         return FailureOr<std::string>(std::string(result));
       })
+      .Case<emitc::PointerType>([&](auto ty) -> FailureOr<std::string> {
+        auto pointee = convertType(ty.getPointee(), loc, constant);
+        if (failed(pointee)) return failure();
+        return pointee.value() + "*";
+      })
+      .Case<emitc::OpaqueType>(
+          [&](auto ty) { return std::string(ty.getValue()); })
       .Default([&](Type&) { return failure(); });
 }
 
@@ -124,8 +135,9 @@ FailureOr<Value> getContextualCryptoContext(Operation* op) {
   return cryptoContext;
 }
 
-LogicalResult funcDeclarationHelper(
-    ::mlir::func::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
+template <typename FuncOpTy>
+LogicalResult funcDeclarationHelperImpl(
+    FuncOpTy funcOp, ::mlir::raw_indented_ostream& os,
     SelectVariableNames* variableNames,
     ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
     ErrorEmitterFn emitError) {
@@ -200,6 +212,24 @@ LogicalResult funcDeclarationHelper(
   }
   os << ")";
   return success();
+}
+
+LogicalResult funcDeclarationHelper(
+    ::mlir::func::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
+    SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
+    ErrorEmitterFn emitError) {
+  return funcDeclarationHelperImpl(funcOp, os, variableNames,
+                                   constQualifierAnalysis, emitType, emitError);
+}
+
+LogicalResult funcDeclarationHelper(
+    ::mlir::emitc::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
+    SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
+    ErrorEmitterFn emitError) {
+  return funcDeclarationHelperImpl(funcOp, os, variableNames,
+                                   constQualifierAnalysis, emitType, emitError);
 }
 
 LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp,

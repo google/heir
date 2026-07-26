@@ -31,6 +31,16 @@ using EvalKeyT = EvalKey<DCRTPoly>;
 using PlaintextT = Plaintext;
 using PrivateKeyT = PrivateKey<DCRTPoly>;
 using PublicKeyT = PublicKey<DCRTPoly>;
+
+template<typename T>
+inline T* heir_alloc(size_t size) {{
+  return new T[size];
+}
+
+template<typename T>
+inline void heir_free(T* ptr) {{
+  delete[] ptr;
+}
 )cpp";
 // clang-format on
 

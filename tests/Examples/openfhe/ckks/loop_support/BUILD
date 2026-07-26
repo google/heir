@@ -9,18 +9,11 @@ openfhe_end_to_end_test(
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=8 scaling-mod-bits=55 first-mod-bits=60 level-budget=3 modulus-switch-after-mul=true experimental-disable-loop-unroll=true",
-        "--lwe-add-debug-port=insert-debug-after-every-op=true",
-        "--scheme-to-openfhe=insert-debug-handler-calls=true",
-    ],
-    heir_translate_flags = [
-        "--openfhe-debug-helper-include-path=tests/Examples/openfhe/ckks/loop_support/debug_helper.h",
+        "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:loop.mlir",
     tags = ["nofastbuild"],
     test_src = "loop_test.cpp",
-    deps = [
-        ":debug_helper",
-    ],
 )
 
 cc_library(

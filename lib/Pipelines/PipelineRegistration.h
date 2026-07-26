@@ -12,7 +12,8 @@ namespace mlir::heir {
 // bufferization can't handle.
 void prepareForBufferize(OpPassManager& manager);
 
-void oneShotBufferize(OpPassManager& manager, bool includeDeallocation = true);
+void oneShotBufferize(OpPassManager& manager, bool includeDeallocation = true,
+                      bool allowUnknownOps = false);
 
 void mathToPolynomialApproximationBuilder(OpPassManager& pm);
 
@@ -21,6 +22,8 @@ void polynomialToLLVMPipelineBuilder(OpPassManager& manager);
 void basicMLIRToLLVMPipelineBuilder(OpPassManager& manager);
 
 void convertToDataObliviousPipelineBuilder(OpPassManager& manager);
+
+void openfheEmitCTestPipelineBuilder(OpPassManager& manager);
 
 }  // namespace mlir::heir
 

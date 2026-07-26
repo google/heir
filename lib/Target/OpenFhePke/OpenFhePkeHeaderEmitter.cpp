@@ -37,8 +37,11 @@ LogicalResult OpenFhePkeHeaderEmitter::translate(Operation& op) {
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           .Case<func::FuncOp>([&](auto op) { return printOperation(op); })
+          .Case<emitc::FuncOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
-            return op.emitOpError("unable to find printer for op");
+            // Ignore other operations in the module (like emitc.verbatim,
+            // emitc.global, etc.)
+            return success();
           });
 
   if (failed(status)) {
@@ -75,6 +78,21 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
+  auto res = funcDeclarationHelper(
+      funcOp, os, variableNames, constQualifierAnalysis,
+      [&](Type type, Location loc) { return emitType(type, loc); },
+      [&](Location loc, const std::string& message) {
+        return emitError(loc, message);
+      });
+  if (failed(res)) {
+    return res;
+  }
+  os << ";\n";
+  os.unindent();
+  return success();
+}
+
+LogicalResult OpenFhePkeHeaderEmitter::printOperation(emitc::FuncOp funcOp) {
   auto res = funcDeclarationHelper(
       funcOp, os, variableNames, constQualifierAnalysis,
       [&](Type type, Location loc) { return emitType(type, loc); },
