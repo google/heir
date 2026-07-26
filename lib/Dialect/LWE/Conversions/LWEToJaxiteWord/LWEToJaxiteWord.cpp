@@ -149,73 +149,6 @@ static FailureOr<IntegerAttr> getStaticRotationIndex(ckks::RotateOp op,
   return failure();
 }
 
-struct AddCryptoContextAndKeys : public OpConversionPattern<func::FuncOp> {
-  AddCryptoContextAndKeys(mlir::MLIRContext* context)
-      : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    if (!funcNeedsCryptoContextAndKeys(op)) return failure();
-
-    auto cryptoContextType = jaxiteword::CryptoContextType::get(getContext());
-    auto evalKeyType = jaxiteword::EvalKeyType::get(getContext());
-
-    rewriter.startOpModification(op);
-    bool hasContext = op.getFunctionType().getNumInputs() > 0 &&
-                      mlir::isa<jaxiteword::CryptoContextType>(
-                          op.getFunctionType().getInput(0));
-    if (!hasContext) {
-      if (failed(op.insertArgument(0, evalKeyType, nullptr, op.getLoc())))
-        return failure();
-      if (failed(op.insertArgument(0, cryptoContextType, nullptr, op.getLoc())))
-        return failure();
-    }
-    rewriter.finalizeOpModification(op);
-
-    return success();
-  }
-};
-
-struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
-  ConvertFuncCallOp(mlir::MLIRContext* context)
-      : OpConversionPattern<func::CallOp>(context) {}
-
-  using OpConversionPattern<func::CallOp>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      func::CallOp op, typename func::CallOp::Adaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    auto callee = getCalledFunction(op);
-    if (failed(callee) || !funcNeedsCryptoContextAndKeys(callee.value())) {
-      return failure();
-    }
-    if (op.getNumOperands() >= callee.value().getNumArguments()) {
-      return failure();
-    }
-
-    FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
-    if (failed(ctx)) return failure();
-    FailureOr<Value> evalKey = getContextualEvalKeyForJaxiteWord(op);
-    if (failed(evalKey)) return failure();
-
-    SmallVector<Value> newOperands;
-    newOperands.push_back(ctx.value());
-    newOperands.push_back(evalKey.value());
-    newOperands.append(adaptor.getOperands().begin(),
-                       adaptor.getOperands().end());
-
-    SmallVector<NamedAttribute> dialectAttrs(op->getDialectAttrs());
-    rewriter
-        .replaceOpWithNewOp<func::CallOp>(op, op.getCallee(),
-                                          op.getResultTypes(), newOperands)
-        ->setDialectAttrs(dialectAttrs);
-    return success();
-  }
-};
-
 template <typename SourceOp, typename TargetOp>
 struct ConvertBinOp : public OpConversionPattern<SourceOp> {
   using OpConversionPattern<SourceOp>::OpConversionPattern;
@@ -262,24 +195,6 @@ struct ConvertCommutativePlainOp : public OpConversionPattern<SourceOp> {
     rewriter.replaceOpWithNewOp<TargetOp>(
         op, this->getTypeConverter()->convertType(op.getOutput().getType()),
         ctx.value(), ciphertext, plaintext);
-    return success();
-  }
-};
-
-struct ConvertMulOp : public OpConversionPattern<ckks::MulOp> {
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ckks::MulOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
-    if (failed(ctx)) return failure();
-
-    auto newOp = jaxiteword::MulNoRelinOp::create(
-        rewriter, op.getLoc(),
-        this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getLhs(), adaptor.getRhs());
-    rewriter.replaceOp(op, newOp);
     return success();
   }
 };
@@ -355,9 +270,11 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
     FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
     if (failed(ctx)) return failure();
 
-    rewriter.replaceOpWithNewOp<jaxiteword::EncodeOp>(
-        op, this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getInput());
+    auto newOp = jaxiteword::EncodeOp::create(
+        rewriter, op.getLoc(),
+        this->getTypeConverter()->convertType(op.getOutput().getType()),
+        ctx.value(), adaptor.getInput(), op.getRescaleLevelAttr());
+    rewriter.replaceOp(op, newOp.getResult());
     return success();
   }
 };
@@ -456,8 +373,6 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
         patterns, typeConverter);
     addTensorConversionPatterns(typeConverter, patterns, target);
 
-    patterns.add<AddCryptoContextAndKeys>(typeConverter, context);
-    patterns.add<ConvertFuncCallOp>(context);
     patterns.add<ConvertBinOp<lwe::AddOp, jaxiteword::AddOp>>(typeConverter,
                                                               context);
     patterns.add<ConvertBinOp<lwe::RAddOp, jaxiteword::AddOp>>(typeConverter,
@@ -474,7 +389,8 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
         typeConverter, context);
     patterns.add<ConvertBinOp<ckks::SubOp, jaxiteword::SubOp>>(typeConverter,
                                                                context);
-    patterns.add<ConvertMulOp>(typeConverter, context);
+    patterns.add<ConvertBinOp<ckks::MulOp, jaxiteword::MulNoRelinOp>>(
+        typeConverter, context);
     patterns.add<ConvertBinOp<lwe::RMulOp, jaxiteword::MulNoRelinOp>>(
         typeConverter, context);
     patterns.add<ConvertRotateOp>(typeConverter, context);
