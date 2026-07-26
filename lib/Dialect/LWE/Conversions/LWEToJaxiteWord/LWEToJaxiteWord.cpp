@@ -273,7 +273,7 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
     auto newOp = jaxiteword::EncodeOp::create(
         rewriter, op.getLoc(),
         this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getInput(), op.getRescaleLevelAttr());
+        ctx.value(), adaptor.getInput());
     rewriter.replaceOp(op, newOp.getResult());
     return success();
   }
