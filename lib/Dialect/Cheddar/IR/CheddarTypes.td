@@ -4,13 +4,19 @@
 include "CheddarDialect.td"
 
 include "lib/Dialect/HEIRInterfaces.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/OpAsmInterface.td"
 
 // A base class for all types in this dialect
+//
+// All Cheddar types implement MemRefElementTypeInterface so they can appear as
+// element types in `tensor<Nx!cheddar.*>` / `memref<Nx!cheddar.*>`, which is
+// what the bufferization pipeline produces when lowering looped CKKS kernels.
 class Cheddar_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<Cheddar_Dialect, name, traits # [OpAsmTypeInterface]> {
+    : TypeDef<Cheddar_Dialect, name,
+              traits # [OpAsmTypeInterface, MemRefElementTypeInterface]> {
   let mnemonic = typeMnemonic;
   let genMnemonicAlias = 1;
 
@@ -27,12 +33,27 @@ class Cheddar_Type<string name, string typeMnemonic, list<Trait> traits = []>
 
 def Cheddar_Context : Cheddar_Type<"Context", "context"> {
   let description = [{
-    This type represents a CHEDDAR Context (or BootContext), which is the
-    main server-side computation engine. Created via Context::Create(param)
-    or BootContext::Create(param, boot_param).
+    This type represents a CHEDDAR Context, the main server-side computation
+    engine. Created via Context::Create(param).
   }];
   let asmName = "ctx";
 }
+
+def Cheddar_BootContext : Cheddar_Type<"BootContext", "boot_context"> {
+  let description = [{
+    This type represents a CHEDDAR BootContext: a Context extended with
+    bootstrapping support, created via BootContext::Create(param, boot_param).
+    A BootContext is-a Context in CHEDDAR, so it is accepted anywhere a Context
+    is via the `Cheddar_AnyContext` constraint; only `cheddar.boot` requires it
+    specifically (so the emitter can call `BootContext::Boot` with no downcast).
+  }];
+  let asmName = "boot_ctx";
+}
+
+// Most server-side ops run on either a plain Context or a BootContext (the
+// latter derives from the former in CHEDDAR). `cheddar.boot` is the exception:
+// it requires a Cheddar_BootContext.
+def Cheddar_AnyContext : AnyTypeOf<[Cheddar_Context, Cheddar_BootContext]>;
 
 def Cheddar_Parameter : Cheddar_Type<"Parameter", "parameter"> {
   let description = [{

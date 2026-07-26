@@ -38,13 +38,18 @@ inline int64_t findBestBSGSRatio(llvm::ArrayRef<int32_t> diags, int64_t slots,
   return 1;
 }
 
-/// Returns all non-zero rotation indices needed by a linear transform
-/// with the given diagonal indices, slot count, and BSGS ratio.
-/// Mirrors Lattigo's lintrans.GaloisElements().
-inline llvm::DenseSet<int64_t> lintransRotationIndices(
-    llvm::ArrayRef<int32_t> diags, int64_t slots, int64_t logBSGS) {
+/// Returns all non-zero rotation indices needed by a linear transform whose
+/// BSGS baby-step size (giant-step stride) is exactly `n1`. Each diagonal index
+/// r decomposes as r = giant + baby with baby = r % n1 and giant = (r / n1)*n1,
+/// and both the baby and giant rotations need a key. Mirrors Lattigo's
+/// lintrans.GaloisElements() for a fixed N1. This is the canonical source of
+/// the rotation-key set: a caller that knows the baby-step count (e.g. the
+/// `bs` attribute on cheddar.linear_transform) passes it here directly so key
+/// generation matches what the evaluator actually rotates by.
+inline llvm::DenseSet<int64_t> lintransRotationIndicesWithBabyStep(
+    llvm::ArrayRef<int32_t> diags, int64_t slots, int64_t n1) {
   llvm::DenseSet<int64_t> result;
-  int64_t n1 = (logBSGS < 0) ? slots : findBestBSGSRatio(diags, slots, logBSGS);
+  if (n1 < 1) n1 = 1;
   for (auto rot : diags) {
     int64_t r = normalizeRotation(rot, slots);
     int64_t giant = normalizeRotation((r / n1) * n1, slots);
@@ -53,6 +58,15 @@ inline llvm::DenseSet<int64_t> lintransRotationIndices(
     if (baby != 0) result.insert(baby);
   }
   return result;
+}
+
+/// Returns all non-zero rotation indices needed by a linear transform with the
+/// given diagonal indices, slot count, and BSGS ratio, picking the baby-step
+/// size with findBestBSGSRatio. Mirrors Lattigo's lintrans.GaloisElements().
+inline llvm::DenseSet<int64_t> lintransRotationIndices(
+    llvm::ArrayRef<int32_t> diags, int64_t slots, int64_t logBSGS) {
+  int64_t n1 = (logBSGS < 0) ? slots : findBestBSGSRatio(diags, slots, logBSGS);
+  return lintransRotationIndicesWithBabyStep(diags, slots, n1);
 }
 
 /// Returns the ciphertext rotation indices needed by a rotate-and-reduce op.
