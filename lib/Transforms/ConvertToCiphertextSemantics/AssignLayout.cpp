@@ -145,7 +145,7 @@ static FailureOr<Value> implementUnpackOpStep(
   return loop.value().getResults()[0];
 }
 
-static FailureOr<Value> implementAssignLayoutPermutation(
+static FailureOr<Value> implementLayoutPermutation(
     Value input, DenseIntElementsAttr permutation, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
@@ -163,8 +163,11 @@ static FailureOr<Value> implementAssignLayoutPermutation(
   createdOpCallback(zeroCtxt);
   Value result = zeroCtxt.getResult();
 
-  int64_t ctBound = (tensorType.getRank() == 2) ? tensorType.getDimSize(0) : 1;
+  int64_t srcCtBound =
+      (tensorType.getRank() == 2) ? tensorType.getDimSize(0) : 1;
   int64_t srcSlotBound = tensorType.getDimSize(tensorType.getRank() - 1);
+  int64_t dstCtBound =
+      (targetType.getRank() == 2) ? targetType.getDimSize(0) : 1;
   int64_t dstSlotBound = targetType.getDimSize(targetType.getRank() - 1);
 
   for (auto it = permutation.value_begin<APInt>();
@@ -174,14 +177,15 @@ static FailureOr<Value> implementAssignLayoutPermutation(
     int64_t dstCt = (*it++).getSExtValue();
     int64_t dstSlot = (*it++).getSExtValue();
 
-    if (srcCt >= ctBound || srcSlot >= srcSlotBound || dstCt >= ctBound ||
+    if (srcCt >= srcCtBound || srcSlot >= srcSlotBound || dstCt >= dstCtBound ||
         dstSlot >= dstSlotBound) {
       return builder.emitError()
              << "Permutation index out of bounds: " << "src_ct=" << srcCt
-             << ", src_slot=" << srcSlot << " (input bounds: ct < " << ctBound
-             << ", slot < " << srcSlotBound << "); " << "dst_ct=" << dstCt
-             << ", dst_slot=" << dstSlot << " (target bounds: ct < " << ctBound
-             << ", slot < " << dstSlotBound << ")";
+             << ", src_slot=" << srcSlot << " (input bounds: ct < "
+             << srcCtBound << ", slot < " << srcSlotBound << "); "
+             << "dst_ct=" << dstCt << ", dst_slot=" << dstSlot
+             << " (target bounds: ct < " << dstCtBound << ", slot < "
+             << dstSlotBound << ")";
     }
 
     SmallVector<Value> extractIndices;
@@ -198,13 +202,17 @@ static FailureOr<Value> implementAssignLayoutPermutation(
     auto extracted = tensor::ExtractOp::create(builder, input, extractIndices);
     createdOpCallback(extracted);
 
-    auto dstCtIdxOp = arith::ConstantIndexOp::create(builder, dstCt);
-    createdOpCallback(dstCtIdxOp);
+    SmallVector<Value> insertIndices;
+    if (targetType.getRank() == 2) {
+      auto dstCtIdxOp = arith::ConstantIndexOp::create(builder, dstCt);
+      createdOpCallback(dstCtIdxOp);
+      insertIndices.push_back(dstCtIdxOp.getResult());
+    }
     auto dstSlotIdxOp = arith::ConstantIndexOp::create(builder, dstSlot);
     createdOpCallback(dstSlotIdxOp);
-    auto insertOp = tensor::InsertOp::create(
-        builder, extracted.getResult(), result,
-        ValueRange{dstCtIdxOp.getResult(), dstSlotIdxOp.getResult()});
+    insertIndices.push_back(dstSlotIdxOp.getResult());
+    auto insertOp = tensor::InsertOp::create(builder, extracted.getResult(),
+                                             result, insertIndices);
     createdOpCallback(insertOp);
 
     result = insertOp.getResult();
@@ -574,8 +582,8 @@ FailureOr<Value> implementAssignLayout(
                  dyn_cast<DenseIntElementsAttr>(layout)) {
     Type targetType = materializePermutationLayout(input.getType(), elementAttr,
                                                    ciphertextSize);
-    return implementAssignLayoutPermutation(input, elementAttr, targetType,
-                                            builder, createdOpCallback);
+    return implementLayoutPermutation(input, elementAttr, targetType, builder,
+                                      createdOpCallback);
   }
   return builder.emitError() << "Unsupported layout attribute type: " << layout;
 }
@@ -590,39 +598,63 @@ FailureOr<Value> implementUnpackOp(
                                  createdOpCallback);
   }
 
+  // For Dense permutation layout we reuse implementLayoutPermutation. The
+  // mechanical action is identical (extract from input[src_ct, src_slot],
+  // insert into result[dst_ct, dst_slot]); only the semantic direction
+  // differs.
+  if (auto elementAttr = dyn_cast<DenseIntElementsAttr>(op.getLayout())) {
+    return implementLayoutPermutation(op.getValue(), elementAttr,
+                                      op.getResult().getType(), builder,
+                                      createdOpCallback);
+  }
+
   if (auto arrayAttr = dyn_cast<ArrayAttr>(op.getLayout())) {
     Value currentInput = op.getValue();
     Type finalTargetType = op.getResult().getType();
 
     for (int i = arrayAttr.size() - 1; i >= 0; --i) {
-      auto layoutAttr = cast<LayoutAttr>(arrayAttr[i]);
-      Type stepTargetType;
-      if (i == 0) {
-        stepTargetType = finalTargetType;
-      } else {
-        presburger::IntegerRelation rel = layoutAttr.getIntegerRelation();
-        unsigned numDomainVars = rel.getNumDomainVars();
-        SmallVector<int64_t> domainShape;
-        for (unsigned d = 0; d < numDomainVars; ++d) {
-          auto ub = rel.getConstantBound64(
-              presburger::BoundType::UB,
-              rel.getVarKindOffset(presburger::VarKind::Domain) + d);
-          if (!ub.has_value()) {
-            return builder.emitError()
-                   << "Unbounded domain variable in relation";
-          }
-          domainShape.push_back(ub.value() + 1);
-        }
-        Type elementType = getElementTypeOrSelf(finalTargetType);
-        stepTargetType = RankedTensorType::get(domainShape, elementType);
-      }
+      Attribute member = arrayAttr[i];
 
-      auto res = implementUnpackOpStep(currentInput, layoutAttr, stepTargetType,
+      // Dense-permutation member: dispatch to the permutation helper.
+      if (auto denseAttr = dyn_cast<DenseIntElementsAttr>(member)) {
+        auto res =
+            implementLayoutPermutation(currentInput, denseAttr, finalTargetType,
                                        builder, createdOpCallback);
-      if (failed(res)) {
-        return failure();
+        if (failed(res)) {
+          return failure();
+        }
+        currentInput = res.value();
+        continue;
+      } else if (auto layoutAttr = dyn_cast<LayoutAttr>(member)) {
+        Type stepTargetType;
+        if (i == 0) {
+          stepTargetType = finalTargetType;
+        } else {
+          presburger::IntegerRelation rel = layoutAttr.getIntegerRelation();
+          unsigned numDomainVars = rel.getNumDomainVars();
+          SmallVector<int64_t> domainShape;
+          for (unsigned d = 0; d < numDomainVars; ++d) {
+            auto ub = rel.getConstantBound64(
+                presburger::BoundType::UB,
+                rel.getVarKindOffset(presburger::VarKind::Domain) + d);
+            if (!ub.has_value()) {
+              return builder.emitError()
+                     << "Unbounded domain variable in relation";
+            }
+            domainShape.push_back(ub.value() + 1);
+          }
+          Type elementType = getElementTypeOrSelf(finalTargetType);
+          stepTargetType = RankedTensorType::get(domainShape, elementType);
+        }
+
+        auto res =
+            implementUnpackOpStep(currentInput, layoutAttr, stepTargetType,
+                                  builder, createdOpCallback);
+        if (failed(res)) {
+          return failure();
+        }
+        currentInput = res.value();
       }
-      currentInput = res.value();
     }
     return currentInput;
   }
