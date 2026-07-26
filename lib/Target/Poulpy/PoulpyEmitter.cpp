@@ -162,6 +162,9 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type) {
       .Case<ModuleType>([&](ModuleType type) -> FailureOr<std::string> {
         return std::string("&Module<BE>");
       })
+      .Case<ScratchType>([&](ScratchType) -> FailureOr<std::string> {
+        return std::string("&mut ScratchOwned<BE>");
+      })
       .Default([&](Type&) { return failure(); });
 }
 
