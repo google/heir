@@ -41,8 +41,8 @@ class PoulpyEmitter {
   LogicalResult printOperation(func::ReturnOp op);
 
   // Emit a Poulpy type
-  LogicalResult emitType(Type type);
-  FailureOr<std::string> convertType(Type type);
+  LogicalResult emitType(Type type, bool isArg);
+  FailureOr<std::string> convertType(Type type, bool isArg);
 };
 
 }  // namespace poulpy

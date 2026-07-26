@@ -31,6 +31,10 @@ use poulpy_hal::{
     layouts::{Backend, HostBytesBackend, Module, ScratchOwned},
     source::Source,
 };)poulpy";
+
+constexpr std::string_view kTypeAliases = R"poulpy(
+type Ct = CKKSCiphertext<<BE as Backend>::OwnedBuf>;
+)poulpy";
 }  // namespace poulpy
 }  // namespace heir
 }  // namespace mlir

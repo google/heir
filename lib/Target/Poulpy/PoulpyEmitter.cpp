@@ -4,8 +4,8 @@
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.h"
 #include "lib/Target/Poulpy/PoulpyTemplates.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
@@ -37,6 +37,15 @@ FailureOr<std::string> detectBackend(ModuleOp* op) {
       return std::string("NTT4x30Ref");
   }
   llvm_unreachable("unhandled PoulpyBackend");
+}
+
+std::string valueOrClonedValue(Value value,
+                               SelectVariableNames* variableNames) {
+  auto expression = variableNames->getNameForValue(value);
+  if (isa<BlockArgument>(value)) {
+    expression += ".clone()";
+  }
+  return expression;
 }
 }  // namespace
 
@@ -95,6 +104,7 @@ LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
     return failure();
   }
   os << "type BE = " << backend.value() << ";\n";
+  os << kTypeAliases << "\n";
   for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -111,7 +121,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
     // TODO(mmoro): add type, should we check integertype like tfherust? how to
     // handle reference?
     os << argName << ": ";
-    if (failed(emitType(arg.getType()))) {
+    if (failed(emitType(arg.getType(), true))) {
       return funcOp.emitOpError()
              << "Failed to emit poulpy type " << arg.getType();
     }
@@ -125,7 +135,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
     os << "()";
   } else if (numResults == 1) {
     Type result = funcOp.getResultTypes()[0];
-    if (failed(emitType(result))) {
+    if (failed(emitType(result, false))) {
       return funcOp.emitOpError() << "Failed to emit poulpy type " << result;
     }
   } else {
@@ -151,25 +161,34 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
   // values
   if (op.getNumOperands() == 0) {
     os << "Ok(())\n";
+  } else if (op.getNumOperands() == 1) {
+    auto returnOperand = op.getOperands()[0];
+    auto expression = valueOrClonedValue(returnOperand, variableNames);
+    os << "Ok(" << expression << ")\n";
   }
   return success();
 }
 
-// TODO(mmoro): add isArg
-FailureOr<std::string> PoulpyEmitter::convertType(Type type) {
-  // TODO(mmoro): handle references and other types
+FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
-      .Case<ModuleType>([&](ModuleType type) -> FailureOr<std::string> {
+      .Case<ModuleType>([&](ModuleType) -> FailureOr<std::string> {
         return std::string("&Module<BE>");
       })
       .Case<ScratchType>([&](ScratchType) -> FailureOr<std::string> {
         return std::string("&mut ScratchOwned<BE>");
       })
+      .Case<MemRefType>([&](MemRefType memRefType) -> FailureOr<std::string> {
+        if (memRefType.getRank() != 0) return failure();
+        CiphertextType ciphertextType =
+            dyn_cast<CiphertextType>(memRefType.getElementType());
+        if (!ciphertextType) return failure();
+        return std::string(isArg ? "&Ct" : "Ct");
+      })
       .Default([&](Type&) { return failure(); });
 }
 
-LogicalResult PoulpyEmitter::emitType(Type type) {
-  auto result = convertType(type);
+LogicalResult PoulpyEmitter::emitType(Type type, bool isArg) {
+  auto result = convertType(type, isArg);
   if (failed(result)) {
     return failure();
   }
