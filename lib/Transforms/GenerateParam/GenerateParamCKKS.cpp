@@ -143,25 +143,30 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       return;
     }
 
+    // genSlot is the slot number used for generating the scheme param
+    // while slotNumber keeps the slot number requested by the user
+    int genSlot = slotNumber;
+
     // for lattigo, defaults to extended encryption technique
     if (moduleIsLattigo(getOperation())) {
       encryptionTechniqueExtended = true;
       LDBG() << "For lattigo, fixing extended encryption technique";
 
       // Lattigo bootstrapping requires LogN >= 14, i.e., ringDim >= 16384.
-      // Since ringDim is computed from slotNumber (minRingDim = 2 *
-      // slotNumber), we bump slotNumber to 8192 if bootstrapping is present.
+      // Since ringDim is computed from genSlot (minRingDim = 2 *
+      // slotNumber), we bump genSlot to at least 8192 if bootstrapping
+      // is present.
       if (containsBootstrap(getOperation())) {
-        if (slotNumber < 8192) {
+        if (genSlot < 8192) {
           LDBG() << "Lattigo bootstrapping detected, bumping slotNumber from "
-                 << slotNumber << " to 8192";
-          slotNumber = 8192;
+                 << genSlot << " to 8192";
+          genSlot = 8192;
         }
       }
     }
 
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
-        firstModBits, scalingModBits, maxLevel.value_or(0), slotNumber,
+        firstModBits, scalingModBits, maxLevel.value_or(0), genSlot,
         usePublicKey, encryptionTechniqueExtended, reducedError);
 
     LDBG() << "Scheme Param:\n" << schemeParam;
