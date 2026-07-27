@@ -418,6 +418,81 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
   return result;
 }
 
+presburger::IntegerRelation getBicyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t stride,
+    int64_t numSlots) {
+  int64_t freeDim = 1 - contractionDim;
+  int64_t n = weightType.getDimSize(contractionDim);
+  int64_t p = weightType.getDimSize(freeDim);
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      weightType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Setup var indices
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int yIdx = domainOffset;
+  int xIdx = domainOffset + 1;
+  int diagVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  addBounds(result, diagVarIndex, 0, n - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  if (contractionDim == 0) {
+    addBounds(result, yIdx, 0, n - 1);
+    addBounds(result, xIdx, 0, p - 1);
+
+    // y (contraction) = (slot + diag * stride) mod n
+    SmallVector<int64_t> contractionCoeffs(result.getNumCols(), 0);
+    contractionCoeffs[slotVarIndex] = 1;
+    contractionCoeffs[diagVarIndex] = stride;
+    auto contractionMod = addModConstraint(result, contractionCoeffs, n);
+
+    SmallVector<int64_t> contractionEquality(result.getNumCols(), 0);
+    contractionEquality[yIdx] = 1;
+    contractionEquality[contractionMod] = -1;
+    result.addEquality(contractionEquality);
+
+    // x (free) = slot mod p
+    SmallVector<int64_t> freeCoeffs(result.getNumCols(), 0);
+    freeCoeffs[slotVarIndex] = 1;
+    auto freeMod = addModConstraint(result, freeCoeffs, p);
+
+    SmallVector<int64_t> freeEquality(result.getNumCols(), 0);
+    freeEquality[xIdx] = 1;
+    freeEquality[freeMod] = -1;
+    result.addEquality(freeEquality);
+  } else {
+    addBounds(result, yIdx, 0, p - 1);
+    addBounds(result, xIdx, 0, n - 1);
+
+    // x (contraction) = (slot + diag * stride) mod n
+    SmallVector<int64_t> contractionCoeffs(result.getNumCols(), 0);
+    contractionCoeffs[slotVarIndex] = 1;
+    contractionCoeffs[diagVarIndex] = stride;
+    auto contractionMod = addModConstraint(result, contractionCoeffs, n);
+
+    SmallVector<int64_t> contractionEquality(result.getNumCols(), 0);
+    contractionEquality[xIdx] = 1;
+    contractionEquality[contractionMod] = -1;
+    result.addEquality(contractionEquality);
+
+    // y (free) = slot mod freeSize
+    SmallVector<int64_t> freeCoeffs(result.getNumCols(), 0);
+    freeCoeffs[slotVarIndex] = 1;
+    auto freeMod = addModConstraint(result, freeCoeffs, p);
+
+    SmallVector<int64_t> freeEquality(result.getNumCols(), 0);
+    freeEquality[yIdx] = 1;
+    freeEquality[freeMod] = -1;
+    result.addEquality(freeEquality);
+  }
+
+  return result;
+}
+
 // Returns an IntegerRelation representing the tricyclic encoding mapping for
 // a 3-D tensor of shape (h, m, n) into ciphertext slots. The relation maps
 // domain vars [h_idx, m_idx, n_idx] to range vars [ct, slot] via
@@ -495,6 +570,42 @@ presburger::IntegerRelation getTricyclicLayoutRelation(
   nEquality[nVarIndex] = 1;
   nEquality[kModN] = -1;
   result.addEquality(nEquality);
+
+  return result;
+}
+
+presburger::IntegerRelation getPeriodicReplicationRelation(
+    int64_t numCiphertexts, int64_t numSlots, int64_t period) {
+  assert(numCiphertexts == 1 && "only support single ciphertext layout");
+  assert(period > 0 && period <= numSlots &&
+         "period must be positive and at most numSlots");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      /*numDomain=*/2, /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int sourceCtIndex = domainOffset;
+  int sourceSlotIndex = domainOffset + 1;
+  int targetCtIndex = rangeOffset;
+  int targetSlotIndex = rangeOffset + 1;
+
+  addBounds(result, sourceCtIndex, 0, numCiphertexts - 1);
+  addBounds(result, sourceSlotIndex, 0, period - 1);
+  addBounds(result, targetSlotIndex, 0, numSlots - 1);
+
+  addConstraint(result, {{sourceCtIndex, 1}, {targetCtIndex, -1}},
+                /*equality=*/true);
+
+  // source_slot = target_slot % period
+  SmallVector<int64_t> targetSlotCoeffs(result.getNumCols(), 0);
+  targetSlotCoeffs[targetSlotIndex] = 1;
+  auto targetSlotMod = addModConstraint(result, targetSlotCoeffs, period);
+  SmallVector<int64_t> sourceEquality(result.getNumCols(), 0);
+  sourceEquality[sourceSlotIndex] = 1;
+  sourceEquality[targetSlotMod] = -1;
+  result.addEquality(sourceEquality);
 
   return result;
 }

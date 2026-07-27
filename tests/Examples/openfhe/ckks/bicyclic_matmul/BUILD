@@ -4,10 +4,11 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 openfhe_end_to_end_test(
     name = "bicyclic_matmul_test",
+    size = "medium",
     generated_lib_header = "bicyclic_matmul_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=2048",
+        "--mlir-to-ckks=ciphertext-degree=2048 ckks-bootstrap-waterline=20",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:bicyclic_matmul.mlir",

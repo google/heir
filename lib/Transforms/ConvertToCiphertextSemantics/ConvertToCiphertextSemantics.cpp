@@ -149,6 +149,23 @@ Operation* remapAndExtractResult(ImplicitLocOpBuilder& builder, Value input,
   return extractRemap;
 }
 
+// Rebuilds the full periodic layout of a kernel's output from its first valid
+// period. Assumes the first period is uncorrupted by wrap-around bounds.
+Operation* replicateFirstPeriodOfResult(ImplicitLocOpBuilder& b, Value input,
+                                        LayoutAttr resultLayout,
+                                        int64_t period) {
+  auto ctSemanticType = cast<RankedTensorType>(input.getType());
+  int64_t numCiphertexts = ctSemanticType.getDimSize(0);
+  int64_t numSlots = ctSemanticType.getDimSize(1);
+  IntegerRelation replication =
+      getPeriodicReplicationRelation(numCiphertexts, numSlots, period);
+  LayoutAttr replicationMapping =
+      LayoutAttr::getFromIntegerRelation(b.getContext(), replication);
+  auto remapOp = tensor_ext::RemapOp::create(b, input, replicationMapping);
+  remapOp->setAttr(kLayoutAttrName, resultLayout);
+  return remapOp;
+}
+
 }  // namespace
 
 // An unset value of a permutation as it's being built up.
@@ -2463,6 +2480,93 @@ struct ConvertLinalgMatmul
     return dyn_cast<LayoutAttr>(layoutLookup.value());
   }
 
+  bool supportsBicyclicDiagonal(linalg::MatmulOp op) const {
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    return kernelAttr &&
+           kernelAttr.getName() == KernelName::MatmulBicyclicDiagonal;
+  }
+
+  // Bicyclic matmul against a cleartext operand: the cleartext operand arrives
+  // packed as the generalized diagonal matrix (one row per summation step) and
+  // the kernel is a BSGS rotate-and-reduce of the secret operand over n steps,
+  // with rotation period m (the secret lhs's packed row count) or p (the secret
+  // rhs's packed column count).
+  void bicyclicDiagonalKernel(
+      linalg::MatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Converting linalg.matmul op with bicyclic diagonal "
+                  "kernel: "
+               << op << "\n");
+
+    // Determine if the lhs or rhs is the secret operand.
+    bool secretLhs = false;
+    auto genericOp = op->getParentOfType<secret::GenericOp>();
+    if (genericOp) {
+      if (auto blockArg = dyn_cast<BlockArgument>(op.getInputs()[0])) {
+        if (blockArg.getArgNumber() < genericOp.getNumOperands()) {
+          auto opArg = genericOp.getOperand(blockArg.getArgNumber());
+          if (isa<secret::SecretType>(opArg.getType())) {
+            secretLhs = true;
+          }
+        }
+      }
+    }
+
+    TypedValue<RankedTensorType> ct = cast<TypedValue<RankedTensorType>>(
+        adaptor.getInputs()[secretLhs ? 0 : 1]);
+    SSAValue ctLeaf(ct);
+    TypedValue<RankedTensorType> pt = cast<TypedValue<RankedTensorType>>(
+        adaptor.getInputs()[secretLhs ? 1 : 0]);
+    SSAValue ptLeaf(pt);
+
+    auto lhsType = cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
+    auto secretType = ct.getType();
+
+    auto dagType = kernel::mlirTypeToDagType(secretType);
+    int64_t period = secretLhs ? lhsType.getDimSize(0) : rhsType.getDimSize(1);
+    int64_t steps = secretLhs ? lhsType.getDimSize(1) : rhsType.getDimSize(0);
+    std::string reduceOp = isa<FloatType>(secretType.getElementType())
+                               ? "arith.addf"
+                               : "arith.addi";
+
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementRotateAndReduce(ctLeaf, std::optional<SSAValue>(ptLeaf),
+                                 period, steps, dagType, /*zeroDiagonals=*/{},
+                                 reduceOp);
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(ct.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial accumulator value.
+    Value result = adaptor.getOutputs()[0];
+
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+
+    // Rebuild the full periodic output layout from the first period.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    Operation* replicated =
+        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
+                                     dataSemanticResultType.getNumElements());
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
+  }
+
   bool supportsBicyclic(linalg::MatmulOp op, OpAdaptor adaptor) const {
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
@@ -2509,12 +2613,24 @@ struct ConvertLinalgMatmul
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+
+    // Rebuild the full periodic output layout from the first period.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    Operation* replicated =
+        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
+                                     dataSemanticResultType.getNumElements());
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
   }
 
   LogicalResult matchAndRewrite(
       linalg::MatmulOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (supportsBicyclicDiagonal(op)) {
+      bicyclicDiagonalKernel(op, adaptor, rewriter);
+      return success();
+    }
     if (supportsBicyclic(op, adaptor)) {
       bicyclicKernel(op, adaptor, rewriter);
       return success();
@@ -2583,7 +2699,15 @@ struct ConvertLinalgBatchMatmul
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+
+    // Rebuild the full periodic output layout from the first period.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    Operation* replicated =
+        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
+                                     dataSemanticResultType.getNumElements());
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
   }
 
   LogicalResult matchAndRewrite(
