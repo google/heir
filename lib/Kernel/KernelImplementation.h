@@ -592,6 +592,24 @@ implementHaleviShoup(const T& vector, const T& matrix,
   return NodeTy::resultAt(loopNode, 0);
 }
 
+// Reach of implementRotateAndReduce, and of the diagonal (pt-ct / ct-pt)
+// matmul kernels built on it.
+inline int64_t rotateAndReduceRotationReach(int64_t period, int64_t steps) {
+  return period * (steps - 1);
+}
+
+// Reach of implementBicyclicMatmul for (m x n) times (n x p).
+inline int64_t bicyclicMatmulRotationReach(int64_t m, int64_t n, int64_t p) {
+  return n * p - 1 + m * (n - 1);
+}
+
+// Reach of implementTricyclicBatchMatmul for (h x m x n) times (h x n x p),
+// whose BSGS period is h*m and modulus is h*n*p.
+inline int64_t tricyclicBatchMatmulRotationReach(int64_t h, int64_t m,
+                                                 int64_t n, int64_t p) {
+  return h * n * p - 1 + h * m * (n - 1);
+}
+
 // Returns an arithmetic DAG that implements the bicyclic matrix multiplication
 // algorithm.
 //
