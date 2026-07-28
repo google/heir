@@ -38,6 +38,11 @@ LogicalResult BootstrapWaterlineAnalysis::visitOperation(
   LevelState prospectiveLevel = deriveResultLevel(op, operandLevelStates);
   if (levelBudget > 0 && prospectiveLevel.isInt() &&
       prospectiveLevel.getInt() > levelBudget) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "BWAnalysis: Level budget exceeded for op " << *op
+                   << ", setting level to Invalid. Was level-budget configured "
+                      "properly?\n";
+    });
     prospectiveLevel = LevelState(Invalid{});
   }
 
