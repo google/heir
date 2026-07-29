@@ -22,3 +22,9 @@ func.func @passthrough(%a: !ct) -> !ct {
   // CHECK: Ok([[v]].clone())
   return %a : !ct
 }
+
+// TODO(mmoro): memref
+func.func @add(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %b: !ct) {
+  poulpy.add %m, %dst, %a, %b, %s : (...) -> ()
+  return
+}

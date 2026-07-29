@@ -84,6 +84,7 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           // Func ops
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
+          .Case<AddOp>([&](AddOp op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -94,6 +95,14 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
   }
 
   return success();
+}
+
+void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
+  mutatedValues.clear();
+  // handle sub/mul/etc.
+  for (auto op : funcOp.getOps<AddOp>()) {
+    mutatedValues.insert(op.getDst());
+  }
 }
 
 LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
@@ -114,6 +123,7 @@ LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
+  computeMutatedValues(funcOp);
   os << "pub fn " << funcOp.getName() << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
@@ -121,7 +131,8 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
     // TODO(mmoro): add type, should we check integertype like tfherust? how to
     // handle reference?
     os << argName << ": ";
-    if (failed(emitType(arg.getType(), true))) {
+    bool isMutated = mutatedValues.contains(arg);
+    if (failed(emitType(arg.getType(), true, isMutated))) {
       return funcOp.emitOpError()
              << "Failed to emit poulpy type " << arg.getType();
     }
@@ -135,7 +146,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
     os << "()";
   } else if (numResults == 1) {
     Type result = funcOp.getResultTypes()[0];
-    if (failed(emitType(result, false))) {
+    if (failed(emitType(result, false, false))) {
       return funcOp.emitOpError() << "Failed to emit poulpy type " << result;
     }
   } else {
@@ -169,7 +180,10 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg) {
+LogicalResult PoulpyEmitter::printOperation(AddOp addOp) { return failure(); }
+
+FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
+                                                  bool isMutated) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<ModuleType>([&](ModuleType) -> FailureOr<std::string> {
         return std::string("&Module<BE>");
@@ -182,13 +196,13 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg) {
         CiphertextType ciphertextType =
             dyn_cast<CiphertextType>(memRefType.getElementType());
         if (!ciphertextType) return failure();
-        return std::string(isArg ? "&Ct" : "Ct");
+        return std::string(isArg ? (isMutated ? "&mut Ct" : "&Ct") : "Ct");
       })
       .Default([&](Type&) { return failure(); });
 }
 
-LogicalResult PoulpyEmitter::emitType(Type type, bool isArg) {
-  auto result = convertType(type, isArg);
+LogicalResult PoulpyEmitter::emitType(Type type, bool isArg, bool isMutated) {
+  auto result = convertType(type, isArg, isMutated);
   if (failed(result)) {
     return failure();
   }

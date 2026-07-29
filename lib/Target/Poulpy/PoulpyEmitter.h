@@ -5,12 +5,13 @@
 #include <string_view>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
+#include "llvm/ADT/DenseSet.h"                          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
-
 namespace mlir {
 namespace heir {
 namespace poulpy {
@@ -35,14 +36,19 @@ class PoulpyEmitter {
   /// values.
   SelectVariableNames* variableNames;
 
+  llvm::DenseSet<Value> mutatedValues;
+
+  void computeMutatedValues(func::FuncOp funcOp);
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(func::FuncOp op);
   LogicalResult printOperation(func::ReturnOp op);
+  LogicalResult printOperation(AddOp op);
 
   // Emit a Poulpy type
-  LogicalResult emitType(Type type, bool isArg);
-  FailureOr<std::string> convertType(Type type, bool isArg);
+  LogicalResult emitType(Type type, bool isArg, bool isMutated);
+  FailureOr<std::string> convertType(Type type, bool isArg, bool isMutated);
 };
 
 }  // namespace poulpy
