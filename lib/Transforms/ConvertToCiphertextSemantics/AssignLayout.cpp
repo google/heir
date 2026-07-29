@@ -526,7 +526,7 @@ static FailureOr<Value> implementAssignLayoutStep(
 }
 
 FailureOr<Value> implementAssignLayout(
-    Value input, Attribute layout, int64_t ciphertextSize,
+    Value input, Attribute layout, int64_t minSlotCount,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback,
     ArrayRef<int64_t> domainSchedule, CodegenStrategy strategy) {
@@ -544,7 +544,7 @@ FailureOr<Value> implementAssignLayout(
       Type targetType;
       auto elementType = getElementTypeOrSelf(currentInput.getType());
       if (isLast) {
-        targetType = materializeLayout(elementType, layoutAttr, ciphertextSize);
+        targetType = materializeLayout(elementType, layoutAttr, minSlotCount);
       } else {
         auto intermediateType =
             getIntermediateTargetType(elementType, layoutAttr, builder);
@@ -565,15 +565,14 @@ FailureOr<Value> implementAssignLayout(
 
   if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
     auto elementType = getElementTypeOrSelf(input.getType());
-    Type targetType =
-        materializeLayout(elementType, layoutAttr, ciphertextSize);
+    Type targetType = materializeLayout(elementType, layoutAttr, minSlotCount);
     return implementAssignLayoutStep(input, layoutAttr, targetType, builder,
                                      createdOpCallback, /*isLast=*/true,
                                      domainSchedule, strategy);
   } else if (DenseIntElementsAttr elementAttr =
                  dyn_cast<DenseIntElementsAttr>(layout)) {
     Type targetType = materializePermutationLayout(input.getType(), elementAttr,
-                                                   ciphertextSize);
+                                                   minSlotCount);
     return implementAssignLayoutPermutation(input, elementAttr, targetType,
                                             builder, createdOpCallback);
   }

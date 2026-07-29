@@ -1,4 +1,4 @@
-// RUN: heir-opt --split-input-file --secret-to-bgv="poly-mod-degree=1024" --verify-diagnostics %s | FileCheck %s
+// RUN: heir-opt --split-input-file --secret-to-bgv="min-slot-count=1024" --verify-diagnostics %s | FileCheck %s
 
 // Tests invalid secret types
 #mgmt = #mgmt.mgmt<level = 0, dimension = 2>

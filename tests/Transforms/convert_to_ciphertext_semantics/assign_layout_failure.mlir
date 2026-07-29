@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=32 --verify-diagnostics
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=32 --verify-diagnostics
 
 #layout3 = dense<[[0, 0, 0, 7], [0, 18, 0, 2], [0, 2, 0, 5], [0, 3, 0, 4], [0, 4, 0, 3], [0, 5, 0, 2], [0, 6, 0, 1], [0, 7, 0, 0]]> : tensor<8x4xi64>
 module {

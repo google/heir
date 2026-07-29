@@ -10,14 +10,13 @@ namespace heir {
 
 using Cost = int64_t;
 
-Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
-                                   int64_t ciphertextSize,
+Cost computeCostOfLayoutConversion(int64_t numCiphertexts, int64_t minSlotCount,
                                    tensor_ext::LayoutAttr fromLayout,
                                    tensor_ext::LayoutAttr toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries);
 
-Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
+Cost computeCostOfLayoutConversion(int64_t minSlotCount, Attribute fromLayout,
                                    Attribute toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries);

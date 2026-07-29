@@ -37,11 +37,10 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
           "If false, skip the arithmetization pipeline and try to directly "
           "lower to RLWE scheme (default to true)"),
       llvm::cl::init(true)};
-  PassOptions::Option<int> ciphertextDegree{
-      *this, "ciphertext-degree",
-      llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
-                     "equivalently, the number of messages that can be packed "
-                     "into a single ciphertext."),
+  PassOptions::Option<int> minSlotCount{
+      *this, "min-slot-count",
+      llvm::cl::desc("The minimum number of slots needed to pack cleartexts; "
+                     "this is a lower bound on the ring degree."),
       llvm::cl::init(1024)};
   PassOptions::Option<bool> usePublicKey{
       *this, "use-public-key",

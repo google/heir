@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-to-bgv="poly-mod-degree=1024" %s | FileCheck %s
+// RUN: heir-opt --secret-to-bgv="min-slot-count=1024" %s | FileCheck %s
 
 #original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>
 

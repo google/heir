@@ -20,7 +20,7 @@ using presburger::IntegerRelation;
 using presburger::VarKind;
 using tensor_ext::LayoutAttr;
 
-Type materializeLayout(Type dataType, LayoutAttr attr, int ciphertextSize) {
+Type materializeLayout(Type dataType, LayoutAttr attr, int minSlotCount) {
   IntegerRelation rel = attr.getIntegerRelation();
   llvm::SmallVector<int64_t> ciphertextSemanticShape;
   for (unsigned varPos = rel.getVarKindOffset(VarKind::Range);
@@ -34,16 +34,16 @@ Type materializeLayout(Type dataType, LayoutAttr attr, int ciphertextSize) {
   // Last dimension is always the slot size. The relation may enforce a tighter
   // bound depending on whether the slots at the end are full, so use the upper
   // bound.
-  ciphertextSemanticShape.push_back(ciphertextSize);
+  ciphertextSemanticShape.push_back(minSlotCount);
   return RankedTensorType::get(ciphertextSemanticShape, dataType);
 }
 
-Type materializeScalarLayout(Type type, LayoutAttr attr, int ciphertextSize) {
-  return RankedTensorType::get({1, ciphertextSize}, type);
+Type materializeScalarLayout(Type type, LayoutAttr attr, int minSlotCount) {
+  return RankedTensorType::get({1, minSlotCount}, type);
 }
 
 Type materializePermutationLayout(Type type, DenseIntElementsAttr permutation,
-                                  int ciphertextSize) {
+                                  int minSlotCount) {
   auto tensorType = dyn_cast<RankedTensorType>(type);
 
   assert(tensorType &&
@@ -53,10 +53,10 @@ Type materializePermutationLayout(Type type, DenseIntElementsAttr permutation,
 
   auto inShape = tensorType.getShape();
   if (inShape.size() == 2)
-    return RankedTensorType::get({inShape[0], ciphertextSize},
+    return RankedTensorType::get({inShape[0], minSlotCount},
                                  getElementTypeOrSelf(type));
 
-  return RankedTensorType::get({1, ciphertextSize}, getElementTypeOrSelf(type));
+  return RankedTensorType::get({1, minSlotCount}, getElementTypeOrSelf(type));
 }
 
 }  // namespace heir

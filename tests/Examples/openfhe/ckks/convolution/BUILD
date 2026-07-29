@@ -9,7 +9,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "convolution_testlib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024",
+        "--torch-linalg-to-ckks=min-slot-count=1024",
         "--scheme-to-openfhe",
     ],
     heir_translate_flags = [],

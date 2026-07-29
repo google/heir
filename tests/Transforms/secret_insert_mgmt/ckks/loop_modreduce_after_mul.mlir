@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks="slot-number=8 level-budget=4 after-mul=true" %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks="min-slot-count=8 level-budget=4 after-mul=true" %s | FileCheck %s
 
 module attributes {backend.lattigo, scheme.ckks} {
   // CHECK: func.func @loop_mul

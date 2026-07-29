@@ -315,10 +315,10 @@ TEST(CodegenTest, Conv2dChwFchwAsSequenceTest) {
       RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 4096;
+  int64_t minSlotCount = 4096;
 
   auto maybeRels = get2dConvChwFchwFilterAsSequence(
-      filterType, dataType, strides, padding, ciphertextSize, true);
+      filterType, dataType, strides, padding, minSlotCount, true);
   ASSERT_TRUE(succeeded(maybeRels));
   auto rels = maybeRels.value();
 
@@ -337,10 +337,10 @@ TEST(CodegenTest, Conv2dChwFchwAsSequenceNoInterchangeTest) {
       RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 4096;
+  int64_t minSlotCount = 4096;
 
   auto maybeRels = get2dConvChwFchwFilterAsSequence(
-      filterType, dataType, strides, padding, ciphertextSize, false);
+      filterType, dataType, strides, padding, minSlotCount, false);
   ASSERT_TRUE(succeeded(maybeRels));
   auto rels = maybeRels.value();
 

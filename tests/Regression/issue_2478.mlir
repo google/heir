@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks=slot-number=1024 %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks=min-slot-count=1024 %s | FileCheck %s
 
 // CHECK-NOT: Setting single value on multi-result op with no existing " "array attr!op->setAttr(attrName, attr);"' failed
 "builtin.module"()({

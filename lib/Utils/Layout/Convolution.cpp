@@ -448,23 +448,23 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
 
 FailureOr<presburger::IntegerRelation> getConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
-    int64_t ciphertextSize) {
+    int64_t minSlotCount) {
   if (filterType.getRank() == 1) {
     int64_t stride = 1;
     auto filterRelation =
         get1dConvFilterRelation(filterType, dataType, stride, padding);
-    return diagonalize2dMatrix(filterRelation, filterType, ciphertextSize);
+    return diagonalize2dMatrix(filterRelation, filterType, minSlotCount);
   }
   if (filterType.getRank() != 2) return failure();
   SmallVector<int64_t> strides = {1, 1};
   auto filterRelation =
       get2dConvFilterRelation(filterType, dataType, strides, padding);
-  return diagonalize2dMatrix(filterRelation, filterType, ciphertextSize);
+  return diagonalize2dMatrix(filterRelation, filterType, minSlotCount);
 }
 
 FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t stride,
-    int64_t padding, int64_t ciphertextSize, bool interchangeRows) {
+    int64_t padding, int64_t minSlotCount, bool interchangeRows) {
   auto expandedFilterRelation =
       get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
   // Permutate the rows of the matrix to minimize the number of non-zero
@@ -489,13 +489,12 @@ FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
         /*equality=*/true);
     expandedFilterRelation.compose(rowInterchangeRelation);
   }
-  return diagonalize2dMatrix(expandedFilterRelation, filterType,
-                             ciphertextSize);
+  return diagonalize2dMatrix(expandedFilterRelation, filterType, minSlotCount);
 }
 
 FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
     RankedTensorType filterType, RankedTensorType dataType,
-    ArrayRef<int64_t> strides, int64_t padding, int64_t ciphertextSize,
+    ArrayRef<int64_t> strides, int64_t padding, int64_t minSlotCount,
     bool interchangeRows) {
   auto inputChannels = dataType.getDimSize(1);
   auto outputChannels = filterType.getDimSize(0);
@@ -594,7 +593,7 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
       "(slot - row) mod {2} = 0 and "
       "(ct + slot - col) mod {3} = 0 and "
       "0 <= ct < {5} and 0 <= slot < {4} }}",
-      maxRow, maxCol, paddedRows, paddedCols, ciphertextSize, numDiagonals);
+      maxRow, maxCol, paddedRows, paddedCols, minSlotCount, numDiagonals);
   auto step5Rel = getIntegerRelationFromIslStr(step5Str);
   if (failed(step5Rel)) return failure();
   relations.push_back(step5Rel.value());
@@ -604,9 +603,9 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
 
 bool isRelationConvFilterDiagonalized(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
-    int64_t ciphertextSize, const presburger::IntegerRelation& relation) {
+    int64_t minSlotCount, const presburger::IntegerRelation& relation) {
   auto diagonalizedRelation = getConvFilterDiagonalizedRelation(
-      filterType, dataType, padding, ciphertextSize);
+      filterType, dataType, padding, minSlotCount);
   if (failed(diagonalizedRelation)) {
     return false;
   }
@@ -672,16 +671,16 @@ presburger::IntegerRelation get1dConvRowInterchangeRelation(int64_t c,
 presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
                                                     int64_t stride,
                                                     int64_t padding,
-                                                    int64_t ciphertextSize,
+                                                    int64_t minSlotCount,
                                                     bool interchangeRows) {
   // First flatten the output tensor into a 1-D tensor of (ct, slot) where ct =
-  // 0 (set the "ciphertextSize" to be the same as the number of elements). This
+  // 0 (set the "minSlotCount" to be the same as the number of elements). This
   // creates outputType -> [0, slot].
   auto flattenedOutput =
       getRowMajorLayoutRelation(outputType, outputType.getNumElements());
 
   int64_t numCiphertexts =
-      std::ceil((float)outputType.getNumElements() / ciphertextSize);
+      std::ceil((float)outputType.getNumElements() / minSlotCount);
   int64_t paddedSize = isPowerOfTwo(outputType.getNumElements())
                            ? outputType.getNumElements()
                            : nextPowerOfTwo(outputType.getNumElements());
@@ -709,7 +708,7 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
         "{{ [idx_out] -> [ct, slot] : "
         "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
         "ct = idx_out // {2} }",
-        numCiphertexts, paddedSize, ciphertextSize);
+        numCiphertexts, paddedSize, minSlotCount);
     auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
     flattenedOutput.compose(toCtSlot);
     return flattenedOutput;
@@ -719,7 +718,7 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
       "{{ [in_ct, idx_out] -> [ct, slot] : in_ct = 0 and "
       "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
       "ct = idx_out // {2} }",
-      numCiphertexts, paddedSize, ciphertextSize);
+      numCiphertexts, paddedSize, minSlotCount);
   auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
   flattenedOutput.compose(toCtSlot);
   return flattenedOutput;
@@ -728,17 +727,17 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
 presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
                                                     ArrayRef<int64_t> strides,
                                                     int64_t padding,
-                                                    int64_t ciphertextSize) {
+                                                    int64_t minSlotCount) {
   assert(llvm::all_equal(strides) && "strides must be equal");
 
   // First flatten the output tensor into a 1-D tensor of (ct, slot) where ct =
-  // 0 (set the "ciphertextSize" to be the same as the number of elements). This
+  // 0 (set the "minSlotCount" to be the same as the number of elements). This
   // creates outputType -> [0, slot].
   auto flattenedOutput =
       getRowMajorLayoutRelation(outputType, outputType.getNumElements());
 
   int64_t numCiphertexts =
-      std::ceil((float)outputType.getNumElements() / ciphertextSize);
+      std::ceil((float)outputType.getNumElements() / minSlotCount);
   int64_t paddedSize = isPowerOfTwo(outputType.getNumElements())
                            ? outputType.getNumElements()
                            : nextPowerOfTwo(outputType.getNumElements());
@@ -747,7 +746,7 @@ presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
       "{{ [in_ct, idx_out] -> [ct, slot] : in_ct = 0 and "
       "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
       "ct = idx_out // {2} }",
-      numCiphertexts, paddedSize, ciphertextSize);
+      numCiphertexts, paddedSize, minSlotCount);
   auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
   flattenedOutput.compose(toCtSlot);
   return flattenedOutput;
@@ -755,7 +754,7 @@ presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
 
 presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
     RankedTensorType outputType, ArrayRef<int64_t> strides,
-    int64_t ciphertextSize) {
+    int64_t minSlotCount) {
   assert(llvm::all_equal(strides) && "strides must be equal");
 
   int64_t c = outputType.getDimSize(1);
@@ -769,7 +768,7 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
   int64_t numElements = outputType.getNumElements();
 
   int64_t numCiphertexts =
-      std::ceil((float)outputType.getNumElements() / ciphertextSize);
+      std::ceil((float)outputType.getNumElements() / minSlotCount);
 
   int64_t paddedSize =
       isPowerOfTwo(numElements) ? numElements : nextPowerOfTwo(numElements);
@@ -777,8 +776,8 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
   // Construct a row interchange relation: [ct, slot] -> [ct', slot']
   //
   // 1. Map (ct, slot) to flat indices (with potential replication `k`):
-  //    flat_in = ct * ciphertextSize + slot = k * paddedSize + slot_in_mod
-  //    flat_out = ct' * ciphertextSize + slot' = k * paddedSize + slot_out_mod
+  //    flat_in = ct * minSlotCount + slot = k * paddedSize + slot_in_mod
+  //    flat_out = ct' * minSlotCount + slot' = k * paddedSize + slot_out_mod
   //    where `slot_in_mod` and `slot_out_mod` are flat logical indices in the
   //    tensor.
   //
@@ -818,28 +817,28 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
       "  slot_in_mod = wi + hi * {4} + ci * {10} and "
       "  slot_out_mod = wo + ho * {11} + co * {12}"
       "}",
-      paddedSize,      // 0
-      ciphertextSize,  // 1
-      numElements,     // 2
-      h,               // 3
-      w,               // 4
-      c,               // 5
-      hOut,            // 6
-      wOut,            // 7
-      cOut,            // 8
-      g,               // 9
-      h * w,           // 10
-      wOut,            // 11
-      hOut * wOut,     // 12
-      numCiphertexts   // 13
+      paddedSize,     // 0
+      minSlotCount,   // 1
+      numElements,    // 2
+      h,              // 3
+      w,              // 4
+      c,              // 5
+      hOut,           // 6
+      wOut,           // 7
+      cOut,           // 8
+      g,              // 9
+      h * w,          // 10
+      wOut,           // 11
+      hOut * wOut,    // 12
+      numCiphertexts  // 13
   );
 
   auto rel = getIntegerRelationFromIslStr(islStr).value();
   // slot is domain var 1 (index 1)
-  addBounds(rel, 1, 0, ciphertextSize - 1);
+  addBounds(rel, 1, 0, minSlotCount - 1);
   // slot' is range var 1 (index 3, since domain has 2 vars: 0, 1. Range has 2
   // vars: 2, 3)
-  addBounds(rel, 3, 0, ciphertextSize - 1);
+  addBounds(rel, 3, 0, minSlotCount - 1);
   return rel;
 }
 

@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --mlir-to-ckks='ciphertext-degree=16' --scheme-to-openfhe='entry-function=matmul' %s | heir-translate --emit-openfhe-pke | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --mlir-to-ckks='min-slot-count=16' --scheme-to-openfhe='entry-function=matmul' %s | heir-translate --emit-openfhe-pke | FileCheck %s
 
 // CHECK: std::vector<CiphertextT> matmul(
 // CHECK-SAME:    CryptoContextT [[v0:[^,]*]],

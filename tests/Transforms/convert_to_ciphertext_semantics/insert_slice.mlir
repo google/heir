@@ -1,4 +1,4 @@
-// RUN: heir-opt --convert-to-ciphertext-semantics=ciphertext-size=32 --split-input-file %s | FileCheck %s
+// RUN: heir-opt --convert-to-ciphertext-semantics=min-slot-count=32 --split-input-file %s | FileCheck %s
 
 #layout = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and ct = i1 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i1 <= 1 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 31 }">
 #layout1 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-4i0 - i1 + slot) mod 16 = 0 and 0 <= i0 <= 3 and 0 <= i1 <= 3 and 0 <= slot <= 31 }">

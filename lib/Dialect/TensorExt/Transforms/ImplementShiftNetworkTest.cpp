@@ -33,7 +33,7 @@ std::vector<std::vector<int>> manuallyApplyMapping(
 ::testing::AssertionResult simulateShiftNetwork(const Mapping& mapping,
                                                 const ShiftScheme& scheme,
                                                 int64_t numCiphertexts,
-                                                int64_t ciphertextSize) {
+                                                int64_t minSlotCount) {
   // print the rotation groups
   std::cout << "Rotation groups:\n";
   for (const auto& row : scheme.rotationGroups) {
@@ -49,9 +49,9 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   inputLeaves.reserve(numCiphertexts);
   // row-major values as input
   for (int64_t i = 0; i < numCiphertexts; i++) {
-    std::vector<int> oneInput(ciphertextSize);
-    for (int64_t j = 0; j < ciphertextSize; j++) {
-      oneInput[j] = i * ciphertextSize + j;
+    std::vector<int> oneInput(minSlotCount);
+    for (int64_t j = 0; j < minSlotCount; j++) {
+      oneInput[j] = i * minSlotCount + j;
     }
     input.push_back(oneInput);
     inputLeaves.push_back(LiteralValue(oneInput));
@@ -66,9 +66,9 @@ std::vector<std::vector<int>> manuallyApplyMapping(
     std::cout << "\n";
   }
 
-  auto expected = manuallyApplyMapping(mapping, input, ciphertextSize);
+  auto expected = manuallyApplyMapping(mapping, input, minSlotCount);
   kernel::DagType defaultType = kernel::DagType::integer(32);
-  auto dag = implementShiftNetwork(inputLeaves, mapping, scheme, ciphertextSize,
+  auto dag = implementShiftNetwork(inputLeaves, mapping, scheme, minSlotCount,
                                    defaultType);
   auto evalResults = multiEvalKernel(dag);
   std::vector<LiteralValue> actual;
@@ -95,7 +95,7 @@ std::vector<std::vector<int>> manuallyApplyMapping(
 
 ::testing::AssertionResult checkMapping(const Mapping& mapping,
                                         int64_t numCiphertexts,
-                                        int64_t ciphertextSize,
+                                        int64_t minSlotCount,
                                         unsigned naiveNumRGExpected = 0) {
   VosVosErkinShiftNetworks shiftNetworks;
 
@@ -106,8 +106,8 @@ std::vector<std::vector<int>> manuallyApplyMapping(
     return ::testing::AssertionFailure()
            << "Expected " << naiveNumRGExpected << " rotation groups but got "
            << naiveNumRG;
-  auto naiveResult = simulateShiftNetwork(mapping, naiveScheme, numCiphertexts,
-                                          ciphertextSize);
+  auto naiveResult =
+      simulateShiftNetwork(mapping, naiveScheme, numCiphertexts, minSlotCount);
   if (!naiveResult) return naiveResult;
 
   // We try a large number of shift orders here such that we can be effectively
@@ -122,7 +122,7 @@ std::vector<std::vector<int>> manuallyApplyMapping(
            << " rounds to not be worse then naive network which has "
            << naiveNumRounds;
   auto bestResult =
-      simulateShiftNetwork(mapping, bestScheme, numCiphertexts, ciphertextSize);
+      simulateShiftNetwork(mapping, bestScheme, numCiphertexts, minSlotCount);
   if (!bestResult) return bestResult;
 
   return ::testing::AssertionSuccess();

@@ -65,7 +65,7 @@ Type stripSecretType(Type type) {
 LogicalResult generateEncryptionFunc(func::FuncOp op,
                                      BlockArgument funcArgument,
                                      ImplicitLocOpBuilder& builder,
-                                     int64_t ciphertextSize,
+                                     int64_t minSlotCount,
                                      bool enableLayoutAssignment) {
   auto insertionBlock = builder.getInsertionBlock();
   auto insertionPoint = builder.getInsertionPoint();
@@ -117,9 +117,9 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
       // after this pass.
       auto assignLayoutOp = AssignLayoutOp::create(
           builder, operand, originalTypeAttr.getLayout());
-      auto res = implementAssignLayout(
-          assignLayoutOp.getValue(), assignLayoutOp.getLayout(), ciphertextSize,
-          builder, [&](Operation* createdOp) {});
+      auto res = implementAssignLayout(assignLayoutOp.getValue(),
+                                       assignLayoutOp.getLayout(), minSlotCount,
+                                       builder, [&](Operation* createdOp) {});
       if (failed(res)) return failure();
       b.replaceOp(assignLayoutOp, res.value());
       valueToEncrypt = res.value();
@@ -142,7 +142,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
 LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
                                           BlockArgument funcArgument,
                                           ImplicitLocOpBuilder& builder,
-                                          int64_t ciphertextSize) {
+                                          int64_t minSlotCount) {
   auto insertionBlock = builder.getInsertionBlock();
   auto insertionPoint = builder.getInsertionPoint();
   std::string packFuncName("");
@@ -186,7 +186,7 @@ LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
   auto assignLayoutOp =
       AssignLayoutOp::create(builder, operand, originalTypeAttr.getLayout());
   auto res = implementAssignLayout(assignLayoutOp.getValue(),
-                                   assignLayoutOp.getLayout(), ciphertextSize,
+                                   assignLayoutOp.getLayout(), minSlotCount,
                                    builder, [&](Operation* createdOp) {});
   if (failed(res)) {
     return op.emitError()
@@ -273,7 +273,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
 
 /// Adds the client interface for a single func. This should only be used on the
 /// "entry" func for the IR being compiled, but there may be multiple.
-LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
+LogicalResult convertFunc(func::FuncOp op, int64_t minSlotCount,
                           bool enableLayoutAssignment) {
   if (op.isDeclaration()) {
     LLVM_DEBUG(op->emitWarning("Skipping client interface for external func"));
@@ -292,7 +292,7 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
   // First, generate encryption functions for all secret arguments.
   for (BlockArgument val : op.getArguments()) {
     if (isa<SecretType>(val.getType())) {
-      if (failed(generateEncryptionFunc(op, val, builder, ciphertextSize,
+      if (failed(generateEncryptionFunc(op, val, builder, minSlotCount,
                                         enableLayoutAssignment))) {
         return failure();
       }
@@ -304,8 +304,8 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
       if (!isa<SecretType>(val.getType()) &&
           op.getArgAttrOfType<OriginalTypeAttr>(val.getArgNumber(),
                                                 kOriginalTypeAttrName)) {
-        if (failed(generatePlaintextPackedFunc(op, val, builder,
-                                               ciphertextSize))) {
+        if (failed(
+                generatePlaintextPackedFunc(op, val, builder, minSlotCount))) {
           return failure();
         }
       }
@@ -334,7 +334,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   void runOnOperation() override {
     Operation* root = getOperation();
     auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-      if (failed(convertFunc(op, ciphertextSize, enableLayoutAssignment))) {
+      if (failed(convertFunc(op, minSlotCount, enableLayoutAssignment))) {
         op->emitError("Failed to add client interface for func");
         return WalkResult::interrupt();
       }

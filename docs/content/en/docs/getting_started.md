@@ -158,7 +158,7 @@ similarly for `heir-translate`.
 
 ```bash
 bazel run //tools:heir-opt -- \
---mlir-to-bgv='ciphertext-degree=8'\
+--mlir-to-bgv='min-slot-count=8'\
 --scheme-to-openfhe='entry-function=dot_product'  \
 $PWD/tests/Examples/common/dot_product_8.mlir > output.mlir
 ```

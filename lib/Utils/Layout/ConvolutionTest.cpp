@@ -722,10 +722,10 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
       RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 4096;
+  int64_t minSlotCount = 4096;
 
   auto maybeRel = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, padding, ciphertextSize, false);
+      filterType, dataType, strides, padding, minSlotCount, false);
   ASSERT_TRUE(succeeded(maybeRel));
   IntegerRelation rel = maybeRel.value();
 
@@ -764,10 +764,10 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalizedInterchanged) {
       RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 4096;
+  int64_t minSlotCount = 4096;
 
   auto maybeRel = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, padding, ciphertextSize, true);
+      filterType, dataType, strides, padding, minSlotCount, true);
   ASSERT_TRUE(succeeded(maybeRel));
   IntegerRelation rel = maybeRel.value();
 
@@ -805,11 +805,11 @@ TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedRowInterchange) {
       RankedTensorType::get({1, 1, 8}, IndexType::get(&context));
   int64_t stride = 2;
   int64_t padding = 0;
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
 
   auto distinctDiagonals = [&](bool interchangeRows) {
     auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(
-        filterType, dataType, stride, padding, ciphertextSize, interchangeRows);
+        filterType, dataType, stride, padding, minSlotCount, interchangeRows);
     EXPECT_TRUE(succeeded(maybeRel));
     PointPairCollector collector(/*domainDims=*/3, /*rangeDims=*/2);
     enumeratePoints(maybeRel.value(), collector);

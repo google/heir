@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-optimization=ciphertext-size=32 --canonicalize %s | FileCheck %s
+// RUN: heir-opt --layout-optimization=min-slot-count=32 --canonicalize %s | FileCheck %s
 
 // This layout assigned each ciphertext to an individual 4x4 slice.
 // CHECK: #[[layout:.*]] = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and ct = i1 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i1 <= 1 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 31 }">

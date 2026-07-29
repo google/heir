@@ -7,7 +7,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "halevi_shoup_matvec_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=8192",
+        "--torch-linalg-to-ckks=min-slot-count=8192",
         "--scheme-to-openfhe",
     ],
     heir_translate_flags = [

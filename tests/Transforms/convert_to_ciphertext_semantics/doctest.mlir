@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=4 | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=4 | FileCheck %s
 
 // A 2x2 matvec with a plaintext matrix is lowered via the Halevi-Shoup
 // diagonal packing/kernel.

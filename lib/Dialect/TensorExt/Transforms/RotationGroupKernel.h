@@ -71,12 +71,12 @@ std::enable_if_t<
 applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
                      int64_t rotation,
                      const std::vector<std::vector<double>>& rotateMasks,
-                     int64_t ciphertextSize, kernel::DagType elementType) {
+                     int64_t minSlotCount, kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
   int64_t numCiphertexts = input.size();
   auto tensorType =
-      makeTensorType(elementType, {1, static_cast<int64_t>(ciphertextSize)});
+      makeTensorType(elementType, {1, static_cast<int64_t>(minSlotCount)});
 
   // We need to identify the (possibly two) target ciphertexts for each input
   // ciphertext that was rotated.
@@ -84,7 +84,7 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
   // If there is only one target---i.e., if the rotation was exactly the power
   // of two matching a multiple of the ciphertext size---we can update the
   // target with the rotated ciphertexts and be done.
-  if (rotation % ciphertextSize == 0) {
+  if (rotation % minSlotCount == 0) {
     SmallVector<ValueTy> masked;
     masked.reserve(numCiphertexts);
     for (const auto& [ct, mask] : llvm::zip(input, rotateMasks)) {
@@ -100,7 +100,7 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       }
     }
 
-    int64_t ciphertextShift = rotation / ciphertextSize;
+    int64_t ciphertextShift = rotation / minSlotCount;
     SmallVector<std::optional<ValueTy>> result;
     result.reserve(numCiphertexts);
     // We are left-rotating, so ciphertext `source` maps to `target = source -
@@ -130,7 +130,7 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
   results.resize(numCiphertexts);
 
   int64_t minSlot = 0;
-  int64_t maxSlot = ciphertextSize - 1;
+  int64_t maxSlot = minSlotCount - 1;
   int64_t boundarySlot = rotation;
 
   for (int64_t ctIndex = 0; ctIndex < numCiphertexts; ctIndex++) {
@@ -143,13 +143,13 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
     //
     // Fist compute target1 and target2, the ciphertext indices that the rotated
     // ciphertext will straddle.
-    int64_t virtualN = numCiphertexts * ciphertextSize;
-    int64_t minVirtual = ctIndex * ciphertextSize + minSlot;
-    int64_t maxVirtual = ctIndex * ciphertextSize + maxSlot;
+    int64_t virtualN = numCiphertexts * minSlotCount;
+    int64_t minVirtual = ctIndex * minSlotCount + minSlot;
+    int64_t maxVirtual = ctIndex * minSlotCount + maxSlot;
     int64_t minRotated = (minVirtual - rotation + virtualN) % virtualN;
     int64_t maxRotated = (maxVirtual - rotation + virtualN) % virtualN;
-    int64_t target1 = minRotated / ciphertextSize;
-    int64_t target2 = maxRotated / ciphertextSize;
+    int64_t target1 = minRotated / minSlotCount;
+    int64_t target2 = maxRotated / minSlotCount;
 
     assert((target1 + 1) % numCiphertexts == target2 &&
            "Expected targets to be adjacent mod numCiphertexts");
@@ -173,9 +173,9 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
 
     // Split each of the input masks into two masks, one for the pre-split and
     // one for the post-split.
-    std::vector<double> mask1(ciphertextSize, 0);
-    std::vector<double> mask2(ciphertextSize, 0);
-    for (int64_t i = 0; i < ciphertextSize; i++) {
+    std::vector<double> mask1(minSlotCount, 0);
+    std::vector<double> mask2(minSlotCount, 0);
+    for (int64_t i = 0; i < minSlotCount; i++) {
       if (i < boundarySlot) {
         mask1[i] = mask[i];
       } else {
@@ -244,7 +244,7 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>
 rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
                ArrayRef<SourceShift> sourceShifts, ArrayRef<ShiftRound> rounds,
-               const RotationGroup& group, int64_t ciphertextSize,
+               const RotationGroup& group, int64_t minSlotCount,
                kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
@@ -287,7 +287,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
     // std::cout << "\n";
 
     SmallVector<std::vector<double>> fixedMasks(
-        numCiphertexts, std::vector<double>(ciphertextSize, 0.0));
+        numCiphertexts, std::vector<double>(minSlotCount, 0.0));
     for (CtSlot ctSlot : fixedPositions) {
       fixedMasks[ctSlot.ct][ctSlot.slot] = 1;
     }
@@ -296,7 +296,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
     SmallVector<std::optional<ValueTy>> fixedCurrent;
     fixedCurrent.reserve(numCiphertexts);
     auto tensorType =
-        makeTensorType(elementType, {1, static_cast<int64_t>(ciphertextSize)});
+        makeTensorType(elementType, {1, static_cast<int64_t>(minSlotCount)});
     for (const auto& [ct, fixedMask] : llvm::zip(current, fixedMasks)) {
       auto [allZero, allOne] = allZeroAllOne(fixedMask);
       if (allZero) {
@@ -313,7 +313,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
     rotatedCurrent.reserve(numCiphertexts);
     if (!rotatePositions.empty()) {
       std::vector<std::vector<double>> rotateMasks(
-          numCiphertexts, std::vector<double>(ciphertextSize, 0.0));
+          numCiphertexts, std::vector<double>(minSlotCount, 0.0));
       for (CtSlot ctSlot : rotatePositions) {
         rotateMasks[ctSlot.ct][ctSlot.slot] = 1;
       }
@@ -327,7 +327,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
       // }
       rotatedCurrent =
           applyVirtualRotation(ArrayRef<ValueTy>(current), round.rotationAmount,
-                               rotateMasks, ciphertextSize, elementType);
+                               rotateMasks, minSlotCount, elementType);
     }
 
     // Combine the rotated and fixed parts to form the new current.
@@ -359,7 +359,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
   // target of some rotation, as they contain partially-shifted and fixed
   // values from middle rounds of this group.
   auto tensorType =
-      makeTensorType(elementType, {1, static_cast<int64_t>(ciphertextSize)});
+      makeTensorType(elementType, {1, static_cast<int64_t>(minSlotCount)});
   for (int64_t i = 0; i < numCiphertexts; i++) {
     if (!finalTargetCiphertexts.contains(i)) {
       current[i] = NodeTy::splat(0.0, tensorType);
@@ -374,7 +374,7 @@ std::enable_if_t<
     std::is_base_of<AbstractValue, T>::value,
     SmallVector<SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>>
 implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
-                        const ShiftScheme& scheme, int64_t ciphertextSize,
+                        const ShiftScheme& scheme, int64_t minSlotCount,
                         kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
@@ -402,7 +402,7 @@ implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
 
     SmallVector<ValueTy> perGroupResult = rotateOneGroup(
         mapping, ArrayRef<T>(ciphertexts), sourceShifts,
-        scheme.strategy.getRounds(), group, ciphertextSize, elementType);
+        scheme.strategy.getRounds(), group, minSlotCount, elementType);
     groupResults.push_back(perGroupResult);
   }
 
@@ -413,12 +413,12 @@ template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>
 implementShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
-                      const ShiftScheme& scheme, int64_t ciphertextSize,
+                      const ShiftScheme& scheme, int64_t minSlotCount,
                       kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
   SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
-      ciphertexts, mapping, scheme, ciphertextSize, elementType);
+      ciphertexts, mapping, scheme, minSlotCount, elementType);
 
   // Add all the per-group results together
   SmallVector<ValueTy> summedResults = groupResults[0];

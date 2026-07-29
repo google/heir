@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-propagation=ciphertext-size=8 --mlir-print-local-scope --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=min-slot-count=8 --mlir-print-local-scope --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 module {
   // CHECK: func @batch_matmul_secret_secret

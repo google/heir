@@ -1,4 +1,4 @@
-// RUN: heir-opt --split-input-file --secret-to-ckks="poly-mod-degree=1024" --verify-diagnostics %s | FileCheck %s
+// RUN: heir-opt --split-input-file --secret-to-ckks="min-slot-count=1024" --verify-diagnostics %s | FileCheck %s
 
 // Tests invalid secret types
 

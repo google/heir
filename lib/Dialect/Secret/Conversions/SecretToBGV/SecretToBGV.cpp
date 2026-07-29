@@ -56,10 +56,10 @@ namespace {
 // Returns an RLWE RNS ring given the specified number of bits needed and
 // polynomial modulus degree.
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
-    MLIRContext* ctx, const std::vector<int64_t>& primes, int polyModDegree) {
+    MLIRContext* ctx, const std::vector<int64_t>& primes, int minSlotCount) {
   // monomial
   std::vector<polynomial::IntMonomial> monomials;
-  monomials.emplace_back(1, polyModDegree);
+  monomials.emplace_back(1, minSlotCount);
   monomials.emplace_back(1, 0);
   auto result = polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
@@ -217,15 +217,15 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     bool usePublicKey =
         schemeParamAttr.getEncryptionType() == bgv::BGVEncryptionType::pk;
 
-    // NOTE: 2 ** logN != polyModDegree
+    // NOTE: 2 ** logN != minSlotCount
     // they have different semantic
     // auto logN = schemeParamAttr.getLogN();
     auto plaintextModulus = schemeParamAttr.getPlaintextModulus();
 
-    // pass option polyModDegree is actually the number of slots
+    // pass option minSlotCount is actually the number of slots
     // TODO(#1402): use a proper name for BGV
     auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   polyModDegree);
+                                   minSlotCount);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }

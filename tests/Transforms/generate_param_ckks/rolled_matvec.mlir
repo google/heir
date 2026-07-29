@@ -1,4 +1,4 @@
-// RUN: heir-opt "--generate-param-ckks=encryption-technique-extended=false first-mod-bits=55 input-range=1 reduced-error=false scaling-mod-bits=45 slot-number=1024 use-public-key=true" %s | FileCheck %s
+// RUN: heir-opt "--generate-param-ckks=encryption-technique-extended=false first-mod-bits=55 input-range=1 reduced-error=false scaling-mod-bits=45 min-slot-count=1024 use-public-key=true" %s | FileCheck %s
 
 // This test is primarily checking that the first-mod-bits specification does not cause the pass to crash.
 // It is a regression test until https://github.com/google/heir/issues/2754 is implemented.

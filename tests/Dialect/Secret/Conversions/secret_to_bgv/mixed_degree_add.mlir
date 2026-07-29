@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --mlir-print-local-scope --secret-distribute-generic --secret-to-bgv=poly-mod-degree=8 | FileCheck %s
+// RUN: heir-opt %s --mlir-print-local-scope --secret-distribute-generic --secret-to-bgv=min-slot-count=8 | FileCheck %s
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [1152921504606994433, 1097729], P = [1152921504607191041], plaintextModulus = 65537>, scheme.bfv} {
   func.func @mixed_add(%arg0: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}, %arg1: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) -> (!secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) {

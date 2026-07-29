@@ -149,19 +149,20 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       LDBG() << "For lattigo, fixing extended encryption technique";
 
       // Lattigo bootstrapping requires LogN >= 14, i.e., ringDim >= 16384.
-      // Since ringDim is computed from slotNumber (minRingDim = 2 *
-      // slotNumber), we bump slotNumber to 8192 if bootstrapping is present.
+      // Since ringDim is computed from minSlotCount (minRingDim = 2 *
+      // minSlotCount), we bump minSlotCount to 8192 if bootstrapping is
+      // present.
       if (containsBootstrap(getOperation())) {
-        if (slotNumber < 8192) {
-          LDBG() << "Lattigo bootstrapping detected, bumping slotNumber from "
-                 << slotNumber << " to 8192";
-          slotNumber = 8192;
+        if (minSlotCount < 8192) {
+          LDBG() << "Lattigo bootstrapping detected, bumping minSlotCount from "
+                 << minSlotCount << " to 8192";
+          minSlotCount = 8192;
         }
       }
     }
 
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
-        firstModBits, scalingModBits, maxLevel.value_or(0), slotNumber,
+        firstModBits, scalingModBits, maxLevel.value_or(0), minSlotCount,
         usePublicKey, encryptionTechniqueExtended, reducedError);
 
     LDBG() << "Scheme Param:\n" << schemeParam;
@@ -169,7 +170,7 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     auto* context = &getContext();
     OpBuilder builder(context);
     getOperation()->setAttr(kRequestedSlotCountAttrName,
-                            builder.getI64IntegerAttr(slotNumber));
+                            builder.getI64IntegerAttr(minSlotCount));
     getOperation()->setAttr(
         kActualSlotCountAttrName,
         builder.getI64IntegerAttr(schemeParam.getRingDim() / 2));

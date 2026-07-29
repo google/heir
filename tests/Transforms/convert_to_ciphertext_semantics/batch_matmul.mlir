@@ -1,4 +1,4 @@
-// RUN: heir-opt --convert-to-ciphertext-semantics=ciphertext-size=8192 %s | FileCheck %s
+// RUN: heir-opt --convert-to-ciphertext-semantics=min-slot-count=8192 %s | FileCheck %s
 #kernel = #secret.kernel<name = "BatchMatmulTricyclic", force = false>
 #layout = #tensor_ext.layout<"{ [i0, i1, i2] -> [ct, slot] : ct = 0 and (357i0 + 84i1 + 272i2 + slot) mod 714 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 16 and 0 <= i2 <= 20 and 0 <= slot <= 8191 }">
 #layout1 = #tensor_ext.layout<"{ [i0, i1, i2] -> [ct, slot] : ct = 0 and (323i0 + 152i1 + 170i2 + slot) mod 646 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 16 and 0 <= i2 <= 18 and 0 <= slot <= 8191 }">

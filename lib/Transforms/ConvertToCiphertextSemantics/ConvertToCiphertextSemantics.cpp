@@ -175,10 +175,10 @@ static constexpr int kUnset = -1;
 struct LayoutMaterializationTypeConverter
     : public UniquelyNamedAttributeAwareTypeConverter {
  public:
-  LayoutMaterializationTypeConverter(int ciphertextSize)
+  LayoutMaterializationTypeConverter(int minSlotCount)
       : UniquelyNamedAttributeAwareTypeConverter(kLayoutAttrName),
-        ciphertextSize(ciphertextSize) {
-    // For some reason, directly capturing ciphertextSize here leads to memory
+        minSlotCount(minSlotCount) {
+    // For some reason, directly capturing minSlotCount here leads to memory
     // corruption on that int. Instead, pass the value to a member variable and
     // query it at call time. I have no idea why C++ does this. Debugging it
     // felt like having a stroke.
@@ -230,10 +230,10 @@ struct LayoutMaterializationTypeConverter
     });
   }
 
-  int getCiphertextSize() const { return ciphertextSize; }
+  int getCiphertextSize() const { return minSlotCount; }
 
  private:
-  int ciphertextSize;
+  int minSlotCount;
 };
 
 bool hasMaterializedAttr(Operation* op) {
@@ -337,11 +337,11 @@ class ConvertAssignLayout
     : public ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp> {
  public:
   ConvertAssignLayout(const ContextAwareTypeConverter& typeConverter,
-                      mlir::MLIRContext* context, int64_t ciphertextSize,
+                      mlir::MLIRContext* context, int64_t minSlotCount,
                       CodegenStrategy strategy)
       : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(
             typeConverter, context),
-        ciphertextSize(ciphertextSize),
+        minSlotCount(minSlotCount),
         strategy(strategy) {}
 
   LogicalResult matchAndRewrite(
@@ -414,9 +414,9 @@ class ConvertAssignLayout
       createdOps.push_back(createdOp);
     };
 
-    auto res = implementAssignLayout(input, layout, ciphertextSize, b,
-                                     createdOpCallback, op.getDomainSchedule(),
-                                     strategy);
+    auto res =
+        implementAssignLayout(input, layout, minSlotCount, b, createdOpCallback,
+                              op.getDomainSchedule(), strategy);
     if (failed(res)) {
       // Clean up split blocks if implementation failed
       rewriter.mergeBlocks(nextBlock, scratchBlock);
@@ -462,7 +462,7 @@ class ConvertAssignLayout
   };
 
  private:
-  int64_t ciphertextSize;
+  int64_t minSlotCount;
   CodegenStrategy strategy;
 
   func::FuncOp outlineAssignLayoutFunction(
@@ -2605,7 +2605,7 @@ struct ConvertToCiphertextSemantics
     MLIRContext* context = &getContext();
     auto* module = getOperation();
 
-    int64_t ctSize = ciphertextSize;
+    int64_t ctSize = minSlotCount;
     LayoutMaterializationTypeConverter typeConverter =
         LayoutMaterializationTypeConverter(ctSize);
 
@@ -2626,7 +2626,7 @@ struct ConvertToCiphertextSemantics
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
                                             unrollKernels);
-    patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize,
+    patterns.add<ConvertAssignLayout>(typeConverter, context, minSlotCount,
                                       codegenStrategy);
 
     ConversionConfig config;

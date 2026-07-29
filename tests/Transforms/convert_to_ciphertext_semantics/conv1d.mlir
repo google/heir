@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=32 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=32 | FileCheck %s
 
 #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 4 = 0 and 0 <= i0 <= 2 and 0 <= slot <= 1023 }">

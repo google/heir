@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "conv2d_dilated",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024 scaling-mod-bits=45 first-mod-bits=60 experimental-disable-loop-unroll=true",
+        "--torch-linalg-to-ckks=min-slot-count=1024 scaling-mod-bits=45 first-mod-bits=60 experimental-disable-loop-unroll=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "conv2d_dilated.mlir",

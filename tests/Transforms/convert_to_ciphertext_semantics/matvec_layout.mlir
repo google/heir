@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 
 // Tests a non-default matvec layout can still be lowered to a matvec kernel.
 

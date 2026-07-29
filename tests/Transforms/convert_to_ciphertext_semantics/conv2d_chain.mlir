@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=4096 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=4096 | FileCheck %s
 
 // Check the diagonalized filters shape and the row stride of the second
 // convolution is 3 since the gap factor is 1.

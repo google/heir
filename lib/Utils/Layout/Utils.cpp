@@ -236,7 +236,7 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
             std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
   addBounds(result, rangeOffset + 1, 0, numSlots - 1);
 
-  // 0 = (flattened_expr) floordiv ciphertextSize - ct
+  // 0 = (flattened_expr) floordiv minSlotCount - ct
   // We first need to add a local var q to represent the floordiv and then add
   // the equality with ct to compute the ciphertext index.
   // Get row-major layout expression.
@@ -290,14 +290,14 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 }
 
 presburger::IntegerRelation getDiagonalLayoutRelation(
-    RankedTensorType matrixType, int64_t ciphertextSize) {
+    RankedTensorType matrixType, int64_t minSlotCount) {
   unsigned int rows = matrixType.getDimSize(0);
   unsigned int cols = matrixType.getDimSize(1);
 
   // The diagonals of the result must be able to fit an entire diagonal of the
   // matrix, so ensure that the diagonal size is less than
   // the result's columns.
-  assert(std::max(rows, cols) <= ciphertextSize);
+  assert(std::max(rows, cols) <= minSlotCount);
 
   // The number of rows must divide the number of columns.
   int64_t paddedCols = isPowerOfTwo(cols) ? cols : nextPowerOfTwo(cols);
@@ -317,7 +317,7 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   }
   int64_t numDiagonals = std::min(paddedRows, paddedCols);
   result.addBound(BoundType::UB, rangeOffset, numDiagonals - 1);
-  result.addBound(BoundType::UB, rangeOffset + 1, ciphertextSize - 1);
+  result.addBound(BoundType::UB, rangeOffset + 1, minSlotCount - 1);
 
   // Add diagonal layout constraints:
   // slot % padded_rows = row
@@ -344,7 +344,7 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
-    int64_t ciphertextSize) {
+    int64_t minSlotCount) {
   // Get size of the matrix.
   auto rowBound = relation.getConstantBound64(
       BoundType::UB, relation.getVarKindOffset(VarKind::Range));
@@ -356,7 +356,7 @@ FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
   RankedTensorType matrixType =
       RankedTensorType::get({rowBound.value() + 1, colBound.value() + 1},
                             originalType.getElementType());
-  auto diagonalRelation = getDiagonalLayoutRelation(matrixType, ciphertextSize);
+  auto diagonalRelation = getDiagonalLayoutRelation(matrixType, minSlotCount);
 
   // Compose these relations.
   relation.compose(diagonalRelation);
@@ -503,11 +503,11 @@ presburger::IntegerRelation getTricyclicLayoutRelation(
 }
 
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
-                                                    int64_t ciphertextSize) {
+                                                    int64_t minSlotCount) {
   auto domainSize = matrixType.getRank();
   assert(domainSize == 2 && "expected 2-D matrix");
-  assert(matrixType.getDimSize(1) <= ciphertextSize &&
-         "expected ciphertextSize >= matrixType.getDimSize(1)");
+  assert(matrixType.getDimSize(1) <= minSlotCount &&
+         "expected minSlotCount >= matrixType.getDimSize(1)");
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
@@ -519,7 +519,7 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   // Number of ciphertexts is the number of rows.
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
   addBounds(result, rangeOffset, 0, matrixType.getDimSize(0) - 1);
-  addBounds(result, rangeOffset + 1, 0, ciphertextSize - 1);
+  addBounds(result, rangeOffset + 1, 0, minSlotCount - 1);
 
   // 0 = -rows + ct
   addConstraint(result,
@@ -542,11 +542,10 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   return result;
 }
 
-bool isRelationSquatDiagonal(RankedTensorType matrixType,
-                             int64_t ciphertextSize,
+bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,
                              const presburger::IntegerRelation& relation) {
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSize);
+      getDiagonalLayoutRelation(matrixType, minSlotCount);
   return relation.isEqual(diagonalRelation);
 }
 
@@ -626,10 +625,10 @@ IntegerRelation foldVectorPermutationIntoMatrixLayout(
   return result;
 }
 
-bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
+bool isRelationPerRow(RankedTensorType matrixType, int64_t minSlotCount,
                       presburger::IntegerRelation relation) {
   IntegerRelation perRowRelation =
-      getPerRowLayoutRelation(matrixType, ciphertextSize);
+      getPerRowLayoutRelation(matrixType, minSlotCount);
   return relation.isEqual(perRowRelation);
 }
 

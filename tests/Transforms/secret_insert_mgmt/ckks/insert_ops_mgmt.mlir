@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks="after-mul=true before-mul-include-first-mul=false bootstrap-waterline=40 level-budget=40 slot-number=8" %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks="after-mul=true before-mul-include-first-mul=false bootstrap-waterline=40 level-budget=40 min-slot-count=8" %s | FileCheck %s
 
 module attributes {backend.lattigo, scheme.ckks} {
   // CHECK: func.func @main

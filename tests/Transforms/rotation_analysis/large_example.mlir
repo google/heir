@@ -1,7 +1,7 @@
 // RUN: heir-opt --rotation-analysis --split-input-file %s | FileCheck %s
 
 // Generated with
-// heir-opt "--annotate-module=backend=lattigo scheme=ckks" "--mlir-to-ckks=ciphertext-degree=1024 greedy-level-budget=2 greedy-modulus-switch-after-mul=true experimental-disable-loop-unroll=true first-mod-bits=55" --scheme-to-lattigo --dump-pass-pipeline --mlir-print-ir-before-all --mlir-print-ir-tree-dir=/tmp/mlir $PWD/tests/Examples/common/matvec_512x784.mlir
+// heir-opt "--annotate-module=backend=lattigo scheme=ckks" "--mlir-to-ckks=min-slot-count=1024 greedy-level-budget=2 greedy-modulus-switch-after-mul=true experimental-disable-loop-unroll=true first-mod-bits=55" --scheme-to-lattigo --dump-pass-pipeline --mlir-print-ir-before-all --mlir-print-ir-tree-dir=/tmp/mlir $PWD/tests/Examples/common/matvec_512x784.mlir
 //
 // Then copied as
 // cp /tmp/mlir/builtin_module_no-symbol-name/89_lattigo-configure-crypto-context.mlir tests/Transforms/rotation_analysis/large_example.mlir

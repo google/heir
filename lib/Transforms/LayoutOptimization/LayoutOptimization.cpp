@@ -336,7 +336,7 @@ Cost LayoutOptimization::costOfLayoutConversion(Attribute fromLayout,
     return 0;
   }
 
-  return computeCostOfLayoutConversion(ciphertextSize, fromLayoutAttr,
+  return computeCostOfLayoutConversion(minSlotCount, fromLayoutAttr,
                                        toLayoutAttr, vveRandomSeed,
                                        vveRandomTries);
 }

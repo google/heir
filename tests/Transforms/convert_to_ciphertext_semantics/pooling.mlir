@@ -1,5 +1,5 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=4096 | FileCheck %s
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="ciphertext-size=4096 unroll-kernels=false" | FileCheck %s --check-prefix=ROLL
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=4096 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="min-slot-count=4096 unroll-kernels=false" | FileCheck %s --check-prefix=ROLL
 
 #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 #layout = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : exists (e1, e2, e3: i0 = 0 and ct = 0 and 0 <= i1 <= 3 and 0 <= i2 <= 13 and 0 <= i3 <= 13 and 0 <= slot <= 4095 and 1024*floor((-1 - 196i1 - 14i2 - i3)/1024) <= -241 - 196i1 - 14i2 - i3 and 0 <= e1 <= 13 and 1024*floor((240 + slot)/1024) >= slot - 2e2 and slot - 4e1 - 2e2 + 2e3 <= 1024*floor((240 + slot)/1024) <= 1 + slot - 4e1 - 2e2 + 2e3 and 1024*floor((240 + slot)/1024) <= 3 + slot - 2e2 and 1024*floor((240 + slot)/1024) <= slot and 1011 + 196i1 + 14i2 + i3 + 196slot + 1024*floor((-1 - 196i1 - 14i2 - i3)/1024) - 14e1 - 392e2 <= 200704*floor((240 + slot)/1024) <= 1024 + 196i1 + 14i2 + i3 + 196slot + 1024*floor((-1 - 196i1 - 14i2 - i3)/1024) - 14e1 - 392e2 and 2048 + 392i1 + 28i2 + 2i3 + 391slot + 2048*floor((-1 - 196i1 - 14i2 - i3)/1024) - 28e1 - 784e2 + 28e3 <= 400384*floor((240 + slot)/1024) <= 2049 + 392i1 + 28i2 + 2i3 + 391slot + 2048*floor((-1 - 196i1 - 14i2 - i3)/1024) - 28e1 - 784e2 + 28e3) }">

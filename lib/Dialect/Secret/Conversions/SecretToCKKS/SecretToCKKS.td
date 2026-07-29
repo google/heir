@@ -30,9 +30,8 @@ def SecretToCKKS : Pass<"secret-to-ckks"> {
   ];
 
   let options = [
-    Option<"polyModDegree", "poly-mod-degree", "int",
-           /*default=*/"1024", "Default degree of the cyclotomic polynomial "
-           "modulus to use for ciphertext space.">,
+    Option<"minSlotCount", "min-slot-count", "int",
+           /*default=*/"1024", "Minimum number of slots to use for packing messages in ciphertexts.">,
   ];
 }
 

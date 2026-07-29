@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks="slot-number=1024 level-budget=2 after-mul=true" %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks="min-slot-count=1024 level-budget=2 after-mul=true" %s | FileCheck %s
 
 // CHECK: @matvec
 // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 1>

@@ -10,7 +10,7 @@ heir_lattigo_lib(
     go_library_name = "robertscross",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
+        "--mlir-to-bgv=min-slot-count=4096 plaintext-modulus=536903681",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",

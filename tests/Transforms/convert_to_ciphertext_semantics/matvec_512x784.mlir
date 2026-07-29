@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics="ciphertext-size=1024 unroll-kernels=false" | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics="min-slot-count=1024 unroll-kernels=false" | FileCheck %s
 //
 // Ensure that the if guards are inserted properly for a non-square matvec kernel
 //
