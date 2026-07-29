@@ -123,6 +123,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
   adjustLevelsForRegionBranchOps(top);
+  adjustScalesForRegionBranchOps(top, &idCounter);
 
   LDBG(2) << "Handling cross level ops";
   handleCrossLevelOps(top, &idCounter, options.includeFloats);
@@ -399,6 +400,17 @@ void adjustLevelsForRegionBranchOps(Operation* top) {
 
   RewritePatternSet patterns(ctx);
   patterns.add<RegionBranchOpLevelInvariancePattern>(ctx, &solver);
+  walkAndApplyPatterns(top, std::move(patterns));
+}
+
+void adjustScalesForRegionBranchOps(Operation* top, int* idCounter) {
+  LDBG(2) << "Adjusting scales for region branching ops";
+  MLIRContext* ctx = top->getContext();
+  DataFlowSolver solver;
+  makeAndRunSecretnessAndMulDepthSolver(top, solver);
+
+  RewritePatternSet patterns(ctx);
+  patterns.add<RegionBranchOpScaleInvariancePattern>(ctx, &solver, idCounter);
   walkAndApplyPatterns(top, std::move(patterns));
 }
 
