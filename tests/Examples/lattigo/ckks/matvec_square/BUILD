@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "matvec512x512",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55",
+        "--mlir-to-ckks=ciphertext-degree=1024 greedy-modulus-switch-after-mul=true experimental-disable-loop-unroll=true greedy-level-budget=40 first-mod-bits=55",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:matvec_512x512.mlir",

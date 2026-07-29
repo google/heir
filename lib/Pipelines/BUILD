@@ -147,6 +147,7 @@ cc_library(
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/GenerateParam",
+        "@heir//lib/Transforms/ILPBootstrapPlacement",
         "@heir//lib/Transforms/InlineActivations",
         "@heir//lib/Transforms/LayoutOptimization",
         "@heir//lib/Transforms/LayoutPropagation",

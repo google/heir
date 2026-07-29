@@ -47,6 +47,7 @@
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
@@ -249,9 +250,67 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   polynomialToLLVMPipelineBuilder(pm);
 }
 
+static void validateCiphertextManagementOptions(
+    const MlirToRLWEPipelineOptions& options, const RLWEScheme scheme) {
+  // Check if any greedy-specific options are non-default
+  bool hasGreedyOptions = options.greedyModulusSwitchAfterMul != false ||
+                          options.greedyModulusSwitchBeforeFirstMul != false ||
+                          options.greedyLevelBudget != 10 ||
+                          options.greedyBootstrapWaterline != 10;
+
+  // Check if any orbit-specific options are non-default
+  bool hasOrbitOptions =
+      options.orbitBootstrapWaterline != 3 ||
+      options.orbitScaleWaterline != 40 || options.orbitScaleFactorBits != 51 ||
+      options.orbitBootstrapLevelLowerBound != 0 ||
+      options.orbitCostModel != "" || options.orbitBootstrapCost != 69320650 ||
+      options.orbitRescaleCost != 40988;
+
+  // Validate style exclusivity
+  if (options.ciphertextManagementStyle == CiphertextManagementStyle::greedy &&
+      hasOrbitOptions) {
+    llvm::errs() << "Error: orbit-* options cannot be used with "
+                 << "--ciphertext-management-style=greedy\n"
+                 << "Either switch to --ciphertext-management-style=orbit-ilp "
+                 << "or use greedy-* options instead.\n";
+    exit(EXIT_FAILURE);
+  }
+
+  if (options.ciphertextManagementStyle ==
+          CiphertextManagementStyle::orbitIlp &&
+      hasGreedyOptions) {
+    llvm::errs() << "Error: greedy-* options cannot be used with "
+                 << "--ciphertext-management-style=orbit-ilp\n"
+                 << "Either switch to --ciphertext-management-style=greedy "
+                 << "or use orbit-* options instead.\n";
+    exit(EXIT_FAILURE);
+  }
+
+  // Validate scheme compatibility
+  if (scheme == RLWEScheme::bfvScheme) {
+    if (options.ciphertextManagementStyle ==
+        CiphertextManagementStyle::orbitIlp) {
+      llvm::errs() << "Error: orbit-ilp ciphertext management style is not "
+                      "supported for BFV scheme\n"
+                   << "BFV does not support bootstrap operations.\n";
+      exit(EXIT_FAILURE);
+    }
+
+    if (options.greedyBootstrapWaterline != 10) {  // non-default
+      llvm::errs() << "Error: --greedy-bootstrap-waterline is not supported "
+                      "for BFV scheme\n"
+                   << "BFV does not support bootstrap operations.\n";
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
                         const RLWEScheme scheme) {
+  // Validate ciphertext management options
+  validateCiphertextManagementOptions(options, scheme);
+
   pm.addPass(debug::createDebugValidateNames());
   if (options.enableArithmetization) {
     mlirToSecretArithmeticPipelineBuilder(pm, options);
@@ -275,31 +334,67 @@ void mlirToRLWEPipeline(OpPassManager& pm,
         secretImportExecutionResultOptions));
   }
 
-  // place mgmt.op and MgmtAttr for BGV
+  // place mgmt.op and MgmtAttr for BGV/CKKS
   // which is required for secret-to-<scheme> lowering
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
-      auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
-      secretInsertMgmtBGVOptions.afterMul = options.modulusSwitchAfterMul;
-      secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
-          options.modulusSwitchBeforeFirstMul;
-      pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
+      if (options.ciphertextManagementStyle ==
+          CiphertextManagementStyle::orbitIlp) {
+        // ILP-based management for BGV
+        auto ilpOptions = ILPBootstrapPlacementOptions{};
+        ilpOptions.bootstrapWaterline = options.orbitBootstrapWaterline;
+        ilpOptions.scaleWaterline = options.orbitScaleWaterline;
+        ilpOptions.scaleFactorBits = options.orbitScaleFactorBits;
+        ilpOptions.bootstrapLevelLowerBound =
+            options.orbitBootstrapLevelLowerBound;
+        ilpOptions.orbitCostModel = options.orbitCostModel;
+        ilpOptions.bootstrapCost = options.orbitBootstrapCost;
+        ilpOptions.rescaleCost = options.orbitRescaleCost;
+        pm.addPass(createILPBootstrapPlacement(ilpOptions));
+      } else {
+        // Greedy management for BGV
+        auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
+        secretInsertMgmtBGVOptions.afterMul =
+            options.greedyModulusSwitchAfterMul;
+        secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
+            options.greedyModulusSwitchBeforeFirstMul;
+        secretInsertMgmtBGVOptions.levelBudget = options.greedyLevelBudget;
+        pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
+      }
       break;
     }
     case RLWEScheme::bfvScheme: {
+      // BFV doesn't use bootstrap management currently
       pm.addPass(createSecretInsertMgmtBFV());
       break;
     }
     case RLWEScheme::ckksScheme: {
-      auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
-      secretInsertMgmtCKKSOptions.afterMul = options.modulusSwitchAfterMul;
-      secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
-          options.modulusSwitchBeforeFirstMul;
-      secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
-      secretInsertMgmtCKKSOptions.bootstrapWaterline =
-          options.ckksBootstrapWaterline;
-      secretInsertMgmtCKKSOptions.levelBudget = options.levelBudget;
-      pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
+      if (options.ciphertextManagementStyle ==
+          CiphertextManagementStyle::orbitIlp) {
+        // ILP-based management for CKKS
+        auto ilpOptions = ILPBootstrapPlacementOptions{};
+        ilpOptions.bootstrapWaterline = options.orbitBootstrapWaterline;
+        ilpOptions.scaleWaterline = options.orbitScaleWaterline;
+        ilpOptions.scaleFactorBits = options.orbitScaleFactorBits;
+        ilpOptions.bootstrapLevelLowerBound =
+            options.orbitBootstrapLevelLowerBound;
+        ilpOptions.orbitCostModel = options.orbitCostModel;
+        ilpOptions.bootstrapCost = options.orbitBootstrapCost;
+        ilpOptions.rescaleCost = options.orbitRescaleCost;
+        pm.addPass(createILPBootstrapPlacement(ilpOptions));
+      } else {
+        // Greedy management for CKKS
+        auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
+        secretInsertMgmtCKKSOptions.afterMul =
+            options.greedyModulusSwitchAfterMul;
+        secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
+            options.greedyModulusSwitchBeforeFirstMul;
+        secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
+        secretInsertMgmtCKKSOptions.bootstrapWaterline =
+            options.greedyBootstrapWaterline;
+        secretInsertMgmtCKKSOptions.levelBudget = options.greedyLevelBudget;
+        pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
+      }
       break;
     }
     default:
@@ -378,7 +473,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
 
       PopulateScaleCKKSOptions populateScaleCKKSOptions;
       populateScaleCKKSOptions.beforeMulIncludeFirstMul =
-          options.modulusSwitchBeforeFirstMul;
+          options.greedyModulusSwitchBeforeFirstMul;
       pm.addPass(createPopulateScaleCKKS(populateScaleCKKSOptions));
       break;
     }
@@ -583,7 +678,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
 
   suboptions.enableArithmetization = true;
   suboptions.ciphertextDegree = options.ciphertextDegree;
-  suboptions.ckksBootstrapWaterline = options.ckksBootstrapWaterline;
+  suboptions.greedyBootstrapWaterline = options.greedyBootstrapWaterline;
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
   suboptions.enableSplitPreprocessing = options.enableSplitPreprocessing;
@@ -591,13 +686,14 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
       options.experimentalDisableLoopUnroll;
   suboptions.usePublicKey = options.usePublicKey;
   suboptions.encryptionTechniqueExtended = options.encryptionTechniqueExtended;
-  suboptions.modulusSwitchAfterMul = options.modulusSwitchAfterMul;
-  suboptions.modulusSwitchBeforeFirstMul = options.modulusSwitchBeforeFirstMul;
+  suboptions.greedyModulusSwitchAfterMul = options.greedyModulusSwitchAfterMul;
+  suboptions.greedyModulusSwitchBeforeFirstMul =
+      options.greedyModulusSwitchBeforeFirstMul;
   suboptions.plaintextModulus = options.plaintextModulus;
   suboptions.noiseModel = options.noiseModel;
   suboptions.annotateNoiseBound = options.annotateNoiseBound;
   suboptions.bfvModBits = options.bfvModBits;
-  suboptions.levelBudget = options.levelBudget;
+  suboptions.greedyLevelBudget = options.greedyLevelBudget;
   suboptions.plaintextExecutionResultFileName =
       options.plaintextExecutionResultFileName;
   suboptions.codegenStrategy = options.codegenStrategy;

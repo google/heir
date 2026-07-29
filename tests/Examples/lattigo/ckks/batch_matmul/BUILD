@@ -7,7 +7,7 @@ heir_lattigo_lib(
     go_library_name = "batchmatmul",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=4096 experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=60 scaling-mod-bits=50",
+        "--mlir-to-ckks=ciphertext-degree=4096 experimental-disable-loop-unroll=true greedy-level-budget=40 first-mod-bits=60 scaling-mod-bits=50",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:batch_matmul.mlir",
