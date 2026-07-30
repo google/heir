@@ -4,6 +4,7 @@
 !Z536870273_i64 = !mod_arith.int<536870273 : i64>
 #encoding = #lwe.inverse_canonical_encoding<scaling_factor = 29>
 #key = #lwe.key<>
+#modulus_chain_L0 = #lwe.modulus_chain<elements = <1073741441 : i64, 536870273 : i64>, current = 0>
 #modulus_chain_L1 = #lwe.modulus_chain<elements = <1073741441 : i64, 536870273 : i64>, current = 1>
 #ring_f64_1_x8 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**8>>
 !rns_L0 = !rns.rns<!Z1073741441_i64>
@@ -13,7 +14,7 @@
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8, encryption_type = mix>
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x8, encryption_type = mix>
 !pt = !lwe.lwe_plaintext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>>
-!ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L1>
+!ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L0>
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1>
 
 module {
