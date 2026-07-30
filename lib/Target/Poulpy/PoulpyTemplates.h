@@ -6,31 +6,21 @@
 namespace mlir {
 namespace heir {
 namespace poulpy {
-// TODO(mmoro): copied from poulpy/poulpy-cpu-ref/examples/ckks_poly2.rs
 constexpr std::string_view kModulePrelude =
-    R"poulpy(use anyhow::Result;
+    R"poulpy(#![allow(unused_imports, unused_variables, unused_mut, non_snake_case)]
+
+use anyhow::Result;
 use std::collections::HashMap;
 use poulpy_ckks::{
-    CKKSInfos, CKKSLayout, CKKSMeta, SetCKKSInfos,
-    encoding::Encoder,
-    layouts::{CKKSCiphertext, CKKSModuleAlloc, CKKSPlaintext},
-    leveled::api::{CKKSAllOpsTmpBytes, CKKSDecrypt, CKKSEncrypt, PolynomialEvaluation},
-    polynomial::{BSGSPolynomial, Basis, EncodeBSGS, Polynomial},
-    power_basis::{PowerBasis, PowerBasisGen},
+    api::{CKKSAddOps, CKKSSubOps, CKKSMulOps, CKKSRotateOps},
+    layouts::{CKKSCiphertext, CKKSModuleAlloc},
 };
-use poulpy_core::{
-    EncryptionLayout, GLWETensorKeyEncryptSk,
-    layouts::{
-        Base2K, Degree, GLWELayout, GLWETensorKeyLayout, GLWETensorKeyPreparedFactory, LWEInfos, ModuleCoreAlloc, Rank,
-        TorusPrecision,
-        prepared::{GLWESecretPrepared, GLWESecretPreparedFactory, GLWETensorKeyPrepared},
-    },
-};
-use poulpy_cpu_ref::{FFT64ReimTable, NTT4x30Ref};
+use poulpy_core::layouts::prepared::GLWETensorKeyPrepared;
+use poulpy_core::layouts::{GLWEAutomorphismKeyPrepared, LWEInfos};
+use poulpy_cpu_ref::{FFT64Ref, NTT4x30Ref};
 use poulpy_hal::{
     api::{ScratchOwnedAlloc, ScratchOwnedBorrow},
-    layouts::{Backend, HostBytesBackend, Module, ScratchOwned},
-    source::Source,
+    layouts::{Backend, Module, ScratchOwned},
 };)poulpy";
 
 constexpr std::string_view kTypeAliases = R"poulpy(
