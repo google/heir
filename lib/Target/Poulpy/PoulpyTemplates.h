@@ -9,6 +9,7 @@ namespace poulpy {
 // TODO(mmoro): copied from poulpy/poulpy-cpu-ref/examples/ckks_poly2.rs
 constexpr std::string_view kModulePrelude =
     R"poulpy(use anyhow::Result;
+use std::collections::HashMap;
 use poulpy_ckks::{
     CKKSInfos, CKKSLayout, CKKSMeta, SetCKKSInfos,
     encoding::Encoder,
@@ -35,6 +36,7 @@ use poulpy_hal::{
 constexpr std::string_view kTypeAliases = R"poulpy(
 type Ct = CKKSCiphertext<<BE as Backend>::OwnedBuf>;
 type Tsk = GLWETensorKeyPrepared<<BE as Backend>::OwnedBuf, BE>;
+type Akm = HashMap<i64, GLWEAutomorphismKeyPrepared<<BE as Backend>::OwnedBuf, BE>>;
 )poulpy";
 }  // namespace poulpy
 }  // namespace heir

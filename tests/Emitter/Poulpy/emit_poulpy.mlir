@@ -7,6 +7,7 @@
 !scratch   = !poulpy.scratch
 !ct = memref<!poulpy.ciphertext>
 !tsk = !poulpy.tensor_key
+!akm = !poulpy.automorphism_key_map
 
 // CHECK: pub fn f(
 // CHECK: [[v:v[0-9]+]]: &Module<BE>
@@ -112,6 +113,48 @@ func.func @mul_add(%mod: !module, %scratch: !scratch, %tsk: !tsk, %a: !ct, %b: !
   poulpy.mul %mod, %prod, %sum, %b, %tsk, %scratch : (!module, !ct, !ct, !ct, !tsk, !scratch) -> ()
   // CHECK-NEXT: [[m]].ckks_mul_into(&mut [[prod]], &[[sum]], &*[[b]], &*[[tsk]], &mut [[s]].borrow())?;
   poulpy.mul %mod, %prod, %sum, %b, %tsk, %scratch : (!module, !ct, !ct, !ct, !tsk, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn rotate(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[src:v[0-9]+]]: &Ct
+// CHECK: [[akm:v[0-9]+]]: &Akm
+// CHECK-NEXT: ) -> Result<()> {
+func.func @rotate(%m: !module, %s: !scratch, %dst: !ct, %src: !ct, %akm: !akm) {
+  // CHECK: [[m]].ckks_rotate_into(&mut *[[dst]], &*[[src]], 1i64, &*[[akm]], &mut [[s]].borrow())?;
+  poulpy.rotate %m, %dst, %src, %akm, %s {k = 1 : i64} : (!module, !ct, !ct, !akm, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn rotate_assign(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[akm:v[0-9]+]]: &Akm
+// CHECK-NEXT: ) -> Result<()> {
+func.func @rotate_assign(%m: !module, %s: !scratch, %dst: !ct, %akm: !akm) {
+  // CHECK: [[m]].ckks_rotate_assign(&mut *[[dst]], 1i64, &*[[akm]], &mut [[s]].borrow())?;
+  poulpy.rotate_assign %m, %dst, %akm, %s {k = 1 : i64} : (!module, !ct, !akm, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn rotate_alloc(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct
+// CHECK: [[akm:v[0-9]+]]: &Akm
+// CHECK-NEXT: ) -> Result<()> {
+func.func @rotate_alloc(%m: !module, %s: !scratch, %src: !ct, %akm: !akm) {
+  %dst = memref.alloc() : !ct
+  // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].max_k());
+  // CHECK-NEXT: [[m]].ckks_rotate_into(&mut [[dst]], &*[[src]], 2i64, &*[[akm]], &mut [[s]].borrow())?;
+  poulpy.rotate %m, %dst, %src, %akm, %s {k = 2 : i64} : (!module, !ct, !ct, !akm, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }

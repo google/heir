@@ -55,6 +55,8 @@ class PoulpyEmitter {
   LogicalResult printOperation(SubAssignOp op);
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulAssignOp op);
+  LogicalResult printOperation(RotateOp op);
+  LogicalResult printOperation(RotateAssignOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type, bool isArg, bool isMutated);

@@ -100,6 +100,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           .Case<AddOp, AddAssignOp>([&](auto op) { return printOperation(op); })
           .Case<SubOp, SubAssignOp>([&](auto op) { return printOperation(op); })
           .Case<MulOp, MulAssignOp>([&](auto op) { return printOperation(op); })
+          .Case<RotateOp, RotateAssignOp>(
+              [&](auto op) { return printOperation(op); })
           .Case<memref::AllocOp>(
               [&](memref::AllocOp op) { return printOperation(op); })
           .Default([&](Operation& op) {
@@ -119,7 +121,8 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
 
   funcOp.walk([&](Operation* op) {
     llvm::TypeSwitch<Operation&, void>(*op)
-        .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp>(
+        .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp,
+              RotateOp, RotateAssignOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Default([&](Operation& op) {});
   });
@@ -321,6 +324,41 @@ LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(RotateOp rotateOp) {
+  auto module = rotateOp.getModule();
+  auto dst = rotateOp.getDst();
+  auto src = rotateOp.getSrc();
+  auto k = rotateOp.getK();
+  auto keys = rotateOp.getKeys();
+  auto scratch = rotateOp.getScratch();
+
+  materializeIfPending(dst, module, src);
+
+  os << variableNames->getNameForValue(module) << ".ckks_rotate_into("
+     << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
+     << k << "i64" << ", " << ref(keys, variableNames) << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(RotateAssignOp rotateAssignOp) {
+  auto module = rotateAssignOp.getModule();
+  auto dst = rotateAssignOp.getDst();
+  auto k = rotateAssignOp.getK();
+  auto keys = rotateAssignOp.getKeys();
+  auto scratch = rotateAssignOp.getScratch();
+
+  if (failed(checkNotPending(dst, rotateAssignOp))) return failure();
+
+  os << variableNames->getNameForValue(module) << ".ckks_rotate_assign("
+     << refMut(dst, variableNames) << ", " << k << "i64" << ", "
+     << ref(keys, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
 LogicalResult PoulpyEmitter::printOperation(memref::AllocOp allocOp) {
   pendingAllocs.insert(allocOp.getResult());
   return success();
@@ -345,6 +383,10 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
       .Case<TensorKeyType>([&](TensorKeyType) -> FailureOr<std::string> {
         return std::string("&Tsk");
       })
+      .Case<AutomorphismKeyMapType>(
+          [&](AutomorphismKeyMapType) -> FailureOr<std::string> {
+            return std::string("&Akm");
+          })
       .Default([&](Type&) { return failure(); });
 }
 
