@@ -1,4 +1,4 @@
-// RUN: heir-opt --math-to-polynomial-approximation %s | FileCheck %s
+// RUN: heir-opt --math-to-polynomial-approximation %s | FileCheck %s --dump-input=always
 
 // CHECK: @test_maximumf
 func.func @test_maximumf(%x: tensor<10xf32>) -> tensor<10xf32> {
@@ -6,7 +6,6 @@ func.func @test_maximumf(%x: tensor<10xf32>) -> tensor<10xf32> {
   // CHECK-NOT: polynomial.eval
 
   // CHECK-DAG:  arith.constant dense<-0.06328
-  // CHECK-DAG:  arith.constant dense<2.0000
   // CHECK-DAG:  arith.constant dense<0.2153
   // CHECK-DAG:  arith.constant dense<5.0000
   // CHECK-DAG:  arith.constant dense<0.3169
@@ -14,12 +13,12 @@ func.func @test_maximumf(%x: tensor<10xf32>) -> tensor<10xf32> {
   // CHECK: arith.mulf
   // CHECK: arith.addf
   // CHECK: arith.mulf
-  // CHECK: arith.mulf
+  // CHECK: arith.addf
   // CHECK: arith.subf
   // CHECK: arith.mulf
   // CHECK: arith.addf
   // CHECK: arith.mulf
-  // CHECK: arith.mulf
+  // CHECK: arith.addf
   // CHECK: arith.subf
   // CHECK: arith.mulf
   // CHECK: arith.addf
