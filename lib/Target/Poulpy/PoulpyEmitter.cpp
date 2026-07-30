@@ -91,19 +91,10 @@ LogicalResult PoulpyEmitter::translateBlock(Block& block) {
 LogicalResult PoulpyEmitter::translate(Operation& op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
-          // TODO(mmoro): have all of them in the same .Case?
-          // Builtin ops
-          .Case<ModuleOp>([&](ModuleOp op) { return printOperation(op); })
-          // Func ops
-          .Case<func::FuncOp, func::ReturnOp>(
+          .Case<ModuleOp, func::FuncOp, func::ReturnOp, AddOp, AddAssignOp,
+                SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
+                RotateAssignOp, memref::AllocOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<AddOp, AddAssignOp>([&](auto op) { return printOperation(op); })
-          .Case<SubOp, SubAssignOp>([&](auto op) { return printOperation(op); })
-          .Case<MulOp, MulAssignOp>([&](auto op) { return printOperation(op); })
-          .Case<RotateOp, RotateAssignOp>(
-              [&](auto op) { return printOperation(op); })
-          .Case<memref::AllocOp>(
-              [&](memref::AllocOp op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -174,8 +165,6 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
   os.indent();
   for (Value arg : funcOp.getArguments()) {
     auto argName = variableNames->getNameForValue(arg);
-    // TODO(mmoro): add type, should we check integertype like tfherust? how to
-    // handle reference?
     os << argName << ": ";
     bool isMutated = mutatedValues.contains(arg);
     if (failed(emitType(arg.getType(), true, isMutated))) {
@@ -214,7 +203,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
 }
 
 LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
-  // TODO(mmoro): implement ReturnOp printing for non-zero number of return
+  // TODO(mmoro): implement ReturnOp printing for more than one number of return
   // values
   if (op.getNumOperands() == 0) {
     os << "Ok(())\n";
