@@ -9,8 +9,11 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
@@ -34,6 +37,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
@@ -148,7 +152,8 @@ void registerToTfheRustTranslation() {
       [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
                         arith::ArithDialect, tensor::TensorDialect,
-                        memref::MemRefDialect, affine::AffineDialect>();
+                        memref::MemRefDialect, affine::AffineDialect,
+                        preprocessing::PreprocessingDialect>();
       });
 }
 
@@ -260,6 +265,8 @@ LogicalResult TfheRustEmitter::translate(Operation& op) {
           })
           .Case<memref::AllocOp, memref::GetGlobalOp, memref::LoadOp,
                 memref::StoreOp>([&](auto op) { return printOperation(op); })
+          .Case<preprocessing::LoadResourceOp>(
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -690,6 +697,41 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
+LogicalResult TfheRustEmitter::printOperation(
+    ::mlir::heir::preprocessing::LoadResourceOp op) {
+  auto result = op.getResult();
+  auto type = result.getType();
+
+  Type eltType;
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    eltType = tensorType.getElementType();
+  } else if (auto memrefType = dyn_cast<MemRefType>(type)) {
+    eltType = memrefType.getElementType();
+  } else {
+    return op.emitError("unsupported resource type");
+  }
+
+  auto rustEltType = convertType(eltType);
+  if (failed(rustEltType)) {
+    return failure();
+  }
+
+  int64_t size = 0;
+  if (auto shapedType = dyn_cast<ShapedType>(type)) {
+    size = shapedType.getNumElements();
+  }
+
+  std::string varName = variableNames->getNameForValue(result);
+
+  os << "static DATA_" << varName << ": OnceLock<Vec<" << rustEltType.value()
+     << ">> = OnceLock::new();\n";
+  os << "let " << varName << " = DATA_" << varName << ".get_or_init(|| "
+     << "load_resource::<" << rustEltType.value() << ">(\"" << op.getPath()
+     << "\", " << size << "));\n";
+
+  return success();
+}
+
 LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
   os << "let mut " << variableNames->getNameForValue(op.getMemref())
      << " : HashMap<";
@@ -780,7 +822,9 @@ LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
 
 void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
   os << variableNames->getNameForValue(op.getMemref());
-  if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp())) {
+  if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp()) ||
+      dyn_cast_or_null<::mlir::heir::preprocessing::LoadResourceOp>(
+          op.getMemRef().getDefiningOp())) {
     // Global arrays are 1-dimensional, so flatten the index
 
     os << "["

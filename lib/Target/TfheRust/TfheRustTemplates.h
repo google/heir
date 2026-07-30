@@ -15,6 +15,30 @@ use tfhe::shortint::server_key::LookupTableOwned;
 use std::collections::HashMap;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
+use std::sync::OnceLock;
+
+// Assumes a little-endian target.
+fn load_resource<T: Copy>(path: &str, size: usize) -> Vec<T> {
+    use std::fs::File;
+    use std::io::Read;
+    let mut file = File::open(path).expect("failed to open file");
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).expect("failed to read file");
+
+    let expected_bytes = size * std::mem::size_of::<T>();
+    assert_eq!(buffer.len(), expected_bytes, "Resource size mismatch");
+
+    let mut data = Vec::with_capacity(size);
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            buffer.as_ptr(),
+            data.as_mut_ptr() as *mut u8,
+            expected_bytes,
+        );
+        data.set_len(size);
+    }
+    data
+}
 
 enum GateInput {
     Tv(usize), // key in a global hashmap

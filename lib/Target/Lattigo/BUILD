@@ -19,6 +19,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
