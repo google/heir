@@ -124,6 +124,7 @@ void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
 void cleanupAfterLowerAssignLayout(OpPassManager& pm) {
   // Lower linalg.generics produced by ConvertToCiphertextSemantics
   // (assign_layout lowering) to affine loops.
+  pm.addPass(mlir::createLinalgGeneralizeNamedOpsPass());
   pm.addPass(createTensorLinalgToAffineLoops());
   pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
   pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
