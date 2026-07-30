@@ -6,6 +6,8 @@
 !module = !poulpy.module<ntt4x30_ref>
 !scratch   = !poulpy.scratch
 !ct = memref<!poulpy.ciphertext>
+!tsk = !poulpy.tensor_key
+
 // CHECK: pub fn f(
 // CHECK: [[v:v[0-9]+]]: &Module<BE>
 // CHECK: [[v:v[0-9]+]]: &mut ScratchOwned<BE>
@@ -60,6 +62,34 @@ func.func @sub(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %b: !ct) {
 func.func @sub_assign(%m: !module, %s: !scratch, %dst: !ct, %a: !ct) {
   // CHECK: [[m]].ckks_sub_assign(&mut *[[dst]], &*[[a]], &mut [[s]].borrow())?;
   poulpy.sub_assign %m, %dst, %a, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+// CHECK: pub fn mul(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK: [[tsk:v[0-9]+]]: &Tsk
+// CHECK-NEXT: ) -> Result<()> {
+func.func @mul(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %b: !ct, %tsk: !tsk) {
+  // CHECK: [[m]].ckks_mul_into(&mut *[[dst]], &*[[a]], &*[[b]], &*[[tsk]], &mut [[s]].borrow())?;
+  poulpy.mul %m, %dst, %a, %b, %tsk, %s : (!module, !ct, !ct, !ct, !tsk, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn mul_assign(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[tsk:v[0-9]+]]: &Tsk
+// CHECK-NEXT: ) -> Result<()> {
+func.func @mul_assign(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %tsk: !tsk) {
+  // CHECK: [[m]].ckks_mul_assign(&mut *[[dst]], &*[[a]], &*[[tsk]], &mut [[s]].borrow())?;
+  poulpy.mul_assign %m, %dst, %a, %tsk, %s : (!module, !ct, !ct, !tsk, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }

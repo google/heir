@@ -34,6 +34,7 @@ use poulpy_hal::{
 
 constexpr std::string_view kTypeAliases = R"poulpy(
 type Ct = CKKSCiphertext<<BE as Backend>::OwnedBuf>;
+type Tsk = GLWETensorKeyPrepared<<BE as Backend>::OwnedBuf, BE>;
 )poulpy";
 }  // namespace poulpy
 }  // namespace heir

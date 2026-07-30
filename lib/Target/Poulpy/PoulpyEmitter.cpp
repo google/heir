@@ -90,6 +90,7 @@ LogicalResult PoulpyEmitter::translateBlock(Block& block) {
 LogicalResult PoulpyEmitter::translate(Operation& op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
+          // TODO(mmoro): have all of them in the same .Case?
           // Builtin ops
           .Case<ModuleOp>([&](ModuleOp op) { return printOperation(op); })
           // Func ops
@@ -97,6 +98,7 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           .Case<AddOp, AddAssignOp>([&](auto op) { return printOperation(op); })
           .Case<SubOp, SubAssignOp>([&](auto op) { return printOperation(op); })
+          .Case<MulOp, MulAssignOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -114,7 +116,7 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
 
   funcOp.walk([&](Operation* op) {
     llvm::TypeSwitch<Operation&, void>(*op)
-        .Case<AddOp, AddAssignOp, SubOp, SubAssignOp>(
+        .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Default([&](Operation& op) {});
   });
@@ -250,6 +252,37 @@ LogicalResult PoulpyEmitter::printOperation(AddAssignOp addOp) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(MulOp mulOp) {
+  auto module = mulOp.getModule();
+  auto dst = mulOp.getDst();
+  auto a = mulOp.getA();
+  auto b = mulOp.getB();
+  auto tsk = mulOp.getTsk();
+  auto scratch = mulOp.getScratch();
+
+  os << variableNames->getNameForValue(module) << ".ckks_mul_into("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << ref(b, variableNames) << ", " << ref(tsk, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
+  auto module = mulAssignOp.getModule();
+  auto dst = mulAssignOp.getDst();
+  auto a = mulAssignOp.getA();
+  auto tsk = mulAssignOp.getTsk();
+  auto scratch = mulAssignOp.getScratch();
+
+  os << variableNames->getNameForValue(module) << ".ckks_mul_assign("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << ref(tsk, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
 FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
                                                   bool isMutated) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
@@ -265,6 +298,9 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
             dyn_cast<CiphertextType>(memRefType.getElementType());
         if (!ciphertextType) return failure();
         return std::string(isArg ? (isMutated ? "&mut Ct" : "&Ct") : "Ct");
+      })
+      .Case<TensorKeyType>([&](TensorKeyType) -> FailureOr<std::string> {
+        return std::string("&Tsk");
       })
       .Default([&](Type&) { return failure(); });
 }
