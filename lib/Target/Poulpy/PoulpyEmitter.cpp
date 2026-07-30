@@ -95,7 +95,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           // Func ops
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<AddOp>([&](AddOp op) { return printOperation(op); })
+          .Case<AddOp, AddAssignOp>([&](auto op) { return printOperation(op); })
+          .Case<SubOp, SubAssignOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -110,10 +111,13 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
 
 void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
   mutatedValues.clear();
-  // handle sub/mul/etc.
-  for (auto op : funcOp.getOps<AddOp>()) {
-    mutatedValues.insert(op.getDst());
-  }
+
+  funcOp.walk([&](Operation* op) {
+    llvm::TypeSwitch<Operation&, void>(*op)
+        .Case<AddOp, AddAssignOp, SubOp, SubAssignOp>(
+            [&](auto op) { mutatedValues.insert(op.getDst()); })
+        .Default([&](Operation& op) {});
+  });
 }
 
 LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
@@ -191,6 +195,34 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(SubOp subOp) {
+  auto module = subOp.getModule();
+  auto dst = subOp.getDst();
+  auto a = subOp.getA();
+  auto b = subOp.getB();
+  auto scratch = subOp.getScratch();
+
+  os << variableNames->getNameForValue(module) << ".ckks_sub_into("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << ref(b, variableNames) << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(SubAssignOp subOp) {
+  auto module = subOp.getModule();
+  auto dst = subOp.getDst();
+  auto a = subOp.getA();
+  auto scratch = subOp.getScratch();
+
+  os << variableNames->getNameForValue(module) << ".ckks_sub_assign("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
 LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
   auto module = addOp.getModule();
   auto dst = addOp.getDst();
@@ -202,6 +234,18 @@ LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
      << ref(b, variableNames) << ", " << "&mut "
      << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+LogicalResult PoulpyEmitter::printOperation(AddAssignOp addOp) {
+  auto module = addOp.getModule();
+  auto dst = addOp.getDst();
+  auto a = addOp.getA();
+  auto scratch = addOp.getScratch();
+
+  os << variableNames->getNameForValue(module) << ".ckks_add_assign("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
   return success();
 }

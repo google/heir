@@ -36,3 +36,30 @@ func.func @add(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %b: !ct) {
   // CHECK-NEXT: Ok(())
   return
 }
+
+// CHECK: pub fn sub(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @sub(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %b: !ct) {
+  // CHECK: [[m]].ckks_sub_into(&mut *[[dst]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.sub %m, %dst, %a, %b, %s : (!module, !ct, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn sub_assign(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @sub_assign(%m: !module, %s: !scratch, %dst: !ct, %a: !ct) {
+  // CHECK: [[m]].ckks_sub_assign(&mut *[[dst]], &*[[a]], &mut [[s]].borrow())?;
+  poulpy.sub_assign %m, %dst, %a, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
