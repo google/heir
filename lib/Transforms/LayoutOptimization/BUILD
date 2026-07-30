@@ -85,12 +85,16 @@ cc_library(
     srcs = ["Patterns.cpp"],
     hdrs = ["Patterns.h"],
     deps = [
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
         "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Support",
     ],
 )

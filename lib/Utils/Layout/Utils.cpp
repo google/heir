@@ -554,6 +554,75 @@ bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
   return relation.isEqual(rowMajorRelation);
 }
 
+bool isOneToOneSingleCiphertextPacking(
+    const presburger::IntegerRelation& relation) {
+  if (relation.getNumDomainVars() != 1 || relation.getNumRangeVars() != 2)
+    return false;
+
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* map = convertRelationToBasicMap(relation, ctx);
+  if (!map) {
+    isl_ctx_free(ctx);
+    return false;
+  }
+
+  isl_val* ct =
+      isl_basic_map_plain_get_val_if_fixed(map, isl_dim_out, /*pos=*/0);
+  bool singleCiphertext = ct && isl_val_is_zero(ct) == isl_bool_true;
+  isl_val_free(ct);
+
+  isl_basic_map* slots = isl_basic_map_project_out(
+      isl_basic_map_copy(map), isl_dim_out, /*first=*/0, /*n=*/1);
+  isl_map* slotMap = isl_map_from_basic_map(slots);
+  isl_bool oneToOne = isl_map_is_bijective(slotMap);
+  isl_map_free(slotMap);
+  isl_basic_map_free(map);
+  isl_ctx_free(ctx);
+  return singleCiphertext && oneToOne == isl_bool_true;
+}
+
+void prependPassthroughDim(IntegerRelation& relation, std::optional<int64_t> lb,
+                           std::optional<int64_t> ub) {
+  relation.insertVar(VarKind::Domain, 0, 1);
+  relation.insertVar(VarKind::Range, 0, 1);
+  int64_t domainDim = relation.getVarKindOffset(VarKind::Domain);
+  int64_t rangeDim = relation.getVarKindOffset(VarKind::Range);
+  // The new domain var equals the new range var, so it is carried through.
+  addConstraint(relation, {{domainDim, 1}, {rangeDim, -1}}, /*equality=*/true);
+  if (lb.has_value()) {
+    relation.addBound(BoundType::LB, domainDim, lb.value());
+    relation.addBound(BoundType::LB, rangeDim, lb.value());
+  }
+  if (ub.has_value()) {
+    relation.addBound(BoundType::UB, domainDim, ub.value());
+    relation.addBound(BoundType::UB, rangeDim, ub.value());
+  }
+}
+
+IntegerRelation foldVectorPermutationIntoMatrixLayout(
+    const IntegerRelation& vectorPermutation,
+    const IntegerRelation& matrixLayout) {
+  // vectorPermutation maps a vector index [col] -> [ct, slot] as a
+  // single-ciphertext permutation (ct is fixed to zero). Drop the constant ct
+  // output, leaving the pure index-to-slot permutation [col] -> [slot].
+  IntegerRelation result(vectorPermutation);
+  result.projectOut(result.getVarKindOffset(VarKind::Range), 1);
+
+  // Lift the permutation to a matrix domain by prepending a passthrough row
+  // dimension to both sides (row_in == row_out), giving
+  // [row, col] -> [row, slot].
+  prependPassthroughDim(result);
+
+  // Compose with the matrix layout (result;matrixLayout): the permutation's
+  // [row, slot] output feeds the matrix layout's [row, col] input, so the
+  // vector permutation is absorbed into the matrix's column indexing, yielding
+  // the folded matrix layout [row, col] -> [ct, slot].
+  result.compose(matrixLayout);
+  result.removeRedundantConstraints();
+  result.simplify();
+  return result;
+}
+
 bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
                       presburger::IntegerRelation relation) {
   IntegerRelation perRowRelation =
