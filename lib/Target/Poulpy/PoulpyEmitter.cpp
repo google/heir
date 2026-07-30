@@ -19,7 +19,9 @@ namespace {
 FailureOr<std::string> detectBackend(ModuleOp* op) {
   std::optional<PoulpyBackend> found;
   for (auto funcOp : op->getOps<func::FuncOp>()) {
-    // TODO(mmoro): also check result types for backend information
+    // TODO(mmoro): also check ModuleCreateOp results for backend information
+    // (a "setup" function may create its own module rather than receive one
+    // as an argument)
     for (Type argType : funcOp.getArgumentTypes()) {
       auto moduleType = dyn_cast<ModuleType>(argType);
       if (!moduleType) continue;
@@ -203,8 +205,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
 }
 
 LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
-  // TODO(mmoro): implement ReturnOp printing for more than one number of return
-  // values
+  // TODO(mmoro): implement ReturnOp printing for more than one return value
   if (op.getNumOperands() == 0) {
     os << "Ok(())\n";
   } else if (op.getNumOperands() == 1) {
