@@ -6,12 +6,13 @@
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
-#include "llvm/include/llvm/ADT/DenseSet.h"             // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 namespace mlir {
 namespace heir {
 namespace poulpy {
@@ -37,13 +38,17 @@ class PoulpyEmitter {
   SelectVariableNames* variableNames;
 
   llvm::DenseSet<Value> mutatedValues;
+  llvm::DenseSet<Value> pendingAllocs;
 
   void computeMutatedValues(func::FuncOp funcOp);
+  void materializeIfPending(Value dst, Value module, Value layoutSource);
+  LogicalResult checkNotPending(Value dst, Operation* op);
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(func::FuncOp op);
   LogicalResult printOperation(func::ReturnOp op);
+  LogicalResult printOperation(memref::AllocOp op);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(AddAssignOp op);
   LogicalResult printOperation(SubOp op);

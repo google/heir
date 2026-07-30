@@ -67,7 +67,8 @@ void registerToPoulpyTranslation() {
         return translateToPoulpy(op, output);
       },
       [](DialectRegistry& registry) {
-        registry.insert<func::FuncDialect, poulpy::PoulpyDialect>();
+        registry.insert<func::FuncDialect, memref::MemRefDialect,
+                        poulpy::PoulpyDialect>();
       });
 }
 
@@ -99,6 +100,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           .Case<AddOp, AddAssignOp>([&](auto op) { return printOperation(op); })
           .Case<SubOp, SubAssignOp>([&](auto op) { return printOperation(op); })
           .Case<MulOp, MulAssignOp>([&](auto op) { return printOperation(op); })
+          .Case<memref::AllocOp>(
+              [&](memref::AllocOp op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -120,6 +123,29 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Default([&](Operation& op) {});
   });
+}
+
+void PoulpyEmitter::materializeIfPending(Value dst, Value module,
+                                         Value layoutSource) {
+  if (pendingAllocs.erase(dst)) {
+    auto layoutName = variableNames->getNameForValue(layoutSource);
+    auto dstName = variableNames->getNameForValue(dst);
+    auto moduleName = variableNames->getNameForValue(module);
+    os << "let mut " << dstName << " = " << moduleName
+       << ".ckks_ciphertext_alloc(" << layoutName << ".base2k(), " << layoutName
+       << ".max_k());\n";
+  }
+}
+
+LogicalResult PoulpyEmitter::checkNotPending(Value dst, Operation* op) {
+  if (pendingAllocs.contains(dst)) {
+    InFlightDiagnostic diag =
+        op->emitError("dst has not been initialized before this use");
+    diag.attachNote(dst.getLoc())
+        << "allocated here but never written to first";
+    return diag;
+  }
+  return success();
 }
 
 LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
@@ -197,12 +223,45 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
+  auto module = addOp.getModule();
+  auto dst = addOp.getDst();
+  auto a = addOp.getA();
+  auto b = addOp.getB();
+  auto scratch = addOp.getScratch();
+
+  materializeIfPending(dst, module, a);
+
+  os << variableNames->getNameForValue(module) << ".ckks_add_into("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << ref(b, variableNames) << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+LogicalResult PoulpyEmitter::printOperation(AddAssignOp addAssignOp) {
+  auto module = addAssignOp.getModule();
+  auto dst = addAssignOp.getDst();
+  auto a = addAssignOp.getA();
+  auto scratch = addAssignOp.getScratch();
+
+  if (failed(checkNotPending(dst, addAssignOp))) return failure();
+
+  os << variableNames->getNameForValue(module) << ".ckks_add_assign("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
 LogicalResult PoulpyEmitter::printOperation(SubOp subOp) {
   auto module = subOp.getModule();
   auto dst = subOp.getDst();
   auto a = subOp.getA();
   auto b = subOp.getB();
   auto scratch = subOp.getScratch();
+
+  materializeIfPending(dst, module, a);
 
   os << variableNames->getNameForValue(module) << ".ckks_sub_into("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -212,40 +271,15 @@ LogicalResult PoulpyEmitter::printOperation(SubOp subOp) {
   return success();
 }
 
-LogicalResult PoulpyEmitter::printOperation(SubAssignOp subOp) {
-  auto module = subOp.getModule();
-  auto dst = subOp.getDst();
-  auto a = subOp.getA();
-  auto scratch = subOp.getScratch();
+LogicalResult PoulpyEmitter::printOperation(SubAssignOp subAssignOp) {
+  auto module = subAssignOp.getModule();
+  auto dst = subAssignOp.getDst();
+  auto a = subAssignOp.getA();
+  auto scratch = subAssignOp.getScratch();
+
+  if (failed(checkNotPending(dst, subAssignOp))) return failure();
 
   os << variableNames->getNameForValue(module) << ".ckks_sub_assign("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
-}
-
-LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
-  auto module = addOp.getModule();
-  auto dst = addOp.getDst();
-  auto a = addOp.getA();
-  auto b = addOp.getB();
-  auto scratch = addOp.getScratch();
-
-  os << variableNames->getNameForValue(module) << ".ckks_add_into("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(b, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
-}
-LogicalResult PoulpyEmitter::printOperation(AddAssignOp addOp) {
-  auto module = addOp.getModule();
-  auto dst = addOp.getDst();
-  auto a = addOp.getA();
-  auto scratch = addOp.getScratch();
-
-  os << variableNames->getNameForValue(module) << ".ckks_add_assign("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
      << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
@@ -259,6 +293,8 @@ LogicalResult PoulpyEmitter::printOperation(MulOp mulOp) {
   auto b = mulOp.getB();
   auto tsk = mulOp.getTsk();
   auto scratch = mulOp.getScratch();
+
+  materializeIfPending(dst, module, a);
 
   os << variableNames->getNameForValue(module) << ".ckks_mul_into("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -275,11 +311,18 @@ LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
   auto tsk = mulAssignOp.getTsk();
   auto scratch = mulAssignOp.getScratch();
 
+  if (failed(checkNotPending(dst, mulAssignOp))) return failure();
+
   os << variableNames->getNameForValue(module) << ".ckks_mul_assign("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
      << ref(tsk, variableNames) << ", "
      << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(memref::AllocOp allocOp) {
+  pendingAllocs.insert(allocOp.getResult());
   return success();
 }
 
