@@ -318,8 +318,8 @@ LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
 
   os << variableNames->getNameForValue(module) << ".ckks_mul_assign("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(tsk, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+     << ref(tsk, variableNames) << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
   return success();
 }
@@ -353,8 +353,8 @@ LogicalResult PoulpyEmitter::printOperation(RotateAssignOp rotateAssignOp) {
 
   os << variableNames->getNameForValue(module) << ".ckks_rotate_assign("
      << refMut(dst, variableNames) << ", " << k << "i64" << ", "
-     << ref(keys, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+     << ref(keys, variableNames) << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
   return success();
 }

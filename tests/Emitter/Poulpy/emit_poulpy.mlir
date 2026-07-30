@@ -158,3 +158,31 @@ func.func @rotate_alloc(%m: !module, %s: !scratch, %src: !ct, %akm: !akm) {
   // CHECK-NEXT: Ok(())
   return
 }
+
+// CHECK: pub fn rot_mul_add(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[tsk:v[0-9]+]]: &Tsk
+// CHECK: [[akm:v[0-9]+]]: &Akm
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<Ct> {
+func.func @rot_mul_add(%mod: !module, %scratch: !scratch, %tsk: !tsk, %akm: !akm,
+                       %a: !ct, %b: !ct) -> !ct {
+  %sum = memref.alloc() : !ct
+  // CHECK: let mut [[sum:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[a]].base2k(), [[a]].max_k());
+  // CHECK-NEXT: [[m]].ckks_add_into(&mut [[sum]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.add %mod, %sum, %a, %b, %scratch
+      : (!module, !ct, !ct, !ct, !scratch) -> ()
+  %prod = memref.alloc() : !ct
+  // CHECK-NEXT: let mut [[prod:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[sum]].base2k(), [[sum]].max_k());
+  // CHECK-NEXT: [[m]].ckks_mul_into(&mut [[prod]], &[[sum]], &*[[b]], &*[[tsk]], &mut [[s]].borrow())?;
+  poulpy.mul %mod, %prod, %sum, %b, %tsk, %scratch
+      : (!module, !ct, !ct, !ct, !tsk, !scratch) -> ()
+  // CHECK-NEXT: [[m]].ckks_rotate_assign(&mut [[prod]], 1i64, &*[[akm]], &mut [[s]].borrow())?;
+  poulpy.rotate_assign %mod, %prod, %akm, %scratch {k = 1 : i64}
+      : (!module, !ct, !akm, !scratch) -> ()
+  // CHECK-NEXT: Ok([[prod]])
+  // CHECK-NEXT: }
+  return %prod : !ct
+}
