@@ -36,6 +36,23 @@ module {
     return %mul : !ct_L1_D3_
   }
 
+  // CHECK: @test_static_rotate
+  func.func @test_static_rotate(%ct: !ct_L1_) -> !ct_L1_ {
+    // CHECK: jaxiteword.rot
+    // CHECK-SAME: index = 3 : i64
+    %rotated = ckks.rotate %ct {static_shift = 3 : index} : !ct_L1_
+    return %rotated : !ct_L1_
+  }
+
+  // CHECK: @test_constant_dynamic_rotate
+  func.func @test_constant_dynamic_rotate(%ct: !ct_L1_) -> !ct_L1_ {
+    %shift = arith.constant -2 : index
+    // CHECK: jaxiteword.rot
+    // CHECK-SAME: index = -2 : i64
+    %rotated = ckks.rotate %ct, %shift : index : !ct_L1_
+    return %rotated : !ct_L1_
+  }
+
   // CHECK: @test_encode_encrypt
   // CHECK-SAME: (%{{[^:]*}}: !jaxiteword.crypto_context<>, %{{[^:]*}}: !jaxiteword.eval_key<>
   func.func @test_encode_encrypt(%input: tensor<1024xi16>, %pk: !pkey_L1_) -> !ct_L1_ {

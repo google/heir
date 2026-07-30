@@ -3,8 +3,6 @@
 #include <memory>
 #include <utility>
 
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
@@ -15,12 +13,12 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
@@ -56,14 +54,13 @@ namespace {
 
 bool containsCryptoArgument(func::FuncOp funcOp) {
   return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-    return DialectEqual<lwe::LWEDialect, ckks::CKKSDialect, bgv::BGVDialect>()(
+    return DialectEqual<lwe::LWEDialect, ckks::CKKSDialect>()(
         &getElementTypeOrSelf(argType).getDialect());
   });
 }
 
 bool funcNeedsCryptoContextAndKeys(func::FuncOp funcOp) {
-  return containsDialects<lwe::LWEDialect, ckks::CKKSDialect, bgv::BGVDialect>(
-             funcOp) ||
+  return containsDialects<lwe::LWEDialect, ckks::CKKSDialect>(funcOp) ||
          containsCryptoArgument(funcOp);
 }
 
@@ -139,11 +136,8 @@ static FailureOr<IntegerAttr> getStaticRotationIndex(ckks::RotateOp op,
   if (!dynamicShift) {
     return failure();
   }
-  auto constOp = dynamicShift.getDefiningOp<arith::ConstantOp>();
-  if (!constOp) {
-    return failure();
-  }
-  if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
+  IntegerAttr intAttr;
+  if (matchPattern(dynamicShift, m_Constant(&intAttr))) {
     return IntegerAttr::get(i64Type, intAttr.getValue().getSExtValue());
   }
   return failure();
@@ -342,8 +336,7 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
 
     target.addLegalDialect<jaxiteword::JaxiteWordDialect,
                            tensor::TensorDialect>();
-    target.addIllegalDialect<lwe::LWEDialect, ckks::CKKSDialect,
-                             bgv::BGVDialect>();
+    target.addIllegalDialect<lwe::LWEDialect, ckks::CKKSDialect>();
     target.addLegalOp<func::ReturnOp>();
 
     JaxiteWordTypeConverter typeConverter(context);
@@ -395,8 +388,6 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
         typeConverter, context);
     patterns.add<ConvertRotateOp>(typeConverter, context);
     patterns.add<ConvertRelinOp>(typeConverter, context);
-    patterns.add<ConvertModSwitchOp<bgv::ModulusSwitchOp>>(typeConverter,
-                                                           context);
     patterns.add<ConvertModSwitchOp<ckks::RescaleOp>>(typeConverter, context);
     patterns.add<ConvertModSwitchOp<ckks::LevelReduceOp>>(typeConverter,
                                                           context);

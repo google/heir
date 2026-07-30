@@ -188,7 +188,8 @@ def AddOp : JaxiteWord_BinaryOp<"add", [Commutative]> {
   let summary = "Homomorphic addition of two ciphertexts";
 }
 
-def AddPlainOp : JaxiteWord_Op<"add_plain", [Pure]> {
+def AddPlainOp
+    : JaxiteWord_Op<"add_plain", [Pure, SameOperandsAndResultRings]> {
   let summary = "Add a plaintext to a ciphertext";
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,
