@@ -47,6 +47,17 @@ std::string valueOrClonedValue(Value value,
   }
   return expression;
 }
+
+std::string ref(Value value, SelectVariableNames* variableNames) {
+  auto expression = variableNames->getNameForValue(value);
+  return isa<BlockArgument>(value) ? "&*" + expression : "&" + expression;
+}
+
+std::string refMut(Value value, SelectVariableNames* variableNames) {
+  auto expression = variableNames->getNameForValue(value);
+  return isa<BlockArgument>(value) ? "&mut *" + expression
+                                   : "&mut " + expression;
+}
 }  // namespace
 
 void registerToPoulpyTranslation() {
@@ -180,7 +191,20 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-LogicalResult PoulpyEmitter::printOperation(AddOp addOp) { return failure(); }
+LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
+  auto module = addOp.getModule();
+  auto dst = addOp.getDst();
+  auto a = addOp.getA();
+  auto b = addOp.getB();
+  auto scratch = addOp.getScratch();
+
+  os << variableNames->getNameForValue(module) << ".ckks_add_into("
+     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
+     << ref(b, variableNames) << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
 
 FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
                                                   bool isMutated) {

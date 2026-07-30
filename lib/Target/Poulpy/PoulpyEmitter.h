@@ -6,7 +6,7 @@
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
-#include "llvm/ADT/DenseSet.h"                          // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project

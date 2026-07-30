@@ -23,8 +23,16 @@ func.func @passthrough(%a: !ct) -> !ct {
   return %a : !ct
 }
 
-// TODO(mmoro): memref
+// CHECK: pub fn add(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
 func.func @add(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %b: !ct) {
-  poulpy.add %m, %dst, %a, %b, %s : (...) -> ()
+  // CHECK: [[m]].ckks_add_into(&mut *[[dst]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.add %m, %dst, %a, %b, %s : (!module, !ct, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
   return
 }
