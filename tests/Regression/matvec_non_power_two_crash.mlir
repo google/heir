@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --annotate-module="backend=lattigo scheme=ckks" --mlir-to-ckks="ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55" --scheme-to-lattigo
+// RUN: heir-opt %s --annotate-module="backend=lattigo scheme=ckks" --mlir-to-ckks="ciphertext-degree=1024 greedy-modulus-switch-after-mul=true experimental-disable-loop-unroll=true greedy-level-budget=40 first-mod-bits=55" --scheme-to-lattigo
 
 
 module {
