@@ -95,7 +95,7 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, AddOp, AddAssignOp,
                 SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
-                RotateAssignOp, memref::AllocOp>(
+                RotateAssignOp, RescaleOp, RescaleAssignOp, memref::AllocOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
@@ -115,7 +115,7 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
   funcOp.walk([&](Operation* op) {
     llvm::TypeSwitch<Operation&, void>(*op)
         .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp,
-              RotateOp, RotateAssignOp>(
+              RotateOp, RotateAssignOp, RescaleOp, RescaleAssignOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Default([&](Operation& op) {});
   });
@@ -345,6 +345,40 @@ LogicalResult PoulpyEmitter::printOperation(RotateAssignOp rotateAssignOp) {
      << refMut(dst, variableNames) << ", " << k << "i64" << ", "
      << ref(keys, variableNames) << ", " << "&mut "
      << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(RescaleOp rescaleOp) {
+  auto module = rescaleOp.getModule();
+  auto dst = rescaleOp.getDst();
+  auto src = rescaleOp.getSrc();
+  auto bits = rescaleOp.getBits();
+  auto scratch = rescaleOp.getScratch();
+
+  materializeIfPending(dst, module, src);
+
+  os << variableNames->getNameForValue(module) << ".ckks_div_pow2_into("
+     << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
+     << bits << "usize"
+     << ", " << "&mut " << variableNames->getNameForValue(scratch)
+     << ".borrow())?;\n";
+
+  return success();
+}
+
+// NOTE: ckks_div_pow2_assign takes no scratch argument, unlike every other
+// _assign op. The dialect op still carries a scratch operand for structural
+// uniformity, it's just not part of the Rust call.
+LogicalResult PoulpyEmitter::printOperation(RescaleAssignOp rescaleAssignOp) {
+  auto module = rescaleAssignOp.getModule();
+  auto dst = rescaleAssignOp.getDst();
+  auto bits = rescaleAssignOp.getBits();
+
+  if (failed(checkNotPending(dst, rescaleAssignOp))) return failure();
+
+  os << variableNames->getNameForValue(module) << ".ckks_div_pow2_assign("
+     << refMut(dst, variableNames) << ", " << bits << "usize)?;\n";
 
   return success();
 }

@@ -186,3 +186,42 @@ func.func @rot_mul_add(%mod: !module, %scratch: !scratch, %tsk: !tsk, %akm: !akm
   // CHECK-NEXT: }
   return %prod : !ct
 }
+
+// CHECK: pub fn rescale(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[src:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @rescale(%m: !module, %s: !scratch, %dst: !ct, %src: !ct) {
+  // CHECK: [[m]].ckks_div_pow2_into(&mut *[[dst]], &*[[src]], 3usize, &mut [[s]].borrow())?;
+  poulpy.rescale %m, %dst, %src, %s {bits = 3 : i64} : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn rescale_assign(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @rescale_assign(%m: !module, %s: !scratch, %dst: !ct) {
+  // CHECK: [[m]].ckks_div_pow2_assign(&mut *[[dst]], 3usize)?;
+  poulpy.rescale_assign %m, %dst, %s {bits = 3 : i64} : (!module, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn rescale_alloc(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @rescale_alloc(%m: !module, %s: !scratch, %src: !ct) {
+  %dst = memref.alloc() : !ct
+  // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].max_k());
+  // CHECK-NEXT: [[m]].ckks_div_pow2_into(&mut [[dst]], &*[[src]], 4usize, &mut [[s]].borrow())?;
+  poulpy.rescale %m, %dst, %src, %s {bits = 4 : i64} : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
