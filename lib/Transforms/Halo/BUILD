@@ -41,6 +41,7 @@ cc_library(
         "@llvm-project//mlir:ControlFlowInterfaces",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LoopLikeInterface",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:SCFTransforms",
         "@llvm-project//mlir:SCFUtils",

@@ -27,6 +27,7 @@
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 #define DEBUG_TYPE "halo-patterns"
@@ -62,6 +63,23 @@ static bool hasMismatch(ArrayRef<Value> inits, ArrayRef<Value> yieldedValues,
     }
   }
 
+  return false;
+}
+
+static bool isInsideLoopNesting(Operation* op, Block* block) {
+  if (op->getBlock() == block) {
+    return false;
+  }
+  Operation* parent = op->getParentOp();
+  while (parent && parent->getBlock() != block) {
+    if (isa<LoopLikeOpInterface>(parent)) {
+      return true;
+    }
+    parent = parent->getParentOp();
+  }
+  if (parent && isa<LoopLikeOpInterface>(parent)) {
+    return true;
+  }
   return false;
 }
 
@@ -322,6 +340,7 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
   chosenUnrollFactor =
       tripCount < chosenUnrollFactor ? tripCount : chosenUnrollFactor;
   if (chosenUnrollFactor > 1) {
+    Block* block = forOp->getBlock();
     // The function_ref<void(unsigned, Operation *, OpBuilder)> annotateFn that
     // we pass to the loop unroll step ensures that we can tell which bootstrap
     // ops and level_reduce_min ops are safe to remove post-unroll.
@@ -387,7 +406,21 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                   clonedOp, [&]() { clonedOp->removeAttr(specialOpKey); });
             })))
       return failure();
+
+    // Clean up remainder iterations.
+    SmallVector<mgmt::LevelReduceMinOp> opsToRemove;
+    block->walk([&](mgmt::LevelReduceMinOp reduceOp) {
+      if (reduceOp->hasAttr("halo.invariance") &&
+          !isInsideLoopNesting(reduceOp, block)) {
+        opsToRemove.push_back(reduceOp);
+      }
+    });
+    for (auto reduceOp : opsToRemove) {
+      LDBG(2) << "Removing leftover level_reduce_min: " << reduceOp;
+      rewriter.replaceOp(reduceOp, reduceOp.getOperand());
+    }
   }
+
   return success();
 }
 

@@ -57,7 +57,7 @@ LevelState transferForward(ReducesLevelOpInterface op,
   LevelState result = std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Uninit) -> LevelState { return LevelState(Uninit{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [&](int val) -> LevelState {
             return LevelState(val + op.getLevelsToDrop());
@@ -75,7 +75,7 @@ LevelState transferForward(ReducesAllLevelsOpInterface op,
           // MaxLevel -> MaxLevel should result in a no-op, so technically
           // acceptable.
           [](MaxLevel) -> LevelState { return LevelState(MaxLevel{}); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Uninit) -> LevelState { return LevelState(Uninit{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [](int val) -> LevelState { return LevelState(MaxLevel{}); },
       },
@@ -90,7 +90,7 @@ LevelState transferForward(ResetsLevelOpInterface op,
   LevelState result = std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(0); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Uninit) -> LevelState { return LevelState(Uninit{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [](int val) -> LevelState { return LevelState(0); },
       },
