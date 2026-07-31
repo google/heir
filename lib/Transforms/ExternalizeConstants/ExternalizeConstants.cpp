@@ -43,6 +43,11 @@ struct ExternalizeConstants
         numElements = denseAttr.getNumElements();
         if (numElements < thresholdElements) return WalkResult::advance();
 
+        // A splat is O(1) in the IR, and the emitters already expand it in place
+        // (a fill constructor in C++, slices.Repeat in Go), so there is nothing
+        // to gain by writing numElements copies to disk.
+        if (denseAttr.isSplat()) return WalkResult::advance();
+
         if (tensorType.getElementType().isInteger(1)) {
           unpackedI1Data.reserve(numElements);
           for (bool val : denseAttr.getValues<bool>()) {
