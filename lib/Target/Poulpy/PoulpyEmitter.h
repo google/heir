@@ -41,7 +41,8 @@ class PoulpyEmitter {
   llvm::DenseSet<Value> pendingAllocs;
 
   void computeMutatedValues(func::FuncOp funcOp);
-  void materializeIfPending(Value dst, Value module, Value layoutSource);
+  void materializeIfPending(Value dst, Value module, Value layoutSource,
+                            bool useSemanticWidth);
   LogicalResult checkNotPending(Value dst, Operation* op);
 
   // Functions for printing individual ops
@@ -59,6 +60,7 @@ class PoulpyEmitter {
   LogicalResult printOperation(RotateAssignOp op);
   LogicalResult printOperation(RescaleOp op);
   LogicalResult printOperation(RescaleAssignOp op);
+  LogicalResult printOperation(CompactLimbsOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type, bool isArg, bool isMutated);

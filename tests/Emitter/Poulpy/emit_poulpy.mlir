@@ -225,3 +225,30 @@ func.func @rescale_alloc(%m: !module, %s: !scratch, %src: !ct) {
   // CHECK-NEXT: Ok(())
   return
 }
+
+// CHECK: pub fn compact_limbs(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[src:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @compact_limbs(%m: !module, %s: !scratch, %dst: !ct, %src: !ct) {
+  // CHECK: [[m]].ckks_copy(&mut *[[dst]], &*[[src]], &mut [[s]].borrow())?;
+  poulpy.compact_limbs %m, %dst, %src, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn compact_limbs_alloc(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @compact_limbs_alloc(%m: !module, %s: !scratch, %src: !ct) {
+  %dst = memref.alloc() : !ct
+  // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].k());
+  // CHECK-NEXT: [[m]].ckks_copy(&mut [[dst]], &*[[src]], &mut [[s]].borrow())?;
+  poulpy.compact_limbs %m, %dst, %src, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}

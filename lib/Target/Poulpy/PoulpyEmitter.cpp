@@ -95,8 +95,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, AddOp, AddAssignOp,
                 SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
-                RotateAssignOp, RescaleOp, RescaleAssignOp, memref::AllocOp>(
-              [&](auto op) { return printOperation(op); })
+                RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
+                memref::AllocOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -115,21 +115,23 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
   funcOp.walk([&](Operation* op) {
     llvm::TypeSwitch<Operation&, void>(*op)
         .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp,
-              RotateOp, RotateAssignOp, RescaleOp, RescaleAssignOp>(
+              RotateOp, RotateAssignOp, RescaleOp, RescaleAssignOp,
+              CompactLimbsOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Default([&](Operation& op) {});
   });
 }
 
 void PoulpyEmitter::materializeIfPending(Value dst, Value module,
-                                         Value layoutSource) {
+                                         Value layoutSource,
+                                         bool useSemanticWidth) {
   if (pendingAllocs.erase(dst)) {
     auto layoutName = variableNames->getNameForValue(layoutSource);
     auto dstName = variableNames->getNameForValue(dst);
     auto moduleName = variableNames->getNameForValue(module);
     os << "let mut " << dstName << " = " << moduleName
        << ".ckks_ciphertext_alloc(" << layoutName << ".base2k(), " << layoutName
-       << ".max_k());\n";
+       << (useSemanticWidth ? ".k());\n" : ".max_k());\n");
   }
 }
 
@@ -169,7 +171,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
     auto argName = variableNames->getNameForValue(arg);
     os << argName << ": ";
     bool isMutated = mutatedValues.contains(arg);
-    if (failed(emitType(arg.getType(), true, isMutated))) {
+    if (failed(emitType(arg.getType(), /*isArg=*/true, isMutated))) {
       return funcOp.emitOpError()
              << "Failed to emit poulpy type " << arg.getType();
     }
@@ -183,7 +185,7 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
     os << "()";
   } else if (numResults == 1) {
     Type result = funcOp.getResultTypes()[0];
-    if (failed(emitType(result, false, false))) {
+    if (failed(emitType(result, /*isArg=*/false, /*isMutated=*/false))) {
       return funcOp.emitOpError() << "Failed to emit poulpy type " << result;
     }
   } else {
@@ -223,7 +225,7 @@ LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
   auto b = addOp.getB();
   auto scratch = addOp.getScratch();
 
-  materializeIfPending(dst, module, a);
+  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false);
 
   os << variableNames->getNameForValue(module) << ".ckks_add_into("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -254,7 +256,7 @@ LogicalResult PoulpyEmitter::printOperation(SubOp subOp) {
   auto b = subOp.getB();
   auto scratch = subOp.getScratch();
 
-  materializeIfPending(dst, module, a);
+  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false);
 
   os << variableNames->getNameForValue(module) << ".ckks_sub_into("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -287,7 +289,7 @@ LogicalResult PoulpyEmitter::printOperation(MulOp mulOp) {
   auto tsk = mulOp.getTsk();
   auto scratch = mulOp.getScratch();
 
-  materializeIfPending(dst, module, a);
+  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false);
 
   os << variableNames->getNameForValue(module) << ".ckks_mul_into("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -322,7 +324,7 @@ LogicalResult PoulpyEmitter::printOperation(RotateOp rotateOp) {
   auto keys = rotateOp.getKeys();
   auto scratch = rotateOp.getScratch();
 
-  materializeIfPending(dst, module, src);
+  materializeIfPending(dst, module, src, /*useSemanticWidth=*/false);
 
   os << variableNames->getNameForValue(module) << ".ckks_rotate_into("
      << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
@@ -356,13 +358,12 @@ LogicalResult PoulpyEmitter::printOperation(RescaleOp rescaleOp) {
   auto bits = rescaleOp.getBits();
   auto scratch = rescaleOp.getScratch();
 
-  materializeIfPending(dst, module, src);
+  materializeIfPending(dst, module, src, /*useSemanticWidth=*/false);
 
   os << variableNames->getNameForValue(module) << ".ckks_div_pow2_into("
      << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
-     << bits << "usize"
-     << ", " << "&mut " << variableNames->getNameForValue(scratch)
-     << ".borrow())?;\n";
+     << bits << "usize" << ", " << "&mut "
+     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
   return success();
 }
@@ -379,6 +380,23 @@ LogicalResult PoulpyEmitter::printOperation(RescaleAssignOp rescaleAssignOp) {
 
   os << variableNames->getNameForValue(module) << ".ckks_div_pow2_assign("
      << refMut(dst, variableNames) << ", " << bits << "usize)?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(CompactLimbsOp compactLimbsOp) {
+  auto module = compactLimbsOp.getModule();
+  auto dst = compactLimbsOp.getDst();
+  auto src = compactLimbsOp.getSrc();
+  auto scratch = compactLimbsOp.getScratch();
+
+  // Unlike every other _into op, dst is allocated with the semantic width
+  // (.k()), not the allocated capacity (.max_k()).
+  materializeIfPending(dst, module, src, /*useSemanticWidth=*/true);
+
+  os << variableNames->getNameForValue(module) << ".ckks_copy("
+     << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
+     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
 
   return success();
 }
