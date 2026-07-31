@@ -69,6 +69,7 @@ class PoulpyEmitter {
   LogicalResult printOperation(SubUnnormalizedOp op);
   LogicalResult printOperation(NormalizeOp op);
   LogicalResult printOperation(EncodeOp op);
+  LogicalResult printOperation(DecodeOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type, bool isArg, bool isMutated);

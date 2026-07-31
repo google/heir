@@ -336,3 +336,17 @@ func.func @encode_check(%m: !module, %re: memref<4xf64>, %im: memref<4xf64>) {
   // CHECK-NEXT: Ok(())
   return
 }
+
+// CHECK: pub fn decode_check(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt
+// CHECK: [[re:v[0-9]+]]: &mut [f64]
+// CHECK: [[im:v[0-9]+]]: &mut [f64]
+// CHECK-NEXT: ) -> Result<()> {
+func.func @decode_check(%m: !module, %pt: !pt, %re: memref<4xf64>, %im: memref<4xf64>) {
+  // CHECK: let encoder = Encoder::<FFT64ReimTable<f64>>::new::<f64>([[m]].n() / 2)?;
+  // CHECK-NEXT: encoder.decode_reim(&*[[pt]], &mut *[[re]], &mut *[[im]])?;
+  poulpy.decode %m, %re, %im, %pt : (!module, memref<4xf64>, memref<4xf64>, !pt) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}

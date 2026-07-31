@@ -97,7 +97,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
                 SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
                 AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp, EncodeOp,
-                memref::AllocOp>([&](auto op) { return printOperation(op); })
+                DecodeOp, memref::AllocOp>(
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -119,6 +120,10 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
               RotateOp, RotateAssignOp, RescaleOp, RescaleAssignOp,
               CompactLimbsOp, AddUnnormalizedOp, SubUnnormalizedOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
+        .Case<DecodeOp>([&](DecodeOp op) {
+          mutatedValues.insert(op.getReal());
+          mutatedValues.insert(op.getImag());
+        })
         .Default([&](Operation& op) {});
   });
 }
@@ -512,6 +517,21 @@ LogicalResult PoulpyEmitter::printOperation(EncodeOp encodeOp) {
      << "usize, log_sparsity: 0usize });\n";
   os << "encoder.encode_reim(" << refMut(plaintext, variableNames) << ", "
      << ref(real, variableNames) << ", " << ref(imag, variableNames) << ")?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(DecodeOp decodeOp) {
+  auto module = decodeOp.getModule();
+  auto real = decodeOp.getReal();
+  auto imag = decodeOp.getImag();
+  auto plaintext = decodeOp.getPlaintext();
+
+  emitEncoderIfNeeded(module);
+
+  os << "encoder.decode_reim(" << ref(plaintext, variableNames) << ", "
+     << refMut(real, variableNames) << ", " << refMut(imag, variableNames)
+     << ")?;\n";
 
   return success();
 }
