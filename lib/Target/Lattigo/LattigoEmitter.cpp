@@ -264,7 +264,7 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
           R"(  {0}, err = loadResource_{1}("{2}", {3})
   if err != nil {{
     panic(err)
-  }}
+  }
 )",
           res.globalName, res.goEltType, res.path, res.size);
     }
@@ -277,16 +277,16 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   file, err := os.Open(path)
   if err != nil {{
     return nil, err
-  }}
+  }
   defer file.Close()
 
   data := make([]{0}, size)
   err = binary.Read(file, binary.LittleEndian, &data)
   if err != nil {{
     return nil, err
-  }}
+  }
   return data, nil
-}}
+}
 
 )",
           eltType);
@@ -298,7 +298,7 @@ var (
 
 func init() {{
   var err error
-{1}}}
+{1}}
 
 {2})",
                         globalsOs.str(), initBodyOs.str(), helpersOs.str());
