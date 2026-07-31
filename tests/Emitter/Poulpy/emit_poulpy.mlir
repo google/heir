@@ -296,3 +296,16 @@ func.func @sub_unnormalized(%m: !module, %s: !scratch, %dst: !ctu, %a: !ct, %b: 
   // CHECK-NEXT: Ok(())
   return
 }
+
+// CHECK: pub fn normalize(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &CtUnnorm
+// CHECK-NEXT: ) -> Result<Ct> {
+func.func @normalize(%m: !module, %s: !scratch, %a: !ctu) -> !ct {
+  %res = memref.alloc() : !ct
+  // CHECK: let mut [[res:v[0-9]+]] = [[a]].clone().normalize(&*[[m]], &mut [[s]].borrow());
+  poulpy.normalize %m, %res, %a, %s : (!module, !ct, !ctu, !scratch) -> ()
+  // CHECK-NEXT: Ok([[res]])
+  return %res : !ct
+}

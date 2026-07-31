@@ -43,7 +43,8 @@ class PoulpyEmitter {
   void computeMutatedValues(func::FuncOp funcOp);
   void materializeIfPending(Value dst, Value module, Value layoutSource,
                             bool useSemanticWidth, bool wrapUnnormalized);
-  LogicalResult checkNotPending(Value dst, Operation* op);
+  LogicalResult checkPendingState(Value dst, Operation* op,
+                                  bool shouldBePending);
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
@@ -63,6 +64,7 @@ class PoulpyEmitter {
   LogicalResult printOperation(CompactLimbsOp op);
   LogicalResult printOperation(AddUnnormalizedOp op);
   LogicalResult printOperation(SubUnnormalizedOp op);
+  LogicalResult printOperation(NormalizeOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type, bool isArg, bool isMutated);

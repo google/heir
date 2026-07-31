@@ -96,8 +96,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, AddOp, AddAssignOp,
                 SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
-                AddUnnormalizedOp, SubUnnormalizedOp, memref::AllocOp>(
-              [&](auto op) { return printOperation(op); })
+                AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp,
+                memref::AllocOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -140,15 +140,21 @@ void PoulpyEmitter::materializeIfPending(Value dst, Value module,
   }
 }
 
-LogicalResult PoulpyEmitter::checkNotPending(Value dst, Operation* op) {
-  if (pendingAllocs.contains(dst)) {
-    InFlightDiagnostic diag =
-        op->emitError("dst has not been initialized before this use");
-    diag.attachNote(dst.getLoc())
-        << "allocated here but never written to first";
-    return diag;
+// The _assign ops read-before-write dst, so it must already be materialized,
+// normalize produces a brand new value, so its result must NOT be
+// materialized yet
+LogicalResult PoulpyEmitter::checkPendingState(Value dst, Operation* op,
+                                               bool shouldBePending) {
+  if (pendingAllocs.contains(dst) == shouldBePending) return success();
+
+  if (shouldBePending) {
+    return op->emitError(
+        "normalize result must come from an unmaterialized memref.alloc");
   }
-  return success();
+  InFlightDiagnostic diag =
+      op->emitError("dst has not been initialized before this use");
+  diag.attachNote(dst.getLoc()) << "allocated here but never written to first";
+  return diag;
 }
 
 LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
@@ -246,7 +252,8 @@ LogicalResult PoulpyEmitter::printOperation(AddAssignOp addAssignOp) {
   auto a = addAssignOp.getA();
   auto scratch = addAssignOp.getScratch();
 
-  if (failed(checkNotPending(dst, addAssignOp))) return failure();
+  if (failed(checkPendingState(dst, addAssignOp, /*shouldBePending=*/false)))
+    return failure();
 
   os << variableNames->getNameForValue(module) << ".ckks_add_assign("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -279,7 +286,8 @@ LogicalResult PoulpyEmitter::printOperation(SubAssignOp subAssignOp) {
   auto a = subAssignOp.getA();
   auto scratch = subAssignOp.getScratch();
 
-  if (failed(checkNotPending(dst, subAssignOp))) return failure();
+  if (failed(checkPendingState(dst, subAssignOp, /*shouldBePending=*/false)))
+    return failure();
 
   os << variableNames->getNameForValue(module) << ".ckks_sub_assign("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -314,7 +322,8 @@ LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
   auto tsk = mulAssignOp.getTsk();
   auto scratch = mulAssignOp.getScratch();
 
-  if (failed(checkNotPending(dst, mulAssignOp))) return failure();
+  if (failed(checkPendingState(dst, mulAssignOp, /*shouldBePending=*/false)))
+    return failure();
 
   os << variableNames->getNameForValue(module) << ".ckks_mul_assign("
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
@@ -350,7 +359,8 @@ LogicalResult PoulpyEmitter::printOperation(RotateAssignOp rotateAssignOp) {
   auto keys = rotateAssignOp.getKeys();
   auto scratch = rotateAssignOp.getScratch();
 
-  if (failed(checkNotPending(dst, rotateAssignOp))) return failure();
+  if (failed(checkPendingState(dst, rotateAssignOp, /*shouldBePending=*/false)))
+    return failure();
 
   os << variableNames->getNameForValue(module) << ".ckks_rotate_assign("
      << refMut(dst, variableNames) << ", " << k << "i64" << ", "
@@ -386,7 +396,9 @@ LogicalResult PoulpyEmitter::printOperation(RescaleAssignOp rescaleAssignOp) {
   auto dst = rescaleAssignOp.getDst();
   auto bits = rescaleAssignOp.getBits();
 
-  if (failed(checkNotPending(dst, rescaleAssignOp))) return failure();
+  if (failed(
+          checkPendingState(dst, rescaleAssignOp, /*shouldBePending=*/false)))
+    return failure();
 
   os << variableNames->getNameForValue(module) << ".ckks_div_pow2_assign("
      << refMut(dst, variableNames) << ", " << bits << "usize)?;\n";
@@ -446,6 +458,24 @@ LogicalResult PoulpyEmitter::printOperation(
      << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
      << ref(b, variableNames) << ", " << "&mut "
      << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(NormalizeOp normalizeOp) {
+  auto module = normalizeOp.getModule();
+  auto res = normalizeOp.getRes();
+  auto a = normalizeOp.getA();
+  auto scratch = normalizeOp.getScratch();
+
+  if (failed(checkPendingState(res, normalizeOp, /*shouldBePending=*/true)))
+    return failure();
+  pendingAllocs.erase(res);
+
+  os << "let mut " << variableNames->getNameForValue(res) << " = "
+     << valueOrClonedValue(a, variableNames) << ".normalize("
+     << ref(module, variableNames) << ", &mut "
+     << variableNames->getNameForValue(scratch) << ".borrow());\n";
 
   return success();
 }
