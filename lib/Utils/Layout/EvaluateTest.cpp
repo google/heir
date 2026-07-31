@@ -158,7 +158,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvDiagonalized) {
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   auto relation = getConvFilterDiagonalizedRelation(
-      filterType, dataType, /*padding=*/1, /*ciphertextSize=*/16);
+      filterType, dataType, /*padding=*/1, /*minSlotCount=*/16);
 
   std::vector<std::vector<int>> filter = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
   // The expanded matrix will have size 9x9, and diagonalizing it will require
@@ -389,7 +389,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwAsSequence) {
       RankedTensorType::get({1, 1, 4, 4}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
 
   std::vector<std::vector<std::vector<std::vector<int>>>> filter = {
       {{{1, 2}, {3, 4}}},  // Channel 0
@@ -406,7 +406,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwAsSequence) {
   // Test 1: No Interchange
   {
     auto maybeRels = get2dConvChwFchwFilterAsSequence(
-        filterType, dataType, strides, padding, ciphertextSize, false);
+        filterType, dataType, strides, padding, minSlotCount, false);
     ASSERT_TRUE(succeeded(maybeRels));
     auto rels = maybeRels.value();
     ASSERT_EQ(rels.size(), 4);
@@ -440,7 +440,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwAsSequence) {
   // Test 2: With Interchange
   {
     auto maybeRels = get2dConvChwFchwFilterAsSequence(
-        filterType, dataType, strides, padding, ciphertextSize, true);
+        filterType, dataType, strides, padding, minSlotCount, true);
     ASSERT_TRUE(succeeded(maybeRels));
     auto rels = maybeRels.value();
     ASSERT_EQ(rels.size(), 5);
@@ -511,9 +511,9 @@ TEST(EvaluateTest, Conv2dResultRelationNoInterchange) {
   int64_t padding = 0;
 
   // Fits in one ciphertext
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
   IntegerRelation rel =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
   EXPECT_EQ(rel.getNumDomainVars(), outputType.getRank());
   EXPECT_EQ(rel.getNumRangeVars(), 2);
 
@@ -541,11 +541,11 @@ TEST(EvaluateTest, Conv2dResultRelationWithInterchange) {
   int64_t padding = 0;
 
   // Fits in one ciphertext
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
   IntegerRelation rel1 =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
-  IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
-      outputType, strides, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
+  IntegerRelation rel2 =
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, minSlotCount);
   rel1.compose(rel2);
 
   std::vector<std::vector<std::vector<std::vector<int>>>> output = {
@@ -571,9 +571,9 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsNoInterchange) {
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
 
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
   IntegerRelation rel =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
 
   std::vector<std::vector<std::vector<std::vector<int>>>> output = {
       {{{1, 2}, {3, 4}},
@@ -598,11 +598,11 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsWithInterchange) {
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
 
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
   IntegerRelation rel1 =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
-  IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
-      outputType, strides, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
+  IntegerRelation rel2 =
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, minSlotCount);
   rel1.compose(rel2);
 
   std::vector<std::vector<std::vector<std::vector<int>>>> output = {
@@ -629,15 +629,15 @@ TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
       RankedTensorType::get({1, 1, 4, 4}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 32;
+  int64_t minSlotCount = 32;
 
   auto singleRel = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, padding, ciphertextSize,
+      filterType, dataType, strides, padding, minSlotCount,
       /*interchangeRows=*/true);
   ASSERT_TRUE(succeeded(singleRel));
 
   auto sequenceRels = get2dConvChwFchwFilterAsSequence(
-      filterType, dataType, strides, padding, ciphertextSize,
+      filterType, dataType, strides, padding, minSlotCount,
       /*interchangeRows=*/true);
   ASSERT_TRUE(succeeded(sequenceRels));
   auto rels = sequenceRels.value();

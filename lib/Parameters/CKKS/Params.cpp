@@ -160,10 +160,10 @@ static std::vector<int64_t> moduliQGenerationReducedError(int logFirstMod,
 
 // numScaleMod is L
 SchemeParam SchemeParam::getConcreteSchemeParam(
-    int logFirstMod, int logDefaultScale, int numScaleMod, int slotNumber,
+    int logFirstMod, int logDefaultScale, int numScaleMod, int minSlotCount,
     bool usePublicKey, bool encryptionTechniqueExtended, bool reducedError) {
   // CKKS slot number = ringDim / 2
-  auto minRingDim = 2 * slotNumber;
+  auto minRingDim = 2 * minSlotCount;
 
   auto dnum = computeDnum(numScaleMod);
 

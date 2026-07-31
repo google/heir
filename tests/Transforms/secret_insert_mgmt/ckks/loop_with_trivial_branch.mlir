@@ -1,4 +1,4 @@
-// RUN: heir-opt "--secret-insert-mgmt-ckks=after-mul=true before-mul-include-first-mul=false bootstrap-waterline=10 level-budget=2 slot-number=1024" %s | FileCheck %s
+// RUN: heir-opt "--secret-insert-mgmt-ckks=after-mul=true before-mul-include-first-mul=false bootstrap-waterline=10 level-budget=2 min-slot-count=1024" %s | FileCheck %s
 
 // This test was extracted from a larger matvec example. The main issue is
 // that, when the first loop iteration is peeled, the initializer is replaced

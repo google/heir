@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=1024 --split-input-file | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=1024 --split-input-file | FileCheck %s
 
 #layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 // CHECK: scalar_mul

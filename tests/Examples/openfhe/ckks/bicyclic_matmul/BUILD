@@ -7,7 +7,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "bicyclic_matmul_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=2048",
+        "--mlir-to-ckks=min-slot-count=2048",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:bicyclic_matmul.mlir",

@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=4096 --split-input-file | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=4096 --split-input-file | FileCheck %s
 
 // This is a regression test for a bug found - if layout materialization attrs
 // aren't added to the layout assignment op, then

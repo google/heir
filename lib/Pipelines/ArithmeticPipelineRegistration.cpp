@@ -186,17 +186,17 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Layout assignment and optimization
   LayoutPropagationOptions layoutPropagationOptions;
-  layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+  layoutPropagationOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
   LayoutOptimizationOptions layoutOptimizationOptions;
-  layoutOptimizationOptions.ciphertextSize = options.ciphertextDegree;
+  layoutOptimizationOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createLayoutOptimization(layoutOptimizationOptions));
   // Layout conversions may be repeated, so run CSE
   pm.addPass(createCSEPass());
 
   // Linalg kernel implementation
   ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
-  convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
+  convertToCiphertextSemanticsOptions.minSlotCount = options.minSlotCount;
   convertToCiphertextSemanticsOptions.unrollKernels =
       !options.experimentalDisableLoopUnroll;
   convertToCiphertextSemanticsOptions.codegenStrategy = options.codegenStrategy;
@@ -215,7 +215,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Add encrypt/decrypt helper functions for each function argument and return
   // value.
   AddClientInterfaceOptions addClientInterfaceOptions;
-  addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
+  addClientInterfaceOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createAddClientInterface(addClientInterfaceOptions));
 
   cleanupAfterLowerAssignLayout(pm);
@@ -228,7 +228,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
-  mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
+  mlirToRLWEPipelineOptions.minSlotCount = options.plaintextSize;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
   // Insert debug handler calls and/or lower debug.validate
@@ -319,7 +319,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
     // Replicate the non-arithmetization related parts of the pipeline
     pm.addPass(createWrapGeneric());
     AddClientInterfaceOptions addClientInterfaceOptions;
-    addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
+    addClientInterfaceOptions.minSlotCount = options.minSlotCount;
     addClientInterfaceOptions.enableLayoutAssignment = false;
     pm.addPass(createAddClientInterface(addClientInterfaceOptions));
   }
@@ -390,7 +390,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
             options.greedyModulusSwitchAfterMul;
         secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
             options.greedyModulusSwitchBeforeFirstMul;
-        secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
+        secretInsertMgmtCKKSOptions.minSlotCount = options.minSlotCount;
         secretInsertMgmtCKKSOptions.bootstrapWaterline =
             options.greedyBootstrapWaterline;
         secretInsertMgmtCKKSOptions.levelBudget = options.greedyLevelBudget;
@@ -428,7 +428,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
         generateParamOptions.model = options.noiseModel;
       }
       generateParamOptions.plaintextModulus = options.plaintextModulus;
-      generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
       generateParamOptions.encryptionTechniqueExtended =
           options.encryptionTechniqueExtended;
@@ -449,7 +449,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       }
       generateParamOptions.modBits = options.bfvModBits;
       generateParamOptions.plaintextModulus = options.plaintextModulus;
-      generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
       generateParamOptions.encryptionTechniqueExtended =
           options.encryptionTechniqueExtended;
@@ -468,7 +468,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       auto generateParamOptions = GenerateParamCKKSOptions{};
       generateParamOptions.firstModBits = options.firstModBits;
       generateParamOptions.scalingModBits = options.scalingModBits;
-      generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
       pm.addPass(createGenerateParamCKKS(generateParamOptions));
 
@@ -498,14 +498,14 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   switch (scheme) {
     case RLWEScheme::ckksScheme: {
       auto secretToCKKSOpts = SecretToCKKSOptions{};
-      secretToCKKSOpts.polyModDegree = options.ciphertextDegree;
+      secretToCKKSOpts.minSlotCount = options.minSlotCount;
       pm.addPass(createSecretToCKKS(secretToCKKSOpts));
       break;
     }
     case RLWEScheme::bgvScheme:
     case RLWEScheme::bfvScheme: {
       auto secretToBGVOpts = SecretToBGVOptions{};
-      secretToBGVOpts.polyModDegree = options.ciphertextDegree;
+      secretToBGVOpts.minSlotCount = options.minSlotCount;
       pm.addPass(createSecretToBGV(secretToBGVOpts));
       break;
     }
@@ -516,7 +516,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
 
   // Lower debug.validate ops to function calls with private key
   pm.addPass(lwe::createAddDebugPort(
-      lwe::AddDebugPortOptions{.messageSize = (int)options.ciphertextDegree,
+      lwe::AddDebugPortOptions{.minSlotCount = (int)options.minSlotCount,
                                .insertDebugAfterEveryOp = options.debug}));
 
   pm.addPass(createForwardInsertToExtract());
@@ -678,7 +678,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   MlirToRLWEPipelineOptions suboptions;
 
   suboptions.enableArithmetization = true;
-  suboptions.ciphertextDegree = options.ciphertextDegree;
+  suboptions.minSlotCount = options.minSlotCount;
   suboptions.greedyBootstrapWaterline = options.greedyBootstrapWaterline;
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;

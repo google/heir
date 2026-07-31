@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-optimization=ciphertext-size=64 --canonicalize %s | FileCheck %s
+// RUN: heir-opt --layout-optimization=min-slot-count=64 --canonicalize %s | FileCheck %s
 
 // Cyclic repetition layout
 // TODO(#2263): without smartly picking power-of-two shits, this test breaks

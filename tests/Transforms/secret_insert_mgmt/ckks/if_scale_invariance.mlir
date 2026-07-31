@@ -1,4 +1,4 @@
-// RUN: heir-opt "--secret-insert-mgmt-ckks=after-mul=false before-mul-include-first-mul=false level-budget=2 slot-number=1024" %s | FileCheck %s
+// RUN: heir-opt "--secret-insert-mgmt-ckks=after-mul=false before-mul-include-first-mul=false level-budget=2 min-slot-count=1024" %s | FileCheck %s
 
 // CHECK: func.func @test_scf_if_scale_mismatch
 // CHECK: secret.generic

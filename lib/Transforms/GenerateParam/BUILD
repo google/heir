@@ -38,7 +38,6 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Parameters/CKKS:Params",
-        "@heir//lib/Utils",
         "@heir//lib/Utils:LogArithmetic",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=16 | FileCheck %s
 
 // Tensor is repeated twice, so the packed cleartext should use two nonzero slots
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (slot - i0) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 15 }">

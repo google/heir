@@ -38,7 +38,6 @@ cc_test(
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:AsmParser",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SCFDialect",
@@ -86,7 +85,6 @@ cc_library(
     deps = [
         ":Convolution",
         ":Utils",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -148,7 +146,6 @@ cc_test(
         ":Evaluate",
         ":Utils",
         "@googletest//:gtest_main",
-        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

@@ -152,7 +152,7 @@ void insertValidationOps(func::FuncOp op,
 
 LogicalResult lowerValidationOps(
     func::FuncOp op, SymbolTable& symbolTable, Value privateKey,
-    int messageSize, llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
+    int minSlotCount, llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
   auto module = op->getParentOfType<ModuleOp>();
   Type lwePrivateKeyType = privateKey.getType();
 
@@ -169,7 +169,7 @@ LogicalResult lowerValidationOps(
             b.getNamedAttr("debug.metadata", validateOp.getMetadataAttr()));
       }
       attrs.push_back(b.getNamedAttr(
-          "message.size", b.getStringAttr(std::to_string(messageSize))));
+          "message.size", b.getStringAttr(std::to_string(minSlotCount))));
 
       auto debugFunc = getOrCreateExternalDebugFunc(
           module, symbolTable, lwePrivateKeyType, valueType, typeToDebugFunc);
@@ -467,7 +467,7 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
 
       if (privateKey) {
         if (failed(lowerValidationOps(funcOp, symbolTable, privateKey,
-                                      messageSize, typeToDebugFunc))) {
+                                      minSlotCount, typeToDebugFunc))) {
           funcOp.emitError("failed to lower validation ops");
           return failure();
         }

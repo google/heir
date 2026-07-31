@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "sigmoid",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=2048 scaling-mod-bits=55 first-mod-bits=60",
+        "--torch-linalg-to-ckks=min-slot-count=2048 scaling-mod-bits=55 first-mod-bits=60",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:sigmoid.mlir",

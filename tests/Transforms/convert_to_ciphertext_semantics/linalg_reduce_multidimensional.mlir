@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 --verify-diagnostics
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 --verify-diagnostics
 // Test that a reduction over 2 dimensions fails
 #layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 module {

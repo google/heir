@@ -80,12 +80,12 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 // such that the ith diagonal of the matrix is in the ith row of the
 // result. The number of rows of the input and output must match.
 presburger::IntegerRelation getDiagonalLayoutRelation(
-    RankedTensorType matrixType, int64_t ciphertextSize);
+    RankedTensorType matrixType, int64_t minSlotCount);
 
 // Applies a diagonal layout onto a given 2-D matrix layout.
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
-    int64_t ciphertextSize);
+    int64_t minSlotCount);
 
 // Returns an IntegerRelation that represents a bicyclic layout for a matrix.
 // See https://eprint.iacr.org/2024/1762 for details.
@@ -100,12 +100,11 @@ presburger::IntegerRelation getTricyclicLayoutRelation(
 // Returns an IntegerRelation that represents a per-row layout for a matrix
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
-                                                    int64_t ciphertextSize);
+                                                    int64_t minSlotCount);
 
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
-bool isRelationSquatDiagonal(RankedTensorType matrixType,
-                             int64_t ciphertextSize,
+bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,
                              const presburger::IntegerRelation& relation);
 
 // Returns true if the given relation is a row-major layout for the given
@@ -129,7 +128,7 @@ presburger::IntegerRelation foldVectorPermutationIntoMatrixLayout(
 
 // Returns true if the given relation is a per-row layout
 // for the given matrix type and ciphertext semantic shape.
-bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
+bool isRelationPerRow(RankedTensorType matrixType, int64_t minSlotCount,
                       presburger::IntegerRelation relation);
 
 // Returns true if the given relation is a bicyclic layout for the given

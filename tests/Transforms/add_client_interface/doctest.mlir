@@ -1,4 +1,4 @@
-// RUN: heir-opt --add-client-interface=ciphertext-size=1024 %s | FileCheck %s
+// RUN: heir-opt --add-client-interface=min-slot-count=1024 %s | FileCheck %s
 
 // CHECK: func.func @simple_add(%[[ARG0:.*]]: !secret.secret<tensor<1x1024xi16>> {{.*}}, %[[ARG1:.*]]: !secret.secret<tensor<1x1024xi16>> {{.*}}) -> (!secret.secret<tensor<1x1024xi16>> {{.*}}) {
 // CHECK:   %[[GENERIC:.*]] = secret.generic(%[[ARG0]]: !secret.secret<tensor<1x1024xi16>>, %[[ARG1]]: !secret.secret<tensor<1x1024xi16>>) {

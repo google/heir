@@ -27,7 +27,7 @@ enum class CodegenStrategy {
 // encoding implementation. Applies createdOpCallback to each created
 // operation.
 FailureOr<Value> implementAssignLayout(
-    Value input, Attribute layout, int64_t ciphertextSize,
+    Value input, Attribute layout, int64_t minSlotCount,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback,
     ArrayRef<int64_t> domainSchedule = {},

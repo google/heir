@@ -25,7 +25,7 @@ class E2EToBazelTest(absltest.TestCase):
     <rule class="heir_opt" name="//dummy_base/tests/Examples/openfhe/ckks/dot_product_8f:dot_product_8f_test_heir_opt">
         <list name="pass_flags">
             <string value="--annotate-module=backend=openfhe scheme=ckks"/>
-            <string value="--mlir-to-ckks=ciphertext-degree=1024"/>
+            <string value="--mlir-to-ckks=min-slot-count=1024"/>
             <string value="--scheme-to-openfhe"/>
         </list>
         <label name="src" value="//dummy_base/tests/Examples/common:dot_product_8f.mlir"/>
@@ -51,7 +51,7 @@ class E2EToBazelTest(absltest.TestCase):
     expected_command = (
         "blaze run //dummy_base/tools:heir-opt --"
         " '--annotate-module=backend=openfhe scheme=ckks'"
-        " --mlir-to-ckks=ciphertext-degree=1024 --scheme-to-openfhe"
+        " --mlir-to-ckks=min-slot-count=1024 --scheme-to-openfhe"
         " /workspace/dummy_base/tests/Examples/common/dot_product_8f.mlir"
     )
     self.assertIn(expected_command, output)
@@ -70,7 +70,7 @@ class E2EToBazelTest(absltest.TestCase):
     <rule class="heir_opt" name="//dummy_base/tests/Examples/openfhe/ckks/dot_product_8f:dot_product_8f_test_heir_opt">
         <list name="pass_flags">
             <string value="--annotate-module=backend=openfhe scheme=ckks"/>
-            <string value="--mlir-to-ckks=ciphertext-degree=1024"/>
+            <string value="--mlir-to-ckks=min-slot-count=1024"/>
             <string value="--scheme-to-openfhe"/>
         </list>
         <label name="src" value="//dummy_base/tests/Examples/common:dot_product_8f.mlir"/>
@@ -93,7 +93,7 @@ class E2EToBazelTest(absltest.TestCase):
     expected_command = (
         "blaze run //dummy_base/tools:heir-opt --"
         " '--annotate-module=backend=openfhe scheme=ckks'"
-        " --mlir-to-ckks=ciphertext-degree=1024 --scheme-to-openfhe"
+        " --mlir-to-ckks=min-slot-count=1024 --scheme-to-openfhe"
         " /workspace/dummy_base/tests/Examples/common/dot_product_8f.mlir"
     )
     self.assertIn(expected_command, output)

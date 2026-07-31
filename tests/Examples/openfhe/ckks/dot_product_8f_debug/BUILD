@@ -10,7 +10,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8f_debug_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8 \
+        "--mlir-to-ckks=min-slot-count=8 \
           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
         "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
@@ -31,7 +31,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8f_default_debug_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8 \
+        "--mlir-to-ckks=min-slot-count=8 \
           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
         "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",

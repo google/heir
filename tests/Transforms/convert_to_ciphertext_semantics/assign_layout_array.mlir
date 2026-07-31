@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=32 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=32 | FileCheck %s
 
 // Test layout array with two steps, should generate two loops.
 #layout1 = #tensor_ext.layout<"{ [i0] -> [o0, o1] : o0 = i0 and o1 = i0 and 0 <= i0 <= 3 }">

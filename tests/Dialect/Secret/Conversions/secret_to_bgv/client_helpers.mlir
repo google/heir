@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --secret-to-bgv=poly-mod-degree=8 %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --secret-to-bgv=min-slot-count=8 %s | FileCheck %s
 
 #map = affine_map<(d0) -> (d0)>
 #map1 = affine_map<(d0) -> (d0 mod 8)>

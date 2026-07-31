@@ -213,9 +213,9 @@ LogicalResult convertRemapOp(RemapOp op,
   // Since this pass may only run after convert-to-ciphertext-semantics, the
   // input must be a 2D tensor of (ct, slot) shape.
   int64_t numCiphertexts = tensorTy.getDimSize(0);
-  int64_t ciphertextSize = tensorTy.getDimSize(1);
+  int64_t minSlotCount = tensorTy.getDimSize(1);
   auto singleCiphertextType =
-      RankedTensorType::get({1, ciphertextSize}, tensorTy.getElementType());
+      RankedTensorType::get({1, minSlotCount}, tensorTy.getElementType());
 
   // Extract element type and convert to DagType
   kernel::DagType dagElemType;
@@ -230,7 +230,7 @@ LogicalResult convertRemapOp(RemapOp op,
 
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
-  Mapping mapping(ciphertextSize, numCiphertexts);
+  Mapping mapping(minSlotCount, numCiphertexts);
   if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
     populateMappingFromLayoutAttr(layoutAttr, mapping);
   } else if (auto denseElementsAttr =
@@ -273,7 +273,7 @@ LogicalResult convertRemapOp(RemapOp op,
   }
 
   auto resultNodes = implementShiftNetwork(ciphertexts, mapping, scheme,
-                                           ciphertextSize, dagElemType);
+                                           minSlotCount, dagElemType);
 
   kernel::IRMaterializingVisitor visitor(singleCiphertextType);
   auto resultVectors = visitor.process(resultNodes, b);

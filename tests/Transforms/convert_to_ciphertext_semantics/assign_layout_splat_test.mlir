@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=32 --split-input-file | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=32 --split-input-file | FileCheck %s
 
 // Splat tensor with dense layout.
 // Input tensor<32xi16> with splat 1, dense layout to 1x32 ciphertext.

@@ -53,7 +53,7 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
            /*default=*/"\"bgv-noise-kpz21\"", "Noise model to validate against.">,
     Option<"plaintextModulus", "plaintext-modulus", "int64_t",
            /*default=*/"65537", "Plaintext modulus.">,
-    Option<"slotNumber", "slot-number", "int",
+    Option<"minSlotCount", "min-slot-count", "int",
            /*default=*/"0", "Minimum number of slots for parameter generation.">,
     Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
            "If true, uses a public key for encryption.">,
@@ -119,7 +119,7 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     Option<"modBits", "mod-bits", "int",
            /*default=*/"60", "Default number of bits for all prime coefficient modulus"
            "to use for the ciphertext space.">,
-    Option<"slotNumber", "slot-number", "int",
+    Option<"minSlotCount", "min-slot-count", "int",
            /*default=*/"0", "Minimum number of slots for parameter generation.">,
     Option<"plaintextModulus", "plaintext-modulus", "int64_t",
            /*default=*/"65537", "Plaintext modulus.">,
@@ -165,7 +165,7 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
   ];
 
   let options = [
-    Option<"slotNumber", "slot-number", "int",
+    Option<"minSlotCount", "min-slot-count", "int",
            /*default=*/"0", "Minimum number of slots for parameter generation.">,
     Option<"firstModBits", "first-mod-bits", "int",
            /*default=*/"55", "Default number of bits of the first prime "

@@ -1,4 +1,4 @@
-// RUN: heir-opt --verify-diagnostics --mlir-to-bgv='ciphertext-degree=8' --scheme-to-openfhe='entry-function=dot_product' %s
+// RUN: heir-opt --verify-diagnostics --mlir-to-bgv='min-slot-count=8' --scheme-to-openfhe='entry-function=dot_product' %s
 
 // expected-error@below {{Floating point types are not supported in BGV. Maybe you meant to use a CKKS pipeline like --mlir-to-ckks?}}
 func.func @dot_product(%arg0: tensor<8xf16> {secret.secret}, %arg1: tensor<8xf16> {secret.secret}) -> f16 {

@@ -37,11 +37,11 @@ def LayoutOptimization : Pass<"layout-optimization"> {
 
   let options = [
     Option<
-      "ciphertextSize",
-      "ciphertext-size",
+      "minSlotCount",
+      "min-slot-count",
       "int",
       /*default=*/"1024",
-      "Power of two length of the ciphertexts the data is packed in."
+      "Minimum number of slots to use for packing messages in ciphertexts."
     >,
     Option<
       "vveRandomSeed",

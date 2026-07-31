@@ -10,7 +10,7 @@ heir_lattigo_lib(
     go_library_name = "linalgdot",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=2048 first-mod-bits=0",
+        "--mlir-to-ckks=min-slot-count=2048 first-mod-bits=0",
         "--scheme-to-lattigo",
     ],
     mlir_src = "linalg_dot.mlir",

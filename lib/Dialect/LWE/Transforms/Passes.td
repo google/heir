@@ -43,8 +43,8 @@ def AddDebugPort : Pass<"lwe-add-debug-port"> {
     Option<"entryFunction", "entry-function", "std::string",
            /*default=*/"", "Default entry function "
            "name of entry function.">,
-    Option<"messageSize", "message-size", "int",
-           /*default=*/"1", "The size of the message in the ciphertext.">,
+    Option<"minSlotCount", "min-slot-count", "int",
+           /*default=*/"1", "Minimum number of slots to use for packing messages in ciphertexts.">,
     Option<"insertDebugAfterEveryOp", "insert-debug-after-every-op", "bool",
            /*default=*/"false", "Whether to add debug ports after every op">
   ];

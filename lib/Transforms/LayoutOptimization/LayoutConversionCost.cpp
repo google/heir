@@ -77,8 +77,7 @@ class RotationCountVisitor : public CachingVisitor<SymbolicValue, int64_t> {
   }
 };
 
-Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
-                                   int64_t ciphertextSize,
+Cost computeCostOfLayoutConversion(int64_t numCiphertexts, int64_t minSlotCount,
                                    LayoutAttr fromLayout, LayoutAttr toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries) {
@@ -92,7 +91,7 @@ Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
   composedLayout->inverse();
   composedLayout->compose(toLayout.getIntegerRelation());
 
-  Mapping mapping(ciphertextSize, numCiphertexts);
+  Mapping mapping(minSlotCount, numCiphertexts);
   PointPairCollector collector(2, 2);
   enumeratePoints(*composedLayout, collector);
   for (const auto& [source, target] : collector.points) {
@@ -106,10 +105,10 @@ Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
   using NodeTy = ArithmeticDagNode<SymbolicValue>;
   using ValueTy = std::shared_ptr<NodeTy>;
   SmallVector<SymbolicValue> inputLeaves(numCiphertexts,
-                                         SymbolicValue({ciphertextSize}));
+                                         SymbolicValue({minSlotCount}));
   kernel::DagType defaultType = kernel::DagType::integer(32);
   SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
-      inputLeaves, mapping, scheme, ciphertextSize, defaultType);
+      inputLeaves, mapping, scheme, minSlotCount, defaultType);
 
   // The cost is the maximum number of rotations in any group
   Cost maxRotations = 0;
@@ -130,7 +129,7 @@ Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
   return maxRotations;
 }
 
-Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
+Cost computeCostOfLayoutConversion(int64_t minSlotCount, Attribute fromLayout,
                                    Attribute toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries) {
@@ -165,7 +164,7 @@ Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
   }
 
   int64_t numCiphertexts = ctUb.value() - ctLb.value() + 1;
-  return computeCostOfLayoutConversion(numCiphertexts, ciphertextSize,
+  return computeCostOfLayoutConversion(numCiphertexts, minSlotCount,
                                        fromLayoutAttr, toLayoutAttr,
                                        vveRandomSeed, vveRandomTries);
 }

@@ -17,7 +17,7 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
                                            RankedTensorType dataType,
                                            ArrayRef<int64_t> strides,
                                            int64_t padding,
-                                           int64_t ciphertextSize,
+                                           int64_t minSlotCount,
                                            bool interchangeRows) {
   auto expandedFilterRelation =
       get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
@@ -69,14 +69,14 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
         /*equality=*/true);
 
     auto diagonalizedInterchange =
-        diagonalize2dMatrix(rowInterchangeRelation, filterType, ciphertextSize);
+        diagonalize2dMatrix(rowInterchangeRelation, filterType, minSlotCount);
     if (failed(diagonalizedInterchange)) return failure();
 
     expandedFilterRelation.compose(diagonalizedInterchange.value());
     return expandedFilterRelation;
   }
   auto res =
-      diagonalize2dMatrix(expandedFilterRelation, filterType, ciphertextSize);
+      diagonalize2dMatrix(expandedFilterRelation, filterType, minSlotCount);
   return res;
 }
 

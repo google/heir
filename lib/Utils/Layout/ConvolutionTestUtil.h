@@ -18,7 +18,7 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
                                            RankedTensorType dataType,
                                            ArrayRef<int64_t> strides,
                                            int64_t padding,
-                                           int64_t ciphertextSize,
+                                           int64_t minSlotCount,
                                            bool interchangeRows = true);
 
 }  // namespace heir

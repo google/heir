@@ -532,18 +532,18 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
   MLIRContext* ctx = &getContext();
   mlir::IRRewriter builder(ctx);
 
-  if (vecType.getDimSize(0) > ciphertextSize) {
+  if (vecType.getDimSize(0) > minSlotCount) {
     return op->emitError() << "Vector must fit into a single ciphertext";
   }
 
   // Assign a row major layout to the input vec.
   LayoutAttr vecLayout = getComposedLayoutAttr(vec);
-  if (!isRelationRowMajor(vecType, ciphertextSize,
+  if (!isRelationRowMajor(vecType, minSlotCount,
                           vecLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the vec layout per-row
     auto [toReplace, newVecLayoutAttr] =
         convertToLayout(ctx, builder, op, vec, vecLayout,
-                        getPerRowLayoutRelation(vecType, ciphertextSize));
+                        getPerRowLayoutRelation(vecType, minSlotCount));
     debugAssignLayout(toReplace, newVecLayoutAttr);
     assignedLayouts.insert({toReplace, newVecLayoutAttr});
     vec = toReplace;
@@ -563,12 +563,12 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
       presburger::VarKind::Domain);
   auto clonedMatrixRelation = matrixLayoutRelation.clone();
   clonedMatrixRelation->swapVar(domainOffset, domainOffset + 1);
-  if (!isRelationSquatDiagonal(matrixTransposeType, ciphertextSize,
+  if (!isRelationSquatDiagonal(matrixTransposeType, minSlotCount,
                                *clonedMatrixRelation)) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     auto [toReplace, newMatrixLayoutAttr] = convertToLayout(
         ctx, builder, op, matrix, matrixLayout,
-        getDiagonalLayoutRelation(matrixTransposeType, ciphertextSize));
+        getDiagonalLayoutRelation(matrixTransposeType, minSlotCount));
     debugAssignLayout(toReplace, newMatrixLayoutAttr);
     assignedLayouts.insert({toReplace, newMatrixLayoutAttr});
     matrix = toReplace;
@@ -578,7 +578,7 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
   auto result = vecmatOp->getResult(0);
   RankedTensorType outputType = cast<RankedTensorType>(result.getType());
   IntegerRelation outputLayoutResult =
-      getRowMajorLayoutRelation(outputType, ciphertextSize);
+      getRowMajorLayoutRelation(outputType, minSlotCount);
   LayoutAttr outputLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
   Attribute kernelInfoAttr =
@@ -606,14 +606,14 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   LayoutAttr matrixLayout = getComposedLayoutAttr(matrix);
   // The Halevi-Shoup kernel (all we support at this time) requires one
   // ciphertext per matrix row.
-  if (!isRelationSquatDiagonal(matrixType, ciphertextSize,
+  if (!isRelationSquatDiagonal(matrixType, minSlotCount,
                                matrixLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     MLIRContext* ctx = &getContext();
     mlir::IRRewriter builder(ctx);
     auto [toReplace, newMatrixLayoutAttr] =
         convertToLayout(ctx, builder, op, matrix, matrixLayout,
-                        getDiagonalLayoutRelation(matrixType, ciphertextSize));
+                        getDiagonalLayoutRelation(matrixType, minSlotCount));
     debugAssignLayout(toReplace, newMatrixLayoutAttr);
     assignedLayouts.insert({toReplace, newMatrixLayoutAttr});
     matrix = toReplace;
@@ -623,14 +623,14 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   auto vector = matvecOp.rhs();
   auto vectorType = cast<RankedTensorType>(vector.getType());
   LayoutAttr vectorLayout = getComposedLayoutAttr(vector);
-  if (!isRelationRowMajor(vectorType, ciphertextSize,
+  if (!isRelationRowMajor(vectorType, minSlotCount,
                           vectorLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     MLIRContext* ctx = &getContext();
     mlir::IRRewriter builder(ctx);
     auto [toReplace, newVectorLayoutAttr] =
         convertToLayout(ctx, builder, op, vector, vectorLayout,
-                        getRowMajorLayoutRelation(vectorType, ciphertextSize));
+                        getRowMajorLayoutRelation(vectorType, minSlotCount));
     debugAssignLayout(toReplace, newVectorLayoutAttr);
     assignedLayouts.insert({toReplace, newVectorLayoutAttr});
     vector = toReplace;
@@ -693,11 +693,11 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
   auto filterType = cast<RankedTensorType>(filter.getType());
 
   // Flattened data must fit into the ciphertext size.
-  if (dataType.getNumElements() > ciphertextSize) {
+  if (dataType.getNumElements() > minSlotCount) {
     return op->emitOpError()
            << "Flattened data must fit into a single ciphertext, but got "
            << dataType.getNumElements() << " elements and ciphertext size is "
-           << ciphertextSize;
+           << minSlotCount;
   }
 
   MLIRContext* ctx = &getContext();
@@ -706,13 +706,13 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
   // TODO(#1597): a layout optimizer should really be selecting the
   // layout instead of this pass.
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
-  if (!isRelationRowMajor(dataType, ciphertextSize,
+  if (!isRelationRowMajor(dataType, minSlotCount,
                           dataLayout.getIntegerRelation())) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, inserting "
                                "layout conversion.\n");
     auto [toReplace, newDataLayoutAttr] =
         convertToLayout(ctx, builder, op, data, dataLayout,
-                        getRowMajorLayoutRelation(dataType, ciphertextSize));
+                        getRowMajorLayoutRelation(dataType, minSlotCount));
     debugAssignLayout(toReplace, newDataLayoutAttr);
     assignedLayouts.insert({toReplace, newDataLayoutAttr});
   }
@@ -721,14 +721,14 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
   // into a larger matrix and then diagonalizing.
   LayoutAttr filterLayout = getComposedLayoutAttr(filter);
   if (!isRelationConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
-                                        ciphertextSize,
+                                        minSlotCount,
                                         filterLayout.getIntegerRelation())) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d filter input is not diagonalized, "
                                "inserting layout conversion.\n");
     // Insert a layout conversion op to make the matrix layout expanded and
     // squat diagonal
     auto convRelation = getConvFilterDiagonalizedRelation(
-        filterType, dataType, /*padding=*/0, ciphertextSize);
+        filterType, dataType, /*padding=*/0, minSlotCount);
     if (failed(convRelation)) {
       return failure();
     }
@@ -768,11 +768,11 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   auto filterType = cast<RankedTensorType>(filter.getType());
 
   // Flattened data must fit into the ciphertext size.
-  if (dataType.getNumElements() > ciphertextSize) {
+  if (dataType.getNumElements() > minSlotCount) {
     return op->emitOpError()
            << "Flattened data must fit into a single ciphertext, but got "
            << dataType.getNumElements() << " elements and ciphertext size is "
-           << ciphertextSize;
+           << minSlotCount;
   }
 
   MLIRContext* ctx = &getContext();
@@ -781,13 +781,13 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   // TODO(#1597): a layout optimizer should really be selecting the
   // layout instead of this pass.
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
-  if (!isRelationRowMajor(dataType, ciphertextSize,
+  if (!isRelationRowMajor(dataType, minSlotCount,
                           dataLayout.getIntegerRelation())) {
     LLVM_DEBUG(llvm::dbgs() << "conv_2d data input is not row major, inserting "
                                "layout conversion.\n");
     auto [toReplace, newDataLayoutAttr] =
         convertToLayout(ctx, builder, op, data, dataLayout,
-                        getRowMajorLayoutRelation(dataType, ciphertextSize));
+                        getRowMajorLayoutRelation(dataType, minSlotCount));
     debugAssignLayout(toReplace, newDataLayoutAttr);
     assignedLayouts.insert({toReplace, newDataLayoutAttr});
   }
@@ -796,14 +796,14 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   // into a larger matrix and then diagonalizing.
   LayoutAttr filterLayout = getComposedLayoutAttr(filter);
   if (!isRelationConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
-                                        ciphertextSize,
+                                        minSlotCount,
                                         filterLayout.getIntegerRelation())) {
     LLVM_DEBUG(llvm::dbgs() << "conv_2d filter input is not diagonalized, "
                                "inserting layout conversion.\n");
     // Insert a layout conversion op to make the matrix layout expanded and
     // squat diagonal
     auto convRelation = getConvFilterDiagonalizedRelation(
-        filterType, dataType, /*padding=*/0, ciphertextSize);
+        filterType, dataType, /*padding=*/0, minSlotCount);
     if (failed(convRelation)) {
       return failure();
     }
@@ -867,7 +867,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
   IntegerRelation targetDataRelation =
-      getRowMajorLayoutRelation(dataType, ciphertextSize);
+      getRowMajorLayoutRelation(dataType, minSlotCount);
 
   if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, "
@@ -882,7 +882,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   // into a larger matrix and then diagonalizing.
   LayoutAttr filterLayout = getComposedLayoutAttr(filter);
   auto convRelation = get1dConvCwFcwFilterDiagonalizedRelation(
-      filterType, dataType, stride, /*padding=*/0, ciphertextSize,
+      filterType, dataType, stride, /*padding=*/0, minSlotCount,
       /*interchangeRows=*/interchangeRows);
   if (failed(convRelation)) {
     return failure();
@@ -908,7 +908,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   // row-shuffled gap. Future users may need to insert a layout conversion.
   auto result = op->getResult(0);
   presburger::IntegerRelation resultRelation =
-      get1dConvResultRelation(outputType, stride, /*padding=*/0, ciphertextSize,
+      get1dConvResultRelation(outputType, stride, /*padding=*/0, minSlotCount,
                               /*interchangeRows=*/interchangeRows);
   LayoutAttr resultLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, resultRelation);
@@ -992,7 +992,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
   IntegerRelation targetDataRelation =
-      getRowMajorLayoutRelation(fheInputType, ciphertextSize);
+      getRowMajorLayoutRelation(fheInputType, minSlotCount);
 
   mlir::IRRewriter builder(ctx);
   if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
@@ -1011,7 +1011,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
     originalFilter = assignOp.getValue();
   }
   auto maybeRels = get2dConvChwFchwFilterAsSequence(
-      filterType, fheInputType, strides, /*padding=*/0, ciphertextSize,
+      filterType, fheInputType, strides, /*padding=*/0, minSlotCount,
       interchangeRows);
   if (failed(maybeRels)) {
     return failure();
@@ -1042,12 +1042,12 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   // pixel-shuffled gap. Future users may need to insert a layout conversion.
   auto result = op->getResult(0);
   Attribute resultLayoutAttr;
-  presburger::IntegerRelation rel1 = get2dConvResultRelation(
-      outputType, strides, /*padding=*/0, ciphertextSize);
+  presburger::IntegerRelation rel1 =
+      get2dConvResultRelation(outputType, strides, /*padding=*/0, minSlotCount);
 
   if (interchangeRows) {
     presburger::IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
-        outputType, strides, ciphertextSize);
+        outputType, strides, minSlotCount);
     LayoutAttr layout1 = LayoutAttr::getFromIntegerRelation(ctx, rel1);
     LayoutAttr layout2 = LayoutAttr::getFromIntegerRelation(ctx, rel2);
     resultLayoutAttr = ArrayAttr::get(ctx, {layout1, layout2});
@@ -1099,28 +1099,28 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
   // keep flexibility for future pt-ct/ct-pt support
   if (inputSecret && filterSecret) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
-    if (!isRelationTricyclic(lhsType, ciphertextSize,
+    if (!isRelationTricyclic(lhsType, minSlotCount,
                              lhsLayout.getIntegerRelation())) {
       auto [toReplace, newInputMatrixLayoutAttr] =
           convertToLayout(ctx, builder, op, lhs, lhsLayout,
-                          getTricyclicLayoutRelation(lhsType, ciphertextSize));
+                          getTricyclicLayoutRelation(lhsType, minSlotCount));
       debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
       assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
     }
 
     LayoutAttr rhsLayout = getComposedLayoutAttr(rhs);
-    if (!isRelationTricyclic(rhsType, ciphertextSize,
+    if (!isRelationTricyclic(rhsType, minSlotCount,
                              rhsLayout.getIntegerRelation())) {
       auto [toReplace, newFilterMatrixLayoutAttr] =
           convertToLayout(ctx, builder, op, rhs, rhsLayout,
-                          getTricyclicLayoutRelation(rhsType, ciphertextSize));
+                          getTricyclicLayoutRelation(rhsType, minSlotCount));
       debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
       assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
     }
 
     RankedTensorType outputType = cast<RankedTensorType>(result.getType());
     IntegerRelation outputLayoutResult =
-        getTricyclicLayoutRelation(outputType, ciphertextSize);
+        getTricyclicLayoutRelation(outputType, minSlotCount);
     LayoutAttr outputLayoutAttr =
         LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
 
@@ -1152,28 +1152,28 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
 
   if (inputSecret && filterSecret) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
-    if (!isRelationBicyclic(lhsType, ciphertextSize,
+    if (!isRelationBicyclic(lhsType, minSlotCount,
                             lhsLayout.getIntegerRelation())) {
       auto [toReplace, newInputMatrixLayoutAttr] =
           convertToLayout(ctx, builder, op, lhs, lhsLayout,
-                          getBicyclicLayoutRelation(lhsType, ciphertextSize));
+                          getBicyclicLayoutRelation(lhsType, minSlotCount));
       debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
       assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
     }
 
     LayoutAttr rhsLayout = getComposedLayoutAttr(rhs);
-    if (!isRelationBicyclic(rhsType, ciphertextSize,
+    if (!isRelationBicyclic(rhsType, minSlotCount,
                             rhsLayout.getIntegerRelation())) {
       auto [toReplace, newFilterMatrixLayoutAttr] =
           convertToLayout(ctx, builder, op, rhs, rhsLayout,
-                          getBicyclicLayoutRelation(rhsType, ciphertextSize));
+                          getBicyclicLayoutRelation(rhsType, minSlotCount));
       debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
       assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
     }
 
     RankedTensorType outputType = cast<RankedTensorType>(result.getType());
     IntegerRelation outputLayoutResult =
-        getBicyclicLayoutRelation(outputType, ciphertextSize);
+        getBicyclicLayoutRelation(outputType, minSlotCount);
     LayoutAttr outputLayoutAttr =
         LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
     auto kernelInfoAttr =
@@ -1192,12 +1192,12 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
   // Assign a per-row layout to the input matrix. Each row of the input matrix
   // will be packed into a separate ciphertext.
   auto lhsLayout = getComposedLayoutAttr(lhs);
-  if (!isRelationPerRow(lhsType, ciphertextSize,
+  if (!isRelationPerRow(lhsType, minSlotCount,
                         lhsLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the matrix layout per-row
     auto [toReplace, newInputMatrixLayoutAttr] =
         convertToLayout(ctx, builder, op, lhs, lhsLayout,
-                        getPerRowLayoutRelation(lhsType, ciphertextSize));
+                        getPerRowLayoutRelation(lhsType, minSlotCount));
     debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
     assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
   }
@@ -1211,12 +1211,12 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
   auto domainOffset =
       rhsLayoutRelation.getVarKindOffset(presburger::VarKind::Domain);
   clonedFilterMatrixRelation->swapVar(domainOffset, domainOffset + 1);
-  if (!isRelationSquatDiagonal(rhsTransposeType, ciphertextSize,
+  if (!isRelationSquatDiagonal(rhsTransposeType, minSlotCount,
                                *clonedFilterMatrixRelation)) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     auto [toReplace, newFilterMatrixLayoutAttr] = convertToLayout(
         ctx, builder, op, rhs, rhsLayout,
-        getDiagonalLayoutRelation(rhsTransposeType, ciphertextSize));
+        getDiagonalLayoutRelation(rhsTransposeType, minSlotCount));
     debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
     assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
   }
@@ -1224,7 +1224,7 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
   // The output has the same per-row layout as the input matrix.
   RankedTensorType outputType = cast<RankedTensorType>(result.getType());
   IntegerRelation outputLayoutResult =
-      getPerRowLayoutRelation(outputType, ciphertextSize);
+      getPerRowLayoutRelation(outputType, minSlotCount);
   LayoutAttr outputLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
   auto kernelInfoAttr =
@@ -1253,12 +1253,12 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
 
     // enforce row-major layout
     RankedTensorType thisType = cast<RankedTensorType>(tensor.getType());
-    if (!isRelationRowMajor(thisType, ciphertextSize,
+    if (!isRelationRowMajor(thisType, minSlotCount,
                             thisLayout.getIntegerRelation())) {
       LLVM_DEBUG(llvm::dbgs() << "ReduceOp tensor is not row major");
       auto [toReplace, newLayoutAttr] =
           convertToLayout(ctx, builder, op, tensor, thisLayout,
-                          getRowMajorLayoutRelation(thisType, ciphertextSize));
+                          getRowMajorLayoutRelation(thisType, minSlotCount));
       debugAssignLayout(toReplace, newLayoutAttr);
       assignedLayouts.insert({toReplace, newLayoutAttr});
       thisLayout = newLayoutAttr;
@@ -1798,7 +1798,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(tensor::InsertOp op) {
 
   std::string newScalarLayoutStr = llvm::formatv(
       "{ [] -> [ct, slot] : 0 <= ct <= {0} and 0 <= slot <= {1} }",
-      destNumCts.value(), ciphertextSize - 1);
+      destNumCts.value(), minSlotCount - 1);
   LayoutAttr newScalarLayout =
       LayoutAttr::get(op.getContext(), newScalarLayoutStr);
 
@@ -1834,7 +1834,7 @@ FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForScalarType(
   }
 
   std::string relationStr = llvm::formatv(
-      "{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= {0} }", ciphertextSize - 1);
+      "{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= {0} }", minSlotCount - 1);
   return LayoutAttr::get(ctx, relationStr);
 }
 
@@ -1865,7 +1865,7 @@ FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForType(Type type) {
   LLVM_DEBUG(llvm::dbgs() << "getting row-major layout map for type="
                           << tensorType << "\n");
   IntegerRelation relation =
-      getRowMajorLayoutRelation(tensorType, ciphertextSize);
+      getRowMajorLayoutRelation(tensorType, minSlotCount);
   return LayoutAttr::getFromIntegerRelation(tensorType.getContext(), relation);
 }
 

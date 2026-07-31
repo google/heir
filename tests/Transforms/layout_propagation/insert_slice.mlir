@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-propagation=ciphertext-size=32 --split-input-file %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=min-slot-count=32 --split-input-file %s | FileCheck %s
 
 module {
   // CHECK: func.func @main

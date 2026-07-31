@@ -30,7 +30,6 @@ cc_binary(
         "notap",
     ],
     deps = [
-        "@bazel_tools//tools/cpp/runfiles",
         "@heir//lib/Target/OpenFhePke:Interpreter",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Parser",
@@ -46,7 +45,7 @@ cc_binary(
 #     generated_filename = "lenet.openfhe.mlir",
 #     pass_flags = [
 #         "--annotate-module=backend=openfhe scheme=ckks",
-#         "--torch-linalg-to-ckks=ciphertext-degree=1024",
+#         "--torch-linalg-to-ckks=min-slot-count=1024",
 #         "--scheme-to-openfhe",
 #     ],
 #     tags = [

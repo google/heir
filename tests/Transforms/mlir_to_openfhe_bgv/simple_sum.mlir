@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-bgv='ciphertext-degree=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
+// RUN: heir-opt --mlir-to-bgv='min-slot-count=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
 
 // CHECK: @simple_sum
 // CHECK: openfhe

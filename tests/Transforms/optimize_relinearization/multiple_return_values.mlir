@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-secret-arithmetic=ciphertext-degree=8 --secret-insert-mgmt-bgv --optimize-relinearization %s | FileCheck %s
+// RUN: heir-opt --mlir-to-secret-arithmetic=min-slot-count=8 --secret-insert-mgmt-bgv --optimize-relinearization %s | FileCheck %s
 
 // CHECK: func.func @repro
 func.func @repro(%x: i16 {secret.secret}, %y: i16 {secret.secret}) -> (i16, i16) {

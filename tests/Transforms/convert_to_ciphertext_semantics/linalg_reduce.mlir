@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 // Test that a 8 length vector gets reduced.
 // CHECK: func.func @main
 // CHECK-NOT: linalg.reduce

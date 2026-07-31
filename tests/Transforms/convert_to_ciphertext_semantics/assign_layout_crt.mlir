@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 
 // CHECK: func.func private @_assign_layout_{{[0-9]+}}(%[[ARG0:.*]]: tensor<11x13xi16>) -> tensor<1x1024xi16>
 // CHECK-DAG: %[[ZERO:.*]] = arith.constant dense<0> : tensor<1x1024xi16>

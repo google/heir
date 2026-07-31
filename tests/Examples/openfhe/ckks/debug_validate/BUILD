@@ -18,7 +18,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "validate_lower_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8",
+        "--mlir-to-ckks=min-slot-count=8",
         "--scheme-to-openfhe",
         "--lwe-add-debug-port",
     ],

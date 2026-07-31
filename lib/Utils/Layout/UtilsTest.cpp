@@ -164,11 +164,11 @@ TEST(UtilsTest, DiagonalLayout) {
   MLIRContext context;
 
   // Diagonalize a 4x8 matrix into a 4x64 matrix.
-  int64_t ciphertextSize = 64;
+  int64_t minSlotCount = 64;
   RankedTensorType matrixType =
       RankedTensorType::get({4, 8}, IndexType::get(&context));
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSize);
+      getDiagonalLayoutRelation(matrixType, minSlotCount);
 
   diagonalRelation.simplify();
   for (unsigned int i = 0; i < 4; ++i) {
@@ -195,11 +195,11 @@ TEST(UtilsTest, SquatDiagonalLayout) {
   // 2  8 14  * * *  * *
   // 3  9 15  * * * 11 *
   // 4 10  *  * * 6 12 *
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
   RankedTensorType matrixType =
       RankedTensorType::get({3, 5}, IndexType::get(&context));
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSize);
+      getDiagonalLayoutRelation(matrixType, minSlotCount);
   int64_t paddedRows = 4;
   int64_t paddedCols = 8;
 
@@ -388,11 +388,11 @@ TEST(UtilsTest, PerRowLayout) {
   //  1  2  3  4  5 * * *  1  2  3  4  5 * * *
   //  6  7  8  9 10 * * *  6  7  8  9 10 * * *
   // 11 12 13 14 15 * * * 11 12 13 14 15 * * *
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
   RankedTensorType matrixType =
       RankedTensorType::get({3, 5}, IndexType::get(&context));
   IntegerRelation perRowRelation =
-      getPerRowLayoutRelation(matrixType, ciphertextSize);
+      getPerRowLayoutRelation(matrixType, minSlotCount);
   int64_t paddedCols = 8;
 
   for (unsigned int i = 0; i < 3; ++i) {
