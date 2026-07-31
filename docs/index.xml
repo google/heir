@@ -5793,6 +5793,15 @@ MemRef, so must be run prior to any affine loop unrolling in a pipeline.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-14">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-disable-affine-loop : Use this to control to disable using affine loops
+&lt;/code>&lt;/pre>&lt;h3 id="-externalize-constants">&lt;code>-externalize-constants&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Externalize large constants to binary files&lt;/em>&lt;/p>
+&lt;p>Replaces arith.constant operations containing large dense tensors with
+&lt;code>preprocessing.load_resource&lt;/code> ops, and writes the constant data to external
+binary files.&lt;/p>
+&lt;h4 id="options-15">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-threshold-elements : Minimum number of elements to externalize
+-output-dir : Directory where binary files are written
+-runtime-load-dir : Directory path used in the generated load_resource op
 &lt;/code>&lt;/pre>&lt;h3 id="-extract-loop-body">&lt;code>-extract-loop-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extracts logic of a loop bodies into functions.&lt;/em>&lt;/p>
 &lt;p>This pass extracts logic in the inner body of for loops into functions.&lt;/p>
@@ -5844,7 +5853,7 @@ func.func private @__for_loop(%arg0: i8) -&amp;gt; i8 {
 return %102 : i8
 }
 }
-&lt;/code>&lt;/pre>&lt;h4 id="options-15">Options&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="options-16">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-loop-size : Use this to control the minimum loop size to apply this pass
 -min-body-size : Use this to control the minimum loop body size to apply this pass
 &lt;/code>&lt;/pre>&lt;h3 id="-fold-constant-tensors">&lt;code>-fold-constant-tensors&lt;/code>&lt;/h3>
@@ -5975,7 +5984,7 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-16">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-17">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -mod-bits : Default number of bits for all prime coefficient modulusto use for the ciphertext space.
 -min-slot-count : Minimum number of slots for parameter generation.
@@ -6037,7 +6046,7 @@ at the module level.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-17">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-18">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -plaintext-modulus : Plaintext modulus.
 -min-slot-count : Minimum number of slots for parameter generation.
@@ -6088,7 +6097,7 @@ factor.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-18">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-19">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots for parameter generation.
 -first-mod-bits : Default number of bits of the first prime coefficient modulus to use for the ciphertext space.
 -scaling-mod-bits : Default number of bits of the scaling prime coefficient modulus to use for the ciphertext space.
@@ -6120,7 +6129,7 @@ relinearize when the ILP chooses them on a mul result.&lt;/li>
 CKKS scale modeling is selected from CKKS module attributes. Modules
 without CKKS attributes use the generic level-only model, where the
 effective waterline scale and rescaling factor are equal.&lt;/p>
-&lt;h4 id="options-19">Options&lt;/h4>
+&lt;h4 id="options-20">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-bootstrap-waterline : Bootstrap waterline (max level). Levels are 0..bootstrap-waterline (inclusive); inputs start at bootstrap-waterline.
 -scale-waterline : Orbit waterline/base scale bits (Sw). Non-CKKS level-only mode uses this for both Sw and Sf.
 -scale-factor-bits : Orbit rescale factor bits (Sf), i.e. scale bits dropped by one rescale/modreduce.
@@ -6246,7 +6255,7 @@ ciphertexts.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%48&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-unroll : Unroll the loop instead of generating a rolled loop
 &lt;/code>&lt;/pre>&lt;h3 id="-implement-shift-network">&lt;code>-implement-shift-network&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Implement tensor_ext.convert_layout ops as shift newtorks&lt;/em>&lt;/p>
@@ -6525,7 +6534,7 @@ the following signatures:&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>jaxiteword&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>jaxiteword&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-22">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Name of entry function.
 -mul-depth : Manually specify the mul depth (overrides analysis)
 -dnum : Key-switching decomposition parameter
@@ -6542,7 +6551,7 @@ the following signatures:&lt;/p>
 &lt;p>This pass generates helper functions to configure the Lattigo objects for the given function.&lt;/p>
 &lt;p>For example, for an MLIR function &lt;code>@my_func&lt;/code>, the generated helpers have the following signatures&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>evaluator&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>parameter&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>encoder&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>encryptor&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>decryptor&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-22">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-23">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 &lt;/code>&lt;/pre>&lt;h3 id="-layout-optimization">&lt;code>-layout-optimization&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Optimize layout conversions in the IR&lt;/em>&lt;/p>
@@ -6604,7 +6613,7 @@ hoisted.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-23">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-24">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 -vve-random-seed : Random seed for Vos-Vos-Erkin shift network randomization. Will be hash-combined with additional seeds based on layouts being converted from and to.
 -vve-random-tries : Number of random tries used to find best Vos-Vos-Erkin shift network during layout optimization.
@@ -6705,7 +6714,7 @@ case it annotates an un-annotated IR with layout attributes.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">10x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-24">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-25">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 &lt;/code>&lt;/pre>&lt;h3 id="-linalg-canonicalizations">&lt;code>-linalg-canonicalizations&lt;/code>&lt;/h3>
 &lt;p>&lt;em>This pass canonicalizes the linalg.transpose operation of a constant into a transposed constant.&lt;/em>&lt;/p>
@@ -6770,7 +6779,7 @@ is listed alongside each method. The chosen method is controlled by the
 &lt;p>// TODO(#1565): Add support for Chebyshev-basis methods
 // - &lt;code>&amp;quot;clenshaw&amp;quot;&lt;/code>: Clenshaw&amp;rsquo;s method (Chebyshev basis)
 // - &lt;code>&amp;quot;bsgs&amp;quot;&lt;/code>: Baby Step Giant Step (Chebyshev basis)&lt;/p>
-&lt;h4 id="options-25">Options&lt;/h4>
+&lt;h4 id="options-26">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-method : The method used to lower polynomial.eval
 -min-coefficient-threshold : Minimum threshold for coefficients to be included in the lowered polynomial. Coefficients with absolute value below this threshold will be dropped.
 &lt;/code>&lt;/pre>&lt;h3 id="-lower-unpack">&lt;code>-lower-unpack&lt;/code>&lt;/h3>
@@ -6800,7 +6809,7 @@ arguments, and the debug port is called after each homomorphic operation:&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> __heir_debug&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%sk&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%ct1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-27">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 -insert-debug-after-every-op : Whether to add debug ports after every op
@@ -6953,7 +6962,7 @@ Mac operation and removes the mul operation.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-27">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-28">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -mul-depth : Manually specify the mul depth
 -ring-dim : Manually specify the ring dimension (insecure is implied)
@@ -7056,7 +7065,7 @@ relinearization strategy. It solves an ILP for each &lt;code>func&lt;/code> op i
 &lt;a href="https://heir.dev/docs/design/relinearization_ilp/">docs at the HEIR website&lt;/a>.
 The model is an adaptation of the ILP described in
 &lt;a href="https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis">a blog post by Jeremy Kun&lt;/a>.&lt;/p>
-&lt;h4 id="options-28">Options&lt;/h4>
+&lt;h4 id="options-29">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
 -allow-mixed-degree-operands : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 &lt;/code>&lt;/pre>&lt;h3 id="-partial-unroll-for-level-consumption">&lt;code>-partial-unroll-for-level-consumption&lt;/code>&lt;/h3>
@@ -7135,7 +7144,7 @@ unrolling calculation to use a particular value for its max level.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-29">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-30">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-force-max-level : If nonzero, forces the inferred maximum level to the given value.
 &lt;/code>&lt;/pre>&lt;h3 id="-polynomial-approximation">&lt;code>-polynomial-approximation&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Approximate ops by polynomials&lt;/em>&lt;/p>
@@ -7314,7 +7323,7 @@ generated by the &lt;code>generate-param-ckks&lt;/code> pass.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-30">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-31">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 &lt;/code>&lt;/pre>&lt;h3 id="-preprocessing-to-lattigo">&lt;code>-preprocessing-to-lattigo&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower Preprocessing ops to Lattigo Plaintexts&lt;/em>&lt;/p>
@@ -7506,7 +7515,7 @@ if these operations does not have the attribute already.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> mgmt&lt;span style="color:#000;font-weight:bold">.&lt;/span>relinearize &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">test.attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">test.attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-31">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-32">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-attr-name : The attribute name to propagate with.
 -reverse : Whether to propagate in reverse
 &lt;/code>&lt;/pre>&lt;h3 id="-reconcile-mixed-secretness-iter-args">&lt;code>-reconcile-mixed-secretness-iter-args&lt;/code>&lt;/h3>
@@ -7624,7 +7633,7 @@ with the same ciphertext level and scale. If discrepancies are found,
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-32">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-33">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-level-budget : Maximum level budget for analysis (0 = default)
 &lt;/code>&lt;/pre>&lt;h3 id="-remove-unused-memref">&lt;code>-remove-unused-memref&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Cleanup any unused memrefs&lt;/em>&lt;/p>
@@ -7800,7 +7809,7 @@ power of two before applying this logic.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-33">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-34">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-n : Ciphertext slot capacity
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-add-debug-port">&lt;code>-secret-add-debug-port&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Add debug port to secret-arithmetic ops&lt;/em>&lt;/p>
@@ -7833,7 +7842,7 @@ each homomorphic operation:&lt;/p>
 secret key material into the debug handler call. See &lt;code>lwe-add-debug-port&lt;/code> for
 cryptosystem-aware analogues of this pass. This pass must remain, in
 particular, to support the plaintext pipeline.&lt;/p>
-&lt;h4 id="options-34">Options&lt;/h4>
+&lt;h4 id="options-35">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-insert-debug-after-every-op : Whether to add debug calls after every op
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-capture-generic-ambient-scope">&lt;code>-secret-capture-generic-ambient-scope&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Capture the ambient scope used in a secret.generic&lt;/em>&lt;/p>
@@ -7856,7 +7865,7 @@ program that operates on a secret type annotates the input to a region as
 list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
 limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.&lt;/p>
-&lt;h4 id="options-35">Options&lt;/h4>
+&lt;h4 id="options-36">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
@@ -7900,7 +7909,7 @@ back to the IR by using &lt;code>--secret-import-execution-result=file-name=trac
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">secret.execution_result =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">5.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">6.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">8.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">9.0&lt;/span>&lt;span style="color:#000;font-weight:bold">]}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-36">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-37">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-file-name : file name of the execution result
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-insert-mgmt-bfv">&lt;code>-secret-insert-mgmt-bfv&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Place BFV ciphertext management operations&lt;/em>&lt;/p>
@@ -7987,7 +7996,7 @@ lower to corresponding RNS Type.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-37">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-38">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-after-mul : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -level-budget : An optional maximum level budget for the pipeline to assume
@@ -8004,7 +8013,7 @@ where when all levels are consumed then a bootstrap is inserted.&lt;/p>
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
 TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).&lt;/p>
-&lt;h4 id="options-38">Options&lt;/h4>
+&lt;h4 id="options-39">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-after-mul : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
@@ -8026,7 +8035,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-39">Options&lt;/h4>
+&lt;h4 id="options-40">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>cggi&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -8042,7 +8051,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-40">Options&lt;/h4>
+&lt;h4 id="options-41">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-mod-arith">&lt;code>-secret-to-mod-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>mod-arith&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -8055,7 +8064,7 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that &lt;code>canonicalize&lt;/code> was run so that
 non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&amp;rsquo;s block
 arguments.&lt;/p>
-&lt;h4 id="options-41">Options&lt;/h4>
+&lt;h4 id="options-42">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-modulus : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
 -log-scale : Log base 2 of the scale for encoding floating points as ints.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
@@ -8063,7 +8072,7 @@ arguments.&lt;/p>
 &lt;p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.&lt;/p>
-&lt;h4 id="options-42">Options&lt;/h4>
+&lt;h4 id="options-43">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-function : function to add secret annotations to
 &lt;/code>&lt;/pre>&lt;h3 id="-select-rewrite">&lt;code>-select-rewrite&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Rewrites arith.select to a CMUX style expression&lt;/em>&lt;/p>
@@ -8164,7 +8173,7 @@ limit.&lt;/p>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-43">Options&lt;/h4>
+&lt;h4 id="options-44">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tensor-ext-to-tensor">&lt;code>-tensor-ext-to-tensor&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tensor_ext&lt;/code> to &lt;code>tensor&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -8247,7 +8256,7 @@ this is done by the &lt;code>generate-param-&amp;lt;scheme&amp;gt;&lt;/code> pas
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic"># with commandline --debug-only=ValidateNoise&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-44">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-45">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -annotate-noise-bound : Annotate the noise bound to the IR.
 &lt;/code>&lt;/pre>&lt;h3 id="-validate-preprocessing">&lt;code>-validate-preprocessing&lt;/code>&lt;/h3>
@@ -8306,53 +8315,43 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
-&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
-high-level overview of the HEIR project, brainstorming where new research might
-be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
-&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
-and this is the first video posted on the
-&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
+2025-04-17.&lt;/p>
+&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
+management in the compiler. This talk
+&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
+&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: FHE.org 2025 conference talk and slides</title><link>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</link><pubDate>Fri, 11 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</guid><description>
+&lt;p>Jeremy Kun gave a talk at the FHE.org 2025 conference in Sofia last month. The
+&lt;a href="https://www.youtube.com/watch?v=6JPwpTOcydM&amp;amp;list=PLnbmMskCVh1cCnWbmgxI0BM0UD2JHH9fz&amp;amp;index=5">video&lt;/a>
+has been posted on YouTube, and the slides can be found
+&lt;a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">here&lt;/a>.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
 from the HEIR meeting on 2024-09-05.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-27.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-08.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-12-12.&lt;/p>
-&lt;p>This is the last meeting for 2023. Please respond to
-&lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
-preferences.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-08-22.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
 from the HEIR meeting on 2023-11-28.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
-join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -25405,6 +25404,36 @@ a memref.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="preprocessingload_resource-heirpreprocessingloadresourceop">&lt;code>preprocessing.load_resource&lt;/code> (heir::preprocessing::LoadResourceOp)&lt;/h3>
+&lt;p>&lt;em>Load a constant resource from an external binary file&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `preprocessing.load_resource` $path attr-dict `:` type($result)
+&lt;/code>&lt;/pre>&lt;p>Loads raw bytes from the file specified by &lt;code>path&lt;/code> and interprets them
+as a tensor or memref of the result type.&lt;/p>
+&lt;p>This op is inserted by the &lt;code>externalize-constants&lt;/code> pass.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>path&lt;/code>&lt;/td>&lt;td>::mlir::StringAttr&lt;/td>&lt;td>string attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
+&lt;td>tensor of any non-token type values or memref of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="preprocessingstore-heirpreprocessingstoreop">&lt;code>preprocessing.store&lt;/code> (heir::preprocessing::StoreOp)&lt;/h3>
 &lt;p>&lt;em>Store a value to preprocessing storage at given indices and site_id&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -25420,7 +25449,7 @@ a loop nest.&lt;/li>
 &lt;p>In &lt;code>preprocessing-to-memref&lt;/code>, this op lowers to storing a plaintext in a
 memref.&lt;/p>
 &lt;p>Interfaces: &lt;code>MemoryEffectsOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>site_id&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>32-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -27027,6 +27056,430 @@ generic op.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>values&lt;/code>&lt;/td>
 &lt;td>variadic of any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: TensorExt</title><link>https://heir.dev/docs/dialects/tensorext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tensorext/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="tensor_ext-dialect">&amp;rsquo;tensor_ext&amp;rsquo; Dialect&lt;/h1>
+&lt;p>The &lt;code>tensor_ext&lt;/code> dialect contains operations on plaintext tensors that
+correspond to the computation model of certain FHE schemes, but are
+unlikely to be upstreamed to MLIR due to their specificity to FHE.&lt;/p>
+&lt;h2 id="tensorext-attributes">TensorExt attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="layoutattr">LayoutAttr&lt;/h3>
+&lt;p>&lt;em>A relation describing the layout of a data-semantic tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#tensor_ext.layout&amp;lt;
+mlir::StringAttr # layout
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute describes how a data-semantic tensor is laid out among a
+tensor of ciphertexts. The layout is described by an integer relation $(d,
+s)$, where $d$ is a multiset of data-semantic tensor indices and $s$ is a
+multiset of slot indices (or coefficient indices). The slot indices are
+defined by two indices: the ciphertext index and the slot index in that
+order. The elements of the relation are defined by a set of quasi-affine
+constraints.&lt;/p>
+&lt;p>I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
+at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
+defined as part of the relation by a constraint like &lt;code>row + col + 2 - ct + slot = 0&lt;/code>.&lt;/p>
+&lt;p>The attribute stores a string representation of the integer relation,
+which follows the ISL syntax for &lt;code>isl_basic_map&lt;/code>. For example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#vec_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 &amp;gt;= 0 and 0 &amp;gt;= i0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and ct = 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#mat_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [row, col] -&amp;gt; [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row &amp;gt;= 0 and col &amp;gt;= 0 and ct &amp;gt;= 0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and 511 &amp;gt;= ct and 511 &amp;gt;= row and 511 &amp;gt;= col }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Example with local (existential) variables.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{[d0] -&amp;gt; [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 &amp;gt;= 0 and d0 &amp;gt;= 0 and ct &amp;gt;= 0 and slot &amp;gt;= 0 and -slot + 1023 &amp;gt;= 0 and -d0 + d3 * 1024 + 1023 &amp;gt;= 0 and d0 - d3 * 1024 &amp;gt;= 0 and -d0 + d4 * 1024 + 1023 &amp;gt;= 0 and d0 - d4 * 1024 &amp;gt;= 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">layout&lt;/td>
+&lt;td style="text-align:center">&lt;code>mlir::StringAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="originaltypeattr">OriginalTypeAttr&lt;/h3>
+&lt;p>&lt;em>The original type of a secret tensor whose layout has been converted to ciphertext semantics.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#tensor_ext.original_type&amp;lt;
+::mlir::Type, # originalType
+::mlir::Attribute # layout
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute is used to retain the original type of a secret tensor after
+its conversion to ciphertext semantics, i.e. after applying any padding or
+alignment to fill ciphertext data types. For example, if a
+&lt;code>!secret.secret&amp;lt;tensor&amp;lt;32xi8&amp;gt;&amp;gt;&lt;/code> is laid out in a ciphertext with
+1024 slots, the new type would be &lt;code>!secret.secret&amp;lt;tensor&amp;lt;1024xi8&amp;gt;&amp;gt;&lt;/code>
+with attribute &lt;code>tensor_ext.original_type&amp;lt;!secret.secret&amp;lt;tensor&amp;lt;32xi8&amp;gt;&amp;gt;&lt;/code>.&lt;/p>
+&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">originalType&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">layout&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="tensorext-ops">TensorExt ops&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="tensor_extassign_layout-heirtensor_extassignlayoutop">&lt;code>tensor_ext.assign_layout&lt;/code> (heir::tensor_ext::AssignLayoutOp)&lt;/h3>
+&lt;p>&lt;em>Assign a layout to a plaintext tensor or scalar.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.assign_layout` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This op allows the ingestion of a plaintext value into the layout system.
+For example, ops like &lt;code>linalg.reduce&lt;/code>, require a tensor input to represent
+initial values. These will generally be created by an &lt;code>arith.constant&lt;/code> or
+&lt;code>tensor.empty&lt;/code> op, which does not have secret results. Lowerings will
+convert this to a packed plaintext, so that the subsequent ops can be
+lowered as ciphertext-plaintext ops.&lt;/p>
+&lt;p>This op is inserted by layout selection passes.&lt;/p>
+&lt;p>The optional &lt;code>domainSchedule&lt;/code> attribute specifies which domain dimensions
+should be part of the loop nest schedule when lowering. The range dimensions
+are always included. Adding extra domain indices to the loop schedule will
+help ISL generate a loop nest more efficiently, but comes at the tradeoff of
+a slower generated loop nest.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domainSchedule&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extconvert_layout-heirtensor_extconvertlayoutop">&lt;code>tensor_ext.convert_layout&lt;/code> (heir::tensor_ext::ConvertLayoutOp)&lt;/h3>
+&lt;p>&lt;em>Convert from one layout to another.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.convert_layout` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This op represents the conversion of a value from one packed layout to
+another. This is implemented via a &amp;ldquo;shift network&amp;rdquo; of ciphertext rotations,
+plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
+&lt;p>This op is inserted by layout selection passes.&lt;/p>
+&lt;p>The optional &lt;code>domainSchedule&lt;/code> attribute specifies which extra domain
+dimensions should be part of the loop nest schedule when lowering. Generated
+loops nests are only used when the layout conversion is used for a plaintext
+layout assignment. See &lt;code>tensor_ext.assign_layout&lt;/code> for more details.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domainSchedule&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>atomic&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extremap-heirtensor_extremapop">&lt;code>tensor_ext.remap&lt;/code> (heir::tensor_ext::RemapOp)&lt;/h3>
+&lt;p>&lt;em>Reorganize the entries of a tensor by a static mapping.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.remap` operands attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>This op represents a remapping of entries of a tensor.&lt;/p>
+&lt;p>This op is primarily inserted as a lowered form of &lt;code>convert_layout&lt;/code> op, to
+represent a ciphertext slot-repacking operation. However, it can more
+generally express any partial mapping from source tensor indices to target
+indices within a tensor. Unmapped entries from the input tensor are
+unmodified.&lt;/p>
+&lt;p>This operation differs from a &lt;code>tensor.gather/scatter&lt;/code> operation in that it
+can replicate values from the source tensor or omit values in the
+destination tensor. It differs from a &amp;ldquo;lane shuffle&amp;rdquo; in that the mapping
+need not be a permutation. It differs from a &amp;ldquo;swizzle&amp;rdquo; in that it cannot
+change the dimension of the result tensor.&lt;/p>
+&lt;p>In the slot form of a ciphertext, this op is lowered to a &amp;ldquo;shift network&amp;rdquo;
+of ciphertext-plaintext mask, rotate, and sum operations by the
+&lt;code>implement-shift-network&lt;/code> pass.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>permutation&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extrotate-heirtensor_extrotateop">&lt;code>tensor_ext.rotate&lt;/code> (heir::tensor_ext::RotateOp)&lt;/h3>
+&lt;p>&lt;em>Rotate a tensor some number of indices left.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate` operands attr-dict `:` qualified(type($tensor)) `,` type($shift)
+&lt;/code>&lt;/pre>&lt;p>This op represents a left-rotation of a tensor by given number of indices.
+Negative shift values are interpreted as right-rotations.&lt;/p>
+&lt;p>This corresponds to the &lt;code>rotate&lt;/code> operation in arithmetic FHE schemes like
+BGV. This op currently only supports 1D rotations of the last axis of a
+tensor. A &lt;code>tensor&amp;lt;4x64xi32&amp;gt;&lt;/code> is interpreted as 4 ciphertexts each with 64
+slots, and a rotation on a value of this type rotates each ciphertext by
+the given amount.&lt;/p>
+&lt;p>// In the future, the op will be adjusted to support rotations of general
+// multi-dimensional tensors with a vector of rotation indices for each
+// dimension. The lowering will implement the correct operations to rotate
+// the tensor along the indices given its packing.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ext&lt;span style="color:#000;font-weight:bold">.&lt;/span>rotate &lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>shift&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extrotate_and_reduce-heirtensor_extrotateandreduceop">&lt;code>tensor_ext.rotate_and_reduce&lt;/code> (heir::tensor_ext::RotateAndReduceOp)&lt;/h3>
+&lt;p>&lt;em>Performs a reduction of a periodically rotated tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate_and_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This op reduces products of a plaintext with a periodically rotated
+tensor.&lt;/p>
+&lt;p>In almost full generality, the reduction performed is&lt;/p>
+&lt;p>$$ \sum_{i \in [0, n]} p(P, iT) \cdot rotate(v, iT) $$&lt;/p>
+&lt;p>where $f$ is a function, $p(P, iT)$ is a function of a plaintext $P$ and
+$rotate(v, iT)$ is a rotation of the ciphertext $v$ with period $T$. The
+operation takes as input the ciphertext vector $v$, the period $T$, the
+number of reductions $n$, and a tensor of plaintext values&lt;/p>
+&lt;p>&lt;code>[p(P, 0), p(P, T), ..., p(P, (n-1)T)]&lt;/code>&lt;/p>
+&lt;p>This can be used to implement a matrix vector product that uses a
+Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
+reduction is&lt;/p>
+&lt;p>$$ \sum_{i \in [0, n]} P(i) \cdot rotate(v, i) $$&lt;/p>
+&lt;p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
+$T$ is $1$.&lt;/p>
+&lt;p>An accumulation of the ciphertext slots is also handled via this operation
+by omitting the plaintext $p(P, Ti)$ argument and using a period of 1 with
+&lt;code>n = |v|&lt;/code> so that the reduction is simply a sum of all rotations of the
+ciphertext.&lt;/p>
+&lt;p>If &lt;code>reduceOp&lt;/code> is set to an MLIR operation name (e.g., &lt;code>arith.mulf&lt;/code>), then
+the reduction operation is modified to use that operation instead of a sum.
+The chosen op must be one of &lt;code>arith.muli&lt;/code>, &lt;code>arith.mulf&lt;/code>, &lt;code>arith.addi&lt;/code>,
+or &lt;code>arith.addf&lt;/code>.&lt;/p>
+&lt;p>Efficient lowerings of this operation can use the Baby-Step / Giant-Step
+approach from &lt;a href="https://eprint.iacr.org/2018/244.pdf">Faster Homomorphic Linear Transformations in
+HElib&lt;/a> to reduce the number of
+ciphertext rotations.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextOperandInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>period&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>steps&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>reduceOp&lt;/code>&lt;/td>&lt;td>::mlir::StringAttr&lt;/td>&lt;td>An Attribute containing a string&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>plaintexts&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extunpack-heirtensor_extunpackop">&lt;code>tensor_ext.unpack&lt;/code> (heir::tensor_ext::UnpackOp)&lt;/h3>
+&lt;p>&lt;em>Unpack data from a ciphertext-semantic tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.unpack` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This op extracts the underlying cleartext data from a ciphertext-semantic
+tensor.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item></channel></rss>
