@@ -87,6 +87,7 @@ def Preprocessing_LoadResourceOp : Preprocessing_Op<"load_resource",
   }];
   let arguments = (ins StrAttr:$path);
   let results = (outs AnyTypeOf<[AnyTensor, AnyMemRef]>:$result);
+  let hasVerifier = 1;
   let assemblyFormat = "$path attr-dict `:` type($result)";
 }
 
