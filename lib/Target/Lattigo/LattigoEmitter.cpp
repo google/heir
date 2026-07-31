@@ -187,6 +187,23 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
   return success();
 }
 
+// Bytes per element as externalize-constants writes them. DenseElementsAttr
+// pads sub-byte elements out to a byte, and i1 is written unpacked as one byte
+// per element, so anything at or below 8 bits occupies a single byte.
+static int64_t storedByteWidth(Type eltType) {
+  unsigned bitWidth = eltType.getIntOrFloatBitWidth();
+  return bitWidth <= 8 ? 1 : bitWidth / 8;
+}
+
+// Bytes per element that the generated Go loader reads for a scalar Go type.
+static FailureOr<int64_t> goScalarByteWidth(StringRef goType) {
+  if (goType == "bool" || goType == "int8" || goType == "uint8") return 1;
+  if (goType == "int16" || goType == "uint16") return 2;
+  if (goType == "int32" || goType == "uint32" || goType == "float32") return 4;
+  if (goType == "int64" || goType == "uint64" || goType == "float64") return 8;
+  return failure();
+}
+
 FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
   bool hasResources = false;
   LogicalResult prepassResult = success();
@@ -221,6 +238,21 @@ FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
     if (failed(eltTypeString)) {
       prepassResult = failure();
       return WalkResult::interrupt();
+    }
+
+    // The loader reads size * sizeof(goType) bytes, so the Go type has to be
+    // exactly as wide as the element is on disk.
+    if (isa<IntegerType, FloatType>(eltType)) {
+      int64_t storedBytes = storedByteWidth(eltType);
+      FailureOr<int64_t> goBytes = goScalarByteWidth(eltTypeString.value());
+      if (failed(goBytes) || *goBytes != storedBytes) {
+        op.emitError() << "resource element type " << eltType
+                       << " is stored as " << storedBytes
+                       << " bytes per element, but the generated loader reads "
+                       << eltTypeString.value();
+        prepassResult = failure();
+        return WalkResult::interrupt();
+      }
     }
 
     int64_t size = 0;
