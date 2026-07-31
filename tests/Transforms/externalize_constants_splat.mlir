@@ -2,7 +2,7 @@
 // RUN: heir-opt --externalize-constants="threshold-elements=4 output-dir=%t runtime-load-dir=runtime_dir" %s | FileCheck %s
 // RUN: ls %t/*.bin | count 1
 
-// CHECK-LABEL: func.func @splat
+// CHECK: func.func @splat
 func.func @splat() -> (tensor<4xi32>, tensor<4xi1>, tensor<4xi32>) {
   // CHECK-NOT: preprocessing.load_resource
   // CHECK: arith.constant dense<0> : tensor<4xi32>
