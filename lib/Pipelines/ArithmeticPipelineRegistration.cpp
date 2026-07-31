@@ -41,6 +41,7 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/ExternalizeConstants/ExternalizeConstants.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
 #include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
@@ -66,6 +67,7 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"  // from @llvm-project
@@ -74,6 +76,23 @@
 #include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
 
 namespace mlir::heir {
+
+llvm::cl::opt<std::string> extConstOutputDir(
+    "ext-const-output-dir",
+    llvm::cl::desc(
+        "Directory to write the externalized constant binary files to."),
+    llvm::cl::init(""));
+
+llvm::cl::opt<std::string> extConstRuntimeLoadDir(
+    "ext-const-runtime-load-dir",
+    llvm::cl::desc("Directory path to use in the load_resource op in the "
+                   "generated MLIR."),
+    llvm::cl::init(""));
+
+llvm::cl::opt<int> extConstThreshold(
+    "ext-const-threshold",
+    llvm::cl::desc("Minimum number of elements to externalize a constant."),
+    llvm::cl::init(1024));
 
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
@@ -568,6 +587,14 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(bgv::createBGVToLWE());
     pm.addPass(ckks::createCKKSToLWE());
 
+    if (!extConstOutputDir.empty()) {
+      ExternalizeConstantsOptions extConstOptions;
+      extConstOptions.outputDir = extConstOutputDir;
+      extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
+      extConstOptions.thresholdElements = extConstThreshold;
+      pm.addPass(createExternalizeConstants(extConstOptions));
+    }
+
     // insert debug handler calls
     lwe::AddDebugPortOptions addDebugPortOptions{
         .entryFunction = options.entryFunction,
@@ -616,6 +643,14 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
     pm.addPass(bgv::createBGVToLWE());
     pm.addPass(ckks::createCKKSToLWE());
+
+    if (!extConstOutputDir.empty()) {
+      ExternalizeConstantsOptions extConstOptions;
+      extConstOptions.outputDir = extConstOutputDir;
+      extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
+      extConstOptions.thresholdElements = extConstThreshold;
+      pm.addPass(createExternalizeConstants(extConstOptions));
+    }
 
     // insert debug handler calls
     lwe::AddDebugPortOptions addDebugPortOptions{

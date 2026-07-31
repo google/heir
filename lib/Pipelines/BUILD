@@ -141,6 +141,7 @@ cc_library(
         "@heir//lib/Transforms/ConvertToCiphertextSemantics:AssignLayout",
         "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Transforms/ElementwiseToAffine",
+        "@heir//lib/Transforms/ExternalizeConstants",
         "@heir//lib/Transforms/FoldConstantTensors",
         "@heir//lib/Transforms/FoldPlaintextMasks",
         "@heir//lib/Transforms/ForwardInsertSliceToExtractSlice",
