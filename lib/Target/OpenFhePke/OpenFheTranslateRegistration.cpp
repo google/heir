@@ -52,9 +52,6 @@ struct TranslateOptions {
                      "embedded",
                      "Emit OpenFHE with embedded import paths (default "
                      "for code to be included in OpenFHE source files)"))};
-  llvm::cl::opt<std::string> weightsFile{
-      "weights-file",
-      llvm::cl::desc("Emit all dense elements attributes to this binary file")};
   llvm::cl::opt<bool> skipVectorResizing{
       "skip-vector-resizing",
       llvm::cl::desc("Skip resizing vectors to ringdimension/2 when emitting "
@@ -101,7 +98,6 @@ void registerToOpenFhePkeTranslation() {
       "translate the openfhe dialect to C++ code against the OpenFHE pke API",
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToOpenFhePke(op, output, options->openfheImportType,
-                                     options->weightsFile,
                                      options->skipVectorResizing);
       },
       registerRelevantDialects);

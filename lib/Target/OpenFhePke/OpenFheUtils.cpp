@@ -44,8 +44,6 @@ std::string getModulePrelude(OpenfheScheme scheme,
   return std::string(import) + prelude;
 }
 
-std::string getWeightsPrelude() { return std::string(kWeightsPreludeTemplate); }
-
 FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       // For now, these types are defined in the prelude as aliases.

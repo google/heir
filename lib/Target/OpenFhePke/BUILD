@@ -72,7 +72,6 @@ cc_library(
     ],
     deps = [
         ":OpenFheUtils",
-        "@cereal",
         "@heir//lib/Analysis/Cpp:ConstQualifierAnalysis",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect:ModuleAttributes",

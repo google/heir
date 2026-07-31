@@ -7,13 +7,6 @@
 #include <string_view>
 #include <vector>
 
-// IWYU pragma: begin_keep
-#include "include/cereal/cereal.hpp"        // from @cereal
-#include "include/cereal/types/map.hpp"     // from @cereal
-#include "include/cereal/types/string.hpp"  // from @cereal
-#include "include/cereal/types/vector.hpp"  // from @cereal
-// IWYU pragma: end_keep
-
 #include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -44,32 +37,14 @@ namespace openfhe {
 ::mlir::LogicalResult translateToOpenFhePke(::mlir::Operation* op,
                                             llvm::raw_ostream& os,
                                             const OpenfheImportType& importType,
-                                            const std::string& weightsFile,
                                             bool skipVectorResizing);
-
-// A map from the SSA value name of a 1-D dense element constants to its value.
-// Note that multidimensional shapes are handled as flattened 1-D vectors.
-struct Weights {
-  std::map<std::string, std::vector<float>> floats;
-  std::map<std::string, std::vector<double>> doubles;
-  std::map<std::string, std::vector<int64_t>> int64_ts;
-  std::map<std::string, std::vector<int32_t>> int32_ts;
-  std::map<std::string, std::vector<int16_t>> int16_ts;
-  std::map<std::string, std::vector<int8_t>> int8_ts;
-
-  template <class Archive>
-  void serialize(Archive& archive) {
-    archive(CEREAL_NVP(floats), CEREAL_NVP(doubles), CEREAL_NVP(int64_ts),
-            CEREAL_NVP(int32_ts), CEREAL_NVP(int16_ts), CEREAL_NVP(int8_ts));
-  }
-};
 
 class OpenFhePkeEmitter {
  public:
   OpenFhePkeEmitter(raw_ostream& os, SelectVariableNames* variableNames,
                     ConstQualifierAnalysis* constQualifierAnalysis,
                     const OpenfheImportType& importType,
-                    const std::string& weightsFile, bool skipVectorResizing);
+                    bool skipVectorResizing);
 
   LogicalResult translate(::mlir::Operation& operation);
 
@@ -89,11 +64,6 @@ class OpenFhePkeEmitter {
 
   /// Set of values that are mutable and don't need assign prefixes.
   llvm::DenseSet<::mlir::Value> mutableValues;
-
-  // Module containing global weights
-  Weights weightsMap_;
-
-  const std::string& weightsFile_;
 
   // Whether to skip resizing vectors to ring dimension / 2
   bool skipVectorResizing_;
