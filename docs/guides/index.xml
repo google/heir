@@ -198,7 +198,7 @@ name = &amp;#34;dot_product_8f&amp;#34;,
 go_library_name = &amp;#34;dotproduct8f&amp;#34;,
 heir_opt_flags = [
 &amp;#34;--annotate-module=backend=lattigo scheme=ckks&amp;#34;,
-&amp;#34;--mlir-to-ckks=ciphertext-degree=2048 first-mod-bits=0&amp;#34;,
+&amp;#34;--mlir-to-ckks=min-slot-count=2048 first-mod-bits=0&amp;#34;,
 &amp;#34;--scheme-to-lattigo&amp;#34;,
 ],
 mlir_src = &amp;#34;@heir//tests/Examples/common:dot_product_8f.mlir&amp;#34;,
