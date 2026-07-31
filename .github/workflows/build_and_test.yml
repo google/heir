@@ -4,11 +4,7 @@ on:
   push:
     branches:
       - main
-  # pull_request_target is needed to run CI with access to buildbuddy RBE.
-  # Maintainers are required to approve CI runs from all external forks, and
-  # it's easy to rotate the API key since it's only used for CI. So this is
-  # relatively safe.
-  pull_request_target:
+  pull_request:
     branches:
       - main
 concurrency:
@@ -24,9 +20,7 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
       # needed to build OpenFHE and for the frontend tests
       - name: Install dependencies
         run: |
