@@ -1,5 +1,8 @@
 // RUN: heir-translate %s --emit-lattigo | FileCheck %s
 
+// Go requires a package name; --package-name defaults to main.
+// CHECK: package main
+
 // CHECK: var (
 // Globals live at module scope, so their names must be distinct across
 // functions -- value names are only unique within a function.

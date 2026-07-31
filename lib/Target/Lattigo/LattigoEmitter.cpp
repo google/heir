@@ -2527,7 +2527,10 @@ struct TranslateOptions {
   llvm::cl::opt<std::string> packageName{
       "package-name",
       llvm::cl::desc("The name to use for the package declaration in the "
-                     "generated golang file.")};
+                     "generated golang file."),
+      // Go has no unnamed package, so an empty default would emit "package "
+      // and fail to compile.
+      llvm::cl::init("main")};
   llvm::cl::list<std::string> extraImports{
       "extra-imports", llvm::cl::desc("Additional import paths")};
 };
