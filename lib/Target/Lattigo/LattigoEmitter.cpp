@@ -193,8 +193,11 @@ FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
   moduleOp.walk([&](preprocessing::LoadResourceOp op) {
     hasResources = true;
     Value result = op.getResult();
-    std::string rawName = getName(result, /*force=*/true);
-    std::string globalName = "g_" + rawName;
+    // These globals are emitted once at module scope, so they cannot be named
+    // after the SSA value: SelectVariableNames restarts its numbering in each
+    // function, and two functions would produce the same global. Index into
+    // `resources` instead, which is module-wide.
+    std::string globalName = "g_resource" + std::to_string(resources.size());
     resourceGlobals[result] = globalName;
 
     auto type = result.getType();

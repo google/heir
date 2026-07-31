@@ -1,14 +1,16 @@
 // RUN: heir-translate %s --emit-lattigo | FileCheck %s
 
 // CHECK: var (
-// CHECK:   g_v{{.*}} []int32
-// CHECK:   g_v{{.*}} []bool
+// Globals live at module scope, so their names must be distinct across
+// functions -- value names are only unique within a function.
+// CHECK:   g_resource0 []int32
+// CHECK:   g_resource1 []bool
 // CHECK: )
 
 // CHECK: func init() {
 // CHECK:   var err error
-// CHECK:   g_v{{.*}}, err = loadResource_int32("some/path/constant_1.bin", 4)
-// CHECK:   g_v{{.*}}, err = loadResource_bool("some/path/constant_i1.bin", 4)
+// CHECK:   g_resource0, err = loadResource_int32("some/path/constant_1.bin", 4)
+// CHECK:   g_resource1, err = loadResource_bool("some/path/constant_i1.bin", 4)
 // CHECK:   if err != nil {
 // CHECK:     panic(err)
 // CHECK:   }
@@ -43,11 +45,11 @@
 // CHECK: }
 
 // CHECK: func Test_external_constant(v{{.*}} []int32) ([]int32) {
-// CHECK-NOT: g_v{{.*}} :=
+// CHECK-NOT: g_resource{{[0-9]+}} :=
 // CHECK:   v{{.*}} := make([]int32, 4)
 // CHECK:   for v{{.*}} := 0; v{{.*}} < 4; v{{.*}} += 1 {
 // CHECK:     v{{.*}} := v{{.*}}[v{{.*}}]
-// CHECK:     v{{.*}} := g_v{{.*}}[v{{.*}}]
+// CHECK:     v{{.*}} := g_resource0[v{{.*}}]
 // CHECK:     v{{.*}} := v{{.*}} + v{{.*}}
 // CHECK:     v{{.*}}[v{{.*}}] = v{{.*}}
 // CHECK:   }
@@ -55,11 +57,11 @@
 // CHECK: }
 
 // CHECK: func Test_external_constant_i1(v{{.*}} []bool) ([]bool) {
-// CHECK-NOT: g_v{{.*}} :=
+// CHECK-NOT: g_resource{{[0-9]+}} :=
 // CHECK:   v{{.*}} := make([]bool, 4)
 // CHECK:   for v{{.*}} := 0; v{{.*}} < 4; v{{.*}} += 1 {
 // CHECK:     v{{.*}} := v{{.*}}[v{{.*}}]
-// CHECK:     v{{.*}} := g_v{{.*}}[v{{.*}}]
+// CHECK:     v{{.*}} := g_resource1[v{{.*}}]
 // CHECK:     v{{.*}} := v{{.*}} && v{{.*}}
 // CHECK:     v{{.*}}[v{{.*}}] = v{{.*}}
 // CHECK:   }
