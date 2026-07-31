@@ -12,13 +12,17 @@ constexpr std::string_view kModulePrelude =
 use anyhow::Result;
 use std::collections::HashMap;
 use poulpy_ckks::{
+    CKKSMeta, SetCKKSInfos,
     api::{CKKSAddOps, CKKSSubOps, CKKSMulOps, CKKSRotateOps, CKKSCopyOps,
           CKKSPow2Ops},
-    layouts::{CKKSCiphertext, CKKSModuleAlloc, UnnormalizedCKKSCiphertext},
+    encoding::Encoder,
+    layouts::{CKKSCiphertext, CKKSModuleAlloc, CKKSPlaintext,
+              UnnormalizedCKKSCiphertext},
 };
 use poulpy_core::layouts::prepared::GLWETensorKeyPrepared;
-use poulpy_core::layouts::{GLWEAutomorphismKeyPrepared, LWEInfos};
-use poulpy_cpu_ref::{FFT64Ref, NTT4x30Ref};
+use poulpy_core::layouts::{Base2K, GLWEAutomorphismKeyPrepared, LWEInfos,
+                           TorusPrecision};
+use poulpy_cpu_ref::{FFT64Ref, FFT64ReimTable, NTT4x30Ref};
 use poulpy_hal::{
     api::{ScratchOwnedAlloc, ScratchOwnedBorrow},
     layouts::{Backend, Module, ScratchOwned},
@@ -27,6 +31,7 @@ use poulpy_hal::{
 constexpr std::string_view kTypeAliases = R"poulpy(
 type Ct = CKKSCiphertext<<BE as Backend>::OwnedBuf>;
 type CtUnnorm = UnnormalizedCKKSCiphertext<<BE as Backend>::OwnedBuf>;
+type Pt = CKKSPlaintext<<BE as Backend>::OwnedBuf>;
 type Tsk = GLWETensorKeyPrepared<<BE as Backend>::OwnedBuf, BE>;
 type Akm = HashMap<i64, GLWEAutomorphismKeyPrepared<<BE as Backend>::OwnedBuf, BE>>;
 )poulpy";

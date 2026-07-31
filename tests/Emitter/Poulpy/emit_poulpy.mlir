@@ -7,6 +7,7 @@
 !scratch   = !poulpy.scratch
 !ct = memref<!poulpy.ciphertext>
 !ctu = memref<!poulpy.unnormalized_ciphertext>
+!pt = memref<!poulpy.plaintext>
 !tsk = !poulpy.tensor_key
 !akm = !poulpy.automorphism_key_map
 
@@ -308,4 +309,30 @@ func.func @normalize(%m: !module, %s: !scratch, %a: !ctu) -> !ct {
   poulpy.normalize %m, %res, %a, %s : (!module, !ct, !ctu, !scratch) -> ()
   // CHECK-NEXT: Ok([[res]])
   return %res : !ct
+}
+
+// CHECK: pub fn f64_check(
+// CHECK: [[r:v[0-9]+]]: &[f64]
+// CHECK-NEXT: ) -> Result<()> {
+func.func @f64_check(%r: memref<8xf64>) {
+  %tmp = memref.alloc() : memref<4xf64>
+  // CHECK: let mut [[tmp:v[0-9]+]] = vec![0f64; 4];
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn encode_check(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[re:v[0-9]+]]: &[f64]
+// CHECK: [[im:v[0-9]+]]: &[f64]
+// CHECK-NEXT: ) -> Result<()> {
+func.func @encode_check(%m: !module, %re: memref<4xf64>, %im: memref<4xf64>) {
+  %pt = memref.alloc() : !pt
+  // CHECK: let encoder = Encoder::<FFT64ReimTable<f64>>::new::<f64>([[m]].n() / 2)?;
+  // CHECK-NEXT: let mut [[pt:v[0-9]+]] = [[m]].ckks_pt_vec_alloc(Base2K(52u32), TorusPrecision(65u32));
+  // CHECK-NEXT: [[pt]].set_meta(CKKSMeta { log_delta: 45usize, log_sparsity: 0usize });
+  // CHECK-NEXT: encoder.encode_reim(&mut [[pt]], &*[[re]], &*[[im]])?;
+  poulpy.encode %m, %pt, %re, %im {logDelta = 45 : i64, logBudget = 20 : i64, base2k = 52 : i64} : (!module, !pt, memref<4xf64>, memref<4xf64>) -> ()
+  // CHECK-NEXT: Ok(())
+  return
 }

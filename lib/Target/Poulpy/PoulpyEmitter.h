@@ -40,11 +40,14 @@ class PoulpyEmitter {
   llvm::DenseSet<Value> mutatedValues;
   llvm::DenseSet<Value> pendingAllocs;
 
+  bool encoderEmitted = false;
+
   void computeMutatedValues(func::FuncOp funcOp);
   void materializeIfPending(Value dst, Value module, Value layoutSource,
                             bool useSemanticWidth, bool wrapUnnormalized);
   LogicalResult checkPendingState(Value dst, Operation* op,
                                   bool shouldBePending);
+  void emitEncoderIfNeeded(Value module);
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
@@ -65,6 +68,7 @@ class PoulpyEmitter {
   LogicalResult printOperation(AddUnnormalizedOp op);
   LogicalResult printOperation(SubUnnormalizedOp op);
   LogicalResult printOperation(NormalizeOp op);
+  LogicalResult printOperation(EncodeOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type, bool isArg, bool isMutated);

@@ -96,7 +96,7 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, AddOp, AddAssignOp,
                 SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
-                AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp,
+                AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp, EncodeOp,
                 memref::AllocOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
@@ -157,6 +157,13 @@ LogicalResult PoulpyEmitter::checkPendingState(Value dst, Operation* op,
   return diag;
 }
 
+void PoulpyEmitter::emitEncoderIfNeeded(Value module) {
+  if (encoderEmitted) return;
+  encoderEmitted = true;
+  os << "let encoder = Encoder::<FFT64ReimTable<f64>>::new::<f64>("
+     << variableNames->getNameForValue(module) << ".n() / 2)?;\n";
+}
+
 LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
   auto backend = detectBackend(&moduleOp);
@@ -176,6 +183,7 @@ LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
 
 LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
   computeMutatedValues(funcOp);
+  encoderEmitted = false;
   os << "pub fn " << funcOp.getName() << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
@@ -480,7 +488,47 @@ LogicalResult PoulpyEmitter::printOperation(NormalizeOp normalizeOp) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(EncodeOp encodeOp) {
+  auto module = encodeOp.getModule();
+  auto plaintext = encodeOp.getPlaintext();
+  auto real = encodeOp.getReal();
+  auto imag = encodeOp.getImag();
+  int64_t logDelta = encodeOp.getLogDelta();
+  int64_t logBudget = encodeOp.getLogBudget();
+  int64_t base2k = encodeOp.getBase2k();
+
+  if (failed(checkPendingState(plaintext, encodeOp, /*shouldBePending=*/true)))
+    return failure();
+  pendingAllocs.erase(plaintext);
+
+  emitEncoderIfNeeded(module);
+
+  auto moduleName = variableNames->getNameForValue(module);
+  auto ptName = variableNames->getNameForValue(plaintext);
+  os << "let mut " << ptName << " = " << moduleName
+     << ".ckks_pt_vec_alloc(Base2K(" << base2k << "u32), TorusPrecision("
+     << (logDelta + logBudget) << "u32));\n";
+  os << ptName << ".set_meta(CKKSMeta { log_delta: " << logDelta
+     << "usize, log_sparsity: 0usize });\n";
+  os << "encoder.encode_reim(" << refMut(plaintext, variableNames) << ", "
+     << ref(real, variableNames) << ", " << ref(imag, variableNames) << ")?;\n";
+
+  return success();
+}
+
 LogicalResult PoulpyEmitter::printOperation(memref::AllocOp allocOp) {
+  MemRefType resultType = allocOp.getType();
+  if (resultType.getElementType().isF64()) {
+    // Unlike ciphertext buffers, an f64 vector's size is already known
+    // statically from the type so we materialize immediately
+    if (resultType.getRank() != 1 || resultType.isDynamicDim(0)) {
+      return allocOp.emitOpError(
+          "unsupported memref shape for f64 alloc (expected static rank-1)");
+    }
+    os << "let mut " << variableNames->getNameForValue(allocOp.getResult())
+       << " = vec![0f64; " << resultType.getDimSize(0) << "];\n";
+    return success();
+  }
   pendingAllocs.insert(allocOp.getResult());
   return success();
 }
@@ -495,14 +543,23 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
         return std::string("&mut ScratchOwned<BE>");
       })
       .Case<MemRefType>([&](MemRefType memRefType) -> FailureOr<std::string> {
-        if (memRefType.getRank() != 0) return failure();
         Type elementType = memRefType.getElementType();
+        if (elementType.isF64()) {
+          if (memRefType.getRank() != 1 || memRefType.isDynamicDim(0)) {
+            return failure();
+          }
+          return std::string(isMutated ? "&mut [f64]" : "&[f64]");
+        }
+        if (memRefType.getRank() != 0) return failure();
         if (isa<CiphertextType>(elementType)) {
           return std::string(isArg ? (isMutated ? "&mut Ct" : "&Ct") : "Ct");
         }
         if (isa<UnnormalizedCiphertextType>(elementType)) {
           return std::string(isArg ? (isMutated ? "&mut CtUnnorm" : "&CtUnnorm")
                                    : "CtUnnorm");
+        }
+        if (isa<PlaintextType>(elementType)) {
+          return std::string(isArg ? (isMutated ? "&mut Pt" : "&Pt") : "Pt");
         }
         return failure();
       })
