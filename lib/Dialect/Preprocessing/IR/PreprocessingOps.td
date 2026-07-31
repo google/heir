@@ -75,4 +75,20 @@ def Preprocessing_LoadOp : Preprocessing_Op<"load", [MemoryEffectsOpInterface]> 
 }
 
 
+def Preprocessing_LoadResourceOp : Preprocessing_Op<"load_resource",
+    // Marked as Pure to allow CSE/LICM.
+    [Pure]> {
+  let summary = "Load a constant resource from an external binary file";
+  let description = [{
+    Loads raw bytes from the file specified by `path` and interprets them
+    as a tensor or memref of the result type.
+
+    This op is inserted by the `externalize-constants` pass.
+  }];
+  let arguments = (ins StrAttr:$path);
+  let results = (outs AnyTypeOf<[AnyTensor, AnyMemRef]>:$result);
+  let hasVerifier = 1;
+  let assemblyFormat = "$path attr-dict `:` type($result)";
+}
+
 #endif  // LIB_DIALECT_PREPROCESSING_IR_PREPROCESSINGOPS_TD_

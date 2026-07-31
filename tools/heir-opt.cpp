@@ -52,6 +52,7 @@
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Preprocessing/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/Transforms/Passes.h"
@@ -97,6 +98,7 @@
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/EmitCInterface/EmitCInterface.h"
+#include "lib/Transforms/ExternalizeConstants/ExternalizeConstants.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
 #include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
@@ -390,6 +392,7 @@ int main(int argc, char** argv) {
   registerSecretizePasses();
   registerSecretInsertMgmtPasses();
   registerFullLoopUnrollPasses();
+  registerExternalizeConstantsPasses();
   registerConvertIfToSelectPasses();
   registerCompareToSignRewritePasses();
   registerActivationCanonicalizationsPasses();
@@ -512,6 +515,7 @@ int main(int argc, char** argv) {
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
+  preprocessing::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);

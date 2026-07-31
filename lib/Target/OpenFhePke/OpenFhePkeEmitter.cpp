@@ -17,6 +17,7 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
@@ -194,6 +195,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<cf::AssertOp>([&](auto op) { return printOperation(op); })
           // MemRef ops
           .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp>(
+              [&](auto op) { return printOperation(op); })
+          .Case<preprocessing::LoadResourceOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
@@ -1693,6 +1696,39 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
   os << "{" << commaSeparatedValues(op.getElements(), [&](Value value) {
     return variableNames->getNameForValue(value);
   }) << "};\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(
+    ::mlir::heir::preprocessing::LoadResourceOp op) {
+  auto result = op.getResult();
+  auto type = result.getType();
+
+  Type eltType;
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    eltType = tensorType.getElementType();
+  } else if (auto memrefType = dyn_cast<MemRefType>(type)) {
+    eltType = memrefType.getElementType();
+  } else {
+    return op.emitError("unsupported resource type");
+  }
+
+  auto cppEltType = convertType(eltType, op.getLoc());
+  if (failed(cppEltType)) {
+    return failure();
+  }
+
+  int64_t size = 0;
+  if (auto shapedType = dyn_cast<ShapedType>(type)) {
+    size = shapedType.getNumElements();
+  }
+
+  std::string varName = variableNames->getNameForValue(result);
+
+  os << "static const std::vector<" << cppEltType.value() << "> " << varName
+     << " = load_resource<" << cppEltType.value() << ">(\"" << op.getPath()
+     << "\", " << size << ");\n";
+
   return success();
 }
 

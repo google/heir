@@ -43,6 +43,18 @@ namespace preprocessing {
   return ::mlir::success();
 }
 
+::mlir::LogicalResult LoadResourceOp::verify() {
+  // The backends size their reads with ShapedType::getNumElements(), which
+  // asserts on a non-static shape, and the number of bytes to read from the
+  // file is not knowable without one.
+  auto shapedType = cast<ShapedType>(getResult().getType());
+  if (!shapedType.hasStaticShape()) {
+    return emitOpError() << "result type " << shapedType
+                         << " must have a static shape";
+  }
+  return ::mlir::success();
+}
+
 }  // namespace preprocessing
 }  // namespace heir
 }  // namespace mlir

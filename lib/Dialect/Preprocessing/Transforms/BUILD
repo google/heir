@@ -29,3 +29,19 @@ cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "BufferizableOpInterface",
+    srcs = [
+        "BufferizableOpInterfaceImpl.cpp",
+    ],
+    hdrs = [
+        "BufferizableOpInterfaceImpl.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
+        "@llvm-project//mlir:BufferizationInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

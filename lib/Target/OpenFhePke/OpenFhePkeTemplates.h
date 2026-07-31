@@ -9,14 +9,26 @@ namespace openfhe {
 
 constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
 #include <cassert>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 #include "src/pke/include/openfhe.h"  // from @openfhe
 )cpp";
 constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
 #include <cassert>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 #include "openfhe/pke/openfhe.h"  // from @openfhe
 )cpp";
 constexpr std::string_view kEmbeddedOpenfheImport = R"cpp(
 #include <cassert>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 #include "openfhe.h"
 )cpp";
 
@@ -31,6 +43,46 @@ using EvalKeyT = EvalKey<DCRTPoly>;
 using PlaintextT = Plaintext;
 using PrivateKeyT = PrivateKey<DCRTPoly>;
 using PublicKeyT = PublicKey<DCRTPoly>;
+)cpp";
+
+constexpr std::string_view kLoadResourceTemplate = R"cpp(
+// Assumes a little-endian target.
+template <typename T>
+std::vector<T> load_resource(const std::string& path, size_t size) {
+  std::ifstream file(path, std::ios::binary);
+  if (!file.is_open()) {
+    std::cerr << "Failed to open file: " << path << std::endl;
+    std::abort();
+  }
+  std::vector<T> data(size);
+  file.read(reinterpret_cast<char*>(data.data()), size * sizeof(T));
+  if (!file) {
+    std::cerr << "Failed to read expected number of bytes from: " << path << std::endl;
+    std::abort();
+  }
+  return data;
+}
+
+// Specialization for bool to avoid std::vector<bool>::data() compilation failure.
+template <>
+inline std::vector<bool> load_resource<bool>(const std::string& path, size_t size) {
+  std::ifstream file(path, std::ios::binary);
+  if (!file.is_open()) {
+    std::cerr << "Failed to open file: " << path << std::endl;
+    std::abort();
+  }
+  std::vector<char> temp(size);
+  file.read(temp.data(), size);
+  if (!file) {
+    std::cerr << "Failed to read expected number of bytes from: " << path << std::endl;
+    std::abort();
+  }
+  std::vector<bool> data(size);
+  for (size_t i = 0; i < size; ++i) {
+    data[i] = temp[i] != 0;
+  }
+  return data;
+}
 )cpp";
 // clang-format on
 

@@ -18,6 +18,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
@@ -26,6 +28,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/CommandLine.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
@@ -56,6 +59,7 @@
 #include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace mlir {
@@ -142,6 +146,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
                 memref::ReinterpretCastOp, memref::SubViewOp,
                 memref::ExtractStridedMetadataOp, memref::DimOp>(
               [&](auto op) { return printOperation(op); })
+          .Case<preprocessing::LoadResourceOp>(
+              [&](auto op) { return printOperation(op); })
 
           // Lattigo ops
           .Case<
@@ -181,8 +187,157 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
   return success();
 }
 
+// Bytes per element as externalize-constants writes them. DenseElementsAttr
+// pads sub-byte elements out to a byte, and i1 is written unpacked as one
+// byte per element, so anything at or below 8 bits occupies a single byte.
+static int64_t storedByteWidth(Type eltType) {
+  unsigned bitWidth = eltType.getIntOrFloatBitWidth();
+  return bitWidth <= 8 ? 1 : bitWidth / 8;
+}
+
+// Bytes per element that the generated Go loader reads for a scalar Go type.
+static FailureOr<int64_t> goScalarByteWidth(StringRef goType) {
+  if (goType == "bool" || goType == "int8" || goType == "uint8") return 1;
+  if (goType == "int16" || goType == "uint16") return 2;
+  if (goType == "int32" || goType == "uint32" || goType == "float32") return 4;
+  if (goType == "int64" || goType == "uint64" || goType == "float64") return 8;
+  return failure();
+}
+
+FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
+  bool hasResources = false;
+  LogicalResult prepassResult = success();
+  moduleOp.walk([&](preprocessing::LoadResourceOp op) {
+    hasResources = true;
+    Value result = op.getResult();
+    // These globals are emitted once at module scope, so they cannot be named
+    // after the SSA value: SelectVariableNames restarts its numbering in each
+    // function, and two functions would produce the same global. Index into
+    // `resources` instead, which is module-wide.
+    std::string globalName = "g_resource" + std::to_string(resources.size());
+    resourceGlobals[result] = globalName;
+
+    auto type = result.getType();
+    auto typeString = convertType(type);
+    if (failed(typeString)) {
+      prepassResult = failure();
+      return WalkResult::interrupt();
+    }
+
+    Type eltType;
+    if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+      eltType = tensorType.getElementType();
+    } else if (auto memrefType = dyn_cast<MemRefType>(type)) {
+      eltType = memrefType.getElementType();
+    } else {
+      op.emitError("unsupported resource type");
+      prepassResult = failure();
+      return WalkResult::interrupt();
+    }
+    auto eltTypeString = convertType(eltType);
+    if (failed(eltTypeString)) {
+      prepassResult = failure();
+      return WalkResult::interrupt();
+    }
+
+    // The loader reads size * sizeof(goType) bytes, so the Go type has to be
+    // exactly as wide as the element is on disk.
+    if (isa<IntegerType, FloatType>(eltType)) {
+      int64_t storedBytes = storedByteWidth(eltType);
+      FailureOr<int64_t> goBytes = goScalarByteWidth(eltTypeString.value());
+      if (failed(goBytes) || *goBytes != storedBytes) {
+        op.emitError() << "resource element type " << eltType
+                       << " is stored as " << storedBytes
+                       << " bytes per element, but the generated loader reads "
+                       << eltTypeString.value();
+        prepassResult = failure();
+        return WalkResult::interrupt();
+      }
+    }
+
+    int64_t size = 0;
+    if (auto shapedType = dyn_cast<ShapedType>(type)) {
+      size = shapedType.getNumElements();
+    }
+
+    ResourceInfo info{globalName, typeString.value(), eltTypeString.value(),
+                      op.getPath().str(), size};
+    resources.push_back(info);
+    resourceEltTypes.insert(eltTypeString.value());
+    return WalkResult::advance();
+  });
+
+  if (failed(prepassResult)) {
+    return failure();
+  }
+
+  return hasResources;
+}
+
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   prelude = "package " + packageName + "\n";
+
+  FailureOr<bool> maybeHasResources = collectResourcesToLoad(moduleOp);
+  if (failed(maybeHasResources)) {
+    return failure();
+  }
+
+  if (*maybeHasResources) {
+    imports.insert("\"os\"");
+    imports.insert("\"encoding/binary\"");
+
+    std::string globals;
+    llvm::raw_string_ostream globalsOs(globals);
+    for (const auto& res : resources) {
+      globalsOs << llvm::formatv("  {0} {1}\n", res.globalName, res.goType);
+    }
+
+    std::string initBody;
+    llvm::raw_string_ostream initBodyOs(initBody);
+    for (const auto& res : resources) {
+      initBodyOs << llvm::formatv(
+          R"(  {0}, err = loadResource_{1}("{2}", {3})
+  if err != nil {{
+    panic(err)
+  }
+)",
+          res.globalName, res.goEltType, res.path, res.size);
+    }
+
+    std::string helpers;
+    llvm::raw_string_ostream helpersOs(helpers);
+    for (const auto& eltType : resourceEltTypes) {
+      helpersOs << llvm::formatv(
+          R"(func loadResource_{0}(path string, size int) ([]{0}, error) {{
+  file, err := os.Open(path)
+  if err != nil {{
+    return nil, err
+  }
+  defer file.Close()
+
+  data := make([]{0}, size)
+  err = binary.Read(file, binary.LittleEndian, &data)
+  if err != nil {{
+    return nil, err
+  }
+  return data, nil
+}
+
+)",
+          eltType);
+    }
+
+    os << llvm::formatv(R"(// Package-level globals for external resources
+var (
+{0})
+
+func init() {{
+  var err error
+{1}}
+
+{2})",
+                        globalsOs.str(), initBodyOs.str(), helpersOs.str());
+  }
 
   for (Operation& op : moduleOp) {
     if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
@@ -2404,11 +2559,18 @@ struct TranslateOptions {
   llvm::cl::opt<std::string> packageName{
       "package-name",
       llvm::cl::desc("The name to use for the package declaration in the "
-                     "generated golang file.")};
+                     "generated golang file."),
+      // Go has no unnamed package, so an empty default would emit "package "
+      // and fail to compile.
+      llvm::cl::init("main")};
   llvm::cl::list<std::string> extraImports{
       "extra-imports", llvm::cl::desc("Additional import paths")};
 };
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
+
+LogicalResult LattigoEmitter::printOperation(preprocessing::LoadResourceOp op) {
+  return success();
+}
 
 void registerTranslateOptions() {
   // Forces initialization of options.
@@ -2424,11 +2586,12 @@ void registerToLattigoTranslation() {
                                   translateOptions->extraImports);
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, memref::MemRefDialect,
-                        mgmt::MgmtDialect, scf::SCFDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect>();
       });
 }
 
@@ -2444,11 +2607,12 @@ void registerToLattigoPreprocessingTranslation() {
             });
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, memref::MemRefDialect,
-                        mgmt::MgmtDialect, scf::SCFDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect>();
       });
 }
 
@@ -2464,11 +2628,12 @@ void registerToLattigoPreprocessedTranslation() {
             });
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, memref::MemRefDialect,
-                        mgmt::MgmtDialect, scf::SCFDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect>();
       });
 }
 

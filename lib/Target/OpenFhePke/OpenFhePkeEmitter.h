@@ -10,6 +10,7 @@
 #include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -116,6 +117,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::memref::AllocOp op);
   LogicalResult printOperation(::mlir::memref::LoadOp op);
   LogicalResult printOperation(::mlir::memref::StoreOp op);
+  LogicalResult printOperation(::mlir::heir::preprocessing::LoadResourceOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);

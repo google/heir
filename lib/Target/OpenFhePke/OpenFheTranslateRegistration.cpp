@@ -6,6 +6,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeDebugEmitter.h"
@@ -88,7 +89,8 @@ static void registerRelevantDialects(DialectRegistry& registry) {
                   cf::ControlFlowDialect, func::FuncDialect, lwe::LWEDialect,
                   memref::MemRefDialect, mod_arith::ModArithDialect,
                   openfhe::OpenfheDialect, polynomial::PolynomialDialect,
-                  rns::RNSDialect, scf::SCFDialect, tensor::TensorDialect,
+                  preprocessing::PreprocessingDialect, rns::RNSDialect,
+                  scf::SCFDialect, tensor::TensorDialect,
                   tensor_ext::TensorExtDialect>();
 }
 
