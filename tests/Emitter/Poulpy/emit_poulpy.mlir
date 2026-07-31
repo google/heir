@@ -6,6 +6,7 @@
 !module = !poulpy.module<ntt4x30_ref>
 !scratch   = !poulpy.scratch
 !ct = memref<!poulpy.ciphertext>
+!ctu = memref<!poulpy.unnormalized_ciphertext>
 !tsk = !poulpy.tensor_key
 !akm = !poulpy.automorphism_key_map
 
@@ -249,6 +250,49 @@ func.func @compact_limbs_alloc(%m: !module, %s: !scratch, %src: !ct) {
   // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].k());
   // CHECK-NEXT: [[m]].ckks_copy(&mut [[dst]], &*[[src]], &mut [[s]].borrow())?;
   poulpy.compact_limbs %m, %dst, %src, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn add_unnormalized(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut CtUnnorm
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @add_unnormalized(%m: !module, %s: !scratch, %dst: !ctu, %a: !ct, %b: !ct) {
+  // CHECK: [[m]].ckks_add_into_unnormalized(&mut *[[dst]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.add_unnormalized %m, %dst, %a, %b, %s : (!module, !ctu, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn add_unnormalized_alloc(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @add_unnormalized_alloc(%m: !module, %s: !scratch, %a: !ct, %b: !ct) {
+  %dst = memref.alloc() : !ctu
+  // CHECK: let mut [[dst:v[0-9]+]] = CtUnnorm::new([[m]].ckks_ciphertext_alloc([[a]].base2k(), [[a]].max_k()));
+  // CHECK-NEXT: [[m]].ckks_add_into_unnormalized(&mut [[dst]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.add_unnormalized %m, %dst, %a, %b, %s : (!module, !ctu, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn sub_unnormalized(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut CtUnnorm
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @sub_unnormalized(%m: !module, %s: !scratch, %dst: !ctu, %a: !ct, %b: !ct) {
+  // CHECK: [[m]].ckks_sub_into_unnormalized(&mut *[[dst]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.sub_unnormalized %m, %dst, %a, %b, %s : (!module, !ctu, !ct, !ct, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }

@@ -12,8 +12,9 @@ constexpr std::string_view kModulePrelude =
 use anyhow::Result;
 use std::collections::HashMap;
 use poulpy_ckks::{
-    api::{CKKSAddOps, CKKSSubOps, CKKSMulOps, CKKSRotateOps},
-    layouts::{CKKSCiphertext, CKKSModuleAlloc},
+    api::{CKKSAddOps, CKKSSubOps, CKKSMulOps, CKKSRotateOps, CKKSCopyOps,
+          CKKSPow2Ops},
+    layouts::{CKKSCiphertext, CKKSModuleAlloc, UnnormalizedCKKSCiphertext},
 };
 use poulpy_core::layouts::prepared::GLWETensorKeyPrepared;
 use poulpy_core::layouts::{GLWEAutomorphismKeyPrepared, LWEInfos};
@@ -25,6 +26,7 @@ use poulpy_hal::{
 
 constexpr std::string_view kTypeAliases = R"poulpy(
 type Ct = CKKSCiphertext<<BE as Backend>::OwnedBuf>;
+type CtUnnorm = UnnormalizedCKKSCiphertext<<BE as Backend>::OwnedBuf>;
 type Tsk = GLWETensorKeyPrepared<<BE as Backend>::OwnedBuf, BE>;
 type Akm = HashMap<i64, GLWEAutomorphismKeyPrepared<<BE as Backend>::OwnedBuf, BE>>;
 )poulpy";
