@@ -41,6 +41,8 @@
 namespace mlir {
 namespace heir {
 
+constexpr int kDefaultLevelBudget = 40;
+
 // A sentinel for the maximum allowable level before it is determined exactly
 // what the max level is. In the semantics of this analysis, levels start from 0
 // (the initial level) and go up to some max level (determined by a pass that
@@ -193,9 +195,9 @@ class LevelAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<LevelLattice>,
       public SecretnessAnalysisDependent<LevelAnalysis> {
  public:
-  LevelAnalysis(DataFlowSolver& solver, int levelBudget = 40)
+  LevelAnalysis(DataFlowSolver& solver, int levelBudget = 0)
       : dataflow::SparseForwardDataFlowAnalysis<LevelLattice>(solver),
-        levelBudget(levelBudget) {}
+        levelBudget(levelBudget > 0 ? levelBudget : kDefaultLevelBudget) {}
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToEntryState(LevelLattice* lattice) override {

@@ -31,7 +31,7 @@ struct RegionBranchOpLevelInvariance
     SymbolTableCollection symbolTable;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
-    solver.load<LevelAnalysis>();
+    solver.load<LevelAnalysis>(levelBudget);
     solver.load<LevelAnalysisBackward>(symbolTable);
 
     if (failed(solver.initializeAndRun(getOperation()))) {

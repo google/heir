@@ -36,7 +36,7 @@ struct PartialUnrollForLevelConsumption
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
-    solver.load<LevelAnalysis>();
+    solver.load<LevelAnalysis>(forceMaxLevel);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";

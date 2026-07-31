@@ -133,7 +133,7 @@ def AnnotateBootstrapWaterline : Pass<"annotate-bootstrap-waterline", "ModuleOp"
   let options = [
     Option<"bootstrapWaterline", "bootstrap-waterline", "int",
            /*default=*/"2", "Waterline for insert bootstrap op">,
-    Option<"levelBudget", "level-budget", "int", /*default=*/"40",
+    Option<"levelBudget", "level-budget", "int", /*default=*/"0",
            "An optional maximum level budget for the pipeline to assume">,
   ];
 }

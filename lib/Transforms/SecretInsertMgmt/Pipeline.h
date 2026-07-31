@@ -34,13 +34,15 @@ void insertModReduceBeforeOrAfterMult(Operation* top, bool afterMul,
 
 void insertRelinearizeAfterMult(Operation* top, bool includeFloats);
 
-void adjustLevelsForRegionBranchOps(Operation* top);
+void adjustLevelsForRegionBranchOps(Operation* top, int levelBudget);
 
 void adjustScalesForRegionBranchOps(Operation* top, int* idCounter);
 
-void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats);
+void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats,
+                         int levelBudget);
 
-void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats);
+void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
+                            int levelBudget);
 
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, bool includeFloats,

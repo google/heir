@@ -43,10 +43,10 @@ void runSolver(Operation* top, DataFlowSolver& solver) {
   }
 }
 
-void makeAndRunSolver(Operation* top, DataFlowSolver& solver) {
+void makeAndRunSolver(Operation* top, DataFlowSolver& solver, int levelBudget) {
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
-  solver.load<LevelAnalysis>();
+  solver.load<LevelAnalysis>(levelBudget);
   solver.load<MulDepthAnalysis>();
   runSolver(top, solver);
 }
@@ -65,11 +65,11 @@ void makeAndRunSecretnessAndMulDepthSolver(Operation* top,
   runSolver(top, solver);
 }
 
-void makeAndRunSecretnessAndLevelSolver(Operation* top,
-                                        DataFlowSolver& solver) {
+void makeAndRunSecretnessAndLevelSolver(Operation* top, DataFlowSolver& solver,
+                                        int levelBudget) {
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
-  solver.load<LevelAnalysis>();
+  solver.load<LevelAnalysis>(levelBudget);
   runSolver(top, solver);
 }
 
@@ -94,7 +94,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
 
   // Run Level Analysis to check for convergence
   DataFlowSolver levelSolver;
-  makeAndRunSolver(top, levelSolver);
+  makeAndRunSolver(top, levelSolver, options.levelBudget);
 
   auto nonInvariantLoops = getNonInvariantLoops(top, &levelSolver);
 
@@ -106,7 +106,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
     bootstrapLoopIterArgs(loop, &secretnessSolver);
 
     DataFlowSolver freshLevelSolver;
-    makeAndRunSolver(top, freshLevelSolver);
+    makeAndRunSolver(top, freshLevelSolver, options.levelBudget);
     unrollLoopForLevelUtilization(loop, &freshLevelSolver, options.levelBudget);
   }
 
@@ -122,18 +122,20 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
 
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
-  adjustLevelsForRegionBranchOps(top);
+  adjustLevelsForRegionBranchOps(top, options.levelBudget);
   adjustScalesForRegionBranchOps(top, &idCounter);
 
   LDBG(2) << "Handling cross level ops";
-  handleCrossLevelOps(top, &idCounter, options.includeFloats);
+  handleCrossLevelOps(top, &idCounter, options.includeFloats,
+                      options.levelBudget);
 
   LDBG(2) << "Handling cross mul depth ops";
-  handleCrossMulDepthOps(top, &idCounter, options.includeFloats);
+  handleCrossMulDepthOps(top, &idCounter, options.includeFloats,
+                         options.levelBudget);
 
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
-  adjustLevelsForRegionBranchOps(top);
+  adjustLevelsForRegionBranchOps(top, options.levelBudget);
   return success();
 }
 
@@ -207,9 +209,10 @@ void insertRelinearizeAfterMult(Operation* top, bool includeFloats) {
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats) {
+void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats,
+                         int levelBudget) {
   DataFlowSolver solver;
-  makeAndRunSecretnessAndLevelSolver(top, solver);
+  makeAndRunSecretnessAndLevelSolver(top, solver, levelBudget);
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<MatchCrossLevel<arith::AddIOp>, MatchCrossLevel<arith::SubIOp>,
@@ -225,10 +228,10 @@ void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats) {
 // this only happen for before-mul but not include-first-mul case
 // at the first level, a Value can be both mulResult or not mulResult
 // we should match their scale by adding one adjust scale op
-void handleCrossMulDepthOps(Operation* top, int* idCounter,
-                            bool includeFloats) {
+void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
+                            int levelBudget) {
   DataFlowSolver solver;
-  makeAndRunSolver(top, solver);
+  makeAndRunSolver(top, solver, levelBudget);
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns
@@ -392,11 +395,11 @@ SmallVector<Operation*> getNonInvariantLoops(Operation* top,
   return nonInvariantLoops;
 }
 
-void adjustLevelsForRegionBranchOps(Operation* top) {
+void adjustLevelsForRegionBranchOps(Operation* top, int levelBudget) {
   LDBG(2) << "Adjusting levels for region branching ops";
   MLIRContext* ctx = top->getContext();
   DataFlowSolver solver;
-  makeAndRunSecretnessAndLevelSolver(top, solver);
+  makeAndRunSecretnessAndLevelSolver(top, solver, levelBudget);
 
   RewritePatternSet patterns(ctx);
   patterns.add<RegionBranchOpLevelInvariancePattern>(ctx, &solver);

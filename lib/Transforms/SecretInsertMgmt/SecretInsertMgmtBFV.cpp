@@ -84,6 +84,7 @@ struct SecretInsertMgmtBFV
     pipeline.addPass(createCanonicalizerPass());
     mgmt::AnnotateMgmtOptions annotateMgmtOptions;
     annotateMgmtOptions.baseLevel = level;
+    annotateMgmtOptions.levelBudget = level;
     pipeline.addPass(mgmt::createAnnotateMgmt(annotateMgmtOptions));
     (void)runPipeline(pipeline, getOperation());
   }
