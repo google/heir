@@ -50,7 +50,38 @@ struct GroupingContext {
   // Program-order index and longest-path depth of each tracked op.
   DenseMap<Operation*, int> opIndex;
   DenseMap<Operation*, int> opDepth;
+  // Multiplicative depth (count of multiplications on the longest path) of
+  // each tracked op's result.
+  DenseMap<Operation*, int> opMulDepth;
+  // Residual-join carve-out threshold; 0 disables it.
+  int bypassDepthThreshold = 0;
 };
+
+// Multiplicative depth of a value: the producer op's mul depth, or 0 for a
+// block argument or untracked value.
+static int mulDepthOf(GroupingContext& ctx, Value value) {
+  Operation* def = value.getDefiningOp();
+  auto it = ctx.opMulDepth.find(def);
+  return (def && it != ctx.opMulDepth.end()) ? it->second : 0;
+}
+
+// A residual join: an addition whose two secret operands come from producers
+// whose multiplicative depths differ by at least the bypass threshold (one
+// long "main" path, one short bypass). Such adds must not be folded into a
+// squashed tree, or the two-predecessor structure bypass detection keys on is
+// lost.
+static bool isBypassJoin(GroupingContext& ctx, Operation* op) {
+  if (ctx.bypassDepthThreshold <= 0) return false;
+  if (!isAdditionLike(op)) return false;
+  SmallVector<int, 2> secretDepths;
+  for (Value operand : op->getOperands()) {
+    if (isSecret(operand, ctx.solver))
+      secretDepths.push_back(mulDepthOf(ctx, operand));
+  }
+  if (secretDepths.size() != 2) return false;
+  return std::abs(secretDepths[0] - secretDepths[1]) >=
+         ctx.bypassDepthThreshold;
+}
 
 }  // namespace
 
@@ -76,7 +107,8 @@ static OpGroup makeSingletonGroup(GroupingContext& ctx, Operation* op) {
 static SmallVector<OpGroup> squashAdditionTrees(GroupingContext& ctx,
                                                 bool compress) {
   auto isSquashable = [&](Operation* op) {
-    return compress && isAdditionLike(op) && op->getNumResults() == 1;
+    return compress && isAdditionLike(op) && op->getNumResults() == 1 &&
+           !isBypassJoin(ctx, op);
   };
 
   // Grow trees from their deepest member so producers join consumers.
@@ -299,22 +331,26 @@ static void mergeEquivalentGroups(GroupingContext& ctx,
   groups = std::move(merged);
 }
 
-OpGrouping computeOpGrouping(Block* body, DataFlowSolver* solver,
-                             bool compress) {
+OpGrouping computeOpGrouping(Block* body, DataFlowSolver* solver, bool compress,
+                             int bypassDepthThreshold) {
   GroupingContext ctx(body, solver);
+  ctx.bypassDepthThreshold = bypassDepthThreshold;
   int index = 0;
   for (Operation& op : body->getOperations()) {
     if (!shouldTrackOperation(op, solver)) continue;
     ctx.trackedOps.push_back(&op);
     ctx.opIndex[&op] = index++;
     int depth = 0;
+    int mulDepth = 0;
     for (Value operand : op.getOperands()) {
       Operation* def = operand.getDefiningOp();
       auto it = ctx.opDepth.find(def);
       if (def && it != ctx.opDepth.end())
         depth = std::max(depth, it->second + 1);
+      mulDepth = std::max(mulDepth, mulDepthOf(ctx, operand));
     }
     ctx.opDepth[&op] = depth;
+    ctx.opMulDepth[&op] = mulDepth + (isMultiplication(&op) ? 1 : 0);
   }
 
   SmallVector<OpGroup> groups = squashAdditionTrees(ctx, compress);
@@ -329,7 +365,10 @@ OpGrouping computeOpGrouping(Block* body, DataFlowSolver* solver,
   OpGrouping grouping;
   grouping.groups = std::move(groups);
   for (auto [i, group] : llvm::enumerate(grouping.groups)) {
-    for (Operation* member : group.members) grouping.groupIdOf[member] = i;
+    for (Operation* member : group.members) {
+      grouping.groupIdOf[member] = i;
+      group.mulDepth = std::max(group.mulDepth, ctx.opMulDepth.lookup(member));
+    }
     if (group.representative->getNumResults() == 1) {
       Value repResult = group.representative->getResult(0);
       for (Value result : group.resultValues) {
