@@ -285,6 +285,7 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   if (*maybeHasResources) {
     imports.insert("\"os\"");
     imports.insert("\"encoding/binary\"");
+    imports.insert("\"path/filepath\"");
 
     std::string globals;
     llvm::raw_string_ostream globalsOs(globals);
@@ -309,7 +310,8 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
     for (const auto& eltType : resourceEltTypes) {
       helpersOs << llvm::formatv(
           R"(func loadResource_{0}(path string, size int) ([]{0}, error) {{
-  file, err := os.Open(path)
+  resolvedPath := heirResolvePath(path)
+  file, err := os.Open(resolvedPath)
   if err != nil {{
     return nil, err
   }
@@ -326,6 +328,17 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
 )",
           eltType);
     }
+
+    helpersOs << R"(func heirResolvePath(path string) string {
+  if srcDir := os.Getenv("TEST_SRCDIR"); srcDir != "" {
+    if workspace := os.Getenv("TEST_WORKSPACE"); workspace != "" {
+      return filepath.Join(srcDir, workspace, path)
+    }
+  }
+  return path
+}
+
+)";
 
     os << llvm::formatv(R"(// Package-level globals for external resources
 var (

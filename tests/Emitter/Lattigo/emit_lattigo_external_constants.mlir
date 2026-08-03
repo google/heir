@@ -20,7 +20,8 @@
 // CHECK: }
 
 // CHECK: func loadResource_bool(path string, size int) ([]bool, error) {
-// CHECK:   file, err := os.Open(path)
+// CHECK:   resolvedPath := heirResolvePath(path)
+// CHECK:   file, err := os.Open(resolvedPath)
 // CHECK:   if err != nil {
 // CHECK:     return nil, err
 // CHECK:   }
@@ -34,7 +35,8 @@
 // CHECK: }
 
 // CHECK: func loadResource_int32(path string, size int) ([]int32, error) {
-// CHECK:   file, err := os.Open(path)
+// CHECK:   resolvedPath := heirResolvePath(path)
+// CHECK:   file, err := os.Open(resolvedPath)
 // CHECK:   if err != nil {
 // CHECK:     return nil, err
 // CHECK:   }
@@ -45,6 +47,15 @@
 // CHECK:     return nil, err
 // CHECK:   }
 // CHECK:   return data, nil
+// CHECK: }
+
+// CHECK: func heirResolvePath(path string) string {
+// CHECK:   if srcDir := os.Getenv("TEST_SRCDIR"); srcDir != "" {
+// CHECK:     if workspace := os.Getenv("TEST_WORKSPACE"); workspace != "" {
+// CHECK:       return filepath.Join(srcDir, workspace, path)
+// CHECK:     }
+// CHECK:   }
+// CHECK:   return path
 // CHECK: }
 
 // CHECK: func Test_external_constant(v{{.*}} []int32) ([]int32) {

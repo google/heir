@@ -20,7 +20,7 @@ def _make_split_preprocessing_libs(utils_name, generated_heir_opt_name, heir_tra
         data = data,
     )
 
-def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], extra_srcs = [], data = [], tags = [], deps = [], split_preprocessing = True, **kwargs):
+def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], externalize_constants = True, ext_const_output_dir = "", extra_srcs = [], data = [], tags = [], deps = [], split_preprocessing = True, **kwargs):
     """A rule for generating Lattigo code from an MLIR file.
 
     Args:
@@ -29,6 +29,8 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
       go_library_name: The name of the generated go library and package
       heir_opt_flags: Flags to pass to heir-opt before heir-translate
       heir_translate_flags: Flags to pass to heir-translate
+      externalize_constants: If True, externalize constants.
+      ext_const_output_dir: If set, externalize constants to this directory.
       extra_srcs: Extra sources to pass to go_library
       data: Data dependencies to be passed to go_library
       tags: Tags to pass to go_library
@@ -40,13 +42,15 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
 
-    if heir_opt_flags:
+    if heir_opt_flags or externalize_constants:
         heir_opt(
             name = heir_opt_name,
             src = mlir_src,
             pass_flags = heir_opt_flags,
             generated_filename = generated_heir_opt_name,
             data = data,
+            externalize_constants = externalize_constants,
+            ext_const_output_dir = ext_const_output_dir,
         )
     else:
         generated_heir_opt_name = mlir_src
@@ -64,9 +68,13 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
         "@com_github_tuneinsight_lattigo_v6//circuits/ckks/bootstrapping",
     ]
 
+    heir_opt_data = data
+    if heir_opt_flags or ext_const_output_dir:
+        heir_opt_data = data + [":" + heir_opt_name]
+
     if split_preprocessing == True:
         utils_name = go_package_name + "_utils"
-        _make_split_preprocessing_libs(utils_name, generated_heir_opt_name, heir_translate_flags, common_deps, tags, data)
+        _make_split_preprocessing_libs(utils_name, generated_heir_opt_name, heir_translate_flags, common_deps, tags, heir_opt_data)
         common_deps = common_deps + [utils_name]
         utils_import_path = native.package_name() + "/" + utils_name
         heir_translate_flags = heir_translate_flags + ["--extra-imports=" + utils_import_path, "--emit-lattigo-preprocessed"]
@@ -86,6 +94,6 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
         srcs = extra_srcs + [":" + generated_go_filename],
         deps = common_deps,
         tags = tags,
-        data = data,
+        data = heir_opt_data if not split_preprocessing else data,
         **kwargs
     )
