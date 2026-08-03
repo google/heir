@@ -411,3 +411,18 @@ func.func @decrypt_check(%m: !module, %s: !scratch, %sk: !sk, %ct: !ct) {
   // CHECK-NEXT: Ok(())
   return
 }
+
+// CHECK: pub fn two_results(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<(Ct, Ct)> {
+func.func @two_results(%mod: !module, %s: !scratch, %a: !ct, %b: !ct) -> (!ct, !ct) {
+  %sum = memref.alloc() : !ct
+  // CHECK: let mut [[sum:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[a]].base2k(), [[a]].max_k());
+  // CHECK-NEXT: [[m]].ckks_add_into(&mut [[sum]], &*[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.add %mod, %sum, %a, %b, %s : (!module, !ct, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(([[sum]], [[a]].clone()))
+  return %sum, %a : !ct, !ct
+}

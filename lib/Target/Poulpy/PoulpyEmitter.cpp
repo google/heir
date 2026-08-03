@@ -4,6 +4,7 @@
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.h"
 #include "lib/Target/Poulpy/PoulpyTemplates.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
@@ -221,7 +222,12 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
       return funcOp.emitOpError() << "Failed to emit poulpy type " << result;
     }
   } else {
-    // TODO(mmoro): implement
+    auto types = commaSeparatedTypes(funcOp.getResultTypes(), [&](Type t) {
+      return convertType(t, /*isArg=*/false, /*isMutated=*/false);
+    });
+    if (failed(types))
+      return funcOp.emitOpError() << "Failed to emit poulpy result types";
+    os << "(" << *types << ")";
   }
 
   os << "> {\n";
@@ -239,13 +245,17 @@ LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
 }
 
 LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
-  // TODO(mmoro): implement ReturnOp printing for more than one return value
   if (op.getNumOperands() == 0) {
     os << "Ok(())\n";
   } else if (op.getNumOperands() == 1) {
     auto returnOperand = op.getOperands()[0];
     auto expression = valueOrClonedValue(returnOperand, variableNames);
     os << "Ok(" << expression << ")\n";
+  } else {
+    auto values = commaSeparatedValues(op.getOperands(), [&](Value v) {
+      return valueOrClonedValue(v, variableNames);
+    });
+    os << "Ok((" << values << "))\n";
   }
   return success();
 }
