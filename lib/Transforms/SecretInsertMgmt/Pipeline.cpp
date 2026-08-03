@@ -315,6 +315,18 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
           mgmt::BootstrapOp::create(builder, needsBootstrap.getLoc(),
                                     needsBootstrap.getType(), needsBootstrap);
       needsBootstrap.replaceAllUsesExcept(bootstrapOp.getResult(), bootstrapOp);
+      if (includeFloats) {
+        for (OpOperand& use :
+             llvm::make_early_inc_range(bootstrapOp.getResult().getUses())) {
+          if (isa<mgmt::ModReduceOp>(use.getOwner())) {
+            builder.setInsertionPoint(use.getOwner());
+            auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+                builder, use.getOwner()->getLoc(), bootstrapOp.getResult(),
+                builder.getI64IntegerAttr((*idCounter)++));
+            use.set(adjustScaleOp.getResult());
+          }
+        }
+      }
     }
   }
 }
