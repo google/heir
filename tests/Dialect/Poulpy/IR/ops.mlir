@@ -61,7 +61,7 @@ module {
   // CHECK: func @test_encrypt
   func.func @test_encrypt(%mod: !module, %ct: memref<!ct>, %pt: memref<!pt>, %sk: !sk, %scratch: !scratch) {
     // CHECK: poulpy.encrypt
-    poulpy.encrypt %mod, %ct, %pt, %sk, %scratch : (!module, memref<!ct>, memref<!pt>, !sk, !scratch) -> ()
+    poulpy.encrypt %mod, %ct, %pt, %sk, %scratch {base2k = 52 : i64, ctk = 300 : i64} : (!module, memref<!ct>, memref<!pt>, !sk, !scratch) -> ()
     return
   }
 
