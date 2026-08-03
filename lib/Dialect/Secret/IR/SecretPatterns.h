@@ -225,6 +225,9 @@ struct HoistPlaintextOps : public OpRewritePattern<GenericOp> {
  public:
   LogicalResult matchAndRewrite(GenericOp op,
                                 PatternRewriter& rewriter) const override;
+
+ private:
+  bool canHoist(Operation& op) const;
 };
 
 // When secret.generic uses the output of a secret.conceal, forward the

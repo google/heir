@@ -43,8 +43,9 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+#include "mlir/include/mlir/Transforms/RegionUtils.h"  // from @llvm-project
 
 #define DEBUG_TYPE "secret-patterns"
 
@@ -620,6 +621,61 @@ LogicalResult HoistOpAfterGeneric::matchAndRewrite(
   return success();
 }
 
+bool HoistPlaintextOps::canHoist(Operation& op) const {
+  auto genericOp = op.getParentOfType<secret::GenericOp>();
+  if (!genericOp) return false;
+  if (isa<YieldOp>(op)) {
+    return false;
+  }
+
+  // Conservatively preserve a complex op with a nested region
+  // unless it is a Linalg op (which we know how to handle and want to hoist).
+  if (op.getNumRegions() != 0 && !isa<linalg::LinalgDialect>(op.getDialect())) {
+    return false;
+  }
+
+  // Make an exception for function calls that are layout assignments.
+  if (!isSpeculatable(&op) && !isCallToPackingHelper(&op)) {
+    return false;
+  }
+
+  auto isHoistableValue = [&](Value v) {
+    if (auto blockArg = dyn_cast<BlockArgument>(v)) {
+      if (blockArg.getOwner() == genericOp.getBody()) {
+        // It is a block arg of the secret.generic.
+        // It must not be encrypted.
+        return !isa<SecretType>(
+            genericOp.getOperand(blockArg.getArgNumber()).getType());
+      }
+      // Block arg of outer region is fine.
+      return true;
+    }
+
+    // Defined by op. Must be defined outside secret.generic.
+    return !genericOp->isAncestor(v.getDefiningOp());
+  };
+
+  // Check operands
+  for (Value operand : op.getOperands()) {
+    if (!isHoistableValue(operand)) {
+      return false;
+    }
+  }
+
+  // Check captured values in regions
+  for (Region& region : op.getRegions()) {
+    llvm::SetVector<Value> captures;
+    mlir::getUsedValuesDefinedAbove(region, captures);
+    for (Value capture : captures) {
+      if (!isHoistableValue(capture)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 LogicalResult HoistPlaintextOps::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
   auto& opRange = genericOp.getBody()->getOperations();
@@ -632,47 +688,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     // use CollapseSecretlessGeneric and eliminate the generic op entirely.
     return failure();
   }
-
-  auto canHoist = [&](Operation& op) {
-    if (isa<YieldOp>(op)) {
-      return false;
-    }
-    // Conservatively preserve a complex op with a nested region
-    // This could be a replaced with a recursive call to check that all of the
-    // regions' operations can be hoisted.
-    if (op.getNumRegions() != 0 &&
-        !isa<linalg::LinalgDialect>(op.getDialect())) {
-      return false;
-    }
-    // Make an exception for function calls that are layout assignments.
-    if (!isSpeculatable(&op) && !isCallToPackingHelper(&op)) {
-      return false;
-    }
-    for (Value operand : op.getOperands()) {
-      auto blockArg = dyn_cast<BlockArgument>(operand);
-
-      if (blockArg) {
-        auto owningGeneric =
-            dyn_cast<GenericOp>(blockArg.getOwner()->getParentOp());
-        bool isEncryptedBlockArg =
-            owningGeneric &&
-            isa<SecretType>(
-                owningGeneric.getOperand(blockArg.getArgNumber()).getType());
-        if (isEncryptedBlockArg) {
-          return false;
-        }
-      } else {
-        bool isPlaintextAmbient =
-            operand.getDefiningOp()->getBlock() != op.getBlock() &&
-            !mlir::isa<SecretType>(operand.getType());
-        if (!isPlaintextAmbient) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  };
 
   // We can't hoist them as they are detected because the process of hoisting
   // alters the context generic op.
