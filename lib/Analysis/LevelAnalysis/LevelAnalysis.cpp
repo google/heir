@@ -298,5 +298,32 @@ std::optional<int> getMaxLevel(Operation* root) {
   return maxLevel;
 }
 
+LogicalResult validateLevelAnalysis(DataFlowSolver& solver, Operation* op) {
+  LogicalResult result = success();
+  op->walk([&](Operation* walkOp) {
+    auto checkValue = [&](Value value) {
+      if (mgmt::shouldHaveMgmtAttribute(value, &solver)) {
+        auto* lattice = solver.lookupState<LevelLattice>(value);
+        if (lattice && lattice->getValue().isInvalid()) {
+          emitError(value.getLoc()) << "value has invalid level: " << value;
+          result = failure();
+        }
+      }
+    };
+
+    for (Value result : walkOp->getResults()) {
+      checkValue(result);
+    }
+    for (Region& region : walkOp->getRegions()) {
+      for (Block& block : region.getBlocks()) {
+        for (BlockArgument arg : block.getArguments()) {
+          checkValue(arg);
+        }
+      }
+    }
+  });
+  return result;
+}
+
 }  // namespace heir
 }  // namespace mlir

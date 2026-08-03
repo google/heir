@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-level="level-budget=2" %s | FileCheck %s
+// RUN: heir-opt --annotate-level="level-budget=2" -verify-diagnostics %s
 
 module {
   func.func @level_growth(%arg0: !secret.secret<tensor<16xf32>>) -> !secret.secret<tensor<16xf32>> {
@@ -7,12 +7,13 @@ module {
     %c10 = arith.constant 10 : index
     %c1 = arith.constant 1 : index
 
+    // expected-error@below {{secret.generic}}
     %0 = secret.generic(%arg0 : !secret.secret<tensor<16xf32>>) {
     ^body(%val: tensor<16xf32>):
-      // CHECK: scf.for
+      // expected-error@below {{scf.for}}
+      // expected-error@below {{block argument}}
       %1 = scf.for %arg1 = %c0 to %c10 step %c1 iter_args(%arg2 = %val) -> (tensor<16xf32>) {
-        // CHECK: mgmt.modreduce
-        // CHECK-SAME: {mgmt.level = "invalid"}
+        // expected-error@below {{modreduce}}
         %2 = mgmt.modreduce %arg2 : tensor<16xf32>
         scf.yield %2 : tensor<16xf32>
       }

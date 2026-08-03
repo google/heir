@@ -38,6 +38,11 @@ struct AnnotateLevel : impl::AnnotateLevelBase<AnnotateLevel> {
       return;
     }
 
+    if (failed(validateLevelAnalysis(solver, getOperation()))) {
+      signalPassFailure();
+      return;
+    }
+
     walkValues(getOperation(), [&](Value value) {
       auto* lattice = solver.lookupState<LevelLattice>(value);
       if (!lattice) return;
