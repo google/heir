@@ -130,9 +130,12 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
 
 void PoulpyEmitter::materializeIfPending(Value dst, Value module,
                                          Value layoutSource,
-                                         bool useSemanticWidth,
-                                         bool wrapUnnormalized) {
+                                         bool useSemanticWidth) {
   if (pendingAllocs.erase(dst)) {
+    // The unnormalized ops are the only ones whose dst is typed as an
+    // unnormalized ciphertext, so the wrapper follows from the type.
+    bool wrapUnnormalized = isa<UnnormalizedCiphertextType>(
+        cast<MemRefType>(dst.getType()).getElementType());
     auto layoutName = variableNames->getNameForValue(layoutSource);
     auto dstName = variableNames->getNameForValue(dst);
     auto moduleName = variableNames->getNameForValue(module);
@@ -242,161 +245,115 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
-  auto module = addOp.getModule();
-  auto dst = addOp.getDst();
-  auto a = addOp.getA();
-  auto b = addOp.getB();
-  auto scratch = addOp.getScratch();
+void PoulpyEmitter::emitCall(Value module, StringRef rustFn, Value dst,
+                             ArrayRef<std::string> args, Value scratch) {
+  os << variableNames->getNameForValue(module) << "." << rustFn << "("
+     << refMut(dst, variableNames);
+  for (const std::string& arg : args) os << ", " << arg;
+  if (scratch)
+    os << ", &mut " << variableNames->getNameForValue(scratch) << ".borrow()";
+  os << ")?;\n";
+}
 
-  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/false);
+template <typename OpTy>
+LogicalResult PoulpyEmitter::emitBinaryOp(OpTy op, StringRef rustFn,
+                                          ArrayRef<std::string> extraArgs) {
+  materializeIfPending(op.getDst(), op.getModule(), op.getA(),
+                       /*useSemanticWidth=*/false);
 
-  os << variableNames->getNameForValue(module) << ".ckks_add_into("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(b, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
+  SmallVector<std::string> args = {ref(op.getA(), variableNames),
+                                   ref(op.getB(), variableNames)};
+  args.append(extraArgs.begin(), extraArgs.end());
+  emitCall(op.getModule(), rustFn, op.getDst(), args, op.getScratch());
   return success();
 }
-LogicalResult PoulpyEmitter::printOperation(AddAssignOp addAssignOp) {
-  auto module = addAssignOp.getModule();
-  auto dst = addAssignOp.getDst();
-  auto a = addAssignOp.getA();
-  auto scratch = addAssignOp.getScratch();
 
-  if (failed(checkPendingState(dst, addAssignOp, /*shouldBePending=*/false)))
+template <typename OpTy>
+LogicalResult PoulpyEmitter::emitBinaryAssignOp(
+    OpTy op, StringRef rustFn, ArrayRef<std::string> extraArgs) {
+  if (failed(checkPendingState(op.getDst(), op, /*shouldBePending=*/false)))
     return failure();
 
-  os << variableNames->getNameForValue(module) << ".ckks_add_assign("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
+  SmallVector<std::string> args = {ref(op.getA(), variableNames)};
+  args.append(extraArgs.begin(), extraArgs.end());
+  emitCall(op.getModule(), rustFn, op.getDst(), args, op.getScratch());
   return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(AddOp addOp) {
+  return emitBinaryOp(addOp, "ckks_add_into");
+}
+
+LogicalResult PoulpyEmitter::printOperation(AddAssignOp addAssignOp) {
+  return emitBinaryAssignOp(addAssignOp, "ckks_add_assign");
 }
 
 LogicalResult PoulpyEmitter::printOperation(SubOp subOp) {
-  auto module = subOp.getModule();
-  auto dst = subOp.getDst();
-  auto a = subOp.getA();
-  auto b = subOp.getB();
-  auto scratch = subOp.getScratch();
-
-  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/false);
-
-  os << variableNames->getNameForValue(module) << ".ckks_sub_into("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(b, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
+  return emitBinaryOp(subOp, "ckks_sub_into");
 }
 
 LogicalResult PoulpyEmitter::printOperation(SubAssignOp subAssignOp) {
-  auto module = subAssignOp.getModule();
-  auto dst = subAssignOp.getDst();
-  auto a = subAssignOp.getA();
-  auto scratch = subAssignOp.getScratch();
-
-  if (failed(checkPendingState(dst, subAssignOp, /*shouldBePending=*/false)))
-    return failure();
-
-  os << variableNames->getNameForValue(module) << ".ckks_sub_assign("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
+  return emitBinaryAssignOp(subAssignOp, "ckks_sub_assign");
 }
 
 LogicalResult PoulpyEmitter::printOperation(MulOp mulOp) {
-  auto module = mulOp.getModule();
-  auto dst = mulOp.getDst();
-  auto a = mulOp.getA();
-  auto b = mulOp.getB();
-  auto tsk = mulOp.getTsk();
-  auto scratch = mulOp.getScratch();
-
-  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/false);
-
-  os << variableNames->getNameForValue(module) << ".ckks_mul_into("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(b, variableNames) << ", " << ref(tsk, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
+  return emitBinaryOp(mulOp, "ckks_mul_into",
+                      {ref(mulOp.getTsk(), variableNames)});
 }
 
 LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
-  auto module = mulAssignOp.getModule();
-  auto dst = mulAssignOp.getDst();
-  auto a = mulAssignOp.getA();
-  auto tsk = mulAssignOp.getTsk();
-  auto scratch = mulAssignOp.getScratch();
+  return emitBinaryAssignOp(mulAssignOp, "ckks_mul_assign",
+                            {ref(mulAssignOp.getTsk(), variableNames)});
+}
 
-  if (failed(checkPendingState(dst, mulAssignOp, /*shouldBePending=*/false)))
-    return failure();
+LogicalResult PoulpyEmitter::printOperation(AddUnnormalizedOp op) {
+  return emitBinaryOp(op, "ckks_add_into_unnormalized");
+}
 
-  os << variableNames->getNameForValue(module) << ".ckks_mul_assign("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(tsk, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
+LogicalResult PoulpyEmitter::printOperation(SubUnnormalizedOp op) {
+  return emitBinaryOp(op, "ckks_sub_into_unnormalized");
 }
 
 LogicalResult PoulpyEmitter::printOperation(RotateOp rotateOp) {
-  auto module = rotateOp.getModule();
   auto dst = rotateOp.getDst();
   auto src = rotateOp.getSrc();
-  auto k = rotateOp.getK();
-  auto keys = rotateOp.getKeys();
-  auto scratch = rotateOp.getScratch();
 
-  materializeIfPending(dst, module, src, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/false);
+  materializeIfPending(dst, rotateOp.getModule(), src,
+                       /*useSemanticWidth=*/false);
 
-  os << variableNames->getNameForValue(module) << ".ckks_rotate_into("
-     << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
-     << k << "i64" << ", " << ref(keys, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+  emitCall(rotateOp.getModule(), "ckks_rotate_into", dst,
+           {ref(src, variableNames), std::to_string(rotateOp.getK()) + "i64",
+            ref(rotateOp.getKeys(), variableNames)},
+           rotateOp.getScratch());
 
   return success();
 }
 
 LogicalResult PoulpyEmitter::printOperation(RotateAssignOp rotateAssignOp) {
-  auto module = rotateAssignOp.getModule();
   auto dst = rotateAssignOp.getDst();
-  auto k = rotateAssignOp.getK();
-  auto keys = rotateAssignOp.getKeys();
-  auto scratch = rotateAssignOp.getScratch();
 
   if (failed(checkPendingState(dst, rotateAssignOp, /*shouldBePending=*/false)))
     return failure();
 
-  os << variableNames->getNameForValue(module) << ".ckks_rotate_assign("
-     << refMut(dst, variableNames) << ", " << k << "i64" << ", "
-     << ref(keys, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+  emitCall(rotateAssignOp.getModule(), "ckks_rotate_assign", dst,
+           {std::to_string(rotateAssignOp.getK()) + "i64",
+            ref(rotateAssignOp.getKeys(), variableNames)},
+           rotateAssignOp.getScratch());
 
   return success();
 }
 
 LogicalResult PoulpyEmitter::printOperation(RescaleOp rescaleOp) {
-  auto module = rescaleOp.getModule();
   auto dst = rescaleOp.getDst();
   auto src = rescaleOp.getSrc();
-  auto bits = rescaleOp.getBits();
-  auto scratch = rescaleOp.getScratch();
 
-  materializeIfPending(dst, module, src, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/false);
+  materializeIfPending(dst, rescaleOp.getModule(), src,
+                       /*useSemanticWidth=*/false);
 
-  os << variableNames->getNameForValue(module) << ".ckks_div_pow2_into("
-     << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
-     << bits << "usize" << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+  emitCall(
+      rescaleOp.getModule(), "ckks_div_pow2_into", dst,
+      {ref(src, variableNames), std::to_string(rescaleOp.getBits()) + "usize"},
+      rescaleOp.getScratch());
 
   return success();
 }
@@ -405,72 +362,29 @@ LogicalResult PoulpyEmitter::printOperation(RescaleOp rescaleOp) {
 // _assign op. The dialect op still carries a scratch operand for structural
 // uniformity, it's just not part of the Rust call.
 LogicalResult PoulpyEmitter::printOperation(RescaleAssignOp rescaleAssignOp) {
-  auto module = rescaleAssignOp.getModule();
   auto dst = rescaleAssignOp.getDst();
-  auto bits = rescaleAssignOp.getBits();
 
   if (failed(
           checkPendingState(dst, rescaleAssignOp, /*shouldBePending=*/false)))
     return failure();
 
-  os << variableNames->getNameForValue(module) << ".ckks_div_pow2_assign("
-     << refMut(dst, variableNames) << ", " << bits << "usize)?;\n";
+  emitCall(rescaleAssignOp.getModule(), "ckks_div_pow2_assign", dst,
+           {std::to_string(rescaleAssignOp.getBits()) + "usize"});
 
   return success();
 }
 
 LogicalResult PoulpyEmitter::printOperation(CompactLimbsOp compactLimbsOp) {
-  auto module = compactLimbsOp.getModule();
   auto dst = compactLimbsOp.getDst();
   auto src = compactLimbsOp.getSrc();
-  auto scratch = compactLimbsOp.getScratch();
 
   // Unlike every other _into op, dst is allocated with the semantic width
   // (.k()), not the allocated capacity (.max_k()).
-  materializeIfPending(dst, module, src, /*useSemanticWidth=*/true,
-                       /*wrapUnnormalized=*/false);
+  materializeIfPending(dst, compactLimbsOp.getModule(), src,
+                       /*useSemanticWidth=*/true);
 
-  os << variableNames->getNameForValue(module) << ".ckks_copy("
-     << refMut(dst, variableNames) << ", " << ref(src, variableNames) << ", "
-     << "&mut " << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
-}
-
-LogicalResult PoulpyEmitter::printOperation(
-    AddUnnormalizedOp addUnnormalizedOp) {
-  auto module = addUnnormalizedOp.getModule();
-  auto dst = addUnnormalizedOp.getDst();
-  auto a = addUnnormalizedOp.getA();
-  auto b = addUnnormalizedOp.getB();
-  auto scratch = addUnnormalizedOp.getScratch();
-
-  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/true);
-
-  os << variableNames->getNameForValue(module) << ".ckks_add_into_unnormalized("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(b, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
-
-  return success();
-}
-
-LogicalResult PoulpyEmitter::printOperation(
-    SubUnnormalizedOp subUnnormalizedOp) {
-  auto module = subUnnormalizedOp.getModule();
-  auto dst = subUnnormalizedOp.getDst();
-  auto a = subUnnormalizedOp.getA();
-  auto b = subUnnormalizedOp.getB();
-  auto scratch = subUnnormalizedOp.getScratch();
-
-  materializeIfPending(dst, module, a, /*useSemanticWidth=*/false,
-                       /*wrapUnnormalized=*/true);
-
-  os << variableNames->getNameForValue(module) << ".ckks_sub_into_unnormalized("
-     << refMut(dst, variableNames) << ", " << ref(a, variableNames) << ", "
-     << ref(b, variableNames) << ", " << "&mut "
-     << variableNames->getNameForValue(scratch) << ".borrow())?;\n";
+  emitCall(compactLimbsOp.getModule(), "ckks_copy", dst,
+           {ref(src, variableNames)}, compactLimbsOp.getScratch());
 
   return success();
 }

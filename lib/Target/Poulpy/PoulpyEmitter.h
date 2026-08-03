@@ -6,7 +6,9 @@
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
+#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -44,10 +46,20 @@ class PoulpyEmitter {
 
   void computeMutatedValues(func::FuncOp funcOp);
   void materializeIfPending(Value dst, Value module, Value layoutSource,
-                            bool useSemanticWidth, bool wrapUnnormalized);
+                            bool useSemanticWidth);
   LogicalResult checkPendingState(Value dst, Operation* op,
                                   bool shouldBePending);
   void emitEncoderIfNeeded(Value module);
+
+  void emitCall(Value module, StringRef rustFn, Value dst,
+                ArrayRef<std::string> args, Value scratch = {});
+
+  template <typename OpTy>
+  LogicalResult emitBinaryOp(OpTy op, StringRef rustFn,
+                             ArrayRef<std::string> extraArgs = {});
+  template <typename OpTy>
+  LogicalResult emitBinaryAssignOp(OpTy op, StringRef rustFn,
+                                   ArrayRef<std::string> extraArgs = {});
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
