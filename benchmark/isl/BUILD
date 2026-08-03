@@ -55,6 +55,20 @@ cc_binary(
 )
 
 cc_binary(
+    name = "relation_equality_benchmark",
+    srcs = ["relation_equality_benchmark.cpp"],
+    deps = [
+        ":relations",
+        "@google_benchmark//:benchmark",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
+        "@isl",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_binary(
     name = "get_ct_complement_benchmark",
     srcs = ["get_ct_complement_benchmark.cpp"],
     deps = [

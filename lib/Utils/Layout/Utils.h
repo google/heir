@@ -44,29 +44,12 @@ void prependPassthroughDim(presburger::IntegerRelation& relation,
 unsigned int addModConstraint(presburger::IntegerRelation& result,
                               ArrayRef<int64_t> exprs, int64_t modulus);
 
-/// Tests if two relations have the same range for a given domain point.
-bool sameRangeForDomainPoint(const std::vector<int64_t>& domainPoint,
-                             const presburger::IntegerRelation& rel1,
-                             const presburger::IntegerRelation& rel2);
-
-/// Tests if two relations have the same domain for a given range point.
-bool sameDomainForRangePoint(const std::vector<int64_t>& rangePoint,
-                             const presburger::IntegerRelation& rel1,
-                             const presburger::IntegerRelation& rel2);
-
-/// Attempts to quickly prove inequality of two relations by testing domain and
-/// range point-subsamples that are known to be in both relations. This can be
-/// used as a fast check to avoid a full equality test.
-///
-/// This function should only be used on layouts that map data -> ciphertexts,
-/// which is what allows us to conjure subsets of valid points to test.
-///
-/// For example, for a 2d data domain, it is always true that (0, 0) is in the
-/// domain of some point of the relation, because all tensors have an origin
-/// point. This function will then restrict the relation to the sub-relation of
-/// points with domain (0, 0), and compare the range points.
-LogicalResult tryProveUnequal(const presburger::IntegerRelation& layout1,
-                              const presburger::IntegerRelation& layout2);
+/// Cheap one-sided inequality check on two layout relations. Returns success()
+/// when they are provably unequal, and failure() when the check cannot tell --
+/// a failure() is not evidence of equality.
+LogicalResult tryProveUnequalByVolume(
+    const presburger::IntegerRelation& layout1,
+    const presburger::IntegerRelation& layout2);
 
 // Returns an IntegerRelation that enforces a row-major layout for the given
 // tensor type and number of slots. This is used for IntegerRelations that
@@ -258,6 +241,13 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
 
+// Tests whether two layout relations describe the same set of points.
+//
+// This check is one-sided: `true` means the relations are provably equal, but
+// `false` means "not proven equal" rather than "proven unequal".
+//
+// IntegerRelation::isEqual is deliberately not used: it fails to
+// return within 120s on layouts isl decides in single-digit milliseconds.
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2);
 

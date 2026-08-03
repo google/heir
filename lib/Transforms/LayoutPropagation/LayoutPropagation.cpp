@@ -869,7 +869,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   IntegerRelation targetDataRelation =
       getRowMajorLayoutRelation(dataType, minSlotCount);
 
-  if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
+  if (!isRelationEqual(dataLayout.getIntegerRelation(), targetDataRelation)) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, "
                                "inserting layout conversion.\n");
     auto [toReplace, newDataLayoutAttr] =
@@ -995,7 +995,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
       getRowMajorLayoutRelation(fheInputType, minSlotCount);
 
   mlir::IRRewriter builder(ctx);
-  if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
+  if (!isRelationEqual(dataLayout.getIntegerRelation(), targetDataRelation)) {
     LLVM_DEBUG(llvm::dbgs() << "conv_2d data input is not row major, "
                                "inserting layout conversion.\n");
     auto [toReplace, newDataLayoutAttr] =
