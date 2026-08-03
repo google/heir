@@ -8,6 +8,7 @@
 !ct = memref<!poulpy.ciphertext>
 !ctu = memref<!poulpy.unnormalized_ciphertext>
 !pt = memref<!poulpy.plaintext>
+!sk = !poulpy.secret_key
 !tsk = !poulpy.tensor_key
 !akm = !poulpy.automorphism_key_map
 
@@ -347,6 +348,66 @@ func.func @decode_check(%m: !module, %pt: !pt, %re: memref<4xf64>, %im: memref<4
   // CHECK: let encoder = Encoder::<FFT64ReimTable<f64>>::new::<f64>([[m]].n() / 2)?;
   // CHECK-NEXT: encoder.decode_reim(&*[[pt]], &mut *[[re]], &mut *[[im]])?;
   poulpy.decode %m, %re, %im, %pt : (!module, memref<4xf64>, memref<4xf64>, !pt) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn encrypt_check(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[sk:v[0-9]+]]: &Sk
+// CHECK: [[pt:v[0-9]+]]: &Pt
+// CHECK-NEXT: ) -> Result<()> {
+func.func @encrypt_check(%m: !module, %s: !scratch, %sk: !sk, %pt: !pt) {
+  %ct = memref.alloc() : !ct
+  // CHECK: let mut [[ct:v[0-9]+]] = [[m]].ckks_ciphertext_alloc(Base2K(52u32), TorusPrecision(300u32));
+  // CHECK-NEXT: let enc_layout0 = EncryptionLayout::new_from_default_sigma(GLWELayout {
+  // CHECK-NEXT: n: [[m]].ring_degree(), base2k: Base2K(52u32), k: TorusPrecision(300u32), rank: [[sk]].rank(),
+  // CHECK-NEXT: })?;
+  // CHECK-NEXT: let mut source0 = Source::new([0u8; 32]);
+  // CHECK-NEXT: let mut source1 = Source::new([1u8; 32]);
+  // CHECK-NEXT: [[m]].ckks_encrypt_sk(&mut [[ct]], &*[[pt]], &*[[sk]], &enc_layout0, &mut source0, &mut source1, &mut [[s]].borrow())?;
+  poulpy.encrypt %m, %ct, %pt, %sk, %s {base2k = 52 : i64, ctk = 300 : i64} : (!module, !ct, !pt, !sk, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn encrypt_twice_check(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[sk:v[0-9]+]]: &Sk
+// CHECK: [[pt:v[0-9]+]]: &Pt
+// CHECK-NEXT: ) -> Result<()> {
+func.func @encrypt_twice_check(%m: !module, %s: !scratch, %sk: !sk, %pt: !pt) {
+  %ct0 = memref.alloc() : !ct
+  // CHECK: let enc_layout0 = EncryptionLayout::new_from_default_sigma(GLWELayout {
+  // CHECK-NEXT: n: [[m]].ring_degree(), base2k: Base2K(52u32), k: TorusPrecision(300u32), rank: [[sk]].rank(),
+  // CHECK-NEXT: })?;
+  // CHECK-NEXT: let mut source0 = Source::new([0u8; 32]);
+  // CHECK-NEXT: let mut source1 = Source::new([1u8; 32]);
+  poulpy.encrypt %m, %ct0, %pt, %sk, %s {base2k = 52 : i64, ctk = 300 : i64} : (!module, !ct, !pt, !sk, !scratch) -> ()
+  %ct1 = memref.alloc() : !ct
+  // CHECK: let enc_layout2 = EncryptionLayout::new_from_default_sigma(GLWELayout {
+  // CHECK-NEXT: n: [[m]].ring_degree(), base2k: Base2K(52u32), k: TorusPrecision(300u32), rank: [[sk]].rank(),
+  // CHECK-NEXT: })?;
+  // CHECK-NEXT: let mut source2 = Source::new([2u8; 32]);
+  // CHECK-NEXT: let mut source3 = Source::new([3u8; 32]);
+  poulpy.encrypt %m, %ct1, %pt, %sk, %s {base2k = 52 : i64, ctk = 300 : i64} : (!module, !ct, !pt, !sk, !scratch) -> ()
+  // CHECK: Ok(())
+  return
+}
+
+// CHECK: pub fn decrypt_check(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[sk:v[0-9]+]]: &Sk
+// CHECK: [[ct:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<()> {
+func.func @decrypt_check(%m: !module, %s: !scratch, %sk: !sk, %ct: !ct) {
+  %pt = memref.alloc() : !pt
+  // CHECK: let mut [[pt:v[0-9]+]] = [[m]].ckks_pt_vec_alloc_from_infos(&*[[ct]]);
+  // CHECK-NEXT: [[m]].ckks_decrypt(&mut [[pt]], &*[[ct]], &*[[sk]], &mut [[s]].borrow())?;
+  poulpy.decrypt %m, %pt, %ct, %sk, %s : (!module, !pt, !ct, !sk, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }

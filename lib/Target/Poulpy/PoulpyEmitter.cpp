@@ -97,7 +97,7 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
                 SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
                 AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp, EncodeOp,
-                DecodeOp, memref::AllocOp>(
+                DecodeOp, EncryptOp, DecryptOp, memref::AllocOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
@@ -124,6 +124,10 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
           mutatedValues.insert(op.getReal());
           mutatedValues.insert(op.getImag());
         })
+        .Case<EncryptOp>(
+            [&](EncryptOp op) { mutatedValues.insert(op.getCiphertext()); })
+        .Case<DecryptOp>(
+            [&](DecryptOp op) { mutatedValues.insert(op.getPlaintext()); })
         .Default([&](Operation& op) {});
   });
 }
@@ -192,6 +196,7 @@ LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
 LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
   computeMutatedValues(funcOp);
   encoderEmitted = false;
+  sourceCounter = 0;
   os << "pub fn " << funcOp.getName() << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
@@ -450,6 +455,74 @@ LogicalResult PoulpyEmitter::printOperation(DecodeOp decodeOp) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(EncryptOp encryptOp) {
+  auto module = encryptOp.getModule();
+  auto ciphertext = encryptOp.getCiphertext();
+  auto secretKey = encryptOp.getSecretKey();
+  uint64_t base2k = encryptOp.getBase2k();
+  uint64_t ctK = encryptOp.getCtk();
+
+  if (failed(
+          checkPendingState(ciphertext, encryptOp, /*shouldBePending=*/true)))
+    return failure();
+  pendingAllocs.erase(ciphertext);
+
+  auto moduleName = variableNames->getNameForValue(module);
+  os << "let mut " << variableNames->getNameForValue(ciphertext) << " = "
+     << moduleName << ".ckks_ciphertext_alloc(Base2K(" << base2k
+     << "u32), TorusPrecision(" << ctK << "u32));\n";
+
+  os << "let enc_layout" << sourceCounter
+     << " = EncryptionLayout::new_from_default_sigma(GLWELayout {\n";
+  os.indent();
+  os << "n: " << moduleName << ".ring_degree(), base2k: Base2K(" << base2k
+     << "u32), k: TorusPrecision(" << ctK
+     << "u32), rank: " << variableNames->getNameForValue(secretKey)
+     << ".rank(),\n";
+  os.unindent();
+  os << "})?;\n";
+
+  // TODO(mmoro): These seeds are deterministic placeholders
+  os << "let mut source" << sourceCounter << " = Source::new([" << sourceCounter
+     << "u8; 32]);\n";
+  os << "let mut source" << (sourceCounter + 1) << " = Source::new(["
+     << (sourceCounter + 1) << "u8; 32]);\n";
+
+  emitCall(module, "ckks_encrypt_sk", ciphertext,
+           {ref(encryptOp.getPlaintext(), variableNames),
+            ref(secretKey, variableNames),
+            "&enc_layout" + std::to_string(sourceCounter),
+            "&mut source" + std::to_string(sourceCounter),
+            "&mut source" + std::to_string(sourceCounter + 1)},
+           encryptOp.getScratch());
+
+  sourceCounter += 2;
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(DecryptOp decryptOp) {
+  auto module = decryptOp.getModule();
+  auto plaintext = decryptOp.getPlaintext();
+  auto ciphertext = decryptOp.getCiphertext();
+
+  if (failed(checkPendingState(plaintext, decryptOp, /*shouldBePending=*/true)))
+    return failure();
+  pendingAllocs.erase(plaintext);
+
+  os << "let mut " << variableNames->getNameForValue(plaintext) << " = "
+     << variableNames->getNameForValue(module)
+     << ".ckks_pt_vec_alloc_from_infos(" << ref(ciphertext, variableNames)
+     << ");\n";
+
+  emitCall(module, "ckks_decrypt", plaintext,
+           {ref(ciphertext, variableNames),
+            ref(decryptOp.getSecretKey(), variableNames)},
+           decryptOp.getScratch());
+
+  return success();
+}
+
 LogicalResult PoulpyEmitter::printOperation(memref::AllocOp allocOp) {
   MemRefType resultType = allocOp.getType();
   if (resultType.getElementType().isF64()) {
@@ -496,6 +569,9 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
           return std::string(isArg ? (isMutated ? "&mut Pt" : "&Pt") : "Pt");
         }
         return failure();
+      })
+      .Case<SecretKeyType>([&](SecretKeyType) -> FailureOr<std::string> {
+        return std::string("&Sk");
       })
       .Case<TensorKeyType>([&](TensorKeyType) -> FailureOr<std::string> {
         return std::string("&Tsk");

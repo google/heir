@@ -43,6 +43,7 @@ class PoulpyEmitter {
   llvm::DenseSet<Value> pendingAllocs;
 
   bool encoderEmitted = false;
+  int sourceCounter = 0;
 
   void computeMutatedValues(func::FuncOp funcOp);
   void materializeIfPending(Value dst, Value module, Value layoutSource,
@@ -82,6 +83,8 @@ class PoulpyEmitter {
   LogicalResult printOperation(NormalizeOp op);
   LogicalResult printOperation(EncodeOp op);
   LogicalResult printOperation(DecodeOp op);
+  LogicalResult printOperation(EncryptOp op);
+  LogicalResult printOperation(DecryptOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type, bool isArg, bool isMutated);
