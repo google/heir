@@ -64,57 +64,39 @@ TEST(UtilsTest, TestAddModConstraint) {
   }
 }
 
-TEST(UtilsTest, TestSameRangeForDomainPoint_AgreeOnZeroZero) {
-  auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  EXPECT_TRUE(sameRangeForDomainPoint({0}, rel1, rel1));
-}
-
-TEST(UtilsTest, TestSameRangeForDomainPoint_DifferOnZeroZeroByValue) {
-  auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  auto rel2 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 1 }").value();
-  EXPECT_FALSE(sameRangeForDomainPoint({0}, rel1, rel2));
-}
-
-TEST(UtilsTest, TestSameRangeForDomainPoint_DifferOnZeroZeroBySize) {
-  // (0, 0) is in both sets, but (0, 1), (0, 2), ... is in rel2
-  auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  auto rel2 = getIntegerRelationFromIslStr(
-                  "{ [x] -> [y] : 0 <= x <= 5 and 0 <= y <= 5 }")
-                  .value();
-  EXPECT_FALSE(sameRangeForDomainPoint({0}, rel1, rel2));
-}
-
-TEST(UtilsTest, TestTryProveUnequal_DifferingDomainVars) {
+TEST(UtilsTest, TestTryProveUnequalByVolume_DifferingDomainVars) {
   auto rel1 =
       getIntegerRelationFromIslStr("{ [x, z] -> [y] : x = 0 and y = 0 }")
           .value();
   auto rel2 =
       getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+  EXPECT_TRUE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
-TEST(UtilsTest, TestTryProveUnequal_DifferingRangeVars) {
+TEST(UtilsTest, TestTryProveUnequalByVolume_DifferingExtents) {
   auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y, z] : x = 0 and y = 0 }")
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 10 and y = 2*x }")
           .value();
   auto rel2 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 9 and y = 2*x }")
+          .value();
+  EXPECT_TRUE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
-TEST(UtilsTest, TestTryProveUnequal_DifferingOnTestPoint) {
+// A reversed diagonal has the same bounding box, and so the same volume, as the
+// forward one, so volume alone cannot separate them. isRelationEqual still
+// must, which is what IsRelationEqualDistinguishesEqualVolumeRelations covers.
+TEST(UtilsTest, TestTryProveUnequalByVolume_CannotDecideEqualVolumes) {
   auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 3 and y = x }")
+          .value();
   auto rel2 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 1 }").value();
-  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 3 and y = 3 - x }")
+          .value();
+  EXPECT_FALSE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
-TEST(UtilsTest, TestTryProveUnequal_SameRelation) {
+TEST(UtilsTest, TestTryProveUnequalByVolume_SameRelation) {
   auto rel1 =
       getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 10 and y = 2*x }")
           .value();
@@ -122,7 +104,7 @@ TEST(UtilsTest, TestTryProveUnequal_SameRelation) {
       getIntegerRelationFromIslStr(
           "{ [x] -> [y] : 0 <= x <= 10 and 0 <= y <= 20 and x = y / 2 }")
           .value();
-  EXPECT_FALSE(succeeded(tryProveUnequal(rel1, rel2)));
+  EXPECT_FALSE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
 TEST(UtilsTest, SingleCiphertext) {
@@ -334,6 +316,124 @@ TEST(UtilsTest, TricyclicLayout2x5x7Repeated) {
   }
 
   EXPECT_EQ(packedMatrix[0], expected);
+}
+
+// A genuine tricyclic layout must still be recognized after routing the check
+// through isRelationEqual.
+TEST(UtilsTest, IsRelationTricyclicAcceptsGenuineLayout) {
+  MLIRContext context;
+  int64_t h = 2, m = 5, n = 7;
+  int64_t numSlots = h * m * n;
+  RankedTensorType tensorType =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+
+  EXPECT_TRUE(isRelationTricyclic(
+      tensorType, numSlots, getTricyclicLayoutRelation(tensorType, numSlots)));
+}
+
+// The relation passed here IS the 1x5x7 tricyclic relation, so this returns
+// true without the unit-dim guard.
+TEST(UtilsTest, IsRelationTricyclicRejectsUnitDim) {
+  MLIRContext context;
+  int64_t h = 1, m = 5, n = 7;
+  int64_t numSlots = h * m * n;
+  RankedTensorType tensorType =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+
+  EXPECT_FALSE(isRelationTricyclic(
+      tensorType, numSlots, getTricyclicLayoutRelation(tensorType, numSlots)));
+}
+
+// Same degeneracy for the rank-2 CRT layout: gcd(1, cols) == 1 lets a unit-row
+// matrix through the coprimality filter.
+TEST(UtilsTest, IsRelationBicyclicRejectsUnitDim) {
+  MLIRContext context;
+  int64_t rows = 1, cols = 7;
+  int64_t numSlots = rows * cols;
+  RankedTensorType matrixType =
+      RankedTensorType::get({rows, cols}, IndexType::get(&context));
+
+  EXPECT_FALSE(isRelationBicyclic(
+      matrixType, numSlots, getBicyclicLayoutRelation(matrixType, numSlots)));
+}
+
+// The pair from TCResNet8's first tensor.collapse_shape (1x40x101 -> 40x101 at
+// logN=13), equal but differing in representation so isObviouslyEqual cannot
+// settle it. Also covered as the CollapseEqual pair in
+// benchmark/isl:relation_equality_benchmark.
+TEST(UtilsTest, IsRelationEqualDecidesCollapsedGapStructuredConvLayout) {
+  MLIRContext context;
+  auto sourceRel = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and "
+      "(-101i1 - i2 + slot) mod 4096 = 0 and 0 <= i1 <= 39 and "
+      "0 <= i2 <= 8191 - 101i1 and i2 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i1 + i2)/8192) <= 101i1 + i2 }");
+  auto resultRel = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : ct = 0 and "
+      "(-101i0 - i1 + slot) mod 4096 = 0 and 0 <= i0 <= 39 and "
+      "0 <= i1 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i0 + i1)/8192) <= 101i0 + i1 }");
+  ASSERT_TRUE(succeeded(sourceRel));
+  ASSERT_TRUE(succeeded(resultRel));
+
+  RankedTensorType sourceType =
+      RankedTensorType::get({1, 40, 101}, IndexType::get(&context));
+  SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
+  IntegerRelation collapsed =
+      collapseDimensions(sourceRel.value(), sourceType, reassociation);
+
+  EXPECT_TRUE(isRelationEqual(collapsed, resultRel.value()));
+}
+
+// One bound changed, so the check is not just answering "true" for every gap
+// structured layout it is handed. Settled by tryProveUnequalByVolume, on the
+// bounding-box volume.
+TEST(UtilsTest, IsRelationEqualDistinguishesGapStructuredConvLayouts) {
+  auto rel1 = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and "
+      "(-101i1 - i2 + slot) mod 4096 = 0 and 0 <= i1 <= 39 and "
+      "0 <= i2 <= 8191 - 101i1 and i2 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i1 + i2)/8192) <= 101i1 + i2 }");
+  auto rel2 = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and "
+      "(-101i1 - i2 + slot) mod 4096 = 0 and 0 <= i1 <= 38 and "
+      "0 <= i2 <= 8191 - 101i1 and i2 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i1 + i2)/8192) <= 101i1 + i2 }");
+  ASSERT_TRUE(succeeded(rel1));
+  ASSERT_TRUE(succeeded(rel2));
+
+  EXPECT_FALSE(isRelationEqual(rel1.value(), rel2.value()));
+}
+
+TEST(UtilsTest, IsRelationEqualDecidesNestedFloorLayout) {
+  const char* nestedFloor =
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and 0 <= i1 <= 23 and "
+      "4 <= i2 <= 54 and 0 <= slot <= 8191 and "
+      "2048*floor((824 + slot)/2048) <= slot and "
+      "2*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))/102) "
+      "<= -19 + slot - 40*floor((3 - 51i1 - i2)/2048) and "
+      "102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+      "/102) <= -98 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048) and "
+      "-1947 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+      "- 2056*floor((3 - 51i1 - i2)/2048) "
+      "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+      "/102) <= 102*floor((slot)/2) <= "
+      "-1946 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+      "- 2056*floor((3 - 51i1 - i2)/2048) "
+      "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+      "/102) }";
+  auto rel = getIntegerRelationFromIslStr(nestedFloor);
+  ASSERT_TRUE(succeeded(rel));
+
+  // Restating an already-implied bound leaves the point set alone but changes
+  // the constraint list, so isObviouslyEqual can no longer settle the pair and
+  // the check has to reach a real decision procedure.
+  IntegerRelation restated = rel.value();
+  restated.addBound(BoundType::LB,
+                    restated.getVarKindOffset(VarKind::Range) + 1, 0);
+  ASSERT_FALSE(rel.value().isObviouslyEqual(restated));
+
+  EXPECT_TRUE(isRelationEqual(rel.value(), restated));
 }
 
 TEST(UtilsTest, TestGetRangePoints) {

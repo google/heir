@@ -183,6 +183,42 @@ inline constexpr char kLayoutPooling1Relation[] =
     "-1 - i0 + 2e0 <= 2e2 <= -i0 + 2e0 and 0 <= e3 <= 27 and -1 + i0 + 4e1 <= "
     "2e3 <= i0 + 4e1) }";
 
+inline constexpr char kNestedFloorRelation[] =
+    "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and 0 <= i1 <= 23 and "
+    "4 <= i2 <= 54 and 0 <= slot <= 8191 and "
+    "2048*floor((824 + slot)/2048) <= slot and "
+    "2*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))/102) "
+    "<= -19 + slot - 40*floor((3 - 51i1 - i2)/2048) and "
+    "102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))/102) "
+    "<= -98 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048) and "
+    "-1947 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+    "- 2056*floor((3 - 51i1 - i2)/2048) "
+    "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+    "/102) <= 102*floor((slot)/2) <= "
+    "-1946 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+    "- 2056*floor((3 - 51i1 - i2)/2048) "
+    "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+    "/102) }";
+
+// kNestedFloorRelation with one domain bound changed (i1 <= 22), so the pair is
+// genuinely unequal.
+inline constexpr char kNestedFloorUnequalRelation[] =
+    "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and 0 <= i1 <= 22 and "
+    "4 <= i2 <= 54 and 0 <= slot <= 8191 and "
+    "2048*floor((824 + slot)/2048) <= slot and "
+    "2*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))/102) "
+    "<= -19 + slot - 40*floor((3 - 51i1 - i2)/2048) and "
+    "102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))/102) "
+    "<= -98 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048) and "
+    "-1947 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+    "- 2056*floor((3 - 51i1 - i2)/2048) "
+    "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+    "/102) <= 102*floor((slot)/2) <= "
+    "-1946 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+    "- 2056*floor((3 - 51i1 - i2)/2048) "
+    "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+    "/102) }";
+
 }  // namespace heir
 }  // namespace mlir
 

@@ -1759,7 +1759,7 @@ class ConvertTensorInsertSlice
     // layout, we don't need to insert a conversion.
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     Value convertedSource = adaptor.getSource();
-    if (!scalarRel.isEqual(shiftedSliceInsertionLayout)) {
+    if (!isRelationEqual(scalarRel, shiftedSliceInsertionLayout)) {
       LayoutAttr newScalarLayout =
           LayoutAttr::getFromIntegerRelation(ctx, shiftedSliceInsertionLayout);
       LLVM_DEBUG(llvm::dbgs()
@@ -2056,7 +2056,7 @@ class ConvertTensorInsertLayout
     // incur the cost of a layout conversion before the insert.
     IntegerRelation scalarRel = scalarLayout.getIntegerRelation();
     IntegerRelation destRel = destLayout.getIntegerRelation();
-    if (!scalarRel.getRangeSet().isEqual(destRel.getRangeSet())) {
+    if (!isRelationEqual(scalarRel.getRangeSet(), destRel.getRangeSet())) {
       return op.emitError()
              << "tensor.insert requires scalar and tensor layout to match, but "
                 "got scalar layout "
@@ -2301,7 +2301,8 @@ class ConvertTensorCollapseShape
     auto srcRelation = tensorLayout.getIntegerRelation();
     auto collapsedRelation = collapseDimensions(srcRelation, op.getSrcType(),
                                                 op.getReassociationIndices());
-    if (!collapsedRelation.isEqual(resultLayout.getIntegerRelation())) {
+    if (!isRelationEqual(collapsedRelation,
+                         resultLayout.getIntegerRelation())) {
       return rewriter.notifyMatchFailure(
           op, "result layout is not equal to input layout");
     }
@@ -2374,7 +2375,7 @@ class ConvertTensorExpandShape
     auto srcRelation = sourceLayout.getIntegerRelation();
     auto expandedRelation = expandDimensions(srcRelation, op.getResultType(),
                                              op.getReassociationIndices());
-    if (!expandedRelation.isEqual(resultLayout.getIntegerRelation())) {
+    if (!isRelationEqual(expandedRelation, resultLayout.getIntegerRelation())) {
       return rewriter.notifyMatchFailure(
           op, "result layout is not equal to input layout");
     }
