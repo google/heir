@@ -1,5 +1,7 @@
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 
+#include <cstdint>
+
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/ScaleAnalysis/ScaleAnalysis.h"
@@ -8,6 +10,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/Transforms/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -15,6 +18,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/SymbolTable.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
@@ -77,11 +81,28 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
   using AnnotateMgmtBase::AnnotateMgmtBase;
 
   void runOnOperation() override {
+    ModuleOp module = dyn_cast<ModuleOp>(getOperation());
+    if (!module) {
+      module = getOperation()->getParentOfType<ModuleOp>();
+    }
+    FailureOr<CompilationTarget> target = failure();
+    if (module) {
+      target = getTargetConfig(module);
+    }
+
+    int64_t bootstrapLevelsConsumed = 0;
+    if (succeeded(target)) {
+      bootstrapLevelsConsumed = target->bootstrapLevelsConsumed;
+    }
+
+    int budget =
+        levelBudget == -1 ? 40 : (levelBudget + bootstrapLevelsConsumed);
+
     DataFlowSolver solver;
     SymbolTableCollection symbolTable;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
-    solver.load<LevelAnalysis>(levelBudget);
+    solver.load<LevelAnalysis>(budget);
     solver.load<LevelAnalysisBackward>(symbolTable);
     solver.load<DimensionAnalysis>();
     solver.load<DimensionAnalysisBackward>(symbolTable);

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-ckks='min-slot-count=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --mlir-to-ckks='min-slot-count=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
 
 // CHECK: @simple_sum
 // CHECK-COUNT-6: openfhe.rot

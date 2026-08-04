@@ -125,12 +125,10 @@ LogicalResult PeelPlaintextAffineForInit::matchAndRewrite(
     forOp.setConstantLowerBound(splitBound);
   });
 
-  rewriter.modifyOpInPlace(firstIteration, [&]() {
-    if (failed(loopUnrollFull(firstIteration))) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Failed to unroll single-iteration affine.for!\n");
-    }
-  });
+  if (failed(loopUnrollFull(firstIteration))) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Failed to unroll single-iteration affine.for!\n");
+  }
   return success();
 }
 
@@ -156,12 +154,9 @@ LogicalResult PeelPlaintextScfForInit::matchAndRewrite(
     return failure();
   }
 
-  rewriter.modifyOpInPlace(firstIteration, [&]() {
-    if (failed(loopUnrollFull(firstIteration))) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Failed to unroll single-iteration affine.for!\n");
-    }
-  });
+  if (failed(loopUnrollFull(firstIteration))) {
+    LLVM_DEBUG(llvm::dbgs() << "Failed to unroll single-iteration scf.for!\n");
+  }
 
   return success();
 }
@@ -300,7 +295,6 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
       levelAfterBootstrap = forceMaxLevel;
       LDBG(2) << "Using forced max level of " << forceMaxLevel;
     } else {
-      // TODO(#2557): consider effective bootstrap level
       levelAfterBootstrap =
           getMaxLevel(forOp->template getParentOfType<func::FuncOp>(), solver);
     }
@@ -319,7 +313,7 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
     }
     LDBG(2) << "Levels used in loop = " << levelsUsedInLoop;
 
-    int unrollFactor = levelAfterBootstrap / levelsUsedInLoop;
+    int unrollFactor = (levelAfterBootstrap - levelStartVal) / levelsUsedInLoop;
     LDBG(2) << "Found unroll factor " << unrollFactor
             << " for iter_arg=" << iterArg
             << "; levelStartVal=" << levelStartVal

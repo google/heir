@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-mgmt="level-budget=0" -verify-diagnostics %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --apply-config-override="config=bootstrapLevelsConsumed=0" --annotate-mgmt="level-budget=0" -verify-diagnostics %s
 
 func.func @main(%arg0: !secret.secret<tensor<8xi8>>) -> !secret.secret<tensor<8xi8>> {
   %b = secret.generic(%arg0: !secret.secret<tensor<8xi8>>) { // expected-error {{value has invalid level}}

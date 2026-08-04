@@ -113,7 +113,7 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
     Option<"minSlotCount", "min-slot-count", "int",
            /*default=*/"1024", "Minimum number of slots to use for packing messages in ciphertexts.">,
     Option<"bootstrapWaterline", "bootstrap-waterline", "int",
-           /*default=*/"10", "Waterline for insert bootstrap op">,
+           /*default=*/"0", "The number of remaining levels a ciphertext must have to initiate a bootstrap (relative headroom)">,
     Option<"levelBudget", "level-budget", "int", /*default=*/"-1",
            "An optional maximum level budget for the pipeline to assume">,
   ];
@@ -132,7 +132,7 @@ def AnnotateBootstrapWaterline : Pass<"annotate-bootstrap-waterline", "ModuleOp"
 
   let options = [
     Option<"bootstrapWaterline", "bootstrap-waterline", "int",
-           /*default=*/"2", "Waterline for insert bootstrap op">,
+           /*default=*/"0", "The number of remaining levels a ciphertext must have to initiate a bootstrap (relative headroom)">,
     Option<"levelBudget", "level-budget", "int", /*default=*/"0",
            "An optional maximum level budget for the pipeline to assume">,
   ];

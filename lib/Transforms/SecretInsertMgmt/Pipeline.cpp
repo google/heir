@@ -1,5 +1,6 @@
 #include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
 
+#include <cstdint>
 #include <utility>
 
 #include "lib/Analysis/LevelAnalysis/BootstrapWaterlineAnalysis.h"
@@ -9,6 +10,8 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Transforms/Halo/Patterns.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "lib/Utils/Utils.h"
@@ -22,12 +25,14 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"           // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"  // from @llvm-project
+#include "mlir/include/mlir/Rewrite/FrozenRewritePatternSet.h"  // from @llvm-project
 #include "mlir/include/mlir/Rewrite/PatternApplicator.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
@@ -93,7 +98,24 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   LDBG(2) << "Inserting relinearize";
   insertRelinearizeAfterMult(top, options.includeFloats);
 
-  int budget = options.levelBudget == -1 ? 40 : options.levelBudget;
+  ModuleOp module = dyn_cast<ModuleOp>(top);
+  if (!module) {
+    module = top->getParentOfType<ModuleOp>();
+  }
+  FailureOr<CompilationTarget> target = failure();
+  if (module) {
+    target = getTargetConfig(module);
+  }
+
+  int64_t bootstrapLevelsConsumed = 0;
+  int64_t maxLevel = 40;
+  if (succeeded(target)) {
+    bootstrapLevelsConsumed = target->bootstrapLevelsConsumed;
+  }
+
+  int budget = options.levelBudget == -1
+                   ? maxLevel
+                   : (options.levelBudget + bootstrapLevelsConsumed);
 
   // Run Level Analysis to check for convergence
   DataFlowSolver levelSolver;
@@ -112,7 +134,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
 
     DataFlowSolver freshLevelSolver;
     makeAndRunSolver(top, freshLevelSolver, budget);
-    unrollLoopForLevelUtilization(loop, &freshLevelSolver, options.levelBudget);
+    unrollLoopForLevelUtilization(loop, &freshLevelSolver, budget);
   }
 
   makeRegionBranchOpsLevelInvariant(top);
@@ -120,7 +142,8 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   int idCounter = 0;  // for making adjust_scale op different to avoid cse
   if (options.bootstrapWaterline.has_value()) {
     LDBG(2) << "Bootstrap waterline";
-    insertBootstrapWaterLine(top, options.bootstrapWaterline.value(), budget,
+    int absoluteWaterline = budget - options.bootstrapWaterline.value();
+    insertBootstrapWaterLine(top, absoluteWaterline, budget,
                              options.includeFloats, &idCounter);
   }
 

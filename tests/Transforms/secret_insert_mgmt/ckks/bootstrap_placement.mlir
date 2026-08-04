@@ -1,6 +1,6 @@
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks="bootstrap-waterline=2 after-mul=false" %s | FileCheck %s --check-prefix=BEFORE
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks="bootstrap-waterline=2 after-mul=true" %s | FileCheck %s --check-prefix=AFTER
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks="bootstrap-waterline=2 level-budget=1 after-mul=true" %s | FileCheck %s --check-prefix=BUDGET
+// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks="bootstrap-waterline=38 after-mul=false" %s | FileCheck %s --check-prefix=BEFORE
+// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks="bootstrap-waterline=38 after-mul=true" %s | FileCheck %s --check-prefix=AFTER
+// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks="level-budget=1 after-mul=true" %s | FileCheck %s --check-prefix=BUDGET
 
 // BEFORE: func.func @bootstrap_placement
 // BEFORE: secret.generic
@@ -33,10 +33,12 @@
 // BUDGET: %[[adj:.*]] = mgmt.adjust_scale %[[boot]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>}
 // BUDGET: mgmt.modreduce %[[adj]]
 
-func.func @bootstrap_placement(
-    %x : f16 {secret.secret}
-  ) -> f16 {
-    %0 = arith.mulf %x, %x : f16
-    %1 = arith.mulf %0, %0 : f16
-    return %1 : f16
+module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
+  func.func @bootstrap_placement(
+      %x : f16 {secret.secret}
+    ) -> f16 {
+      %0 = arith.mulf %x, %x : f16
+      %1 = arith.mulf %0, %0 : f16
+      return %1 : f16
+  }
 }

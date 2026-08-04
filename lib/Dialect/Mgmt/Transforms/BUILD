@@ -46,6 +46,7 @@ cc_library(
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//mlir:Analysis",

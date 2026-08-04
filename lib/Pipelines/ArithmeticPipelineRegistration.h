@@ -133,8 +133,9 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       llvm::cl::init(10)};
   PassOptions::Option<int> greedyBootstrapWaterline{
       *this, "greedy-bootstrap-waterline",
-      llvm::cl::desc("Bootstrap waterline for greedy CKKS management"),
-      llvm::cl::init(10)};
+      llvm::cl::desc("The number of remaining levels a ciphertext must have to "
+                     "initiate a bootstrap (relative headroom)"),
+      llvm::cl::init(0)};
 
   // Orbit-ILP-specific options
   PassOptions::Option<int> orbitBootstrapWaterline{

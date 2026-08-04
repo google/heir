@@ -67,6 +67,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Transforms/Halo:Patterns",
         "@heir//lib/Utils",
         "@llvm-project//llvm:Support",

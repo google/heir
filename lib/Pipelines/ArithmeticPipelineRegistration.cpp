@@ -276,7 +276,7 @@ static void validateCiphertextManagementOptions(
   bool hasGreedyOptions = options.greedyModulusSwitchAfterMul != false ||
                           options.greedyModulusSwitchBeforeFirstMul != false ||
                           options.greedyLevelBudget != 10 ||
-                          options.greedyBootstrapWaterline != 10;
+                          options.greedyBootstrapWaterline != 0;
 
   // Check if any orbit-specific options are non-default
   bool hasOrbitOptions =
@@ -316,7 +316,7 @@ static void validateCiphertextManagementOptions(
       exit(EXIT_FAILURE);
     }
 
-    if (options.greedyBootstrapWaterline != 10) {  // non-default
+    if (options.greedyBootstrapWaterline != 0) {  // non-default
       llvm::errs() << "Error: --greedy-bootstrap-waterline is not supported "
                       "for BFV scheme\n"
                    << "BFV does not support bootstrap operations.\n";

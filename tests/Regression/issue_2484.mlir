@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks=min-slot-count=1024 --tensor-linalg-to-affine-loops --arith-to-cggi --verify-diagnostics -split-input-file %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo scheme=ckks" --apply-config-override="config=bootstrapLevelsConsumed=0" --secret-insert-mgmt-ckks=min-slot-count=1024 --tensor-linalg-to-affine-loops --arith-to-cggi --verify-diagnostics -split-input-file %s | FileCheck %s
 
 // CHECK: func.func @scalar_op_combinations
 // CHECK-SAME: %[[ARG0:.*]]: ![[CT:.*]], %[[ARG1:.*]]: ![[CT]]

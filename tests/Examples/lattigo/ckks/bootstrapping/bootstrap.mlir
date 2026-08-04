@@ -36,7 +36,7 @@
 // CHECK-SAME: , %[[ct:\w+]]: ![[ctType]])
 // CHECK: lattigo.ckks.bootstrap %[[bEval]], %[[ct]]
 
-module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [0x200000440001, 0x7fff80001, 0x800280001], P = [0x3ffffffb80001, 0x4000000800001], logDefaultScale = 60>, scheme.ckks} {
+module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [0x200000440001, 0x7fff80001, 0x800280001], P = [0x3ffffffb80001, 0x4000000800001], logDefaultScale = 60>, scheme.ckks} {
   func.func @bootstrap(%ct: !ct_L2) -> !ct_L13 {
     %ct_0 = ckks.bootstrap %ct : !ct_L2 -> !ct_L13
     return %ct_0 : !ct_L13
