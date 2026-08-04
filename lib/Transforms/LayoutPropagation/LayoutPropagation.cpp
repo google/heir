@@ -216,6 +216,14 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   FailureOr<AssignLayoutOp> assignDefaultLayoutForOpOperand(
       Operation* op, Value operand, IRRewriter& builder);
 
+  // The conv/matvec kernels add the init (bias) operand directly to the
+  // kernel output, which is packed per the op's result layout — for strided
+  // convs a pixel-shuffled "gap" layout, NOT the row-major layout the init
+  // gets by default. Force the init operand's layout to match the result
+  // layout (a free re-packing for the usual plaintext-constant bias).
+  LogicalResult alignInitWithResultLayout(Operation* op, Value init,
+                                          Attribute resultLayoutAttr);
+
   // Helper to pass layouts through generic ops
   void passLayoutThroughOp(Operation* op);
 
@@ -685,6 +693,39 @@ LogicalResult LayoutPropagation::visitOperation(DotOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::alignInitWithResultLayout(
+    Operation* op, Value init, Attribute resultLayoutAttr) {
+  MLIRContext* ctx = &getContext();
+  LayoutAttr targetLayout;
+  if (auto arrayAttr = dyn_cast<ArrayAttr>(resultLayoutAttr)) {
+    targetLayout = LayoutAttr::composeLayouts(arrayAttr, ctx);
+  } else {
+    targetLayout = dyn_cast<LayoutAttr>(resultLayoutAttr);
+  }
+  if (!targetLayout) {
+    return op->emitError() << "expected a layout for the op result";
+  }
+
+  if (!assignedLayouts.contains(init)) {
+    return op->emitError() << "init operand has no assigned layout";
+  }
+  LayoutAttr initLayout = getComposedLayoutAttr(init);
+  if (initLayout == targetLayout ||
+      isRelationEqual(initLayout.getIntegerRelation(),
+                      targetLayout.getIntegerRelation())) {
+    return success();
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "init layout does not match the kernel's result "
+                             "layout, inserting layout conversion.\n");
+  mlir::IRRewriter builder(ctx);
+  auto [toReplace, newInitLayoutAttr] = convertToLayout(
+      ctx, builder, op, init, initLayout, targetLayout.getIntegerRelation());
+  debugAssignLayout(toReplace, newInitLayoutAttr);
+  assignedLayouts.insert({toReplace, newInitLayoutAttr});
+  return success();
+}
+
 LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
   LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv1DOp\n");
   Value data = op.getInputs().front();
@@ -757,7 +798,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
-  return success();
+  return alignInitWithResultLayout(op, op.getOutputs().front(), resultLayout);
 }
 
 LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
@@ -832,7 +873,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
-  return success();
+  return alignInitWithResultLayout(op, op.getOutputs().front(), resultLayout);
 }
 
 LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
@@ -921,7 +962,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
-  return success();
+  return alignInitWithResultLayout(op, op.getOutputs().front(),
+                                   resultLayoutAttr);
 }
 
 LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
@@ -1067,7 +1109,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   setAttributeAssociatedWith(op.getResult(0), kKernelInfoAttrName,
                              kernelInfoAttr);
 
-  return success();
+  return alignInitWithResultLayout(op, op.getOutputs().front(),
+                                   resultLayoutAttr);
 }
 
 LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {

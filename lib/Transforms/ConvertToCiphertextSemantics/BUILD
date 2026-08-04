@@ -57,6 +57,7 @@ cc_library(
     hdrs = ["TypeConversion.h"],
     deps = [
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
