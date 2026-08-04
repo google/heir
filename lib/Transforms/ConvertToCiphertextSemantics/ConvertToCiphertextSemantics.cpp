@@ -84,6 +84,7 @@ using kernel::implementHaleviShoup;
 using kernel::IRMaterializingVisitor;
 using kernel::SSAValue;
 using ::mlir::heir::kernel::ArithmeticDagNode;
+using ::mlir::heir::kernel::implementBroadcastedReduce;
 using ::mlir::heir::kernel::implementHaleviShoup;
 using ::mlir::heir::kernel::implementRotateAndReduce;
 using ::mlir::heir::kernel::IRMaterializingVisitor;
@@ -745,6 +746,96 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
 
     // Based on ImplementRotateAndReduce
     rotateAndReduceKernel(op, adaptor, rewriter, innerOp);
+    return success();
+  }
+};
+
+class ConvertBroadcastedReduce
+    : public ConversionBase<tensor_ext::BroadcastedReduceOp> {
+ public:
+  using ConversionBase<tensor_ext::BroadcastedReduceOp>::ConversionBase;
+
+  LogicalResult matchAndRewrite(
+      tensor_ext::BroadcastedReduceOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value input = op.getTensor();
+    auto inputType = cast<RankedTensorType>(input.getType());
+    auto shape = inputType.getShape();
+    int64_t rank = inputType.getRank();
+    int64_t dim = op.getDimension();
+
+    // Extract B (block size = size of dimension)
+    int64_t B = shape[dim];
+
+    // Extract period (stride = product of subsequent dimensions)
+    int64_t period = 1;
+    for (int64_t i = dim + 1; i < rank; ++i) {
+      period *= shape[i];
+    }
+
+    // Get N (ciphertext size) from type converter
+    auto* typeConverter =
+        static_cast<const LayoutMaterializationTypeConverter*>(
+            getTypeConverter());
+    int64_t N = typeConverter->getCiphertextSize();
+
+    SSAValue vectorLeaf(adaptor.getTensor());
+    kernel::DagType dagType = kernel::mlirTypeToDagType(inputType);
+
+    auto vectorDag = kernel::ArithmeticDagNode<SSAValue>::leaf(vectorLeaf);
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto convertedType = getTypeConverter()->convertType(inputType, layoutAttr);
+    auto convertedTensorType = cast<RankedTensorType>(convertedType);
+
+    std::optional<std::shared_ptr<kernel::ArithmeticDagNode<SSAValue>>>
+        cleanupMaskDag;
+    if (N > B * period) {
+      // Generate cleanup mask
+      Type elementType = convertedTensorType.getElementType();
+      int64_t numElements = convertedTensorType.getNumElements();
+      SmallVector<Attribute> maskValues;
+      maskValues.reserve(numElements);
+
+      for (int64_t i = 0; i < numElements; ++i) {
+        int64_t slot = i % N;
+        bool isOne = (slot % (B * period)) >= (B - 1) * period;
+        if (auto intType = dyn_cast<IntegerType>(elementType)) {
+          maskValues.push_back(
+              rewriter.getIntegerAttr(elementType, isOne ? 1 : 0));
+        } else if (auto floatType = dyn_cast<FloatType>(elementType)) {
+          maskValues.push_back(
+              rewriter.getFloatAttr(elementType, isOne ? 1.0 : 0.0));
+        } else {
+          return rewriter.notifyMatchFailure(op, "unsupported element type");
+        }
+      }
+
+      auto maskAttr = DenseElementsAttr::get(convertedTensorType, maskValues);
+      auto maskConst = arith::ConstantOp::create(rewriter, op.getLoc(),
+                                                 convertedTensorType, maskAttr);
+      cleanupMaskDag = kernel::ArithmeticDagNode<SSAValue>::leaf(
+          SSAValue(maskConst.getResult()));
+    }
+
+    std::string reduceOpName = "arith.addi";
+    if (op.getReduceOp().has_value()) {
+      reduceOpName = op.getReduceOp().value().str();
+      if (!StringRef(reduceOpName).starts_with("arith.")) {
+        reduceOpName = "arith." + reduceOpName;
+      }
+    }
+
+    auto implementedKernel = implementBroadcastedReduce(
+        vectorDag, cleanupMaskDag, period, B, N, dagType, reduceOpName,
+        /*unroll=*/true);
+
+    rewriter.setInsertionPointAfter(op);
+
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, convertedType, layoutAttr);
+
+    rewriter.replaceOp(op, finalOutput);
     return success();
   }
 };
@@ -2615,10 +2706,10 @@ struct ConvertToCiphertextSemantics
     target.markUnknownOpDynamicallyLegal([&](Operation* op) {
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
-
     patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
                  ConvertFunc, ConvertLinalgMatmul, ConvertLinalgBatchMatmul,
-                 ConvertLinalgReduce, ConvertLinalgDot, ConvertSecretGeneric,
+                 ConvertLinalgReduce, ConvertBroadcastedReduce,
+                 ConvertLinalgDot, ConvertSecretGeneric,
                  ConvertTensorCollapseShape, ConvertTensorExpandShape,
                  ConvertTensorExtractLayout, ConvertTensorExtractSlice,
                  ConvertTensorInsertLayout, ConvertTensorInsertSlice>(

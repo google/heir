@@ -405,6 +405,29 @@ LogicalResult RotateAndReduceOp::verify() {
   return success();
 }
 
+LogicalResult BroadcastedReduceOp::verify() {
+  auto tensorType = getTensor().getType();
+  int64_t rank = tensorType.getRank();
+  int64_t dim = getDimension();
+
+  if (dim < 0 || dim >= rank) {
+    return emitOpError() << "dimension " << dim << " is out of bounds for rank "
+                         << rank;
+  }
+
+  if (getReduceOp().has_value()) {
+    StringRef reduceOp = getReduceOp().value();
+    if (reduceOp != "arith.addi" && reduceOp != "arith.addf" &&
+        reduceOp != "arith.muli" && reduceOp != "arith.mulf" &&
+        reduceOp != "addi" && reduceOp != "addf" && reduceOp != "muli" &&
+        reduceOp != "mulf") {
+      return emitOpError() << "unsupported reduceOp: " << reduceOp;
+    }
+  }
+
+  return success();
+}
+
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir

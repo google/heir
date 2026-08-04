@@ -175,6 +175,20 @@ cc_test(
 )
 
 cc_test(
+    name = "BroadcastedReduceFuzzTest",
+    srcs = ["BroadcastedReduceFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        ":TestingUtils",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
     name = "MatvecZeroDiagonalsFuzzTest",
     srcs = ["MatvecZeroDiagonalsFuzzTest.cpp"],
     deps = [

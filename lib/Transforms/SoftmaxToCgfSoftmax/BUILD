@@ -14,10 +14,9 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/MathExt/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:MathDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
