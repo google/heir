@@ -502,3 +502,14 @@ func.func @call_two_results(%mod: !module, %s: !scratch, %a: !ct, %b: !ct) -> (!
   // CHECK-NEXT: Ok(([[r0]], [[r1]]))
   return %r0, %r1 : !ct, !ct
 }
+
+// CHECK: pub fn setup(
+// CHECK-NEXT: ) -> Result<(Module<BE>, ScratchOwned<BE>)> {
+func.func @setup() -> (!module, !scratch) {
+  // CHECK: let [[m:v[0-9]+]] = Module::<BE>::new(64u64);
+  %mod = poulpy.module_create {N = 64 : i64} : () -> !module
+  // CHECK-NEXT: let mut [[s:v[0-9]+]] = ScratchOwned::<BE>::alloc(1024usize);
+  %scratch = poulpy.scratch_alloc {size = 1024 : i64} : () -> !scratch
+  // CHECK-NEXT: Ok(([[m]], [[s]]))
+  return %mod, %scratch : !module, !scratch
+}

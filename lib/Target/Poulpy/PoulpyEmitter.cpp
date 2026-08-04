@@ -99,8 +99,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
                 AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
                 AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp, EncodeOp,
-                DecodeOp, EncryptOp, DecryptOp, memref::AllocOp>(
-              [&](auto op) { return printOperation(op); })
+                DecodeOp, EncryptOp, DecryptOp, ModuleCreateOp, ScratchAllocOp,
+                memref::AllocOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -571,6 +571,20 @@ LogicalResult PoulpyEmitter::printOperation(DecryptOp decryptOp) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(ModuleCreateOp moduleCreateOp) {
+  os << "let " << variableNames->getNameForValue(moduleCreateOp.getModule())
+     << " = Module::<BE>::new(" << moduleCreateOp.getN() << "u64);\n";
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(ScratchAllocOp scratchAllocOp) {
+  os << "let mut "
+     << variableNames->getNameForValue(scratchAllocOp.getScratch())
+     << " = ScratchOwned::<BE>::alloc(" << scratchAllocOp.getSize()
+     << "usize);\n";
+  return success();
+}
+
 LogicalResult PoulpyEmitter::printOperation(memref::AllocOp allocOp) {
   MemRefType resultType = allocOp.getType();
   if (resultType.getElementType().isF64()) {
@@ -592,10 +606,11 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
                                                   bool isMutated) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<ModuleType>([&](ModuleType) -> FailureOr<std::string> {
-        return std::string("&Module<BE>");
+        return std::string(isArg ? "&Module<BE>" : "Module<BE>");
       })
       .Case<ScratchType>([&](ScratchType) -> FailureOr<std::string> {
-        return std::string("&mut ScratchOwned<BE>");
+        return std::string(isArg ? "&mut ScratchOwned<BE>"
+                                 : "ScratchOwned<BE>");
       })
       .Case<MemRefType>([&](MemRefType memRefType) -> FailureOr<std::string> {
         Type elementType = memRefType.getElementType();

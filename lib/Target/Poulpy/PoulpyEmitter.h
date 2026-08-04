@@ -68,6 +68,8 @@ class PoulpyEmitter {
   LogicalResult printOperation(func::ReturnOp op);
   LogicalResult printOperation(func::CallOp op);
   LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(ModuleCreateOp op);
+  LogicalResult printOperation(ScratchAllocOp op);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(AddAssignOp op);
   LogicalResult printOperation(SubOp op);
