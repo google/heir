@@ -66,6 +66,7 @@ class PoulpyEmitter {
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(func::FuncOp op);
   LogicalResult printOperation(func::ReturnOp op);
+  LogicalResult printOperation(func::CallOp op);
   LogicalResult printOperation(memref::AllocOp op);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(AddAssignOp op);

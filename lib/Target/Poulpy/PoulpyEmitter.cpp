@@ -5,6 +5,7 @@
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.h"
 #include "lib/Target/Poulpy/PoulpyTemplates.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
@@ -94,8 +95,8 @@ LogicalResult PoulpyEmitter::translateBlock(Block& block) {
 LogicalResult PoulpyEmitter::translate(Operation& op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
-          .Case<ModuleOp, func::FuncOp, func::ReturnOp, AddOp, AddAssignOp,
-                SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
+          .Case<ModuleOp, func::FuncOp, func::ReturnOp, func::CallOp, AddOp,
+                AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
                 AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp, EncodeOp,
                 DecodeOp, EncryptOp, DecryptOp, memref::AllocOp>(
@@ -257,6 +258,43 @@ LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
     });
     os << "Ok((" << values << "))\n";
   }
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(func::CallOp op) {
+  auto enclosingModuleOp = op->getParentOfType<ModuleOp>();
+  auto calleeOp = enclosingModuleOp.lookupSymbol<func::FuncOp>(op.getCallee());
+
+  computeMutatedValues(calleeOp);
+
+  SmallVector<std::string> args;
+  for (auto [operand, calleeArg] :
+       llvm::zip(op.getOperands(), calleeOp.getArguments())) {
+    if (isa<ScratchType>(calleeArg.getType()) ||
+        mutatedValues.contains(calleeArg)) {
+      args.push_back(refMut(operand, variableNames));
+    } else {
+      args.push_back(ref(operand, variableNames));
+    }
+  }
+
+  auto argList = llvm::join(args, ", ");
+
+  auto numResults = op.getNumResults();
+
+  if (numResults == 0) {
+    os << calleeOp.getName() << "(" << argList << ")?;\n";
+  } else if (numResults == 1) {
+    os << "let " << variableNames->getNameForValue(op.getResult(0)) << " = "
+       << calleeOp.getName() << "(" << argList << ")?;\n";
+  } else {
+    auto names = commaSeparatedValues(op.getResults(), [&](Value v) {
+      return variableNames->getNameForValue(v);
+    });
+    os << "let (" << names << ") = " << calleeOp.getName() << "(" << argList
+       << ")?;\n";
+  }
+
   return success();
 }
 

@@ -426,3 +426,79 @@ func.func @two_results(%mod: !module, %s: !scratch, %a: !ct, %b: !ct) -> (!ct, !
   // CHECK-NEXT: Ok(([[sum]], [[a]].clone()))
   return %sum, %a : !ct, !ct
 }
+
+// CHECK: pub fn square(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[tsk:v[0-9]+]]: &Tsk
+// CHECK-NEXT: ) -> Result<()> {
+func.func @square(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %tsk: !tsk) {
+  // CHECK: [[m]].ckks_mul_into(&mut *[[dst]], &*[[a]], &*[[a]], &*[[tsk]], &mut [[s]].borrow())?;
+  poulpy.mul %m, %dst, %a, %a, %tsk, %s : (!module, !ct, !ct, !ct, !tsk, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn call_check(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &mut Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK: [[tsk:v[0-9]+]]: &Tsk
+// CHECK-NEXT: ) -> Result<()> {
+func.func @call_check(%mod: !module, %s: !scratch, %a: !ct, %b: !ct, %tsk: !tsk) {
+  // CHECK: [[m]].ckks_add_assign(&mut *[[a]], &*[[b]], &mut [[s]].borrow())?;
+  poulpy.add_assign %mod, %a, %b, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: square(&*[[m]], &mut *[[s]], &mut *[[a]], &*[[b]], &*[[tsk]])?;
+  func.call @square(%mod, %s, %a, %b, %tsk) : (!module, !scratch, !ct, !ct, !tsk) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn get_one(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<Ct> {
+func.func @get_one(%m: !module, %s: !scratch, %a: !ct) -> !ct {
+  // CHECK: Ok([[a]].clone())
+  return %a : !ct
+}
+
+// CHECK: pub fn call_one_result(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<Ct> {
+func.func @call_one_result(%mod: !module, %s: !scratch, %a: !ct) -> !ct {
+  // CHECK: let [[r:v[0-9]+]] = get_one(&*[[m]], &mut *[[s]], &*[[a]])?;
+  %r = func.call @get_one(%mod, %s, %a) : (!module, !scratch, !ct) -> !ct
+  // CHECK-NEXT: Ok([[r]])
+  return %r : !ct
+}
+
+// CHECK: pub fn get_two(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<(Ct, Ct)> {
+func.func @get_two(%m: !module, %s: !scratch, %a: !ct, %b: !ct) -> (!ct, !ct) {
+  // CHECK: Ok(([[a]].clone(), [[b]].clone()))
+  return %a, %b : !ct, !ct
+}
+
+// CHECK: pub fn call_two_results(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct
+// CHECK: [[b:v[0-9]+]]: &Ct
+// CHECK-NEXT: ) -> Result<(Ct, Ct)> {
+func.func @call_two_results(%mod: !module, %s: !scratch, %a: !ct, %b: !ct) -> (!ct, !ct) {
+  // CHECK: let ([[r0:v[0-9]+]], [[r1:v[0-9]+]]) = get_two(&*[[m]], &mut *[[s]], &*[[a]], &*[[b]])?;
+  %r0, %r1 = func.call @get_two(%mod, %s, %a, %b) : (!module, !scratch, !ct, !ct) -> (!ct, !ct)
+  // CHECK-NEXT: Ok(([[r0]], [[r1]]))
+  return %r0, %r1 : !ct, !ct
+}
