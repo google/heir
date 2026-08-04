@@ -13,7 +13,7 @@ This pass rewrites activation patterns, such as ReLU implemented as a select and
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
 func.func @relu(%arg0: f32) -> f32 { %cst_0 = arith.constant 0.000000e+00 : f32 %0 = arith.cmpf ugt, %arg0, %cst_0 : f32 %1 = arith.select %0, %arg0, %cst_0 : f32 return %1 : f32 } Output:
-module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="25727"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
+module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="25759"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
 This pass rewrites activation patterns, such as ReLU implemented as a select and compare, to simpler operations like min/max.
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
@@ -164,7 +164,7 @@ plaintexts.</p><h4 id=example-1>Example</h4><p>Command: <code>heir-opt --add-cli
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h4 id=options>Options</h4><pre tabindex=0><code>-min-slot-count           : Minimum number of slots to use for packing messages in ciphertexts.
 -enable-layout-assignment : If false, skips the emission of layout assignment operations, essentially assuming that the input was already using correctly (ciphertext-)sized tensors.
-</code></pre><h3 id=-annotate-bootstrap-waterline><code>-annotate-bootstrap-waterline</code></h3><p><em>Annotate bootstrap waterline analysis results</em></p><p>Runs BootstrapWaterlineAnalysis and annotates the IR with the results.</p><h4 id=options-1>Options</h4><pre tabindex=0><code>-bootstrap-waterline : Waterline for insert bootstrap op
+</code></pre><h3 id=-annotate-bootstrap-waterline><code>-annotate-bootstrap-waterline</code></h3><p><em>Annotate bootstrap waterline analysis results</em></p><p>Runs BootstrapWaterlineAnalysis and annotates the IR with the results.</p><h4 id=options-1>Options</h4><pre tabindex=0><code>-bootstrap-waterline : The number of remaining levels a ciphertext must have to initiate a bootstrap (relative headroom)
 -level-budget        : An optional maximum level budget for the pipeline to assume
 </code></pre><h3 id=-annotate-level><code>-annotate-level</code></h3><p><em>Annotate level lattice values in the IR</em></p><p>This pass that runs the level analysis and annotates the IR with the
 results, attaching <code>{mgmt.level}</code> attributes to each SSA value with
@@ -242,7 +242,7 @@ IR as &ldquo;invalid.&rdquo;</p><h4 id=example-2>Example</h4><p>Command: <code>h
 </span></span></code></pre></div><h4 id=options-2>Options</h4><pre tabindex=0><code>-level-budget : The level budget bound for the analysis.
 </code></pre><h3 id=-annotate-mgmt><code>-annotate-mgmt</code></h3><p><em>Annotate MgmtAttr for secret SSA values in the IR</em></p><p>This pass runs the secretness/level/dimension analysis and annotates the IR with the results,
 saving it into each op&rsquo;s attribute dictionary as mgmt.mgmt : <analysis results></p><h4 id=options-3>Options</h4><pre tabindex=0><code>-base-level   : Level to start counting from (used by B/FV)
--level-budget : The maximum allowable level before it is considered invalid
+-level-budget : The maximum allowable level (excluding bootstrap levels) before it is considered invalid. Default to -1 (use target max level or 40)
 </code></pre><h3 id=-annotate-module><code>-annotate-module</code></h3><p><em>Annotate ModuleOp with Scheme And/Or Backend</em></p><p>This pass annotates the module with a scheme and/or backend.</p><p>This pass should be called before all lowering to enable lowering
 to the desired scheme and backend.</p><p>Available scheme:</p><ul><li><code>bgv</code></li><li><code>ckks</code></li><li><code>bfv</code></li><li><code>cggi</code></li></ul><p>Available backend:</p><ul><li><code>openfhe</code></li><li><code>lattigo</code></li></ul><h4 id=example-3>Example</h4><p>Command: <code>heir-opt --annotate-module="backend=openfhe scheme=ckks" tests/Transforms/annotate_module/pass.mlir</code></p><p>Input:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span>module <span style=color:#000;font-weight:700>{</span>
 </span></span><span style=display:flex><span>
@@ -2657,7 +2657,7 @@ TODO(#1207): handle it here so parameter selection can depend on it.
 TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).</p><h4 id=options-40>Options</h4><pre tabindex=0><code>-after-mul                    : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -min-slot-count               : Minimum number of slots to use for packing messages in ciphertexts.
--bootstrap-waterline          : Waterline for insert bootstrap op
+-bootstrap-waterline          : The number of remaining levels a ciphertext must have to initiate a bootstrap (relative headroom)
 -level-budget                 : An optional maximum level budget for the pipeline to assume
 </code></pre><h3 id=-secret-merge-adjacent-generics><code>-secret-merge-adjacent-generics</code></h3><p><em>Merge two adjacent generics into a single generic</em></p><p>This pass merges two immediately sequential generics into a single
 generic. Useful as a sub-operation in some passes, and extracted into
