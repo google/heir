@@ -45,8 +45,8 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
                             int levelBudget = 40);
 
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
-                              int levelBudget, bool includeFloats,
-                              int* idCounter);
+                              int levelBudget, int bootstrapLevelsConsumed,
+                              bool includeFloats, int* idCounter);
 
 /// Peels the first iteration of loops if they have plaintext initial values
 /// and secret yielded values. This is needed to ensure level analysis can

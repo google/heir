@@ -62,11 +62,13 @@ class BootstrapWaterlineAnalysis
       public SecretnessAnalysisDependent<BootstrapWaterlineAnalysis> {
  public:
   BootstrapWaterlineAnalysis(DataFlowSolver& solver, int waterline = 20,
-                             int levelBudget = 20)
+                             int levelBudget = 20,
+                             int bootstrapLevelsConsumed = 0)
       : dataflow::SparseForwardDataFlowAnalysis<BootstrapWaterlineLattice>(
             solver),
         waterline(waterline),
-        levelBudget(levelBudget) {}
+        levelBudget(levelBudget),
+        bootstrapLevelsConsumed(bootstrapLevelsConsumed) {}
   friend class SecretnessAnalysisDependent<BootstrapWaterlineAnalysis>;
 
   void setToEntryState(BootstrapWaterlineLattice* lattice) override {
@@ -90,6 +92,7 @@ class BootstrapWaterlineAnalysis
  private:
   int waterline;
   int levelBudget;
+  int bootstrapLevelsConsumed;
 };
 
 }  // namespace heir

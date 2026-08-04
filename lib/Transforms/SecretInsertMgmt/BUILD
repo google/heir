@@ -32,6 +32,7 @@ cc_library(
         "@heir//lib/Dialect/Mgmt/Transforms",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",

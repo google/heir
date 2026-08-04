@@ -144,7 +144,8 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
     LDBG(2) << "Bootstrap waterline";
     int absoluteWaterline = budget - options.bootstrapWaterline.value();
     insertBootstrapWaterLine(top, absoluteWaterline, budget,
-                             options.includeFloats, &idCounter);
+                             bootstrapLevelsConsumed, options.includeFloats,
+                             &idCounter);
   }
 
   // An if statement must have each branch producing the same level as a result,
@@ -288,12 +289,13 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
 }
 
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
-                              int levelBudget, bool includeFloats,
-                              int* idCounter) {
+                              int levelBudget, int bootstrapLevelsConsumed,
+                              bool includeFloats, int* idCounter) {
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
-  solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget);
+  solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget,
+                                          bootstrapLevelsConsumed);
   if (failed(solver.initializeAndRun(top))) {
     LDBG() << "Failed to run solver!";
     return;
