@@ -307,6 +307,77 @@ TEST(CodegenTest, IfWithNestedForElseYieldDominance) {
   moduleOp.erase();
 }
 
+TEST(CodegenTest, BooleanExprsStayI1) {
+  MLIRContext context;
+  context
+      .loadDialect<scf::SCFDialect, arith::ArithDialect, func::FuncDialect>();
+
+  // Same relation as IfWithNestedForElseYieldDominance: its floor-div
+  // structure makes ISL emit `if` guards inside the loop nest.
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : (30i0 - 32i1 - i2 + ct) mod 1024 = 0 and "
+      "0 <= i0 <= 63 and 0 <= i1 <= 16 and 0 <= i2 <= 2 and 0 <= ct <= 1023 "
+      "and 0 <= slot <= 4095 and 2048*floor((-30 - 30i0 + slot)/2048) >= -3967 "
+      "+ slot and 2048*floor((-30 - 30i0 + slot)/2048) >= -2079 - 30i0 + i2 + "
+      "slot and 2048*floor((-30 - 30i0 + slot)/2048) <= -2048 - 30i0 + slot "
+      "and 2048*floor((-30 - 30i0 + slot)/2048) <= -2048 - 30i0 + i2 + slot "
+      "and 2048*floor((-30 - 30i0 + slot)/2048) <= -2048 + slot }");
+  ASSERT_TRUE(succeeded(relation));
+
+  OpBuilder builder(&context);
+  auto moduleOp = ModuleOp::create(builder.getUnknownLoc());
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  auto funcType = builder.getFunctionType({}, {});
+  auto funcOp = func::FuncOp::create(builder, builder.getUnknownLoc(),
+                                     "test_func", funcType);
+  auto* block = funcOp.addEntryBlock();
+  builder.setInsertionPointToStart(block);
+
+  ImplicitLocOpBuilder locBuilder(builder.getUnknownLoc(), builder);
+  auto init = arith::ConstantIntOp::create(locBuilder, 0, 32);
+
+  MLIRLoopNestGenerator generator(locBuilder);
+  auto bodyBuilder = [](OpBuilder& b, Location loc, ValueRange ivs,
+                        ValueRange iterArgs) {
+    return scf::ValueVector(iterArgs.begin(), iterArgs.end());
+  };
+
+  SmallVector<int> domainIndicesToSchedule = {0, 1};
+  auto result = generator.generateForLoop(relation.value(), {init.getResult()},
+                                          bodyBuilder, domainIndicesToSchedule);
+  ASSERT_TRUE(succeeded(result));
+
+  func::ReturnOp::create(locBuilder, ValueRange{});
+
+  ASSERT_TRUE(succeeded(verify(moduleOp)));
+
+  // Each guard is an i1 taken straight from the comparison logic.
+  int numIfs = 0;
+  funcOp.walk([&](scf::IfOp ifOp) {
+    ++numIfs;
+    Value cond = ifOp.getCondition();
+    EXPECT_TRUE(cond.getType().isInteger(1));
+    Operation* condOp = cond.getDefiningOp();
+    EXPECT_TRUE(condOp != nullptr &&
+                (isa<arith::CmpIOp, arith::AndIOp, arith::OrIOp>(condOp)))
+        << "scf.if guard should come from comparison logic, got "
+        << (condOp ? condOp->getName().getStringRef().str() : "block argument");
+  });
+  // Guard against the checks above going vacuous if ISL stops emitting `if`s.
+  EXPECT_GT(numIfs, 0) << "relation generated no scf.if guards";
+
+  // No boolean is round-tripped through index.
+  funcOp.walk([&](arith::IndexCastOp castOp) {
+    EXPECT_FALSE(castOp->getOperand(0).getType().isInteger(1))
+        << "index_cast widens an i1 boolean to index";
+    EXPECT_FALSE(castOp->getResult(0).getType().isInteger(1))
+        << "index_cast narrows an index back to an i1 boolean";
+  });
+
+  moduleOp.erase();
+}
+
 TEST(CodegenTest, Conv2dChwFchwAsSequenceTest) {
   MLIRContext context;
   RankedTensorType filterType =
