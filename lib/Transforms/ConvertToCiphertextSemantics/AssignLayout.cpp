@@ -28,17 +28,19 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AsmState.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/DialectResourceBlobManager.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 
 #define DEBUG_TYPE "convert-to-ciphertext-semantics"
 
@@ -365,10 +367,25 @@ static FailureOr<Value> implementAssignLayoutStep(
   }
 
   DenseElementsAttr constantAttr;
+  DenseResourceElementsAttr resourceAttr;
+  ArrayRef<char> resourceRaw;
+  bool isDenseConstant = matchPattern(input, m_Constant(&constantAttr));
+  if (!isDenseConstant) {
+    if (auto cstOp =
+            dyn_cast_or_null<arith::ConstantOp>(input.getDefiningOp())) {
+      if ((resourceAttr =
+               dyn_cast<DenseResourceElementsAttr>(cstOp.getValue()))) {
+        resourceRaw = resourceAttr.getData();
+      }
+    }
+  }
+  bool isResourceConstant = !resourceRaw.empty() &&
+                            elementType.isIntOrFloat() &&
+                            elementType.getIntOrFloatBitWidth() % 8 == 0;
   bool shouldFold = false;
-  if (matchPattern(input, m_Constant(&constantAttr)) && dataSemanticType &&
-      isLast) {
-    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE) {
+  if ((isDenseConstant || isResourceConstant) && dataSemanticType && isLast) {
+    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE ||
+        (strategy == CodegenStrategy::AUTO && isResourceConstant)) {
       shouldFold = true;
     } else if (strategy == CodegenStrategy::AUTO) {
       int64_t relSize = relationSize(rel);
@@ -406,7 +423,7 @@ static FailureOr<Value> implementAssignLayoutStep(
       for (size_t i = 0; i < point.size(); ++i) flat += point[i] * strides[i];
       return flat;
     };
-    bool srcIsSplat = constantAttr.isSplat();
+    bool srcIsSplat = isDenseConstant && constantAttr.isSplat();
 
     // Fast path: for byte-aligned int/float element types, pack directly into a
     // raw byte buffer rather than building an N-element SmallVector<Attribute>
@@ -414,7 +431,8 @@ static FailureOr<Value> implementAssignLayoutStep(
     if (elementType.isIntOrFloat() &&
         elementType.getIntOrFloatBitWidth() % 8 == 0) {
       unsigned byteWidth = elementType.getIntOrFloatBitWidth() / 8;
-      ArrayRef<char> srcRaw = constantAttr.getRawData();
+      ArrayRef<char> srcRaw =
+          isDenseConstant ? constantAttr.getRawData() : resourceRaw;
       std::vector<char> rawBuffer(
           static_cast<size_t>(numTargetElements) * byteWidth, 0);
 
@@ -427,8 +445,21 @@ static FailureOr<Value> implementAssignLayoutStep(
                     byteWidth);
       }
 
-      auto packedConstantAttr = DenseElementsAttr::getFromRawBuffer(
-          targetType, ArrayRef<char>(rawBuffer.data(), rawBuffer.size()));
+      TypedAttr packedConstantAttr;
+      ArrayRef<char> packedRaw(rawBuffer.data(), rawBuffer.size());
+      if (isResourceConstant) {
+        std::string resourceName = resourceAttr.getRawHandle().getKey().str();
+        resourceName += "_packed";
+        auto packedBlob = HeapAsmResourceBlob::allocateAndCopyWithAlign(
+            packedRaw,
+            resourceAttr.getRawHandle().getBlob()->getDataAlignment(),
+            /*dataIsMutable=*/false);
+        packedConstantAttr = DenseResourceElementsAttr::get(
+            targetType, resourceName, std::move(packedBlob));
+      } else {
+        packedConstantAttr =
+            DenseElementsAttr::getFromRawBuffer(targetType, packedRaw);
+      }
       auto constantOp = arith::ConstantOp::create(builder, builder.getLoc(),
                                                   packedConstantAttr);
       createdOpCallback(constantOp);
