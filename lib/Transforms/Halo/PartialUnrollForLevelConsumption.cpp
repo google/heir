@@ -32,11 +32,12 @@ struct PartialUnrollForLevelConsumption
 
   void runOnOperation() override {
     MLIRContext* context = &getContext();
+    int budget = forceMaxLevel == 0 ? 40 : forceMaxLevel;
 
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
-    solver.load<LevelAnalysis>(forceMaxLevel);
+    solver.load<LevelAnalysis>(budget);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
@@ -53,6 +54,20 @@ struct PartialUnrollForLevelConsumption
     RewritePatternSet cleanupPatterns(context);
     cleanupPatterns.add<DeleteAnnotatedOps>(context);
     walkAndApplyPatterns(getOperation(), std::move(cleanupPatterns));
+
+    // Re-run solver to validate
+    DataFlowSolver validationSolver;
+    dataflow::loadBaselineAnalyses(validationSolver);
+    validationSolver.load<SecretnessAnalysis>();
+    validationSolver.load<LevelAnalysis>(budget);
+    if (failed(validationSolver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run validation analysis.\n";
+      signalPassFailure();
+      return;
+    }
+    if (failed(validateLevelAnalysis(validationSolver, getOperation()))) {
+      signalPassFailure();
+    }
   }
 };
 

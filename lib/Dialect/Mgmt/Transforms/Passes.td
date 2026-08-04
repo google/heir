@@ -14,7 +14,7 @@ def AnnotateMgmt : Pass<"annotate-mgmt"> {
     Option<"baseLevel", "base-level", "int",
            /*default=*/"0", "Level to start counting from (used by B/FV)">,
     Option<"levelBudget", "level-budget", "int",
-           /*default=*/"0", "Maximum level budget for analysis (0 = default)">,
+           /*default=*/"40", "The maximum allowable level before it is considered invalid">,
   ];
 }
 

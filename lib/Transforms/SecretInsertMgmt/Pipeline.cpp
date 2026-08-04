@@ -43,7 +43,8 @@ void runSolver(Operation* top, DataFlowSolver& solver) {
   }
 }
 
-void makeAndRunSolver(Operation* top, DataFlowSolver& solver, int levelBudget) {
+void makeAndRunSolver(Operation* top, DataFlowSolver& solver,
+                      int levelBudget = 40) {
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
   solver.load<LevelAnalysis>(levelBudget);
@@ -66,7 +67,7 @@ void makeAndRunSecretnessAndMulDepthSolver(Operation* top,
 }
 
 void makeAndRunSecretnessAndLevelSolver(Operation* top, DataFlowSolver& solver,
-                                        int levelBudget) {
+                                        int levelBudget = 40) {
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
   solver.load<LevelAnalysis>(levelBudget);
@@ -92,9 +93,11 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   LDBG(2) << "Inserting relinearize";
   insertRelinearizeAfterMult(top, options.includeFloats);
 
+  int budget = options.levelBudget == -1 ? 40 : options.levelBudget;
+
   // Run Level Analysis to check for convergence
   DataFlowSolver levelSolver;
-  makeAndRunSolver(top, levelSolver, options.levelBudget);
+  makeAndRunSolver(top, levelSolver, budget);
 
   auto nonInvariantLoops = getNonInvariantLoops(top, &levelSolver);
 
@@ -103,10 +106,12 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
     LDBG(2) << "Processing non-invariant loop " << *loop;
     DataFlowSolver secretnessSolver;
     makeAndRunSecretnessSolver(top, secretnessSolver);
-    bootstrapLoopIterArgs(loop, &secretnessSolver);
+    if (options.bootstrapWaterline.has_value()) {
+      bootstrapLoopIterArgs(loop, &secretnessSolver);
+    }
 
     DataFlowSolver freshLevelSolver;
-    makeAndRunSolver(top, freshLevelSolver, options.levelBudget);
+    makeAndRunSolver(top, freshLevelSolver, budget);
     unrollLoopForLevelUtilization(loop, &freshLevelSolver, options.levelBudget);
   }
 
@@ -115,28 +120,40 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   int idCounter = 0;  // for making adjust_scale op different to avoid cse
   if (options.bootstrapWaterline.has_value()) {
     LDBG(2) << "Bootstrap waterline";
-    insertBootstrapWaterLine(top, options.bootstrapWaterline.value(),
-                             options.levelBudget, options.includeFloats,
-                             &idCounter);
+    insertBootstrapWaterLine(top, options.bootstrapWaterline.value(), budget,
+                             options.includeFloats, &idCounter);
   }
 
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
-  adjustLevelsForRegionBranchOps(top, options.levelBudget);
+  adjustLevelsForRegionBranchOps(top, budget);
   adjustScalesForRegionBranchOps(top, &idCounter);
 
   LDBG(2) << "Handling cross level ops";
-  handleCrossLevelOps(top, &idCounter, options.includeFloats,
-                      options.levelBudget);
+  handleCrossLevelOps(top, &idCounter, options.includeFloats, budget);
 
   LDBG(2) << "Handling cross mul depth ops";
-  handleCrossMulDepthOps(top, &idCounter, options.includeFloats,
-                         options.levelBudget);
+  handleCrossMulDepthOps(top, &idCounter, options.includeFloats, budget);
 
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
-  adjustLevelsForRegionBranchOps(top, options.levelBudget);
-  return success();
+  adjustLevelsForRegionBranchOps(top, budget);
+
+  // Clean up invalid modreduces and other redundant mgmt ops before final
+  // analysis.
+  {
+    MLIRContext* ctx = top->getContext();
+    RewritePatternSet cleanupPatterns(ctx);
+    mgmt::ModReduceOp::getCanonicalizationPatterns(cleanupPatterns, ctx);
+    mgmt::LevelReduceOp::getCanonicalizationPatterns(cleanupPatterns, ctx);
+    mgmt::AdjustScaleOp::getCanonicalizationPatterns(cleanupPatterns, ctx);
+    mgmt::LevelReduceMinOp::getCanonicalizationPatterns(cleanupPatterns, ctx);
+    (void)walkAndApplyPatterns(top, std::move(cleanupPatterns));
+  }
+
+  DataFlowSolver finalSolver;
+  makeAndRunSolver(top, finalSolver, budget);
+  return validateLevelAnalysis(finalSolver, top);
 }
 
 void insertMgmtInitForPlaintexts(Operation* top, bool includeFloats) {
@@ -317,6 +334,12 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
       needsBootstrap.replaceAllUsesExcept(bootstrapOp.getResult(), bootstrapOp);
     }
   }
+  // makeAndRunSolver(top, solver, levelBudget);
+  // MLIRContext* ctx = top->getContext();
+  // RewritePatternSet patterns(ctx);
+  // patterns.add<BootstrapWaterLine<mgmt::ModReduceOp>>(ctx, top, &solver,
+  //                                                     bootstrapWaterline);
+  // (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
 void peelPlaintextIterations(Operation* top) {

@@ -43,6 +43,21 @@ struct RegionBranchOpLevelInvariance
     patterns.add<RegionBranchOpLevelInvariancePattern>(context, &solver);
     if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
       signalPassFailure();
+      return;
+    }
+
+    // Re-run solver to validate
+    DataFlowSolver validationSolver;
+    dataflow::loadBaselineAnalyses(validationSolver);
+    validationSolver.load<SecretnessAnalysis>();
+    validationSolver.load<LevelAnalysis>(levelBudget);
+    if (failed(validationSolver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run validation analysis.\n";
+      signalPassFailure();
+      return;
+    }
+    if (failed(validateLevelAnalysis(validationSolver, getOperation()))) {
+      signalPassFailure();
     }
   }
 };

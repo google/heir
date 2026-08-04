@@ -195,9 +195,9 @@ class LevelAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<LevelLattice>,
       public SecretnessAnalysisDependent<LevelAnalysis> {
  public:
-  LevelAnalysis(DataFlowSolver& solver, int levelBudget = 0)
+  LevelAnalysis(DataFlowSolver& solver, int levelBudget = -1)
       : dataflow::SparseForwardDataFlowAnalysis<LevelLattice>(solver),
-        levelBudget(levelBudget > 0 ? levelBudget : kDefaultLevelBudget) {}
+        levelBudget(levelBudget >= 0 ? levelBudget : kDefaultLevelBudget) {}
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToEntryState(LevelLattice* lattice) override {

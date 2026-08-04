@@ -92,6 +92,11 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
       return;
     }
 
+    if (failed(validateLevelAnalysis(solver, getOperation()))) {
+      signalPassFailure();
+      return;
+    }
+
     clearAttrs(getOperation(), MgmtDialect::kArgMgmtAttrName);
     annotateLevel(getOperation(), &solver, baseLevel);
     annotateDimension(getOperation(), &solver);

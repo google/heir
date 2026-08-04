@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --mlir-to-ckks | FileCheck %s
+// RUN: heir-opt %s --mlir-to-ckks=greedy-level-budget=16 | FileCheck %s
 // TODO (#1929): Improve test with better CHECKs
 
 // CHECK: func.func @float_secret_loop_index_step

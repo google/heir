@@ -52,7 +52,7 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
            /*default=*/"false", "Modulus switching after each multiplication (default to false)">,
     Option<"beforeMulIncludeFirstMul", "before-mul-include-first-mul", "bool",
            /*default=*/"false", "Modulus switching before each multiplication, including the first multiplication (default to false)">,
-    Option<"levelBudget", "level-budget", "int", /*default=*/"0",
+    Option<"levelBudget", "level-budget", "int", /*default=*/"-1",
            "An optional maximum level budget for the pipeline to assume">,
   ];
 }
@@ -114,7 +114,7 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
            /*default=*/"1024", "Minimum number of slots to use for packing messages in ciphertexts.">,
     Option<"bootstrapWaterline", "bootstrap-waterline", "int",
            /*default=*/"10", "Waterline for insert bootstrap op">,
-    Option<"levelBudget", "level-budget", "int", /*default=*/"0",
+    Option<"levelBudget", "level-budget", "int", /*default=*/"-1",
            "An optional maximum level budget for the pipeline to assume">,
   ];
 }

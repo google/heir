@@ -103,8 +103,8 @@ def RegionBranchOpLevelInvariance : Pass<"region-branch-op-level-invariance"> {
     "mlir::heir::mgmt::MgmtDialect",
   ];
   let options = [
-    Option<"levelBudget", "level-budget", "int",
-           /*default=*/"0", "Maximum level budget for analysis (0 = default)">,
+    Option<"levelBudget", "level-budget", "int", /*default=*/"40",
+           "The maximum level allowed before it is considered invalid">
   ];
 }
 
