@@ -13,6 +13,7 @@ filegroup(
         ":lit.cfg.py",
         "@heir//tools:heir-opt",
         "@heir//tools:heir-translate",
+        "@heir//lib/Tablegen:heir-tblgen",
         "@llvm-project//llvm:FileCheck",
         "@llvm-project//llvm:count",
         "@llvm-project//llvm:lit",
@@ -36,11 +37,19 @@ glob_lit_tests(
         "Examples/tfhe_rust_bool/fpga/*",
         "Examples/tfhe_rust_hl/fpga/*",
     ],
-    test_file_exts = ["mlir"],
+    test_file_exts = [
+        "mlir",
+        "td",
+    ],
 )
 
 exports_files(
     [
         "run_lit.sh",
     ],
+)
+
+filegroup(
+    name = "lit_cfg",
+    srcs = ["lit.cfg.py"],
 )

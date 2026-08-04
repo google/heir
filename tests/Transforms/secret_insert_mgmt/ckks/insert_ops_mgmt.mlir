@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-insert-mgmt-ckks="after-mul=true before-mul-include-first-mul=false bootstrap-waterline=40 level-budget=40 min-slot-count=8" %s | FileCheck %s
 
-module attributes {backend.lattigo, scheme.ckks} {
+module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
   // CHECK: func.func @main
   func.func @main(%arg0: !secret.secret<tensor<8xf32>>, %arg1: !secret.secret<tensor<2x8xf32>>) -> !secret.secret<tensor<2x8xf32>> {
     %c1 = arith.constant 1 : index

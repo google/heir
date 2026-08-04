@@ -5,7 +5,7 @@ from lit.formats import ShTest
 
 config.name = "heir"
 config.test_format = ShTest()
-config.suffixes = [".mlir", ".v"]
+config.suffixes = [".mlir", ".v", ".td"]
 
 # lit executes relative to the directory
 #
@@ -39,6 +39,7 @@ tool_relpaths = [
     llvm_tools_relpath,
     "_main/tools",
     "_main/tests/Emitter/verilog",
+    "_main/third_party/heir/lib/Tablegen",
     "yosys+",
 ]
 

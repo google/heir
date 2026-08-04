@@ -32,4 +32,18 @@ def AnnotateModule : Pass<"annotate-module"> {
   ];
 }
 
+def ApplyConfigOverride : Pass<"apply-config-override"> {
+  let summary = "Apply Compilation Target Config Overrides";
+  let description = [{
+    This pass annotates the module with compilation target config overrides.
+    It takes a list of key-value pairs in the format `key=value`, validates
+    them, and adds them to `backend.config_override` attribute on the module.
+  }];
+
+  let options = [
+    ListOption<"config", "config", "std::string",
+               "Key-value pairs of config overrides in the format key=value.">
+  ];
+}
+
 #endif  // LIB_TRANSFORMS_ANNOTATEMODULE_ANNOTATEMODULE_TD_
