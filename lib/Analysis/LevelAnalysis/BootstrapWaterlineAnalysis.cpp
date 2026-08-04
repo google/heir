@@ -67,9 +67,10 @@ LogicalResult BootstrapWaterlineAnalysis::visitOperation(
     resultNeedsBootstrap = exceedsWaterline;
     if (exceedsWaterline) {
       if (auto reduceOp = dyn_cast<ReducesLevelOpInterface>(op)) {
-        resultLevel = LevelState(reduceOp.getLevelsToDrop());
+        resultLevel =
+            LevelState(bootstrapLevelsConsumed + reduceOp.getLevelsToDrop());
       } else {
-        resultLevel = LevelState(0);
+        resultLevel = LevelState(bootstrapLevelsConsumed);
       }
     } else {
       resultLevel = prospectiveLevel;
