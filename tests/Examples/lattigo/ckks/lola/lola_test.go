@@ -12,7 +12,7 @@ import (
 	"tests/Examples/lattigo/ckks/lola/lola_utils"
 )
 
-const dataBase = "third_party/heir/tests/Examples/common/mnist/data/"
+const dataBase = "../../../common/mnist/data/"
 const (
 	imagesPath = dataBase + "t10k-images-idx3-ubyte"
 )
