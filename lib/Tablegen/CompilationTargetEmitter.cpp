@@ -82,12 +82,14 @@ bool emitCompilationTargetRegistration(const llvm::RecordKeeper& records,
     auto name = target->getName();
     auto bootstrapLevelsConsumed =
         target->getValueAsInt("bootstrapLevelsConsumed");
+    auto hasKernelChebyshev = target->getValueAsInt("has_kernel_chebyshev");
 
     os << "void registerTarget" << name << "() {\n"
        << "  "
           "CompilationTargetRegistry::registerTarget(CompilationTarget{"
           "BackendName::"
-       << name << ", " << bootstrapLevelsConsumed << "});\n"
+       << name << ", " << bootstrapLevelsConsumed << ", " << hasKernelChebyshev
+       << "});\n"
        << "}\n\n";
   }
   return false;

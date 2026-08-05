@@ -5,6 +5,7 @@
 class CompilationTarget<string name> {
   string backendName = name;
   int bootstrapLevelsConsumed = 0;
+  int has_kernel_chebyshev = 0;
 }
 
 def TestTarget : CompilationTarget<"test_target"> {
@@ -12,7 +13,7 @@ def TestTarget : CompilationTarget<"test_target"> {
 }
 
 // REG: void registerTargetTestTarget() {
-// REG:   CompilationTargetRegistry::registerTarget(CompilationTarget{BackendName::TestTarget, 1});
+// REG:   CompilationTargetRegistry::registerTarget(CompilationTarget{BackendName::TestTarget, 1, 0});
 // REG: }
 
 // OVERRIDE: mlir::LogicalResult applyCompilationTargetOverride(CompilationTarget& target,
@@ -25,6 +26,12 @@ def TestTarget : CompilationTarget<"test_target"> {
 // OVERRIDE:     target.bootstrapLevelsConsumed = attr.getInt();
 // OVERRIDE:     return success();
 // OVERRIDE:   }
+// OVERRIDE:   if (key == "has_kernel_chebyshev") {
+// OVERRIDE:     auto attr = dyn_cast<IntegerAttr>(value);
+// OVERRIDE:     if (!attr) { return emitError(loc, "expected integer attribute for key: ") << key; }
+// OVERRIDE:     target.has_kernel_chebyshev = attr.getInt();
+// OVERRIDE:     return success();
+// OVERRIDE:   }
 // OVERRIDE:   return emitError(loc, "Cannot override backend config for unknown key: ") << key;
 // OVERRIDE: }
 
@@ -33,6 +40,13 @@ def TestTarget : CompilationTarget<"test_target"> {
 // OVERRIDE:                                                          StringRef value,
 // OVERRIDE:                                                          Location loc) {
 // OVERRIDE:   if (key == "bootstrapLevelsConsumed") {
+// OVERRIDE:     int64_t intVal;
+// OVERRIDE:     if (value.getAsInteger(10, intVal)) {
+// OVERRIDE:       return emitError(loc, "expected base-10 integer attribute for key: ") << key;
+// OVERRIDE:     }
+// OVERRIDE:     return Attribute(IntegerAttr::get(IntegerType::get(ctx, 64), intVal));
+// OVERRIDE:   }
+// OVERRIDE:   if (key == "has_kernel_chebyshev") {
 // OVERRIDE:     int64_t intVal;
 // OVERRIDE:     if (value.getAsInteger(10, intVal)) {
 // OVERRIDE:       return emitError(loc, "expected base-10 integer attribute for key: ") << key;
@@ -62,4 +76,5 @@ def TestTarget : CompilationTarget<"test_target"> {
 // STRUCT: struct CompilationTarget {
 // STRUCT:   BackendName backendName = BackendName::None;
 // STRUCT:   int64_t bootstrapLevelsConsumed = 0;
+// STRUCT:   int64_t has_kernel_chebyshev = 0;
 // STRUCT: };
