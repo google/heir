@@ -68,8 +68,27 @@ static FailureOr<Value> implementUnpackOpStep(
 
   RankedTensorType unpackedTensorType = dyn_cast<RankedTensorType>(targetType);
 
-  if (!unpackedTensorType) {
-    // it's a scalar, so we can extract from any slot in the mapping
+  // Restrict the layout relation's domain bounds to the valid elements
+  // [0, dimSize - 1] of targetType. This has to happen before any use of `rel`
+  // below, including the single-element shortcut: that shortcut samples an
+  // arbitrary point from the relation's range, and with an unrestricted domain
+  // the sample can be the slot belonging to a different element.
+  if (unpackedTensorType) {
+    for (unsigned i = 0; i < unpackedTensorType.getRank(); ++i) {
+      if (unpackedTensorType.isDynamicDim(i)) continue;
+      rel.addBound(presburger::BoundType::UB,
+                   rel.getVarKindOffset(presburger::VarKind::Domain) + i,
+                   unpackedTensorType.getDimSize(i) - 1);
+    }
+  }
+
+  bool isSingleElementTensor = unpackedTensorType &&
+                               unpackedTensorType.hasStaticShape() &&
+                               unpackedTensorType.getNumElements() == 1;
+  bool isScalar = !unpackedTensorType;
+
+  if (isScalar || isSingleElementTensor) {
+    // Extract the lone element from any slot in the mapping.
     std::vector<int64_t> point = anyRangePoint(rel);
     if (point.empty()) {
       return builder.emitError()
@@ -83,15 +102,16 @@ static FailureOr<Value> implementUnpackOpStep(
     }
     auto extractOp = tensor::ExtractOp::create(builder, input, indices);
     createdOpCallback(extractOp);
-    return extractOp.getResult();
-  }
 
-  // Restrict the layout relation's domain bounds to the valid elements
-  // [0, dimSize - 1] of targetType.
-  for (unsigned i = 0; i < unpackedTensorType.getRank(); ++i) {
-    if (unpackedTensorType.isDynamicDim(i)) continue;
-    rel.addBound(presburger::BoundType::UB, i,
-                 unpackedTensorType.getDimSize(i) - 1);
+    if (isScalar) {
+      return extractOp.getResult();
+    }
+
+    // isSingleElementTensor -> wrap back into single-element tensor.
+    auto fromElementsOp = tensor::FromElementsOp::create(
+        builder, unpackedTensorType, ValueRange{extractOp.getResult()});
+    createdOpCallback(fromElementsOp);
+    return fromElementsOp.getResult();
   }
 
   SmallVector<int> domainSchedule;
@@ -346,11 +366,15 @@ static FailureOr<Value> implementAssignLayoutStep(
   }
 
   // The result can be simplified if the layout is dense in the ciphertext type,
-  // and the input is a scalar or a constant splat.
+  // and the input is a scalar, a constant splat, or a single-element tensor
+  // (whose dense packing is a broadcast of its lone element).
   SplatElementsAttr splatAttr;
   bool inputIsScalar = !dataSemanticType;
   bool inputIsSplatConstant = matchPattern(input, m_Constant(&splatAttr));
-  if ((inputIsScalar || inputIsSplatConstant) &&
+  bool inputIsSingleElementTensor = dataSemanticType &&
+                                    dataSemanticType.hasStaticShape() &&
+                                    dataSemanticType.getNumElements() == 1;
+  if ((inputIsScalar || inputIsSplatConstant || inputIsSingleElementTensor) &&
       isDenseLayout(rel, targetType)) {
     // Regardless of being constant or not, a scalar can be splat into the
     // ciphertext tensor.
@@ -359,12 +383,27 @@ static FailureOr<Value> implementAssignLayoutStep(
       createdOpCallback(splatOp);
       return splatOp.getResult();
     }
-    auto constantOp = arith::ConstantOp::create(
-        builder, targetType,
-        SplatElementsAttr::get(targetType,
-                               splatAttr.getSplatValue<TypedAttr>()));
-    createdOpCallback(constantOp);
-    return constantOp.getResult();
+    if (inputIsSplatConstant) {
+      auto constantOp = arith::ConstantOp::create(
+          builder, targetType,
+          SplatElementsAttr::get(targetType,
+                                 splatAttr.getSplatValue<TypedAttr>()));
+      createdOpCallback(constantOp);
+      return constantOp.getResult();
+    }
+    // A non-constant single-element tensor: the loop-generator path below
+    // handles it correctly, but emits one iteration per slot whose body is
+    // loop-invariant; extract the element once and splat it instead.
+    auto zero = arith::ConstantIndexOp::create(builder, 0);
+    createdOpCallback(zero);
+    SmallVector<Value> zeroIndices(dataSemanticType.getRank(),
+                                   zero.getResult());
+    auto extractOp = tensor::ExtractOp::create(builder, input, zeroIndices);
+    createdOpCallback(extractOp);
+    auto splatOp =
+        tensor::SplatOp::create(builder, targetType, extractOp.getResult());
+    createdOpCallback(splatOp);
+    return splatOp.getResult();
   }
 
   DenseElementsAttr constantAttr;
