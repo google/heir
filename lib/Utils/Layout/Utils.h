@@ -80,6 +80,18 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
 presburger::IntegerRelation getTricyclicLayoutRelation(
     RankedTensorType tensorType, int64_t numSlots);
 
+// Returns the generalized diagonal packing relation for the cleartext
+// operand of the bicyclic matmul.
+presburger::IntegerRelation getBicyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t stride,
+    int64_t numSlots);
+
+// Returns an IntegerRelation with domain and range space both (ct, slot) that
+// maps each slot s in [0, period) of a ciphertext to every slot s' in [0,
+// numSlots) with s' equiv s (mod period). Excepts numCiphertexts == 1.
+presburger::IntegerRelation getPeriodicReplicationRelation(
+    int64_t numCiphertexts, int64_t numSlots, int64_t period);
+
 // Returns an IntegerRelation that represents a per-row layout for a matrix
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
