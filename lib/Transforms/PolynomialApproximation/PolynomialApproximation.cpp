@@ -12,6 +12,7 @@
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APFloat.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"    // from @llvm-project
@@ -281,10 +282,8 @@ FailureOr<APFloat> getSingleValueOrSplat(Value value) {
     return failure();
   }
 
-  if (auto elementsAttr = dyn_cast<ElementsAttr>(attr)) {
-    if (elementsAttr.isSplat()) {
-      return elementsAttr.getSplatValue<APFloat>();
-    }
+  if (auto splatAttr = dyn_cast_or_null<SplatElementsAttr>(attr)) {
+    attr = splatAttr.getSplatValue<TypedAttr>();
   }
 
   if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
@@ -292,7 +291,11 @@ FailureOr<APFloat> getSingleValueOrSplat(Value value) {
   }
 
   if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
-    return APFloat(APFloat::IEEEdouble(), intAttr.getValue());
+    bool isSigned = !intAttr.getType().isUnsignedInteger();
+    APFloat fVal(APFloat::IEEEdouble());
+    fVal.convertFromAPInt(intAttr.getValue(), isSigned,
+                          APFloat::rmNearestTiesToEven);
+    return fVal;
   }
 
   return failure();
