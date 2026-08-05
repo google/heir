@@ -281,10 +281,8 @@ FailureOr<APFloat> getSingleValueOrSplat(Value value) {
     return failure();
   }
 
-  if (auto elementsAttr = dyn_cast<ElementsAttr>(attr)) {
-    if (elementsAttr.isSplat()) {
-      return elementsAttr.getSplatValue<APFloat>();
-    }
+  if (auto splatAttr = dyn_cast_or_null<SplatElementsAttr>(attr)) {
+    attr = splatAttr.getSplatValue<TypedAttr>();
   }
 
   if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
