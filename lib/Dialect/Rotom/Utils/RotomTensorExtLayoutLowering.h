@@ -11,7 +11,10 @@ namespace heir {
 namespace rotom {
 
 /// Lowers a Rotom `#rotom.layout` to the ISL map text used by
-/// `tensor_ext.layout` (domain `i*`, range `ct`, `slot`).
+/// `tensor_ext.layout` (domain `i*`, range `ct`, `slot`). The layout is the
+/// whole story: a value's packed bytes are exactly what its layout says, so
+/// kernel schedules (e.g. a baby-step/giant-step shift) are emitted as
+/// rotations by the kernel, never folded into a value's packing.
 struct RotomTensorExtLayoutLowering {
   static FailureOr<std::string> lowerToTensorExtIsl(LayoutAttr layout);
 };

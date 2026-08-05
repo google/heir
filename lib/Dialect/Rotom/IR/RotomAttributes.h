@@ -15,6 +15,37 @@
 
 namespace mlir::heir::rotom {
 
+// One argument of a roll: either one piece of the layout (a position in its
+// dims list) or a whole tensor axis (spelled `axis N`; legal only when the
+// axis is packed as more than one piece).
+struct RollArg {
+  bool isAxis;
+  int64_t index;  // Dims-list position, or the tensor axis id when isAxis.
+  bool operator==(const RollArg& other) const {
+    return isAxis == other.isAxis && index == other.index;
+  }
+};
+
+// Argument encoding in the flat rolls storage: a piece argument is its
+// non-negative dims-list position, an axis argument is -(axis + 1).
+inline int64_t encodeRollArg(RollArg e) {
+  return e.isAxis ? -(e.index + 1) : e.index;
+}
+inline RollArg decodeRollArg(int64_t encoded) {
+  return encoded < 0 ? RollArg{true, -encoded - 1} : RollArg{false, encoded};
+}
+
+// One roll of a layout: FROM's index is rewritten to
+// (idx_from - shift(by)) mod extent(from), where a piece FROM rewrites only
+// its own mixed-radix digit and an axis FROM rewrites the whole axis index.
+struct RollSpec {
+  RollArg from;
+  RollArg by;
+};
+
+// The layout's rolls with both arguments decoded.
+llvm::SmallVector<RollSpec> getRollSpecs(LayoutAttr layout);
+
 enum class LayoutPieceKind { Traversal, Replication, Gap };
 
 struct LayoutPiece {
