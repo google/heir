@@ -33,6 +33,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -188,6 +189,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 arith::DivFOp, arith::CmpIOp, arith::CmpFOp, arith::SelectOp,
                 arith::MaxSIOp, arith::MinSIOp>(
               [&](auto op) { return printOperation(op); })
+          .Case<math::SqrtOp>([&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
@@ -1130,6 +1132,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::TruncFOp op) {
     return op.emitOpError() << "Unsupported truncf op";
   }
   os << ">(" << variableNames->getNameForValue(op.getIn()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(math::SqrtOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << "std::sqrt(" << variableNames->getNameForValue(op.getOperand())
+     << ");\n";
   return success();
 }
 

@@ -9,6 +9,7 @@ namespace openfhe {
 
 constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -17,6 +18,7 @@ constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
 )cpp";
 constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -25,6 +27,7 @@ constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
 )cpp";
 constexpr std::string_view kEmbeddedOpenfheImport = R"cpp(
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
