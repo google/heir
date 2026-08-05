@@ -12,6 +12,7 @@
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -28,6 +29,7 @@
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -120,6 +122,86 @@ static bool isAllowedPlaintextType(Type type) {
   return false;
 }
 
+// Rebuild each affine.for in `funcOp` without the iter_args whose region
+// argument and loop result are both unused.
+//
+// When cloning a loop into the preprocessing function we leave behind a dummy
+// initializer for any loop-carried value that isn't part of the plaintext
+// slice (e.g. a ciphertext accumulator), relying on remove-dead-values to drop
+// the now-unused iter_arg. That works for scf.for, but remove-dead-values only
+// poisons (it does not structurally remove) dead affine.for iter_args, so a
+// ub.poison-typed loop-carried value would otherwise survive into backend
+// lowering, where it cannot be converted or emitted. This performs the removal
+// remove-dead-values cannot, after which the dummy initializers become dead and
+// are cleaned up normally.
+static void removeDeadAffineForIterArgs(func::FuncOp funcOp) {
+  IRRewriter rewriter(funcOp.getContext());
+
+  SmallVector<affine::AffineForOp> loops;
+  funcOp.walk([&](affine::AffineForOp forOp) { loops.push_back(forOp); });
+
+  for (affine::AffineForOp forOp : loops) {
+    unsigned numIterArgs = forOp.getNumIterOperands();
+    if (numIterArgs == 0) continue;
+
+    SmallVector<unsigned> keptIndices;
+    for (unsigned i = 0; i < numIterArgs; ++i) {
+      if (!forOp.getRegionIterArgs()[i].use_empty() ||
+          !forOp.getResult(i).use_empty()) {
+        keptIndices.push_back(i);
+      }
+    }
+    if (keptIndices.size() == numIterArgs) continue;  // nothing dead
+
+    rewriter.setInsertionPoint(forOp);
+    SmallVector<Value> keptInits;
+    for (unsigned i : keptIndices) keptInits.push_back(forOp.getInits()[i]);
+
+    auto newLoop = affine::AffineForOp::create(
+        rewriter, forOp.getLoc(), forOp.getLowerBoundOperands(),
+        forOp.getLowerBoundMap(), forOp.getUpperBoundOperands(),
+        forOp.getUpperBoundMap(), forOp.getStepAsInt(), keptInits);
+
+    // Trim the existing terminator down to the kept loop-carried values.
+    auto yieldOp =
+        cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+    SmallVector<Value> keptYields;
+    for (unsigned i : keptIndices) keptYields.push_back(yieldOp.getOperand(i));
+    rewriter.modifyOpInPlace(
+        yieldOp, [&]() { yieldOp.getOperandsMutable().assign(keptYields); });
+
+    // With no kept iter_args the builder added a default terminator; drop it so
+    // the merged (trimmed) affine.yield is the loop's only terminator.
+    if (keptInits.empty()) {
+      rewriter.eraseOp(newLoop.getBody()->getTerminator());
+    }
+
+    // Map the old block arguments onto the new loop: induction var, then each
+    // iter_arg. Kept ones map to the new region args; dead ones are unused, so
+    // their (type-matched, dominating) original initializer is a safe
+    // placeholder that is never actually referenced.
+    SmallVector<Value> blockArgReplacements;
+    blockArgReplacements.push_back(newLoop.getInductionVar());
+    unsigned keptCursor = 0;
+    for (unsigned i = 0; i < numIterArgs; ++i) {
+      if (keptCursor < keptIndices.size() && keptIndices[keptCursor] == i) {
+        blockArgReplacements.push_back(
+            newLoop.getRegionIterArgs()[keptCursor++]);
+      } else {
+        blockArgReplacements.push_back(forOp.getInits()[i]);
+      }
+    }
+    rewriter.mergeBlocks(forOp.getBody(), newLoop.getBody(),
+                         blockArgReplacements);
+
+    for (auto [newIdx, oldIdx] : llvm::enumerate(keptIndices)) {
+      rewriter.replaceAllUsesWith(forOp.getResult(oldIdx),
+                                  newLoop.getResult(newIdx));
+    }
+    rewriter.eraseOp(forOp);
+  }
+}
+
 struct SplitPreprocessingPass
     : impl::SplitPreprocessingBase<SplitPreprocessingPass> {
   using SplitPreprocessingBase::SplitPreprocessingBase;
@@ -194,6 +276,15 @@ struct SplitPreprocessingPass
     (void)runPipeline(pipeline, preprocessingFuncOp);
     (void)runPipeline(pipeline, preprocessedFuncOp);
     (void)runPipeline(pipeline, funcOp);
+
+    // remove-dead-values poisons but cannot structurally strip a dead
+    // affine.for iter_arg (it only does so for scf.for), so the dummy
+    // ciphertext iter_arg left when cloning a loop survives as a ub.poison
+    // loop-carried value that later backend lowering can neither convert nor
+    // emit. Strip those dead iter_args now, then re-run the cleanup so the
+    // orphaned ub.poison initializers are removed too.
+    removeDeadAffineForIterArgs(preprocessingFuncOp);
+    (void)runPipeline(pipeline, preprocessingFuncOp);
   }
 
   void updateOriginalFunc(FuncOp funcOp, FuncOp preprocessingFuncOp,
