@@ -4,6 +4,7 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -833,6 +834,37 @@ void forEachDomainImagePoint(
 }
 }  // namespace
 
+struct WrapCallbackCtx {
+  PointPairCollector* collector;
+  int numDomain;
+  int numRange;
+};
+
+static isl_stat enumeratePointsCallback(__isl_take isl_point* pnt, void* user) {
+  auto* ctx = static_cast<WrapCallbackCtx*>(user);
+  std::vector<int64_t> domainPoint(ctx->numDomain);
+  std::vector<int64_t> rangePoint(ctx->numRange);
+  for (int i = 0; i < ctx->numDomain; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
+    if (isl_val_is_int(coord)) {
+      domainPoint[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+  for (int i = 0; i < ctx->numRange; i++) {
+    isl_val* coord =
+        isl_point_get_coordinate_val(pnt, isl_dim_set, ctx->numDomain + i);
+    if (isl_val_is_int(coord)) {
+      rangePoint[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+  ctx->collector->points.emplace_back(std::move(domainPoint),
+                                      std::move(rangePoint));
+  isl_point_free(pnt);
+  return isl_stat_ok;
+}
+
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
   assert(relation.getNumDomainVars() ==
@@ -845,18 +877,47 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
 
   SmallVector<int64_t> lb, ub;
   getDomainBox(relation, lb, ub);
+  int64_t volume = 1;
+  bool overflow = false;
+  for (size_t i = 0; i < lb.size(); ++i) {
+    int64_t diff = ub[i] - lb[i] + 1;
+    if (diff <= 0) {
+      volume = 0;
+      break;
+    }
+    if (volume > INT64_MAX / diff) {
+      overflow = true;
+      break;
+    }
+    volume *= diff;
+  }
 
-  forEachDomainImagePoint(
-      bmap, lb, ub,
-      [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
-        std::vector<int64_t> rangePoint(collector.rangeDims);
-        extractCoords(imagePoint, collector.rangeDims, rangePoint);
-        collector.points.emplace_back(
-            std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
-            std::move(rangePoint));
-      });
+  // If the domain box is small enough, use the box-looping method.
+  bool useBoxLoop = false;
+  if (!overflow) {
+    if (volume <= 200000) {
+      useBoxLoop = true;
+    }
+  }
 
-  isl_basic_map_free(bmap);
+  if (useBoxLoop) {
+    forEachDomainImagePoint(
+        bmap, lb, ub,
+        [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
+          std::vector<int64_t> rangePoint(collector.rangeDims);
+          extractCoords(imagePoint, collector.rangeDims, rangePoint);
+          collector.points.emplace_back(
+              std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+              std::move(rangePoint));
+        });
+    isl_basic_map_free(bmap);
+  } else {
+    isl_basic_set* bset = isl_basic_map_wrap(bmap);
+    isl_set* set = isl_set_from_basic_set(bset);
+    WrapCallbackCtx ctx{&collector, collector.domainDims, collector.rangeDims};
+    isl_set_foreach_point(set, enumeratePointsCallback, &ctx);
+    isl_set_free(set);
+  }
 }
 
 std::vector<int64_t> anyRangePoint(
@@ -1129,11 +1190,40 @@ bool isRelationEqual(const presburger::IntegerRelation& relation1,
 bool isDenseLayout(const presburger::IntegerRelation& relation,
                    RankedTensorType type) {
   isl_ctx* ctx = isl_ctx_alloc();
+  isl_ctx_set_max_operations(ctx, 100000);
   isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
   if (!bmap) {
     isl_ctx_free(ctx);
     return false;
+  }
+
+  isl_map* map = isl_map_from_basic_map(isl_basic_map_copy(bmap));
+  bool isSingleValued = isl_map_is_single_valued(map) == isl_bool_true;
+  isl_map_free(map);
+
+  if (isSingleValued) {
+    SmallVector<int64_t> lb, ub;
+    getDomainBox(relation, lb, ub);
+    int64_t domainVolume = 1;
+    bool overflow = false;
+    for (size_t i = 0; i < lb.size(); ++i) {
+      int64_t diff = ub[i] - lb[i] + 1;
+      if (diff <= 0) {
+        domainVolume = 0;
+        break;
+      }
+      if (domainVolume > INT64_MAX / diff) {
+        overflow = true;
+        break;
+      }
+      domainVolume *= diff;
+    }
+    if (!overflow && domainVolume < type.getNumElements()) {
+      isl_basic_map_free(bmap);
+      isl_ctx_free(ctx);
+      return false;
+    }
   }
 
   // Get the range set from the basic_map of the relation
@@ -1171,6 +1261,7 @@ bool isDenseLayout(const presburger::IntegerRelation& relation,
 
 int64_t relationSize(const IntegerRelation& rel) {
   isl_ctx* ctx = isl_ctx_alloc();
+  isl_ctx_set_max_operations(ctx, 5000000);
   isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
   isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
 
@@ -1181,6 +1272,13 @@ int64_t relationSize(const IntegerRelation& rel) {
   }
 
   isl_val* card = isl_set_count_val(set);
+
+  if (isl_ctx_last_error(ctx) == isl_error_quota) {
+    if (card) isl_val_free(card);
+    isl_set_free(set);
+    isl_ctx_free(ctx);
+    return -1;
+  }
 
   if (!card || isl_val_is_nan(card)) {
     if (card) isl_val_free(card);

@@ -219,6 +219,52 @@ inline constexpr char kNestedFloorUnequalRelation[] =
     "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
     "/102) }";
 
+// --- Criteo layouts ---
+
+inline constexpr char kCriteoLayout4[] =
+    "{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 16 = 0 and (-i0 + slot) mod "
+    "512 = 0 and 0 <= i0 <= 511 and 0 <= i1 <= 12 and 0 <= ct <= 15 and 0 <= "
+    "slot <= 32767 }";
+
+inline constexpr char kCriteoLayout7[] =
+    "{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 256 = 0 and (-i1 + ct + "
+    "slot) mod 512 = 0 and 0 <= i0 <= 255 and 0 <= i1 <= 511 and 0 <= ct <= "
+    "255 and 0 <= slot <= 32767 }";
+
+inline constexpr char kCriteoLayout24[] =
+    "{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 512 = 0 and (-i0 + slot) "
+    "mod "
+    "512 = 0 and 0 <= i0 <= 511 and 0 <= i1 <= 431 and 0 <= ct <= 511 and 0 <= "
+    "slot <= 32767 }";
+
+// --- Lola layouts ---
+
+inline constexpr char kLolaLayout2[] =
+    "{ [i0, i1, i2, i3] -> [ct, slot] : exists (e1, e2, e3, e4, e5: i0 = 0 and "
+    "ct = 0 and 0 <= i1 <= 7 and 0 <= i2 <= 13 and 0 <= i3 <= 13 and 0 <= slot "
+    "<= 1567 and 2048*floor((-1 - 196i1 - 14i2 - i3)/2048) <= -481 - 196i1 - "
+    "14i2 - i3 and 0 <= e1 <= 13 and 2035 + 196i1 + 14i2 + i3 + 196slot + "
+    "2048*floor((-1 - 196i1 - 14i2 - i3)/2048) - 14e1 <= 392e2 <= 2048 + "
+    "196i1 + 14i2 + i3 + 196slot + 2048*floor((-1 - 196i1 - 14i2 - i3)/2048) - "
+    "14e1 and -3 - slot + 2e2 <= 4e3 <= -slot + 2e2 and -1 - slot + 4e1 + 2e2 "
+    "- 4e3 <= 2e4 <= -slot + 4e1 + 2e2 - 4e3 and -3 - slot + 2e2 <= 4e5 <= "
+    "-slot + 2e2 and -4097 - 392i1 - 28i2 - 2i3 - 391slot - 4096*floor((-1 - "
+    "196i1 - 14i2 - i3)/2048) + 28e1 + 784e2 - 28e4 <= 784e5 <= -4096 - 392i1 "
+    "- 28i2 - 2i3 - 391slot - 4096*floor((-1 - 196i1 - 14i2 - i3)/2048) + 28e1 "
+    "+ 784e2 - 28e4) }";
+
+inline constexpr char kLolaLayout12[] =
+    "{ [i0, i1] -> [ct, slot] : exists (e0, e1, e2, e3, e4, e5, e6: 2048e6 = "
+    "-i0 + slot + 128e5 and 0 <= i0 <= 99 and 0 <= i1 <= 1567 and 0 <= ct <= "
+    "127 and 0 <= slot <= 2047 and 0 <= e0 <= 13 and 128e5 >= -1567 + i0 + ct "
+    "and 128e5 >= i0 + ct - 2e1 + 4e2 and 128e5 >= i0 + ct - 2e1 + 4e4 and i0 "
+    "+ ct - 4e0 - 2e1 + 4e2 + 2e3 <= 128e5 <= 1 + i0 + ct - 4e0 - 2e1 + 4e2 + "
+    "2e3 and 128e5 <= 3 + i0 + ct - 2e1 + 4e4 and 128e5 <= 3 + i0 + ct - 2e1 "
+    "+ 4e2 and 128e5 <= i0 + ct and -13 + 196i0 + i1 + 196ct - 14e0 - 392e1 "
+    "<= 25088e5 <= 196i0 + i1 + 196ct - 14e0 - 392e1 and 391i0 + 2i1 + 391ct "
+    "- 28e0 - 784e1 + 28e3 + 784e4 <= 50048e5 <= 1 + 391i0 + 2i1 + 391ct - "
+    "28e0 - 784e1 + 28e3 + 784e4) }";
+
 }  // namespace heir
 }  // namespace mlir
 

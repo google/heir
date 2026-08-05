@@ -383,24 +383,8 @@ static FailureOr<Value> implementAssignLayoutStep(
   bool isResourceConstant = !resourceRaw.empty() &&
                             elementType.isIntOrFloat() &&
                             elementType.getIntOrFloatBitWidth() % 8 == 0;
-  bool shouldFold = false;
-  if ((isDenseConstant || isResourceConstant) && dataSemanticType && isLast) {
-    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE ||
-        (strategy == CodegenStrategy::AUTO && isResourceConstant)) {
-      shouldFold = true;
-    } else if (strategy == CodegenStrategy::AUTO) {
-      int64_t relSize = relationSize(rel);
-      if (relSize <= 16384) {
-        shouldFold = true;
-      } else {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "Relation size " << relSize
-                   << " exceeds threshold 16384, skipping constant folding\n");
-      }
-    }
-  }
-
-  if (shouldFold) {
+  auto tryFolding = [&]() -> FailureOr<Value> {
+    if (!dataSemanticType) return failure();
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
     int64_t numTargetElements = targetType.getNumElements();
 
@@ -489,6 +473,39 @@ static FailureOr<Value> implementAssignLayoutStep(
                                                 packedConstantAttr);
     createdOpCallback(constantOp);
     return constantOp.getResult();
+  };
+
+  bool shouldFold = false;
+  if ((isDenseConstant || isResourceConstant) && dataSemanticType) {
+    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE ||
+        (strategy == CodegenStrategy::AUTO && isResourceConstant)) {
+      shouldFold = true;
+    } else if (strategy == CodegenStrategy::AUTO) {
+      if (rel.getNumLocalVars() > 5) {
+        LLVM_DEBUG(
+            llvm::dbgs()
+            << "Relation has many existentials, folding constant to avoid "
+               "loop generation hangs\n");
+        shouldFold = true;
+      } else {
+        int64_t relSize = relationSize(rel);
+        if (relSize >= 0 && relSize <= 16384) {
+          shouldFold = true;
+        } else {
+          LLVM_DEBUG(
+              llvm::dbgs()
+              << "Relation size " << relSize
+              << " exceeds threshold 16384, skipping constant folding\n");
+        }
+      }
+    }
+  }
+
+  if (shouldFold) {
+    auto folded = tryFolding();
+    if (succeeded(folded)) {
+      return folded.value();
+    }
   }
 
   auto zeroOp = arith::ConstantOp::create(builder, targetType,
