@@ -6,6 +6,7 @@
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
+#include "lib/Dialect/Kernel/IR/KernelDialect.h"
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
@@ -51,6 +52,7 @@ int main(int argc, char** argv) {
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<jaxiteword::JaxiteWordDialect>();
   registry.insert<key_mgmt::KeyMgmtDialect>();
+  registry.insert<kernel::KernelDialect>();
   registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
   registry.insert<mod_arith::ModArithDialect>();

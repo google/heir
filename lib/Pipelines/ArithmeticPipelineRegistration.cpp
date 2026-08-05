@@ -553,7 +553,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   }
 
   ElementwiseToAffineOptions elementwiseOptions;
-  elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};
+  elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe", "kernel"};
   pm.addPass(createElementwiseToAffine(elementwiseOptions));
 
   pm.addPass(tensor_ext::createTensorExtToTensor());

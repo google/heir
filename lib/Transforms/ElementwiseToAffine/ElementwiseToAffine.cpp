@@ -7,6 +7,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -34,6 +35,19 @@ namespace heir {
 // are mapped over), or if it has the ElementwiseByOperandOpInterface, which
 // means only some operands are mapped over.
 static bool isSupported(Operation* op) {
+  // Skip kernel dialect operations if they operate on standard floats or
+  // integers.
+  if (op->getDialect()->getNamespace() == "kernel") {
+    for (Type type : op->getOperandTypes()) {
+      if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
+        Type eltType = tensorType.getElementType();
+        if (llvm::isa<FloatType, IntegerType>(eltType)) {
+          return false;
+        }
+      }
+    }
+  }
+
   auto hasRankedTensorResult = [](Operation* op) {
     return llvm::any_of(op->getResultTypes(),
                         [](Type type) { return isa<RankedTensorType>(type); });
