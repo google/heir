@@ -49,6 +49,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -134,9 +135,95 @@ std::pair<Value, LayoutAttr> convertToLayout(
   return std::make_pair(toReplace, layoutAttr);
 }
 
+// The outcome of folding a zero `tensor.pad` on the width dim into a 1-D
+// conv's own `padding` parameter.
+struct FoldedConvPadding {
+  // What the Toeplitz matrix must be built against.
+  ConvMatrixOperand matrixOperand;
+  // The layout the padded operand must already carry for the fold to be valid.
+  IntegerRelation targetRelation;
+};
+
+// Try to fold a zero `tensor.pad` on the width dim of a conv's `data` operand
+// into the conv's own `padding` parameter.
+//
+// Returns nullopt when the pattern does not apply, in which case the caller
+// keeps the unfolded path. `dataType` must be rank 3 with N=1.
+std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
+    Value data, RankedTensorType dataType, LayoutAttr dataLayout,
+    int64_t ciphertextSize) {
+  assert(dataType.getRank() == 3 && dataType.getDimSize(0) == 1 &&
+         "expected a rank-3 N=1 conv data operand");
+
+  // DropUnitDims rewrites a rank-3 pad into
+  // collapse_shape -> tensor.pad (rank 2) -> expand_shape, so peel any
+  // reshape/cast chain to find the pad.
+  Value cursor = data;
+  tensor::PadOp padOp;
+  while (Operation* def = cursor.getDefiningOp()) {
+    if (auto p = dyn_cast<tensor::PadOp>(def)) {
+      padOp = p;
+      break;
+    }
+    if (isa<tensor::ExpandShapeOp, tensor::CollapseShapeOp, tensor::CastOp>(
+            def)) {
+      cursor = def->getOperand(0);
+      continue;
+    }
+    break;
+  }
+  if (!padOp) return std::nullopt;
+
+  Value padValue = padOp.getConstantPaddingValue();
+  bool zeroPad = padValue && (matchPattern(padValue, m_AnyZeroFloat()) ||
+                              matchPattern(padValue, m_Zero()));
+  if (!zeroPad) return std::nullopt;
+
+  // Only a symmetric pad on the trailing (width) dim is expressible as the
+  // conv's `padding` parameter, and only when the bounds are static. The pad
+  // may be rank 2 (unit batch dim dropped) or rank 3.
+  if (!padOp.getLow().empty() || !padOp.getHigh().empty()) return std::nullopt;
+  ArrayRef<int64_t> low = padOp.getStaticLow();
+  ArrayRef<int64_t> high = padOp.getStaticHigh();
+  bool widthOnly = !low.empty() && low.size() == high.size() &&
+                   low.back() == high.back() && low.back() > 0;
+  for (size_t i = 0; widthOnly && i + 1 < low.size(); ++i) {
+    widthOnly &= low[i] == 0 && high[i] == 0;
+  }
+  if (!widthOnly) return std::nullopt;
+
+  // The reshape chain above means the pad's width dim is not guaranteed to be
+  // this conv operand's width dim, so validate before building a type from it.
+  int64_t p = low.back();
+  std::optional<ConvMatrixOperand> matrixOperand =
+      foldConvWidthPadding(dataType, p);
+  if (!matrixOperand) return std::nullopt;
+
+  // The layout we expect on the padded value: the unpadded row-major layout
+  // with the width index shifted by `p`. If the actual layout is anything else
+  // (a conversion intervened, a non-row-major producer, reshapes that did not
+  // cancel) do not fold, rather than silently mis-indexing the matrix.
+  IntegerRelation expected =
+      getRowMajorLayoutRelation(matrixOperand->dataType, ciphertextSize);
+  expected = shiftVar(
+      expected, expected.getVarKindOffset(presburger::VarKind::Domain) + 2, p);
+  if (!dataLayout.getIntegerRelation().isEqual(expected)) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "conv_1d found a pad of " << p
+               << " but the operand layout does not match the shifted "
+                  "unpadded row-major layout; not folding\n");
+    return std::nullopt;
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "conv_1d folding tensor.pad of " << p
+                          << " into the conv padding parameter\n");
+  return FoldedConvPadding{*matrixOperand, expected};
+}
+
 // Return a copy of the kernel info associated with the value and update the
 // result shape to the new result shape. If the value does not have a kernel
 // info, return an empty Attribute.
+
 Attribute cloneKernelInfoWithResultShape(Value value,
                                          ArrayRef<int64_t> resultShape) {
   auto kernelInfo = findAttributeAssociatedWith(value, kKernelInfoAttrName);
@@ -179,6 +266,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(tensor::InsertOp op);
   LogicalResult visitOperation(tensor::InsertSliceOp op);
   LogicalResult visitOperation(tensor::ExtractSliceOp op);
+  LogicalResult visitOperation(tensor::PadOp op);
 
   // Determine if the operation arguments have compatible layouts for the
   // given op. If the check fails, the CompatibilityResult::compatible field
@@ -353,8 +441,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
       .Case<tensor::ExtractOp, tensor::InsertOp, tensor::InsertSliceOp,
-            tensor::ExtractSliceOp, CollapseShapeOp, ExpandShapeOp>(
-          [&](auto op) { return visitOperation(op); })
+            tensor::ExtractSliceOp, tensor::PadOp, CollapseShapeOp,
+            ExpandShapeOp>([&](auto op) { return visitOperation(op); })
       // AddI, AddF, mgmt.* all pass the layout through unchanged.
       .Default([&](Operation* op) {
         passLayoutThroughOp(op);
@@ -907,8 +995,15 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   }
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
+
+  ConvMatrixOperand matrixOperand{dataType};
   IntegerRelation targetDataRelation =
       getRowMajorLayoutRelation(dataType, minSlotCount);
+  if (auto folded =
+          tryFoldPadIntoConvPadding(data, dataType, dataLayout, minSlotCount)) {
+    matrixOperand = folded->matrixOperand;
+    targetDataRelation = folded->targetRelation;
+  }
 
   if (!isRelationEqual(dataLayout.getIntegerRelation(), targetDataRelation)) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, "
@@ -923,8 +1018,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   // into a larger matrix and then diagonalizing.
   LayoutAttr filterLayout = getComposedLayoutAttr(filter);
   auto convRelation = get1dConvCwFcwFilterDiagonalizedRelation(
-      filterType, dataType, stride, /*padding=*/0, minSlotCount,
-      /*interchangeRows=*/interchangeRows);
+      filterType, matrixOperand.dataType, stride, matrixOperand.padding,
+      minSlotCount, /*interchangeRows=*/interchangeRows);
   if (failed(convRelation)) {
     return failure();
   }
@@ -955,6 +1050,10 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
       LayoutAttr::getFromIntegerRelation(ctx, resultRelation);
   Attribute kernelInfoAttr =
       cloneKernelInfoWithResultShape(data, outputType.getShape());
+
+  // Record what the filter was diagonalized against, so that
+  // ConvertToCiphertextSemantics rebuilds the same expanded matrix shape.
+  setConvFoldedPadding(op, matrixOperand.padding);
 
   assignedLayouts.insert({result, resultLayoutAttr});
   setResultLayoutAttr(op, kernelInfoAttr);
@@ -1391,6 +1490,48 @@ LogicalResult LayoutPropagation::visitOperation(tensor::InsertSliceOp op) {
   Value result = op.getResult();
   assignedLayouts.insert({result, destLayout});
   debugAssignLayout(result, destLayout);
+  setResultLayoutAttr(op, kernelInfoAttr);
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(tensor::PadOp op) {
+  // A zero-pad does not move any data: result[i + low] = source[i], so the
+  // result layout is the source layout with each domain index shifted by the
+  // low padding. Pad positions stay unmapped in the relation; unmapped points
+  // are zero-filled when a layout is materialized, which matches the
+  // zero-fill pad body. (The default layout passthrough would instead map
+  // result[i] to source[i]'s slots — off by `low`, shifting every downstream
+  // consumer's reads by one stride per pad.)
+  if (!assignedLayouts.contains(op.getSource())) {
+    return op->emitError() << "Source tensor has no assigned layout";
+  }
+  Value padValue = op.getConstantPaddingValue();
+  if (!padValue || !(matchPattern(padValue, m_AnyZeroFloat()) ||
+                     matchPattern(padValue, m_Zero()))) {
+    return op->emitError()
+           << "layout propagation only supports zero-padding tensor.pad";
+  }
+  if (!op.getLow().empty() || !op.getHigh().empty()) {
+    return op->emitError()
+           << "layout propagation requires static tensor.pad bounds";
+  }
+
+  IntegerRelation padRelation =
+      getComposedLayoutAttr(op.getSource()).getIntegerRelation();
+  auto domainVarOffset =
+      padRelation.getVarKindOffset(presburger::VarKind::Domain);
+  for (auto [dim, low] : llvm::enumerate(op.getStaticLow())) {
+    if (low != 0) {
+      padRelation = shiftVar(padRelation, domainVarOffset + dim, low);
+    }
+  }
+
+  LayoutAttr outputLayout =
+      LayoutAttr::getFromIntegerRelation(op.getContext(), padRelation);
+  Attribute kernelInfoAttr = cloneKernelInfoWithResultShape(
+      op.getSource(), op.getResultType().getShape());
+  assignedLayouts.insert({op.getResult(), outputLayout});
+  debugAssignLayout(op.getResult(), outputLayout);
   setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }

@@ -146,6 +146,8 @@ cc_test(
         ":Evaluate",
         ":Utils",
         "@googletest//:gtest_main",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
+        "@heir//lib/Utils:MathUtils",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

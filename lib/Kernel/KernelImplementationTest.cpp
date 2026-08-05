@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -735,6 +736,74 @@ TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2) {
 
   // Result is 4 2x2 tensors with a row-major layout.
   EXPECT_EQ(actualUnpacked, expected);
+}
+
+// End-to-end Halevi-Shoup matvec for a padded strided 1-D multichannel conv, in
+// the packing production uses when LayoutPropagation folds a zero tensor.pad on
+// the width dim into the conv's own `padding` parameter: the data ciphertext is
+// packed row-major at the *unpadded* width, and the Toeplitz matrix is built
+// with padding = p so that a window reaching into the padding contributes no
+// column. `expected` is the convolution of the zero-padded data.
+void checkPaddedConv1dCwFcw(int64_t padding, const tensor3d& expected,
+                            bool unroll, bool interchangeRows) {
+  SCOPED_TRACE("padding = " + std::to_string(padding));
+  MLIRContext context;
+  // 1x2x6 input data, 2x2x3 filter, stride 2.
+  tensor3d data = {{{0, 1, 2, 3, 4, 5}, {6, 7, 8, 9, 10, 11}}};
+  tensor3d filter = {{{3, 4, 1}, {1, 5, 2}}, {{1, 2, 3}, {2, 2, 2}}};
+  int64_t stride = 2;
+  int numSlots = 16;
+
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 6}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3}, mlir::IndexType::get(&context));
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn3D(data));
+
+  auto filterLayout = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, padding, numSlots, interchangeRows);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  // The matrix shape must be derived the same way the filter was diagonalized,
+  // i.e. against the unpadded data type with padding = p: implementHaleviShoup
+  // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
+  auto expandedFilterShape =
+      get1dConvCwFcwFilterExpandedType(filterType, dataType, stride, padding);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  int64_t outputWidth = expected[0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, 2, outputWidth}, mlir::IndexType::get(&context));
+  auto resultLayout = get1dConvResultRelation(outputType, stride, /*padding=*/0,
+                                              numSlots, interchangeRows);
+
+  EXPECT_EQ(
+      unpackLayoutTo3DTensor<int>(resultLayout, {actual}, {1, 2, outputWidth}),
+      expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2WithPadding) {
+  // Same shape family as TestConv1dCwFcwStride2, but with padding != 0
+  // padding 1 keeps the unpadded and padded column counts in the same
+  // power-of-two bucket (2*6=12 and 2*8=16 both round to 16); padding 2 does
+  // not (2*6=12 rounds to 16, 2*10=20 rounds to 32).
+  checkPaddedConv1dCwFcw(/*padding=*/1, {{{45, 79, 111}, {29, 62, 86}}},
+                         std::get<0>(GetParam()), std::get<1>(GetParam()));
+  checkPaddedConv1dCwFcw(/*padding=*/2, {{{12, 63, 95, 97}, {12, 50, 74, 56}}},
+                         std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(KernelImplementationTest,

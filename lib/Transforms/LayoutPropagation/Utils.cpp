@@ -59,6 +59,32 @@ std::optional<KernelInfo> getKernelInfo(Attribute attr) {
   return info;
 }
 
+std::optional<ConvMatrixOperand> foldConvWidthPadding(RankedTensorType dataType,
+                                                      int64_t padding) {
+  if (dataType.getRank() != 3) return std::nullopt;
+  int64_t width = dataType.getDimSize(2) - 2 * padding;
+  if (width <= 0) return std::nullopt;
+  return ConvMatrixOperand{
+      RankedTensorType::get(
+          {dataType.getDimSize(0), dataType.getDimSize(1), width},
+          dataType.getElementType()),
+      padding};
+}
+
+int64_t getConvFoldedPadding(Operation* op) {
+  if (auto attr = op->getAttrOfType<IntegerAttr>(kConvFoldedPaddingAttrName)) {
+    return attr.getInt();
+  }
+  return 0;
+}
+
+void setConvFoldedPadding(Operation* op, int64_t padding) {
+  if (padding == 0) return;
+  op->setAttr(
+      kConvFoldedPaddingAttrName,
+      IntegerAttr::get(IntegerType::get(op->getContext(), 64), padding));
+}
+
 int64_t maxOfMaxes(ArrayRef<int64_t> d1, ArrayRef<int64_t> d2) {
   int64_t max = d1.front();
   for (int64_t di : d1) {
