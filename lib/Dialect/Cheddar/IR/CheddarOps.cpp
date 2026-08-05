@@ -1,5 +1,7 @@
 #include "lib/Dialect/Cheddar/IR/CheddarOps.h"
 
+#include <algorithm>
+
 #include "lib/Dialect/Cheddar/IR/CheddarTypes.h"
 #include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Utils.h"
@@ -27,11 +29,10 @@ LogicalResult HRotOp::verify() {
 
 ::llvm::SmallVector<::mlir::OpFoldResult>
 LinearTransformOp::getRotationIndices() {
-  auto diagonalsType = cast<RankedTensorType>(getDiagonals().getType());
+  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
   int64_t slots = diagonalsType.getShape()[1];
-  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
-  auto rotations = lintransRotationIndices(
-      getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+  auto rotations = lintransRotationIndicesWithBabyStep(
+      getDiagonalIndicesAttr().asArrayRef(), slots, getBs().getInt());
   SmallVector<OpFoldResult> result;
   result.reserve(rotations.size());
   auto* mlirCtx = (*this)->getContext();
