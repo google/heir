@@ -110,3 +110,16 @@ func.func @test_sqrt_default_params(%x: f32) -> f32 {
   %0 = math.sqrt %x : f32
   return %0 : f32
 }
+
+// -----
+
+
+// CHECK: @test_math_fpowi
+func.func @test_math_fpowi(%x: tensor<4xf32>) -> tensor<4xf32> {
+  // CHECK: polynomial.eval
+  // CHECK-SAME: domain_lower = 0.000000e+00
+  // CHECK-SAME: domain_upper = 1.000000e+00
+  %c2 = arith.constant dense<2> : tensor<4xi64>
+  %0 = math.fpowi %x, %c2 {domain_lower = 0.0 : f64, domain_upper = 1.0 : f64}: tensor<4xf32>, tensor<4xi64>
+  return %0 : tensor<4xf32>
+}
