@@ -15,7 +15,7 @@ jobs:
     runs-on:
       labels: ubuntu-latest
     env:
-      BUILDBUDDY_API_KEY: ${{ github.repository == 'google/heir' && secrets.BUILDBUDDY_API_KEY || '7eYz4UY70YSrT55wmjWV' }}
+      BUILDBUDDY_API_KEY: ${{ github.repository == 'google/heir' && secrets.BUILDBUDDY_API_KEY || 'SEVzwPt2S7PHhY1OxD3u' }}
       BAZEL_CONFIG_FLAG: ${{ github.repository == 'google/heir' && '--config=ci --config=remote' || '--config=ci' }}
     steps:
       - name: Check out repository code
