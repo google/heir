@@ -23,8 +23,10 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Target/CompilationTarget",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
     ],
 )
 
