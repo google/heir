@@ -1682,6 +1682,9 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
   });
 
   TypeSwitch<Operation*>(op)
+      // These ops shouldn't rectify operand layouts
+      .Case<func::FuncOp, func::ReturnOp, secret::GenericOp, secret::YieldOp>(
+          [&](auto op) { return; })
       // Ops with special rules
       .Case<DotOp, ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
