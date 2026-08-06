@@ -697,6 +697,97 @@ struct ConvertOrionChebyshevOp
   }
 };
 
+struct ConvertKernelLinearTransformOp
+    : public OpConversionPattern<kernel::LinearTransformOp> {
+  using OpConversionPattern<kernel::LinearTransformOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      kernel::LinearTransformOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Lowering Kernel LinearTransformOp\n");
+
+    FailureOr<Value> evaluatorResult =
+        getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
+    if (failed(evaluatorResult)) {
+      return rewriter.notifyMatchFailure(
+          op, "CKKS evaluator not found in function context");
+    }
+    Value evaluator = evaluatorResult.value();
+
+    FailureOr<Value> encoderResult =
+        getContextualEvaluator<lattigo::CKKSEncoderType>(op.getOperation());
+    if (failed(encoderResult)) {
+      return rewriter.notifyMatchFailure(
+          op, "CKKS encoder not found in function context");
+    }
+    Value encoder = encoderResult.value();
+
+    // Extract level from input LWE ciphertext type
+    auto lweType = dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
+    if (!lweType) {
+      return rewriter.notifyMatchFailure(op, "input is not LWE ciphertext");
+    }
+    auto modulusChain = lweType.getModulusChain();
+    if (!modulusChain) {
+      return rewriter.notifyMatchFailure(op,
+                                         "input LWE type has no modulus chain");
+    }
+    int64_t levelQ =
+        modulusChain.getElements().size() - 1 - modulusChain.getCurrent();
+
+    // Convert diagonal_indices from I64 to I32 (Lattigo CKKSLinearTransformOp
+    // expects I32)
+    auto diagonalIndicesAttr = op.getDiagonalIndices();
+    std::vector<int32_t> diagonalIndicesI32;
+    for (auto val : diagonalIndicesAttr) {
+      diagonalIndicesI32.push_back(static_cast<int32_t>(val));
+    }
+    auto diagonalIndicesI32Attr =
+        rewriter.getDenseI32ArrayAttr(diagonalIndicesI32);
+
+    // logBabyStepGiantStepRatio
+    // For now default to 0.
+    int64_t logBSGSRatio = 0;
+
+    auto levelQAttr = rewriter.getI64IntegerAttr(levelQ);
+    auto logBSGSRatioAttr = rewriter.getI64IntegerAttr(logBSGSRatio);
+
+    auto diagonalsAttr = op.getDiagonals();
+    Value diagonalsValue =
+        rewriter.create<arith::ConstantOp>(op.getLoc(), diagonalsAttr);
+
+    auto linearTransformOp = rewriter.create<lattigo::CKKSLinearTransformOp>(
+        op.getLoc(), adaptor.getInput().getType(), evaluator, encoder,
+        adaptor.getInput(), diagonalsValue, diagonalIndicesI32Attr, levelQAttr,
+        logBSGSRatioAttr);
+
+    auto outputLweType =
+        dyn_cast<lwe::LWECiphertextType>(op.getResult().getType());
+    if (!outputLweType) {
+      return rewriter.notifyMatchFailure(op, "output is not LWE ciphertext");
+    }
+    auto outputModulusChain = outputLweType.getModulusChain();
+    if (!outputModulusChain) {
+      return rewriter.notifyMatchFailure(
+          op, "output LWE type has no modulus chain");
+    }
+
+    Value result = linearTransformOp.getResult();
+    if (outputModulusChain.getCurrent() < modulusChain.getCurrent()) {
+      int64_t diff =
+          modulusChain.getCurrent() - outputModulusChain.getCurrent();
+      for (int64_t i = 0; i < diff; ++i) {
+        auto rescaleOp = rewriter.create<lattigo::CKKSRescaleNewOp>(
+            op.getLoc(), result.getType(), evaluator, result);
+        result = rescaleOp.getResult();
+      }
+    }
+
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 struct ConvertKernelEvalChebyshevOp
     : public OpConversionPattern<kernel::EvalChebyshevOp> {
   using OpConversionPattern<kernel::EvalChebyshevOp>::OpConversionPattern;
@@ -918,7 +1009,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
                       lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp,
-                      kernel::EvalChebyshevOp>();
+                      kernel::EvalChebyshevOp, kernel::LinearTransformOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -1098,8 +1189,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
           ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
           ConvertCKKSBootstrappingOp, ConvertOrionLinearTransformOp,
-          ConvertOrionChebyshevOp, ConvertKernelEvalChebyshevOp>(typeConverter,
-                                                                 context);
+          ConvertOrionChebyshevOp, ConvertKernelEvalChebyshevOp,
+          ConvertKernelLinearTransformOp>(typeConverter, context);
     }
     // Misc
 
