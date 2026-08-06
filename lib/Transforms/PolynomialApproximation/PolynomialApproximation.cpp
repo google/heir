@@ -5,17 +5,19 @@
 #include <functional>
 #include <utility>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/MathExt/IR/MathExtOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
-#include "llvm/include/llvm/ADT/APFloat.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Math/IR/Math.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/APFloat.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -214,11 +216,12 @@ inline APFloat minnumf(const APFloat& lhs, const APFloat& rhs) {
 
 template <typename OpTy>
 struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
-  ConvertUnaryOp(mlir::MLIRContext* context,
+  ConvertUnaryOp(mlir::MLIRContext* context, DataFlowSolver* solver,
                  const std::function<APFloat(APFloat)>& cppFunc,
                  double lower = kDefaultDomainLower,
                  double upper = kDefaultDomainUpper)
       : OpRewritePattern<OpTy>(context, /*benefit=*/1),
+        solver(solver),
         cppFunc(cppFunc),
         lower(lower),
         upper(upper) {}
@@ -226,6 +229,9 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
  public:
   LogicalResult matchAndRewrite(OpTy op,
                                 PatternRewriter& rewriter) const override {
+    if (!mlir::heir::isSecret(op.getOperand(), solver)) {
+      return rewriter.notifyMatchFailure(op, "operand is not secret");
+    }
     MLIRContext* ctx = op.getContext();
     IntegerAttr degreeAttr = op->hasAttr("degree")
                                  ? cast<IntegerAttr>(op->getAttr("degree"))
@@ -266,6 +272,7 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
   }
 
  private:
+  DataFlowSolver* solver;
   std::function<APFloat(APFloat)> cppFunc;
   double lower;
   double upper;
@@ -303,11 +310,12 @@ FailureOr<APFloat> getSingleValueOrSplat(Value value) {
 
 template <typename OpTy>
 struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
-  ConvertBinaryConstOp(mlir::MLIRContext* context,
+  ConvertBinaryConstOp(mlir::MLIRContext* context, DataFlowSolver* solver,
                        const std::function<APFloat(APFloat, APFloat)>& cppFunc,
                        double lower = kDefaultDomainLower,
                        double upper = kDefaultDomainUpper)
       : OpRewritePattern<OpTy>(context, /*benefit=*/1),
+        solver(solver),
         cppFunc(cppFunc),
         lower(lower),
         upper(upper) {}
@@ -336,6 +344,10 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     APFloat constValue =
         lhsIsConstant ? lhsConstResult.value() : rhsConstResult.value();
     Value nonConstOperand = lhsIsConstant ? rhs : lhs;
+
+    if (!mlir::heir::isSecret(nonConstOperand, solver)) {
+      return rewriter.notifyMatchFailure(op, "operand is not secret");
+    }
 
     // cppFunc is a binary op, so we need to give it the constant value to
     // convert it to a unary op.
@@ -389,6 +401,7 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
   }
 
  private:
+  DataFlowSolver* solver;
   std::function<APFloat(APFloat, APFloat)> cppFunc;
   double lower;
   double upper;
@@ -398,14 +411,19 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
 // repeated squaring. When the domain is in [-2^k, 1], this is more efficient
 // in level consumption than the default polynomial approximation solver.
 struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
-  ExpOpTaylorApproximation(MLIRContext* context, int64_t defaultK = 7)
+  ExpOpTaylorApproximation(MLIRContext* context, DataFlowSolver* solver,
+                           int64_t defaultK = 7)
       : OpRewritePattern<math::ExpOp>(context, /*benefit=*/2),
+        solver(solver),
         defaultK(defaultK) {}
 
   LogicalResult matchAndRewrite(math::ExpOp op,
                                 PatternRewriter& rewriter) const override {
     Location loc = op.getLoc();
     Value operand = op.getOperand();
+    if (!mlir::heir::isSecret(operand, solver)) {
+      return rewriter.notifyMatchFailure(op, "operand is not secret");
+    }
     Type type = operand.getType();
 
     int64_t k = defaultK;
@@ -473,6 +491,7 @@ struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
   }
 
  private:
+  DataFlowSolver* solver;
   int64_t defaultK;
 };
 
@@ -482,52 +501,67 @@ struct PolynomialApproximation
 
   void runOnOperation() override {
     MLIRContext* context = &getContext();
+
+    DataFlowSolver solver;
+    dataflow::loadBaselineAnalyses(solver);
+    solver.load<SecretnessAnalysis>();
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run SecretnessAnalysis.\n";
+      return signalPassFailure();
+    }
+
     RewritePatternSet patterns(context);
 
     // High priority patterns
-    patterns.add<ExpOpTaylorApproximation>(context, /*k=*/7);
+    patterns.add<ExpOpTaylorApproximation>(context, &solver, /*k=*/7);
 
     // Math unary ops
-    patterns.add<ConvertUnaryOp<math::AbsFOp>>(context, absf);
-    patterns.add<ConvertUnaryOp<math::AcosOp>>(context, acos);
-    patterns.add<ConvertUnaryOp<math::AcoshOp>>(context, acosh);
-    patterns.add<ConvertUnaryOp<math::AsinOp>>(context, asin);
-    patterns.add<ConvertUnaryOp<math::AsinhOp>>(context, asinh);
-    patterns.add<ConvertUnaryOp<math::AtanOp>>(context, atan);
-    patterns.add<ConvertUnaryOp<math::AtanhOp>>(context, atanh);
-    patterns.add<ConvertUnaryOp<math::CbrtOp>>(context, cbrt);
-    patterns.add<ConvertUnaryOp<math::CeilOp>>(context, ceil);
-    patterns.add<ConvertUnaryOp<math::CosOp>>(context, cos);
-    patterns.add<ConvertUnaryOp<math::CoshOp>>(context, cosh);
-    patterns.add<ConvertUnaryOp<math::ErfOp>>(context, erf);
-    patterns.add<ConvertUnaryOp<math::ErfcOp>>(context, erfc);
-    patterns.add<ConvertUnaryOp<math::ExpOp>>(context, exp);
-    patterns.add<ConvertUnaryOp<math::Exp2Op>>(context, exp2);
-    patterns.add<ConvertUnaryOp<math::ExpM1Op>>(context, expm1);
-    patterns.add<ConvertUnaryOp<math::FloorOp>>(context, floor);
-    patterns.add<ConvertUnaryOp<math::LogOp>>(
-        context, log, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
-    patterns.add<ConvertUnaryOp<math::Log10Op>>(
-        context, log10, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
-    patterns.add<ConvertUnaryOp<math::Log1pOp>>(context, log1p);
-    patterns.add<ConvertUnaryOp<math::Log2Op>>(
-        context, log2, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
-    patterns.add<ConvertUnaryOp<math::RoundOp>>(context, round);
-    patterns.add<ConvertUnaryOp<math::RsqrtOp>>(
-        context, rsqrt, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
-    patterns.add<ConvertUnaryOp<math::SinOp>>(context, sin);
-    patterns.add<ConvertUnaryOp<math::SinhOp>>(context, sinh);
-    patterns.add<ConvertUnaryOp<math::SqrtOp>>(context, sqrt,
+    patterns.add<ConvertUnaryOp<math::AbsFOp>>(context, &solver, absf);
+    patterns.add<ConvertUnaryOp<math::AcosOp>>(context, &solver, acos);
+    patterns.add<ConvertUnaryOp<math::AcoshOp>>(context, &solver, acosh);
+    patterns.add<ConvertUnaryOp<math::AsinOp>>(context, &solver, asin);
+    patterns.add<ConvertUnaryOp<math::AsinhOp>>(context, &solver, asinh);
+    patterns.add<ConvertUnaryOp<math::AtanOp>>(context, &solver, atan);
+    patterns.add<ConvertUnaryOp<math::AtanhOp>>(context, &solver, atanh);
+    patterns.add<ConvertUnaryOp<math::CbrtOp>>(context, &solver, cbrt);
+    patterns.add<ConvertUnaryOp<math::CeilOp>>(context, &solver, ceil);
+    patterns.add<ConvertUnaryOp<math::CosOp>>(context, &solver, cos);
+    patterns.add<ConvertUnaryOp<math::CoshOp>>(context, &solver, cosh);
+    patterns.add<ConvertUnaryOp<math::ErfOp>>(context, &solver, erf);
+    patterns.add<ConvertUnaryOp<math::ErfcOp>>(context, &solver, erfc);
+    patterns.add<ConvertUnaryOp<math::ExpOp>>(context, &solver, exp);
+    patterns.add<ConvertUnaryOp<math::Exp2Op>>(context, &solver, exp2);
+    patterns.add<ConvertUnaryOp<math::ExpM1Op>>(context, &solver, expm1);
+    patterns.add<ConvertUnaryOp<math::FloorOp>>(context, &solver, floor);
+    patterns.add<ConvertUnaryOp<math::LogOp>>(context, &solver, log,
+                                              kDefaultPositiveRangeLower,
+                                              kDefaultPositiveRangeUpper);
+    patterns.add<ConvertUnaryOp<math::Log10Op>>(context, &solver, log10,
+                                                kDefaultPositiveRangeLower,
+                                                kDefaultPositiveRangeUpper);
+    patterns.add<ConvertUnaryOp<math::Log1pOp>>(context, &solver, log1p);
+    patterns.add<ConvertUnaryOp<math::Log2Op>>(context, &solver, log2,
+                                               kDefaultPositiveRangeLower,
+                                               kDefaultPositiveRangeUpper);
+    patterns.add<ConvertUnaryOp<math::RoundOp>>(context, &solver, round);
+    patterns.add<ConvertUnaryOp<math::RsqrtOp>>(context, &solver, rsqrt,
+                                                kDefaultPositiveRangeLower,
+                                                kDefaultPositiveRangeUpper);
+    patterns.add<ConvertUnaryOp<math::SinOp>>(context, &solver, sin);
+    patterns.add<ConvertUnaryOp<math::SinhOp>>(context, &solver, sinh);
+    patterns.add<ConvertUnaryOp<math::SqrtOp>>(context, &solver, sqrt,
                                                kDefaultNonNegativeRangeLower,
                                                kDefaultNonNegativeRangeUpper);
-    patterns.add<ConvertUnaryOp<math::TanOp>>(context, tan);
-    patterns.add<ConvertUnaryOp<math::TanhOp>>(context, tanh);
-    patterns.add<ConvertUnaryOp<math::TruncOp>>(context, trunc);
-    patterns.add<ConvertUnaryOp<math_ext::SignOp>>(context, sign);
-    patterns.add<ConvertUnaryOp<math_ext::SigmoidOp>>(context, sigmoid);
+    patterns.add<ConvertUnaryOp<math::TanOp>>(context, &solver, tan);
+    patterns.add<ConvertUnaryOp<math::TanhOp>>(context, &solver, tanh);
+    patterns.add<ConvertUnaryOp<math::TruncOp>>(context, &solver, trunc);
+    patterns.add<ConvertUnaryOp<math_ext::SignOp>>(context, &solver, sign);
+    patterns.add<ConvertUnaryOp<math_ext::SigmoidOp>>(context, &solver,
+                                                      sigmoid);
 
     // TODO(#1514): Restore with alternative roundeven
-    // patterns.add<ConvertUnaryOp<math::RoundEvenOp>>(context, _roundeven);
+    // patterns.add<ConvertUnaryOp<math::RoundEvenOp>>(context, &solver,
+    // _roundeven);
 
     // Unsupported math dialect unary ops:
     // math::AbsIOp
@@ -540,17 +574,22 @@ struct PolynomialApproximation
     // math::IsnormalOp
 
     // Math binary ops (when one argument is statically constant)
-    patterns.add<ConvertBinaryConstOp<arith::MaxNumFOp>>(context, maxnumf);
-    patterns.add<ConvertBinaryConstOp<arith::MaximumFOp>>(context, maxf);
-    patterns.add<ConvertBinaryConstOp<arith::MinNumFOp>>(context, minf);
-    patterns.add<ConvertBinaryConstOp<arith::MinimumFOp>>(context, minnumf);
-    patterns.add<ConvertBinaryConstOp<math::Atan2Op>>(context, atan2);
-    patterns.add<ConvertBinaryConstOp<math::CopySignOp>>(context, copysign);
-    patterns.add<ConvertBinaryConstOp<math::FPowIOp>>(context, fpowi);
-    patterns.add<ConvertBinaryConstOp<math::PowFOp>>(context, powf);
+    patterns.add<ConvertBinaryConstOp<arith::MaxNumFOp>>(context, &solver,
+                                                         maxnumf);
+    patterns.add<ConvertBinaryConstOp<arith::MaximumFOp>>(context, &solver,
+                                                          maxf);
+    patterns.add<ConvertBinaryConstOp<arith::MinNumFOp>>(context, &solver,
+                                                         minf);
+    patterns.add<ConvertBinaryConstOp<arith::MinimumFOp>>(context, &solver,
+                                                          minnumf);
+    patterns.add<ConvertBinaryConstOp<math::Atan2Op>>(context, &solver, atan2);
+    patterns.add<ConvertBinaryConstOp<math::CopySignOp>>(context, &solver,
+                                                         copysign);
+    patterns.add<ConvertBinaryConstOp<math::FPowIOp>>(context, &solver, fpowi);
+    patterns.add<ConvertBinaryConstOp<math::PowFOp>>(context, &solver, powf);
 
     // Math ternary ops
-    // patterns.add<ConvertUnaryOp<math::FmaOp>>(context, fma);
+    // patterns.add<ConvertUnaryOp<math::FmaOp>>(context, &solver, fma);
 
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.

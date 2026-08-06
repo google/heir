@@ -97,7 +97,8 @@ std::optional<RNSPolynomial> RNSPolynomial::scalarMul(
   return RNSPolynomial(std::move(resultData), moduli, representation);
 }
 
-RNSPolynomial RNSPolynomial::mul(const RNSPolynomial& other) const {
+std::optional<RNSPolynomial> RNSPolynomial::mul(
+    const RNSPolynomial& other) const {
   assert(moduli == other.moduli && "Moduli must match for multiplication");
   assert(numCoeffs == other.numCoeffs && "Number of coefficients must match");
   assert(representation == other.representation &&
@@ -121,14 +122,23 @@ RNSPolynomial RNSPolynomial::mul(const RNSPolynomial& other) const {
   }
 
   if (representation == Form::COEFF && other.representation == Form::COEFF) {
-    return toNtt().mul(other.toNtt()).toCoefficient();
+    auto lhsNtt = toNtt();
+    if (!lhsNtt) return std::nullopt;
+    auto rhsNtt = other.toNtt();
+    if (!rhsNtt) return std::nullopt;
+    auto prodNtt = lhsNtt->mul(*rhsNtt);
+    if (!prodNtt) return std::nullopt;
+    return prodNtt->toCoefficient();
   }
 
-  return RNSPolynomial();
+  return std::nullopt;
 }
 
-RNSPolynomial RNSPolynomial::toNtt(
+std::optional<RNSPolynomial> RNSPolynomial::toNtt(
     llvm::ArrayRef<uint64_t> rootsOfUnity) const {
+  if (numCoeffs > 0 && (numCoeffs & (numCoeffs - 1)) != 0) {
+    return std::nullopt;
+  }
   assert(representation == Form::COEFF && "Already in NTT representation");
 
   llvm::SmallVector<uint64_t> resultData;
@@ -149,7 +159,7 @@ RNSPolynomial RNSPolynomial::toNtt(
       llvm::APInt qAp(64, modulus);
       std::optional<llvm::APInt> rootOpt =
           findPrimitive2nthRoot(qAp, numCoeffs);
-      assert(rootOpt.has_value() && "Primitive 2n-th root of unity not found");
+      if (!rootOpt.has_value()) return std::nullopt;
       rootOfUnity = rootOpt->getZExtValue();
     }
 
@@ -166,7 +176,7 @@ RNSPolynomial RNSPolynomial::toNtt(
   return RNSPolynomial(std::move(resultData), moduli, Form::EVAL);
 }
 
-RNSPolynomial RNSPolynomial::toNtt(rns::RNSAttr rootAttr) const {
+std::optional<RNSPolynomial> RNSPolynomial::toNtt(rns::RNSAttr rootAttr) const {
   if (!rootAttr) return toNtt(llvm::ArrayRef<uint64_t>());
 
   llvm::SmallVector<uint64_t> roots;
@@ -178,8 +188,11 @@ RNSPolynomial RNSPolynomial::toNtt(rns::RNSAttr rootAttr) const {
   return toNtt(roots);
 }
 
-RNSPolynomial RNSPolynomial::toCoefficient(
+std::optional<RNSPolynomial> RNSPolynomial::toCoefficient(
     llvm::ArrayRef<uint64_t> rootsOfUnity) const {
+  if (numCoeffs > 0 && (numCoeffs & (numCoeffs - 1)) != 0) {
+    return std::nullopt;
+  }
   assert(representation == Form::EVAL &&
          "Already in Coefficient representation");
 
@@ -201,7 +214,7 @@ RNSPolynomial RNSPolynomial::toCoefficient(
       llvm::APInt qAp(64, modulus);
       std::optional<llvm::APInt> rootOpt =
           findPrimitive2nthRoot(qAp, numCoeffs);
-      assert(rootOpt.has_value() && "Primitive 2n-th root of unity not found");
+      if (!rootOpt.has_value()) return std::nullopt;
       rootOfUnity = rootOpt->getZExtValue();
     }
 
@@ -218,7 +231,8 @@ RNSPolynomial RNSPolynomial::toCoefficient(
   return RNSPolynomial(std::move(resultData), moduli, Form::COEFF);
 }
 
-RNSPolynomial RNSPolynomial::toCoefficient(rns::RNSAttr rootAttr) const {
+std::optional<RNSPolynomial> RNSPolynomial::toCoefficient(
+    rns::RNSAttr rootAttr) const {
   if (!rootAttr) return toCoefficient(llvm::ArrayRef<uint64_t>());
 
   llvm::SmallVector<uint64_t> roots;

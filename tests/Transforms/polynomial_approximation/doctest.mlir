@@ -1,7 +1,7 @@
 // RUN: heir-opt --polynomial-approximation %s | FileCheck %s
 
 // CHECK: @test_exp
-func.func @test_exp(%x: f32) -> f32 {
+func.func @test_exp(%x: f32 {secret.secret}) -> f32 {
   // CHECK: arith.mulf
   %0 = math.exp %x {
       degree = 3 : i32,
@@ -11,9 +11,17 @@ func.func @test_exp(%x: f32) -> f32 {
 }
 
 // CHECK: @test_sin_default_params
-func.func @test_sin_default_params(%x: f32) -> f32 {
+func.func @test_sin_default_params(%x: f32 {secret.secret}) -> f32 {
   // CHECK: polynomial.eval
   // CHECK-SAME: [{{.*}}, {{.*}}, {{.*}}, {{.*}}, {{.*}}, {{.*}}]
+  %0 = math.sin %x : f32
+  return %0 : f32
+}
+
+// CHECK: @cleartext_left_alone
+func.func @cleartext_left_alone(%x: f32) -> f32 {
+  // CHECK-NOT: polynomial.eval
+  // CHECK: math.sin
   %0 = math.sin %x : f32
   return %0 : f32
 }

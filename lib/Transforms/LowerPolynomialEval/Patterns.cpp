@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <map>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Kernel/AbstractValue.h"
@@ -223,6 +225,52 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   Value finalOutput = visitor.process(resultNode, b)[0];
 
   rewriter.replaceOp(op, finalOutput);
+  return success();
+}
+
+LogicalResult LowerToKernelEvalChebyshev::matchAndRewrite(
+    EvalOp op, PatternRewriter& rewriter) const {
+  if (!mlir::heir::isSecret(op.getValue(), &solver)) {
+    return rewriter.notifyMatchFailure(op, "operand is not secret");
+  }
+  auto attr = dyn_cast<polynomial::TypedChebyshevPolynomialAttr>(
+      op.getPolynomialAttr());
+  if (!attr) return failure();
+
+  auto lowerAttr = op->getAttrOfType<FloatAttr>("domain_lower");
+  auto upperAttr = op->getAttrOfType<FloatAttr>("domain_upper");
+  if (!lowerAttr || !upperAttr) return failure();
+
+  double lower = lowerAttr.getValue().convertToDouble();
+  double upper = upperAttr.getValue().convertToDouble();
+
+  ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+  Value xInput = op.getValue();
+
+  if (std::abs(lower - -1.0) > 1e-9 || std::abs(upper - 1.0) > 1e-9) {
+    APFloat rescale = APFloat(2.0 / (upper - lower));
+    APFloat shift = APFloat(-(upper + lower) / (upper - lower));
+
+    Type inputType = xInput.getType();
+
+    if (!rescale.isExactlyValue(1.0)) {
+      xInput = arith::MulFOp::create(
+                   b, xInput,
+                   arith::ConstantOp::create(
+                       b, inputType, getScalarOrDenseAttr(inputType, rescale)))
+                   .getResult();
+    }
+    if (!shift.isZero()) {
+      xInput = arith::AddFOp::create(
+                   b, xInput,
+                   arith::ConstantOp::create(
+                       b, inputType, getScalarOrDenseAttr(inputType, shift)))
+                   .getResult();
+    }
+  }
+
+  rewriter.replaceOpWithNewOp<kernel::EvalChebyshevOp>(
+      op, op.getType(), xInput, attr.getValue().getCoefficients());
   return success();
 }
 

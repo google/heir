@@ -244,11 +244,11 @@ void annotateSecretness(Operation* top, DataFlowSolver* solver, bool verbose);
 
 // this method is used when DataFlowSolver has finished running the secretness
 // analysis
-bool isSecret(Value value, DataFlowSolver* solver);
+bool isSecret(Value value, const DataFlowSolver* solver);
 
 bool isSecret(const SecretnessLattice* lattice);
 
-bool isSecret(ValueRange values, DataFlowSolver* solver);
+bool isSecret(ValueRange values, const DataFlowSolver* solver);
 
 void getSecretOperands(Operation* op,
                        SmallVectorImpl<OpOperand*>& secretOperands,

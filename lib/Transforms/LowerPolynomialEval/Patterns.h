@@ -9,11 +9,14 @@
 // Lowering patterns for polynomial.eval.
 
 namespace mlir {
+class DataFlowSolver;
 namespace heir {
 
 struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
-  LoweringBase(MLIRContext* context, bool force = false)
-      : mlir::OpRewritePattern<polynomial::EvalOp>(context), force(force) {}
+  LoweringBase(MLIRContext* context, bool force = false,
+               PatternBenefit benefit = 1)
+      : mlir::OpRewritePattern<polynomial::EvalOp>(context, benefit),
+        force(force) {}
 
   bool shouldForce() const { return force; }
 
@@ -66,6 +69,20 @@ struct LowerViaPatersonStockmeyerChebyshev : public ChebyshevLoweringBase {
 
   LogicalResult matchAndRewrite(polynomial::EvalOp op,
                                 PatternRewriter& rewriter) const override;
+};
+
+// Lower polynomial.eval that uses a Chebyshev float polynomial to
+// kernel.eval_chebyshev.
+struct LowerToKernelEvalChebyshev : public LoweringBase {
+  LowerToKernelEvalChebyshev(MLIRContext* context, const DataFlowSolver& solver,
+                             bool force = false)
+      : LoweringBase(context, force, /*benefit=*/2), solver(solver) {}
+
+  LogicalResult matchAndRewrite(polynomial::EvalOp op,
+                                PatternRewriter& rewriter) const override;
+
+ private:
+  const DataFlowSolver& solver;
 };
 
 }  // namespace heir

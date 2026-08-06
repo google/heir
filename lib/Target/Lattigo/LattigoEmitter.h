@@ -18,6 +18,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -136,6 +137,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::arith::SubIOp op);
   LogicalResult printOperation(::mlir::arith::SubFOp op);
   LogicalResult printOperation(::mlir::arith::XOrIOp op);
+  LogicalResult printOperation(::mlir::math::SqrtOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);

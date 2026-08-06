@@ -1,7 +1,7 @@
 // RUN: heir-opt --math-to-polynomial-approximation %s | FileCheck %s --dump-input=always
 
 // CHECK: @test_maximumf
-func.func @test_maximumf(%x: tensor<10xf32>) -> tensor<10xf32> {
+func.func @test_maximumf(%x: tensor<10xf32> {secret.secret}) -> tensor<10xf32> {
   // CHECK-NOT: arith.maximumf
   // CHECK-NOT: polynomial.eval
 

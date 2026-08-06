@@ -12,11 +12,13 @@ cc_library(
     hdrs = ["PolynomialApproximation.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/MathExt/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils/Approximation:CaratheodoryFejer",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MathDialect",

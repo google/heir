@@ -148,6 +148,7 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           .Case<preprocessing::LoadResourceOp>(
               [&](auto op) { return printOperation(op); })
+          .Case<math::SqrtOp>([&](auto op) { return printOperation(op); })
 
           // Lattigo ops
           .Case<
@@ -1057,6 +1058,28 @@ LogicalResult LattigoEmitter::printOperation(arith::XOrIOp op) {
     return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
   }
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "^");
+}
+
+LogicalResult LattigoEmitter::printOperation(math::SqrtOp op) {
+  imports.insert("\"math\"");
+  Type type = op.getOperand().getType();
+  auto typeStringResult = convertType(type);
+  if (failed(typeStringResult)) return failure();
+  std::string typeString = typeStringResult.value();
+
+  std::string operandName = getName(op.getOperand());
+  std::string resultName = getName(op.getResult());
+
+  if (typeString == "float32") {
+    os << resultName << " := float32(math.Sqrt(float64(" << operandName
+       << ")))\n";
+  } else if (typeString == "float64") {
+    os << resultName << " := math.Sqrt(" << operandName << ")\n";
+  } else {
+    return op.emitOpError("Unsupported float type for math.sqrt: ")
+           << typeString;
+  }
+  return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::RemSIOp op) {
@@ -2604,7 +2627,7 @@ void registerToLattigoTranslation() {
                     func::FuncDialect, tensor::TensorDialect,
                     tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
                     memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
-                    preprocessing::PreprocessingDialect>();
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
       });
 }
 
@@ -2625,7 +2648,7 @@ void registerToLattigoPreprocessingTranslation() {
                     func::FuncDialect, tensor::TensorDialect,
                     tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
                     memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
-                    preprocessing::PreprocessingDialect>();
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
       });
 }
 
@@ -2646,7 +2669,7 @@ void registerToLattigoPreprocessedTranslation() {
                     func::FuncDialect, tensor::TensorDialect,
                     tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
                     memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
-                    preprocessing::PreprocessingDialect>();
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
       });
 }
 
