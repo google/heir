@@ -17,6 +17,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/CKKS/IR:Enums",
+        "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
