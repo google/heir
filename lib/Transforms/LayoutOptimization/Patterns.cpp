@@ -161,11 +161,20 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
       return std::nullopt;
     }
     auto innerArg = genericOp.getBody(0)->getArgument(use.getOperandNumber());
-    if (!innerArg.hasOneUse()) return std::nullopt;
-    // Any further layout conversions after operations that don't change layout
-    // were already hoisted through in the layout-optimization pass.
-    auto convertLayoutOp =
-        dyn_cast<ConvertLayoutOp>(*innerArg.getUsers().begin());
+    ConvertLayoutOp convertLayoutOp = nullptr;
+    for (auto user : innerArg.getUsers()) {
+      if (user->getDialect()->getNamespace() == "debug") {
+        continue;
+      }
+      // Any further layout conversions after operations that don't change
+      // layout were already hoisted through in the layout-optimization pass.
+      if (auto op = dyn_cast<ConvertLayoutOp>(user)) {
+        if (convertLayoutOp) return std::nullopt;
+        convertLayoutOp = op;
+      } else {
+        return std::nullopt;
+      }
+    }
     if (!convertLayoutOp) return std::nullopt;
 
     return convertLayoutOp;

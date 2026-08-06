@@ -74,7 +74,7 @@ def TensorExt_RemapOp : TensorExt_Op<"remap", [Pure, AllTypesMatch<["input", "ou
     represent a ciphertext slot-repacking operation. However, it can more
     generally express any partial mapping from source tensor indices to target
     indices within a tensor. Unmapped entries from the input tensor are
-    unmodified.
+    zeroed out in the output tensor.
 
     This operation differs from a `tensor.gather/scatter` operation in that it
     can replicate values from the source tensor or omit values in the

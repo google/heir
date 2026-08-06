@@ -52,6 +52,16 @@ struct OnlyExtractionSourceNeedsLayout
   }
 };
 
+struct PadLayoutRequirement
+    : public OperandLayoutRequirementOpInterface::ExternalModel<
+          PadLayoutRequirement, tensor::PadOp> {
+  bool operandRequiresLayout(Operation* op, unsigned operandIndex,
+                             bool isSecret) const {
+    // tensor::PadOp only requires layout for the source tensor (operand 0).
+    return operandIndex == 0;
+  }
+};
+
 struct InsertSliceLayoutRequirement
     : public OperandLayoutRequirementOpInterface::ExternalModel<
           InsertSliceLayoutRequirement, tensor::InsertSliceOp> {
@@ -77,6 +87,7 @@ void registerOperandLayoutRequirementOpInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, tensor::TensorDialect* dialect) {
     tensor::InsertOp::attachInterface<InsertionLayoutRequirement>(*ctx);
     tensor::ExtractOp::attachInterface<OnlyExtractionSourceNeedsLayout>(*ctx);
+    tensor::PadOp::attachInterface<PadLayoutRequirement>(*ctx);
     tensor::InsertSliceOp::attachInterface<InsertSliceLayoutRequirement>(*ctx);
   });
 }
