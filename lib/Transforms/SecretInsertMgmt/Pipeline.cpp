@@ -8,6 +8,7 @@
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -198,8 +199,9 @@ void insertMgmtInitForPlaintexts(Operation* top, bool includeFloats) {
   if (includeFloats) {
     patterns.add<UseInitOpForPlaintextOperand<arith::AddFOp>,
                  UseInitOpForPlaintextOperand<arith::SubFOp>,
-                 UseInitOpForPlaintextOperand<arith::MulFOp>>(ctx, top,
-                                                              &solver);
+                 UseInitOpForPlaintextOperand<arith::MulFOp>,
+                 UseInitOpForPlaintextOperand<kernel::EvalChebyshevOp>>(
+        ctx, top, &solver);
   }
 
   (void)walkAndApplyPatterns(top, std::move(patterns));
@@ -227,9 +229,12 @@ void insertModReduceBeforeOrAfterMult(Operation* top, bool afterMul,
   } else {
     patterns.add<ModReduceBefore<arith::MulIOp>>(ctx, beforeMulIncludeFirstMul,
                                                  top, &solver);
-    if (includeFloats)
+    if (includeFloats) {
       patterns.add<ModReduceBefore<arith::MulFOp>>(
           ctx, beforeMulIncludeFirstMul, top, &solver);
+      patterns.add<ModReduceBefore<kernel::EvalChebyshevOp>>(
+          ctx, beforeMulIncludeFirstMul, top, &solver);
+    }
     // includeFirstMul = false here
     // as before yield we only want mulResult to be mod reduced
     patterns.add<ModReduceBefore<secret::YieldOp>>(
