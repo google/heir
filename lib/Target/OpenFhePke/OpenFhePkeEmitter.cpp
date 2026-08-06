@@ -212,10 +212,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
-                BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
-                FastRotationExtOp, FastRotationPrecomputeOp, GenBootstrapKeyOp,
-                GenContextOp, GenMulKeyOp, GenParamsOp, GenRotKeyOp,
-                KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
+                BootstrapOp, DecryptOp, EncryptOp, EvalChebyshevSeriesOp,
+                FastRotationOp, FastRotationExtOp, FastRotationPrecomputeOp,
+                GenBootstrapKeyOp, GenContextOp, GenMulKeyOp, GenParamsOp,
+                GenRotKeyOp, KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
                 LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
                 MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
                 MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
@@ -1974,6 +1974,42 @@ LogicalResult OpenFhePkeEmitter::printOperation(EncryptOp op) {
                          {op.getEncryptionKey(), op.getPlaintext()}, "Encrypt");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(EvalChebyshevSeriesOp op) {
+  emitAutoAssignPrefix(op.getResult());
+
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalChebyshevSeries" << "(";
+  os << variableNames->getNameForValue(op.getCiphertext()) << ", ";
+
+  std::vector<std::string> coefs;
+  for (auto attr : op.getCoefficients()) {
+    if (auto floatAttr = llvm::dyn_cast<FloatAttr>(attr)) {
+      auto valOr = printFloatAttr(floatAttr);
+      if (failed(valOr)) {
+        return op.emitError("Failed to print float attribute in coefficients");
+      }
+      coefs.push_back(valOr.value());
+    } else {
+      return op.emitError("coefficients must be an array of float attributes");
+    }
+  }
+  os << "std::vector<double>{" << llvm::join(coefs, ", ") << "}, ";
+
+  auto lowerOr = printFloatAttr(op.getDomainLowerAttr());
+  if (failed(lowerOr)) {
+    return op.emitError("Failed to print domain_lower");
+  }
+  os << lowerOr.value() << ", ";
+
+  auto upperOr = printFloatAttr(op.getDomainUpperAttr());
+  if (failed(upperOr)) {
+    return op.emitError("Failed to print domain_upper");
+  }
+  os << upperOr.value() << ");\n";
+
+  return success();
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(DecryptOp op) {
   // Decrypt asks for a pointer to an outparam for the output plaintext
   os << "PlaintextT " << variableNames->getNameForValue(op.getResult())
@@ -2064,8 +2100,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenContextOp op) {
   os << contextName << "->Enable(PKE);\n";
   os << contextName << "->Enable(KEYSWITCH);\n";
   os << contextName << "->Enable(LEVELEDSHE);\n";
-  if (op.getSupportFHE()) {
+  if (op.getSupportAdvancedSHE() || op.getSupportFHE()) {
     os << contextName << "->Enable(ADVANCEDSHE);\n";
+  }
+  if (op.getSupportFHE()) {
     os << contextName << "->Enable(FHE);\n";
   }
   return success();

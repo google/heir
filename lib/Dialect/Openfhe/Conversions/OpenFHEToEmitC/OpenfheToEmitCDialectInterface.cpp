@@ -218,8 +218,10 @@ struct ConvertGenContextOp : public OpConversionPattern<GenContextOp> {
     enableFeature("PKE");
     enableFeature("KEYSWITCH");
     enableFeature("LEVELEDSHE");
-    if (op.getSupportFHE()) {
+    if (op.getSupportAdvancedSHE() || op.getSupportFHE()) {
       enableFeature("ADVANCEDSHE");
+    }
+    if (op.getSupportFHE()) {
       enableFeature("FHE");
     }
 

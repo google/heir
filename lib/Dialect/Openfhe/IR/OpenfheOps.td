@@ -216,9 +216,10 @@ def GenParamsOp : Openfhe_Op<"gen_params"> {
 def GenContextOp : Openfhe_Op<"gen_context"> {
   let arguments = (ins
     Openfhe_CCParams:$params,
-    BoolAttr:$supportFHE
+    BoolAttr:$supportFHE,
+    DefaultValuedAttr<BoolAttr, "false">:$supportAdvancedSHE
   );
-  let results = (outs Openfhe_CryptoContext:$context);
+  let results = (outs Openfhe_CryptoContext:$cryptoContext);
 }
 
 def GenMulKeyOp : Openfhe_Op<"gen_mulkey"> {
@@ -542,6 +543,21 @@ def DecodeCKKSOp : Openfhe_Op<"decode_ckks", [
   let assemblyFormat = [{
     operands attr-dict `:` type($input) `->` type($output)
   }];
+}
+
+def Openfhe_EvalChebyshevSeriesOp : Openfhe_Op<"eval_chebyshev_series", [
+  Pure,
+  AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "Evaluate a Chebyshev polynomial series on a ciphertext using OpenFHE's EvalChebyshevSeries";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_Ciphertext:$ciphertext,
+    ArrayAttr:$coefficients,
+    Builtin_FloatAttr:$domain_lower,
+    Builtin_FloatAttr:$domain_upper
+  );
+  let results = (outs Openfhe_Ciphertext:$output);
 }
 
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_

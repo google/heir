@@ -55,6 +55,7 @@ struct Config {
   // computed from IR
   bool hasRelinOp;
   bool hasBootstrapOp;
+  bool hasAdvancedSHEOp;
   SmallVector<int64_t> rotIndices;
   // inherited from IR mgmt.openfhe_params
   int64_t evalAddCount;
@@ -98,7 +99,8 @@ struct ConfigureCryptoContext
   bool hasRelinOp(func::FuncOp op) {
     bool result = false;
     walkFuncAndCallees(op, [&](Operation* op) {
-      if (isa<openfhe::RelinOp, openfhe::MulOp, openfhe::RelinInPlaceOp>(op)) {
+      if (isa<openfhe::RelinOp, openfhe::MulOp, openfhe::RelinInPlaceOp,
+              openfhe::EvalChebyshevSeriesOp>(op)) {
         result = true;
         return WalkResult::interrupt();
       }
@@ -112,6 +114,19 @@ struct ConfigureCryptoContext
     bool result = false;
     walkFuncAndCallees(op, [&](Operation* op) {
       if (isa<openfhe::BootstrapOp>(op)) {
+        result = true;
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
+    });
+    return result;
+  }
+
+  // Helper function to check if the function has AdvancedSHEOp
+  bool hasAdvancedSHEOp(func::FuncOp op) {
+    bool result = false;
+    walkFuncAndCallees(op, [&](Operation* op) {
+      if (isa<openfhe::EvalChebyshevSeriesOp>(op)) {
         result = true;
         return WalkResult::interrupt();
       }
@@ -156,7 +171,10 @@ struct ConfigureCryptoContext
         /*scalingTechniqueFixedManual*/ config.scalingTechniqueFixedManual);
     Value cryptoContext = openfhe::GenContextOp::create(
         builder, openfheContextType, ccParams,
-        BoolAttr::get(builder.getContext(), config.hasBootstrapOp));
+        /*supportFHE=*/
+        BoolAttr::get(builder.getContext(), config.hasBootstrapOp),
+        /*supportAdvancedSHE=*/
+        BoolAttr::get(builder.getContext(), config.hasAdvancedSHEOp));
 
     func::ReturnOp::create(builder, cryptoContext);
     return success();
@@ -326,6 +344,7 @@ struct ConfigureCryptoContext
     }
 
     config.hasBootstrapOp = hasBootstrapOp(op);
+    config.hasAdvancedSHEOp = hasAdvancedSHEOp(op);
     // Only add bootstrapDepth if the user has not manually set mul depth.
     // In particular, we add bootstrap depth because our mul depth analysis
     // does not consider bootstrap depth yet.
