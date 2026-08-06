@@ -10,7 +10,11 @@ module attributes {scheme.ckks} {
   // CHECK: [[out:ct[0-9]+]]_polyCoeffs := []*big.Float{
   // CHECK: [[out]]_interval := [2]float64{-2.000000e+00, 2.000000e+00}
   // CHECK: [[out]]_bignumPoly := bignum.NewPolynomial(bignum.Chebyshev, [[out]]_polyCoeffs, [[out]]_interval)
-  // CHECK: [[out]], {{.*}} := {{.*}}.Evaluate(
+  // CHECK: [[scalar:ct[0-9]+_scalar]], [[constant:ct[0-9]+_constant]] := [[out]]_bignumPoly.ChangeOfBasis()
+  // CHECK: [[transformed:ct[0-9]+_transformed]], [[err:err[0-9]*]] := {{.*}}.MulNew({{.*}}, [[scalar]])
+  // CHECK: [[err]] = {{.*}}.Add([[transformed]], [[constant]], [[transformed]])
+  // CHECK: [[err]] = {{.*}}.Rescale([[transformed]], [[transformed]])
+  // CHECK: [[out]], [[err]] := {{.*}}.Evaluate([[transformed]], [[out]]_bignumPoly, {{.*}})
   func.func @chebyshev_custom_domain(%params: !params, %evaluator: !evaluator, %ct: !ct) -> !ct {
     %eval = lattigo.ckks.new_polynomial_evaluator %params, %evaluator : (!params, !evaluator) -> !eval
     %0 = lattigo.ckks.chebyshev %eval, %ct {coefficients = [1.0, 0.5], targetScale = 1073741824, domain = array<f64: -2.0, 2.0>} : (!eval, !ct) -> !ct

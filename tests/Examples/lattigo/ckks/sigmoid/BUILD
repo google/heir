@@ -12,11 +12,11 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:sigmoid.mlir",
+    split_preprocessing = False,
 )
 
 go_test(
     name = "sigmoid_test",
     srcs = ["sigmoid_test.go"],
     embed = [":sigmoid"],
-    deps = [":sigmoid_utils"],
 )

@@ -4,8 +4,6 @@ import (
 	"math"
 	"testing"
 	"time"
-
-	"tests/Examples/lattigo/ckks/sigmoid/sigmoid_utils"
 )
 
 func Sigmoid32(x float32) float32 {
@@ -35,13 +33,10 @@ func TestSigmoid(t *testing.T) {
 
 	ct0 := Sigmoid__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
-	startPre := time.Now()
-	filterPlains := sigmoid_utils.Sigmoid__preprocessing(params, ecd)
-	t.Logf("Preprocessing took %s", time.Since(startPre))
-
+	// No preprocessing needed
 	start := time.Now()
-	resultCt := Sigmoid__preprocessed(evaluator, params, ecd, ct0, filterPlains)
-	t.Logf("Sigmoid (preprocessed) took %s", time.Since(start))
+	resultCt := Sigmoid(evaluator, params, ecd, ct0)
+	t.Logf("Sigmoid took %s", time.Since(start))
 
 	result := Sigmoid__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 

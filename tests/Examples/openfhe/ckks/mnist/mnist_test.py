@@ -109,11 +109,24 @@ class MNISTTest(absl.testing.absltest.TestCase):
     correct = 0
     samples_processed = 0
 
+    # Load plaintext model for comparison
+    pt_model = torch.jit.load(MODEL_PATH)
+    pt_model.eval()
+
     for batch_data, batch_target in test_loader:
       if samples_processed >= total:
         break
 
       input_tensor = batch_data.contiguous()  # (1, 1, 28, 28)
+
+      # Run plaintext model
+      with torch.no_grad():
+        pt_output = pt_model(input_tensor.view(1, -1))
+        pt_output_list = pt_output.flatten().tolist()
+        pt_max_id = pt_output.argmax().item()
+        print(f"Plaintext output: {pt_output_list}")
+        print(f"Plaintext max_id: {pt_max_id}")
+
       input_vector = input_tensor.flatten().tolist()
       input_encrypted = mnist.mnist__encrypt__arg4(
           crypto_context, input_vector, public_key
@@ -145,6 +158,7 @@ class MNISTTest(absl.testing.absltest.TestCase):
       if max_id == label:
         correct += 1
 
+      print(f"output: {output}")
       print(f"max_id: {max_id}, label: {label}")
       samples_processed += 1
 

@@ -6,6 +6,7 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -158,13 +159,23 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
       llvm::map_range(secretOperands, [](OpOperand* op) { return op->get(); }));
   // iterating over Values instead of OpOperands
   // because one Value can corresponds to multiple OpOperands
+  bool changed = false;
   for (auto operand : secretOperandValues) {
+    if (auto defOp = operand.getDefiningOp()) {
+      if (isa<kernel::EvalChebyshevOp>(defOp)) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "ModReduceBefore: skipping operand defined by "
+                      "EvalChebyshevOp\n");
+        continue;
+      }
+    }
     rewriter.setInsertionPoint(op);
     auto managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), operand);
     op->replaceUsesOfWith(operand, managed);
+    changed = true;
   }
 
-  return success();
+  return changed ? success() : failure();
 }
 
 template <typename Op>
@@ -437,6 +448,8 @@ template struct MultRelinearize<arith::MulFOp>;
 template struct UseInitOpForPlaintextOperand<arith::AddFOp>;
 template struct UseInitOpForPlaintextOperand<arith::MulFOp>;
 template struct UseInitOpForPlaintextOperand<arith::SubFOp>;
+template struct ModReduceBefore<kernel::EvalChebyshevOp>;
+template struct UseInitOpForPlaintextOperand<kernel::EvalChebyshevOp>;
 
 }  // namespace heir
 }  // namespace mlir

@@ -16,4 +16,5 @@ def OpenFHE : CompilationTarget<"openfhe"> {
   //
   // Cf. https://github.com/google/heir/issues/1207#issuecomment-3678602453
   let bootstrapLevelsConsumed = 22;
+  let has_kernel_chebyshev = 1;
 }
