@@ -48,7 +48,7 @@ bool hasRelinOp(func::FuncOp op) {
   bool result = false;
   walkFuncAndCallees(op, [&](Operation* op) {
     if (isa<BGVRelinearizeOp, BGVRelinearizeNewOp, CKKSRelinearizeOp,
-            CKKSRelinearizeNewOp>(op)) {
+            CKKSRelinearizeNewOp, lattigo::CKKSChebyshevOp>(op)) {
       result = true;
       return WalkResult::interrupt();
     }

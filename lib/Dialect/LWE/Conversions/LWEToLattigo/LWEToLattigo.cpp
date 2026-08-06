@@ -9,6 +9,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -693,6 +694,74 @@ struct ConvertOrionChebyshevOp
   }
 };
 
+struct ConvertKernelEvalChebyshevOp
+    : public OpConversionPattern<kernel::EvalChebyshevOp> {
+  using OpConversionPattern<kernel::EvalChebyshevOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      kernel::EvalChebyshevOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Lowering Kernel EvalChebyshevOp\n");
+    FailureOr<Value> evaluatorResult =
+        findUniqueOpResult<lattigo::CKKSPolynomialEvaluatorType>(
+            op.getOperation());
+    Value polyEvaluator;
+    if (failed(evaluatorResult)) {
+      LLVM_DEBUG(llvm::dbgs() << "Creating new CKKS polynomial evaluator\n");
+      FailureOr<Value> evaluatorResult =
+          getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
+      if (failed(evaluatorResult)) {
+        return rewriter.notifyMatchFailure(
+            op, "CKKS evaluator not found in function context");
+      }
+      Value evaluator = evaluatorResult.value();
+
+      FailureOr<Value> result2 =
+          getContextualEvaluator<lattigo::CKKSParameterType>(op.getOperation());
+      if (failed(result2))
+        return rewriter.notifyMatchFailure(
+            op, "Failed to get contextual CKKS parameters");
+      Value params = result2.value();
+
+      {
+        OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointToStart(
+            &op->getParentOfType<func::FuncOp>().getBody().front());
+        auto evaluatorOp = lattigo::CKKSNewPolynomialEvaluatorOp::create(
+            rewriter, op.getLoc(),
+            lattigo::CKKSPolynomialEvaluatorType::get(rewriter.getContext()),
+            params, evaluator);
+        polyEvaluator = evaluatorOp.getResult();
+      }
+    } else {
+      polyEvaluator = evaluatorResult.value();
+    }
+
+    Attribute schemeParamAttr = getSchemeParamAttr(op);
+    IntegerAttr targetScale;
+    if (schemeParamAttr) {
+      if (auto ckksParams = dyn_cast<ckks::SchemeParamAttr>(schemeParamAttr)) {
+        targetScale = rewriter.getIntegerAttr(
+            rewriter.getI64Type(), 1L << ckksParams.getLogDefaultScale());
+      } else {
+        return rewriter.notifyMatchFailure(op,
+                                           "Scheme params are not CKKS params");
+      }
+    } else {
+      targetScale = rewriter.getIntegerAttr(rewriter.getI64Type(), 1L << 40);
+    }
+
+    auto domainAttr = rewriter.getDenseF64ArrayAttr({-1.0, 1.0});
+
+    auto chebyshevOp = lattigo::CKKSChebyshevOp::create(
+        rewriter, op.getLoc(), adaptor.getInput().getType(), polyEvaluator,
+        adaptor.getInput(), adaptor.getCoefficients(), targetScale, domainAttr);
+    rewriter.replaceOp(op, chebyshevOp.getResult());
+
+    return success();
+  }
+};
+
 }  // namespace
 
 // BGV
@@ -845,7 +914,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
-                      lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp>();
+                      lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp,
+                      kernel::EvalChebyshevOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -1018,15 +1088,15 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                                                                 context);
     }
     if (moduleIsCKKS(module)) {
-      patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
-                   ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp,
-                   ConvertCKKSMulPlainOp, ConvertCKKSRelinOp,
-                   ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
-                   ConvertCKKSEncryptOp, ConvertCKKSDecryptOp,
-                   ConvertCKKSEncodeOp, ConvertCKKSDecodeOp,
-                   ConvertCKKSLevelReduceOp, ConvertCKKSBootstrappingOp,
-                   ConvertOrionLinearTransformOp, ConvertOrionChebyshevOp>(
-          typeConverter, context);
+      patterns.add<
+          ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
+          ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
+          ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
+          ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
+          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
+          ConvertCKKSBootstrappingOp, ConvertOrionLinearTransformOp,
+          ConvertOrionChebyshevOp, ConvertKernelEvalChebyshevOp>(typeConverter,
+                                                                 context);
     }
     // Misc
 
