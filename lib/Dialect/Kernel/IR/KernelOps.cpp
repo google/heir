@@ -7,13 +7,18 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
-#include "mlir/include/mlir/IR/OpImplementation.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 // IWYU pragma: end_keep
 
 // Generated definitions
@@ -132,6 +137,70 @@ int EvalChebyshevOp::getLevelsToDrop() {
 
 ::mlir::OpOperand& EvalChebyshevOp::getOperandToReduce() {
   return getOperation()->getOpOperand(0);
+}
+
+int LinearTransformOp::getLevelsToDrop() { return 1; }
+
+::mlir::OpOperand& LinearTransformOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(0);
+}
+
+LogicalResult LinearTransformOp::verify() {
+  auto inputType = getInput().getType();
+  auto diagonalsAttr = getDiagonals();
+  auto diagonalsType = dyn_cast<ShapedType>(diagonalsAttr.getType());
+  if (!diagonalsType) {
+    return emitOpError("diagonals must have a shaped type");
+  }
+
+  if (diagonalsType.getRank() != 2) {
+    return emitOpError("diagonals must be a 2D tensor");
+  }
+
+  if (auto inputRankedType = dyn_cast<RankedTensorType>(inputType)) {
+    int64_t inputSize = 0;
+    auto elementType = inputRankedType.getElementType();
+    int64_t slotsPerCiphertext = 1;
+    if (auto ctType = dyn_cast<lwe::LWECiphertextType>(elementType)) {
+      auto plaintextSpace = ctType.getPlaintextSpace();
+      auto ring = plaintextSpace.getRing();
+      slotsPerCiphertext =
+          ring.getPolynomialModulus().getPolynomial().getDegree();
+      if (isa<lwe::InverseCanonicalEncodingAttr>(
+              plaintextSpace.getEncoding())) {
+        slotsPerCiphertext /= 2;
+      }
+    }
+
+    if (inputRankedType.getRank() == 1) {
+      inputSize = inputRankedType.getDimSize(0) * slotsPerCiphertext;
+    } else if (inputRankedType.getRank() == 2) {
+      if (inputRankedType.getDimSize(0) != 1) {
+        return emitOpError(
+            "input tensor batch dimension (first dimension) must be 1");
+      }
+      inputSize = inputRankedType.getDimSize(1) * slotsPerCiphertext;
+    } else {
+      return emitOpError("input must be 1D or 2D ranked tensor");
+    }
+
+    int64_t diagonalSlotSize = diagonalsType.getDimSize(1);
+    if (inputSize != diagonalSlotSize) {
+      return emitOpError("input slot size (")
+             << inputSize << ") must match diagonals slot size ("
+             << diagonalSlotSize << ")";
+    }
+  }
+
+  int64_t numDiagonals = diagonalsType.getDimSize(0);
+  int64_t numIndices = getDiagonalIndices().size();
+  if (numDiagonals != numIndices) {
+    return emitOpError("number of diagonals (")
+           << numDiagonals << ") must match number of diagonal indices ("
+           << numIndices << ")";
+  }
+
+  return success();
 }
 
 }  // namespace kernel

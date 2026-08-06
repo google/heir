@@ -23,7 +23,11 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 512 = 0 and 0 <= i0 <= 511 and 0 <= slot <= 1023 }">
 #layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 783 and 0 <= slot <= 1023 }">
 #layout2 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 512 = 0 and (-i1 + ct + slot) mod 1024 = 0 and 0 <= i0 <= 511 and 0 <= i1 <= 783 and 0 <= ct <= 511 and 0 <= slot <= 1023 }">
-module attributes {backend.lattigo, scheme.ckks} {
+module attributes {
+  backend.lattigo,
+  backend.config_override = {has_kernel_linear_transform = false},
+  scheme.ckks
+} {
   func.func @matvec(%arg0: !secret.secret<tensor<784xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<512xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<512xf32>
     %cst_0 = arith.constant dense<1.000000e+00> : tensor<512x784xf32>

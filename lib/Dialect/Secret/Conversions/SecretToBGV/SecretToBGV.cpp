@@ -100,7 +100,10 @@ class SecretToBGVTypeConverter
         ring(rlweRing),
         plaintextModulus(ptm),
         isBFV(isBFV) {
-    addConversion([](Type type, Attribute attr) { return type; });
+    addConversion([](Type type, Attribute attr) -> std::optional<Type> {
+      if (isa<secret::SecretType>(type)) return std::nullopt;
+      return type;
+    });
     addConversion(
         [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
           // For cases like tensor.empty + mgmt.init, we need to convert this
@@ -225,7 +228,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     // pass option minSlotCount is actually the number of slots
     // TODO(#1402): use a proper name for BGV
     auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   minSlotCount);
+                                   1 << schemeParamAttr.getLogN());
     if (failed(rlweRing)) {
       return signalPassFailure();
     }

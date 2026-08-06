@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -26,6 +27,7 @@
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/Utils.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -893,6 +895,125 @@ struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
 
  private:
   bool unrollKernels;
+};
+
+struct PreserveLinalgMatvecAsLinearTransform
+    : public ConversionBase<linalg::MatvecOp> {
+ public:
+  using ConversionBase<linalg::MatvecOp>::ConversionBase;
+
+  PreserveLinalgMatvecAsLinearTransform(
+      const ContextAwareTypeConverter& typeConverter, MLIRContext* context)
+      : ConversionBase<linalg::MatvecOp>(typeConverter, context,
+                                         /*benefit=*/20) {}
+
+  LogicalResult matchAndRewrite(
+      linalg::MatvecOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto target = getTargetConfig(op->getParentOfType<ModuleOp>());
+    if (failed(target) || !target->has_kernel_linear_transform) {
+      return rewriter.notifyMatchFailure(op, "linear transform not enabled");
+    }
+
+    Value matrixOperand = op.getInputs()[0];
+    LayoutAttr matrixLayout = getLayoutAttr(matrixOperand);
+    if (!matrixLayout) {
+      return rewriter.notifyMatchFailure(op, "missing layout for matrix");
+    }
+
+    Value matrix = matrixOperand;
+    if (auto assignLayoutOp =
+            matrix.getDefiningOp<tensor_ext::AssignLayoutOp>()) {
+      matrix = assignLayoutOp.getValue();
+    }
+    auto constantMatrixOp = matrix.getDefiningOp<arith::ConstantOp>();
+    if (!constantMatrixOp) {
+      return rewriter.notifyMatchFailure(op, "matrix is not a constant");
+    }
+    auto denseAttr = dyn_cast<DenseElementsAttr>(constantMatrixOp.getValue());
+    if (!denseAttr) {
+      return rewriter.notifyMatchFailure(op,
+                                         "matrix is not a DenseElementsAttr");
+    }
+
+    auto matrixType = cast<RankedTensorType>(matrix.getType());
+    auto convertedMatrixType = cast<ShapedType>(
+        getTypeConverter()->convertType(matrixType, matrixLayout));
+    if (!convertedMatrixType) {
+      return rewriter.notifyMatchFailure(op, "failed to convert matrix type");
+    }
+
+    int64_t numDiagonals = convertedMatrixType.getShape()[0];
+    int64_t slots = convertedMatrixType.getShape()[1];
+    auto elementType = matrixType.getElementType();
+
+    Attribute zeroAttr = rewriter.getZeroAttr(elementType);
+    std::vector<Attribute> diagonalValues(numDiagonals * slots, zeroAttr);
+
+    auto matrixRelation = matrixLayout.getIntegerRelation();
+    PointPairCollector collector(2, 2);
+    enumeratePoints(matrixRelation, collector);
+
+    int64_t numCols = matrixType.getDimSize(1);
+    for (const auto& pointPair : collector.points) {
+      int64_t row = pointPair.first[0];
+      int64_t col = pointPair.first[1];
+      int64_t d = pointPair.second[0];
+      int64_t s = pointPair.second[1];
+
+      int64_t flatIndex = row * numCols + col;
+      Attribute val = denseAttr.getValues<Attribute>()[flatIndex];
+      diagonalValues[d * slots + s] = val;
+    }
+
+    std::vector<int64_t> nonZeroDiagonalIndices;
+    std::vector<Attribute> nonZeroDiagonalValues;
+    for (int64_t d = 0; d < numDiagonals; ++d) {
+      bool isZero = true;
+      for (int64_t s = 0; s < slots; ++s) {
+        if (diagonalValues[d * slots + s] != zeroAttr) {
+          isZero = false;
+          break;
+        }
+      }
+      if (!isZero) {
+        nonZeroDiagonalIndices.push_back(d);
+        for (int64_t s = 0; s < slots; ++s) {
+          nonZeroDiagonalValues.push_back(diagonalValues[d * slots + s]);
+        }
+      }
+    }
+
+    auto diagonalsType = RankedTensorType::get(
+        {static_cast<int64_t>(nonZeroDiagonalIndices.size()), slots},
+        elementType);
+    auto diagonalsAttr =
+        DenseElementsAttr::get(diagonalsType, nonZeroDiagonalValues);
+    auto diagonalIndicesAttr =
+        rewriter.getDenseI64ArrayAttr(nonZeroDiagonalIndices);
+
+    auto resultLayout = findAttributeAssociatedWith(
+        op.getResult(0), tensor_ext::TensorExtDialect::kLayoutAttrName);
+    if (failed(resultLayout)) {
+      return rewriter.notifyMatchFailure(op, "missing output layout");
+    }
+
+    auto outputType = op.getResult(0).getType();
+    auto convertedOutputType =
+        getTypeConverter()->convertType(outputType, resultLayout.value());
+
+    rewriter.setInsertionPointAfter(op);
+    auto linearTransformOp = rewriter.create<kernel::LinearTransformOp>(
+        op.getLoc(), convertedOutputType, adaptor.getInputs()[1], diagonalsAttr,
+        diagonalIndicesAttr, /*bsgs_ratio=*/nullptr);
+
+    setMaterializedAttr(linearTransformOp);
+    linearTransformOp->setAttr(kLayoutAttrName, resultLayout.value());
+
+    addBiasAndReplace(rewriter, op, linearTransformOp.getResult(),
+                      adaptor.getOutputs()[0], resultLayout.value());
+    return success();
+  }
 };
 
 struct ConvertLinalgConv1D : public ConversionBase<linalg::Conv1DOp> {
@@ -2740,13 +2861,14 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgBatchMatmul,
-                 ConvertLinalgReduce, ConvertLinalgDot, ConvertSecretGeneric,
-                 ConvertTensorCollapseShape, ConvertTensorExpandShape,
-                 ConvertTensorExtractLayout, ConvertTensorExtractSlice,
-                 ConvertTensorPad, ConvertTensorInsertLayout,
-                 ConvertTensorInsertSlice>(typeConverter, context);
+    patterns.add<
+        ConvertAnyAddingMaterializedAttr, ConvertConvertLayout, ConvertFunc,
+        ConvertLinalgMatmul, ConvertLinalgBatchMatmul, ConvertLinalgReduce,
+        ConvertLinalgDot, ConvertSecretGeneric, ConvertTensorCollapseShape,
+        ConvertTensorExpandShape, ConvertTensorExtractLayout,
+        ConvertTensorExtractSlice, ConvertTensorPad, ConvertTensorInsertLayout,
+        ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform>(
+        typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
