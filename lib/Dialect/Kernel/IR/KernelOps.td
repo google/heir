@@ -38,4 +38,30 @@ def Kernel_EvalChebyshevOp : Kernel_Op<"eval_chebyshev", [
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
 }
 
+def Kernel_LinearTransformOp : Kernel_Op<"linear_transform", [
+  Pure,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>,
+  ElementwiseMappable,
+  IncreasesMulDepthOpInterface
+]> {
+  let summary = "Performs a linear transform (matrix-vector multiplication) on a ciphertext.";
+  let description = [{
+    Performs a linear transform on a ciphertext using diagonal method.
+  }];
+
+  let arguments = (ins
+    AnyType:$input,
+    ElementsAttr:$diagonals,
+    DenseI64ArrayAttr:$diagonal_indices,
+    OptionalAttr<F64Attr>:$bsgs_ratio
+  );
+
+  let results = (outs
+    AnyType:$output
+  );
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let hasVerifier = 1;
+}
+
 #endif  // LIB_DIALECT_KERNEL_IR_KERNELOPS_TD_
