@@ -159,7 +159,7 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp, RLWEGenGaloisKeyOp,
               RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
               RLWEDropLevelNewOp, RLWEDropLevelOp, RLWENegateNewOp,
-              RLWENegateOp,
+              RLWENegateOp, RLWELookupRotatedOp,
               // BGV
               BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
               BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddNewOp,
@@ -174,8 +174,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp, CKKSSubOp,
               CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp, CKKSRotateOp,
               CKKSRelinearizeNewOp, CKKSRescaleNewOp, CKKSRotateNewOp,
-              CKKSLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp,
-              CKKSNewBootstrappingParametersFromLiteralOp,
+              CKKSRotateHoistedNewOp, CKKSLinearTransformOp, CKKSChebyshevOp,
+              CKKSBootstrapOp, CKKSNewBootstrappingParametersFromLiteralOp,
               CKKSGenEvaluationKeysBootstrappingOp,
               CKKSNewBootstrappingEvaluatorOp>(
               [&](auto op) { return printOperation(op); })
@@ -723,8 +723,9 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
       }
 
       if (isZero) {
-        os << getName(op.getResult()) << " := make(" << *typeString << ", "
-           << numElements << ")\n";
+        emitAssignment(
+            getName(op.getResult()),
+            llvm::formatv("make({0}, {1})", *typeString, numElements).str());
         return success();
       }
 
@@ -741,8 +742,10 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
           valStr = getStringForConstant(floatAttr.getValue()).value();
         }
 
-        os << getName(op.getResult()) << " := slices.Repeat([]"
-           << *eltTypeString << "{" << valStr << "}, " << numElements << ")\n";
+        emitAssignment(getName(op.getResult()),
+                       llvm::formatv("slices.Repeat([]{0}{{{1}}, {2})",
+                                     *eltTypeString, valStr, numElements)
+                           .str());
         return success();
       }
     }
@@ -792,7 +795,7 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   }
   valueString += right;
 
-  os << getName(op.getResult()) << " := " << valueString << "\n";
+  emitAssignment(getName(op.getResult()), valueString);
   return success();
 }
 
@@ -1635,6 +1638,14 @@ LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
   return success();
 }
 
+LogicalResult LattigoEmitter::printOperation(RLWELookupRotatedOp op) {
+  std::string resultName = getName(op.getOutput());
+  std::string valueExpr = getName(op.getInput()) + "[" +
+                          std::to_string(op.getOffset().getInt()) + "]";
+  emitAssignment(resultName, valueExpr);
+  return success();
+}
+
 namespace {
 const auto* negateTemplate = R"GO(
   for {0} := 0; {0} < len({1}.Value); {0}++ {
@@ -2171,6 +2182,15 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
   return success();
 }
 
+LogicalResult LattigoEmitter::printOperation(CKKSRotateHoistedNewOp op) {
+  std::string resultName = getName(op.getOutput());
+  std::string valueExpr = getName(op.getEvaluator()) + ".RotateHoistedNew(" +
+                          getName(op.getInput()) + ", []int{" +
+                          commaSeparated(op.getOffsets()) + "})";
+  emitAssignmentWithErr(resultName, valueExpr);
+  return success();
+}
+
 LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeOp op) {
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Relinearize", true);
@@ -2552,6 +2572,8 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("*rlwe.Encryptor"); })
       .Case<RLWEDecryptorType>(
           [&](auto ty) { return std::string("*rlwe.Decryptor"); })
+      .Case<RLWERotatedCiphertextListType>(
+          [&](auto ty) { return std::string("map[int]*rlwe.Ciphertext"); })
       // BGV
       .Case<BGVEncoderType>(
           [&](auto ty) { return std::string("*bgv.Encoder"); })

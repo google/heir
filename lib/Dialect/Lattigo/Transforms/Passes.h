@@ -5,6 +5,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Lattigo/Transforms/HoistRotations.h"
 // IWYU pragma: end_keep
 
 namespace mlir {
