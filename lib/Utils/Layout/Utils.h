@@ -80,6 +80,22 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
 presburger::IntegerRelation getTricyclicLayoutRelation(
     RankedTensorType tensorType, int64_t numSlots);
 
+// Returns the generalized diagonal packing relation for the cleartext
+// operand of a bicyclic matrix multiplication.
+//
+// This layout is specific to the cleartext matrix. It decomposes the matrix
+// into n diagonal vectors (one for each step along the contracting dimension).
+// Each diagonal vector pre-arranges matrix elements to align with a specific
+// rotation of the encrypted operand and match the target output slots. This
+// avoids single-ciphertext capacity limits and removes the coprimality
+// requirement on the cleartext matrix dimensions. It also ensures that the
+// multiplied result directly matches the output bicyclic layout without needing
+// layout conversions. However, it incurs the overhead of eagerly materializing
+// n separate plaintext vectors of size numSlots.
+presburger::IntegerRelation getBicyclicDiagonalRelation(
+    RankedTensorType matrixType, int64_t contractionDim, int64_t stride,
+    int64_t numSlots);
+
 // Returns an IntegerRelation that represents a per-row layout for a matrix
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
