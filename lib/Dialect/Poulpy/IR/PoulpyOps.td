@@ -37,7 +37,7 @@ def Poulpy_ScratchAllocOp : Poulpy_Op<"scratch_alloc", [Pure]> {
   let results = (outs Poulpy_ScratchType:$scratch);
 }
 
-// maps to host_module.ckks_pt_vec_alloc + pt.set_meta + encoder.encode_reim
+// maps to module.ckks_pt_vec_alloc + pt.set_meta + encoder.encode_reim
 def Poulpy_EncodeOp : Poulpy_Op<"encode"> {
   let summary = "Encode real and imaginary slot vectors into a plaintext";
   let description = [{
@@ -49,7 +49,8 @@ def Poulpy_EncodeOp : Poulpy_Op<"encode"> {
     AnyMemRef:$real,
     AnyMemRef:$imag,
     I64Attr:$logDelta,
-    I64Attr:$logBudget
+    I64Attr:$logBudget,
+    I64Attr:$base2k
   );
 }
 
@@ -78,7 +79,9 @@ def Poulpy_EncryptOp : Poulpy_Op<"encrypt"> {
     Poulpy_CiphertextMemRef:$ciphertext,
     Poulpy_PlaintextMemRef:$plaintext,
     Poulpy_SecretKeyType:$secret_key,
-    Poulpy_ScratchType:$scratch
+    Poulpy_ScratchType:$scratch,
+    I64Attr:$base2k,
+    I64Attr:$ctk
   );
 }
 
