@@ -48,6 +48,7 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
   }];
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::heir::kernel::KernelDialect",
     "mlir::linalg::LinalgDialect",
     "mlir::tensor::TensorDialect",
     "mlir::scf::SCFDialect"
