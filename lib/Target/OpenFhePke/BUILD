@@ -1,9 +1,7 @@
 # OpenFhePke Emitter
 
-load("@heir//bazel/openfhe:copts.bzl", "OPENMP_COPTS", "OPENMP_LINKOPTS")
 load("@heir//lib/Target/CompilationTarget:defs.bzl", "heir_backend_config")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -132,38 +130,6 @@ cc_library(
 )
 
 cc_library(
-    name = "Interpreter",
-    srcs = ["Interpreter.cpp"],
-    hdrs = ["Interpreter.h"],
-    copts = select({
-        "@heir//:config_openfhe_enable_timing": ["-DOPENFHE_ENABLE_TIMING"],
-        "//conditions:default": [],
-    }) + OPENMP_COPTS,
-    linkopts = OPENMP_LINKOPTS,
-    deps = [
-        "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/Openfhe/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@hermetic_llvm//openmp:libomp",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AffineDialect",
-        "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LinalgDialect",
-        "@llvm-project//mlir:Parser",
-        "@llvm-project//mlir:SCFDialect",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
-        "@openfhe//:core",
-        "@openfhe//:pke",
-    ],
-)
-
-cc_library(
     name = "OpenFhePkeDebugHeaderEmitter",
     srcs = ["OpenFhePkeDebugHeaderEmitter.cpp"],
     hdrs = [
@@ -198,25 +164,6 @@ cc_library(
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_test(
-    name = "InterpreterTest",
-    srcs = ["InterpreterTest.cpp"],
-    copts = OPENMP_COPTS,
-    linkopts = OPENMP_LINKOPTS,
-    tags = [
-        "manual",
-        "notap",
-    ],
-    deps = [
-        ":Interpreter",
-        "@googletest//:gtest_main",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Parser",
-        "@openfhe//:core",
-        "@openfhe//:pke",
     ],
 )
 

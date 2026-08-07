@@ -145,12 +145,11 @@ class MNISTTest(absl.testing.absltest.TestCase):
       time_elapsed_ms = (end_time - start_time) * 1000.0
       print(f"CPU time used: {time_elapsed_ms:.2f} ms")
 
-      output = [0.0] * 10
       output = mnist.mnist__decrypt__result0(
           crypto_context, output_encrypted, secret_key
       )
       label = batch_target.item()
-      max_id = max(range(len(output)), key=lambda index: output[index])
+      max_id = max(range(len(output)), key=lambda i: output[i])
 
       # NOTE: For the test to pass with the default placeholder 'output',
       # the `mnist__decrypt__result0` function must be fixed to return an

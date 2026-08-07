@@ -1,11 +1,11 @@
 import os
-
+import time
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 from absl.testing import absltest
-from tests.Examples.openfhe.ckks.lenet import lenet_interpreter as lenet
+import tests.Examples.openfhe.ckks.lenet_openfhe_pybind as lenet
 
 # fmt: off
 DATA_PATH = "tests/Examples/openfhe/ckks/mnist/data"
@@ -86,6 +86,14 @@ class LenetTest(absltest.TestCase):
         shuffle=False,  # SequentialSampler equivalent
     )
 
+    crypto_context = lenet.lenet__generate_crypto_context()
+    key_pair = crypto_context.KeyGen()
+    public_key = key_pair.publicKey
+    secret_key = key_pair.secretKey
+    crypto_context = lenet.lenet__configure_crypto_context(
+        crypto_context, secret_key
+    )
+
     total = 4
     correct = 0
     samples_processed = 0
@@ -96,11 +104,22 @@ class LenetTest(absltest.TestCase):
 
       input_tensor = batch_data.contiguous()  # (1, 1, 28, 28)
       input_vector = input_tensor.flatten().tolist()
-      (output, runtime_ms) = lenet.lenet_interpreter(mlir_src, input_vector)
-      print(f"runtime (ms): {runtime_ms}")
+      input_encrypted = lenet.lenet__encrypt__arg1(
+          crypto_context, input_vector, public_key
+      )
+
+      start_time = time.time()
+      output_encrypted = lenet.lenet(crypto_context, input_encrypted)
+      end_time = time.time()
+
+      time_elapsed_ms = (end_time - start_time) * 1000.0
+      print(f"CPU time used: {time_elapsed_ms:.2f} ms")
 
       label = batch_target.item()
-      max_id = max(range(len(output)), key=lambda index: output[index])
+      output = lenet.lenet__decrypt__result0(
+          crypto_context, output_encrypted, secret_key
+      )
+      max_id = max(range(len(output)), key=lambda i: output[i])
 
       if max_id == label:
         correct += 1
