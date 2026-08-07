@@ -8,6 +8,7 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
@@ -25,6 +26,15 @@
 
 namespace mlir {
 namespace heir {
+
+static bool moduleTargetsCKKS(Operation* op) {
+  ModuleOp module = dyn_cast<ModuleOp>(op);
+  if (!module) {
+    module = op->getParentOfType<ModuleOp>();
+  }
+  if (!module) return false;
+  return moduleIsCKKS(module);
+}
 
 LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
   // Here we update the analysis state of the result of the original op This
@@ -241,9 +251,11 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
         }
         // make a different adjust scale each time
         // only after parameter selection can we decide the actual scale
-        managed = mgmt::AdjustScaleOp::create(
-            rewriter, op.getLoc(), managed,
-            rewriter.getI64IntegerAttr((*idCounter)++));
+        if (!moduleTargetsCKKS(top)) {
+          managed = mgmt::AdjustScaleOp::create(
+              rewriter, op.getLoc(), managed,
+              rewriter.getI64IntegerAttr((*idCounter)++));
+        }
         managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), managed);
       }
       // NOTE that only at most one operand/Value will experience such

@@ -11,14 +11,12 @@
 // CHECK:    %[[v6:.*]] = mgmt.modreduce %[[v5]] {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf16>
 // CHECK:    %[[v7:.*]] = arith.addf %[[v6]], %[[v6]] {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf16>
 // CHECK:    %[[boot:.*]] = mgmt.bootstrap %[[v7]] {mgmt.mgmt = #mgmt.mgmt<level = 3>} : tensor<1x1024xf16>
-// CHECK:    %[[adj0:.*]] = mgmt.adjust_scale %[[boot]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 3>} : tensor<1x1024xf16>
-// CHECK:    %[[v8:.*]] = mgmt.modreduce %[[adj0]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1x1024xf16>
+// CHECK:    %[[v8:.*]] = mgmt.modreduce %[[boot]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1x1024xf16>
 // CHECK:    %[[v9:.*]] = arith.addf %[[v8]], %[[v8]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1x1024xf16>
 // CHECK:    %[[v10:.*]] = mgmt.modreduce %[[v9]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf16>
 // CHECK:    %[[v11:.*]] = arith.addf %[[v10]], %[[v10]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf16>
 // CHECK:    %[[v12:.*]] = mgmt.level_reduce %[[input0]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1x1024xf16>
-// CHECK:    %[[v13:.*]] = mgmt.adjust_scale %[[v12]] {id = 1 : i64, mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1x1024xf16>
-// CHECK:    %[[v14:.*]] = mgmt.modreduce %[[v13]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf16>
+// CHECK:    %[[v14:.*]] = mgmt.modreduce %[[v12]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf16>
 // CHECK:    %[[v16:.*]] = arith.addf %[[v11]], %[[v14]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf16>
 // CHECK:    secret.yield %[[v16]] : tensor<1x1024xf16>
 // CHECK:  }

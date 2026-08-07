@@ -7,9 +7,11 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
@@ -42,6 +44,15 @@
 
 namespace mlir {
 namespace heir {
+
+static bool moduleTargetsCKKS(Operation* op) {
+  ModuleOp module = dyn_cast<ModuleOp>(op);
+  if (!module) {
+    module = op->getParentOfType<ModuleOp>();
+  }
+  if (!module) return false;
+  return moduleIsCKKS(module);
+}
 
 void runSolver(Operation* top, DataFlowSolver& solver) {
   if (failed(solver.initializeAndRun(top))) {
@@ -276,6 +287,7 @@ void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats,
 // we should match their scale by adding one adjust scale op
 void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
                             int levelBudget) {
+  if (moduleTargetsCKKS(top)) return;
   DataFlowSolver solver;
   makeAndRunSolver(top, solver, levelBudget);
   MLIRContext* ctx = top->getContext();
@@ -339,7 +351,8 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
           builder, defOp->getLoc(), operandToReduce.getType(), operandToReduce);
 
       Value newOperand = bootstrapOp.getResult();
-      if (includeFloats && isa<mgmt::ModReduceOp>(defOp)) {
+      if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
+          !moduleTargetsCKKS(top)) {
         // In CKKS, bootstrap resets the scale to Delta. If the next operation
         // is a modreduce, it will drop the scale by Delta, resulting in a scale
         // of 0. To prevent this, we insert an adjust_scale op here to raise the
@@ -460,6 +473,7 @@ void adjustLevelsForRegionBranchOps(Operation* top, int levelBudget) {
 }
 
 void adjustScalesForRegionBranchOps(Operation* top, int* idCounter) {
+  if (moduleTargetsCKKS(top)) return;
   LDBG(2) << "Adjusting scales for region branching ops";
   MLIRContext* ctx = top->getContext();
   DataFlowSolver solver;

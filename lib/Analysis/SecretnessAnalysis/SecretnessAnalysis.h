@@ -149,16 +149,38 @@ class SecretnessAnalysisDependent {
    * @return true if the value is secret, false if the secretness of the value
    * is unknown or false.
    */
-  bool isSecretInternal(Operation* op, Value value) {
+  std::optional<bool> isSecretInternal(Operation* op, Value value) {
     // create dependency on SecretnessAnalysis
     auto* lattice =
         getChildAnalysis()->template getOrCreateFor<SecretnessLattice>(
             getChildAnalysis()->getProgramPointAfter(op), value);
     if (!lattice->getValue().isInitialized()) {
-      return false;
+      return std::nullopt;
     }
     return lattice->getValue().getSecretness();
   };
+
+  /**
+   * @brief Checks if any operand or result of the operation has unknown
+   * secretness.
+   *
+   * @param op The operation to check.
+   * @return true if any operand or result has unknown secretness, false
+   * otherwise.
+   */
+  bool hasUnknownSecretness(Operation* op) {
+    for (auto operand : op->getOperands()) {
+      if (!isSecretInternal(op, operand).has_value()) {
+        return true;
+      }
+    }
+    for (auto result : op->getResults()) {
+      if (!isSecretInternal(op, result).has_value()) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   /**
    * @brief Selects the OpResults of an operation that are secret (secretness =
@@ -173,7 +195,7 @@ class SecretnessAnalysisDependent {
   void getSecretResults(Operation* op,
                         SmallVectorImpl<OpResult>& secretResults) {
     for (const auto& result : op->getOpResults()) {
-      if (isSecretInternal(op, result)) {
+      if (isSecretInternal(op, result).value_or(false)) {
         secretResults.push_back(result);
       }
     }
@@ -186,7 +208,7 @@ class SecretnessAnalysisDependent {
   void getSecretResultIndices(Operation* op,
                               SmallVectorImpl<unsigned>& secretResults) {
     for (const auto& [i, result] : llvm::enumerate(op->getOpResults())) {
-      if (isSecretInternal(op, result)) {
+      if (isSecretInternal(op, result).value_or(false)) {
         secretResults.push_back(i);
       }
     }
@@ -205,7 +227,7 @@ class SecretnessAnalysisDependent {
   void getSecretOperands(Operation* op,
                          SmallVectorImpl<OpOperand*>& secretOperands) {
     for (auto& operand : op->getOpOperands()) {
-      if (isSecretInternal(op, operand.get())) {
+      if (isSecretInternal(op, operand.get()).value_or(false)) {
         secretOperands.push_back(&operand);
       }
     }
@@ -229,7 +251,8 @@ class SecretnessAnalysisDependent {
       SmallVector<unsigned> maybePlaintextOperands =
           opInterface.maybePlaintextOperands();
       for (unsigned operandIndex : maybePlaintextOperands) {
-        if (!isSecretInternal(op, op->getOperand(operandIndex))) {
+        if (!isSecretInternal(op, op->getOperand(operandIndex))
+                 .value_or(false)) {
           plaintextOperands.push_back(&op->getOpOperand(operandIndex));
         }
       }

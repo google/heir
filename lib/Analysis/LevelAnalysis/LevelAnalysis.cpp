@@ -137,6 +137,10 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  if (hasUnknownSecretness(op)) {
+    return success();
+  }
+
   SmallVector<LevelState> operandStates;
   for (auto* operand : operands) {
     operandStates.push_back(operand->getValue());
@@ -146,7 +150,7 @@ LogicalResult LevelAnalysis::visitOperation(
     resultLevel = LevelState(Invalid{});
   }
   for (auto result : op->getOpResults()) {
-    if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result)) {
+    if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result).value_or(false)) {
       propagate(result, resultLevel);
     }
   }
@@ -243,6 +247,9 @@ int getMaxLevel(Operation* top, DataFlowSolver* solver) {
   auto maxLevel = 0;
   walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      if (!isBlockLive(value.getParentBlock(), solver)) {
+        return;
+      }
       auto levelState = solver->lookupState<LevelLattice>(value)->getValue();
       if (levelState.isInt()) {
         int level = levelState.getInt();
@@ -278,6 +285,9 @@ void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel) {
 
   walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      if (!isBlockLive(value.getParentBlock(), solver)) {
+        return;
+      }
       int level = getLevel(value);
       setAttributeAssociatedWith(value, kArgLevelAttrName,
                                  getIntegerAttr(level));

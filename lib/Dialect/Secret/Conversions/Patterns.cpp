@@ -533,6 +533,7 @@ void addSecretToSchemeDefaultConversionTargetsAndPatterns(
       SecretGenericOpConversion<debug::ValidateOp>, ConvertExtractSlice,
       ConvertInsertSlice, SecretGenericFuncCallConversion,
       SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
+      SecretGenericOpConversion<tensor::PadOp, tensor::PadOp>,
       SecretGenericOpIdentityConversion<arith::ExtSIOp>,
       SecretGenericOpIdentityConversion<arith::ExtUIOp>,
       SecretGenericOpIdentityConversion<arith::FPToSIOp>,

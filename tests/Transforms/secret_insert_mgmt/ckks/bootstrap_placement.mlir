@@ -30,8 +30,7 @@
 // BUDGET: %[[v3:.*]] = arith.mulf %[[v2]], %[[v2]]
 // BUDGET: %[[v4:.*]] = mgmt.relinearize %[[v3]]
 // BUDGET: %[[boot:.*]] = mgmt.bootstrap %[[v4]]
-// BUDGET: %[[adj:.*]] = mgmt.adjust_scale %[[boot]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>}
-// BUDGET: mgmt.modreduce %[[adj]]
+// BUDGET: mgmt.modreduce %[[boot]]
 
 module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
   func.func @bootstrap_placement(

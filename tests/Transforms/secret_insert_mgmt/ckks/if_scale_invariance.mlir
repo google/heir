@@ -7,8 +7,7 @@
 // CHECK:     %[[RELINEARIZE:.*]] = mgmt.relinearize %[[MUL]]
 // CHECK:     scf.yield %[[RELINEARIZE]]
 // CHECK:   else
-// CHECK:     %[[ADJUST_SCALE:.*]] = mgmt.adjust_scale %{{.*}}
-// CHECK:     scf.yield %[[ADJUST_SCALE]]
+// CHECK:     scf.yield %{{.*}}
 module attributes {backend.lattigo, scheme.ckks} {
   func.func @test_scf_if_scale_mismatch(%cond: i1, %arg0: !secret.secret<tensor<1xf32>>, %arg1: !secret.secret<tensor<1xf32>>) -> !secret.secret<tensor<1xf32>> {
     %res = secret.generic(%arg0: !secret.secret<tensor<1xf32>>, %arg1: !secret.secret<tensor<1xf32>>) {

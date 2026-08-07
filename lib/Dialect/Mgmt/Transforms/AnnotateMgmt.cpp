@@ -77,6 +77,19 @@ void annotateMgmtAttr(Operation* top) {
   });
 }
 
+void copyScalesToScaleAttr(Operation* op) {
+  walkValues(op, [&](Value value) {
+    if (auto attr = findMgmtAttrAssociatedWith(value)) {
+      if (attr.getScale() != -1) {
+        setAttributeAssociatedWith(
+            value, kArgScaleAttrName,
+            IntegerAttr::get(IntegerType::get(op->getContext(), 64),
+                             attr.getScale()));
+      }
+    }
+  });
+}
+
 struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
   using AnnotateMgmtBase::AnnotateMgmtBase;
 
@@ -118,6 +131,7 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
       return;
     }
 
+    copyScalesToScaleAttr(getOperation());
     clearAttrs(getOperation(), MgmtDialect::kArgMgmtAttrName);
     annotateLevel(getOperation(), &solver, baseLevel);
     annotateDimension(getOperation(), &solver);

@@ -85,7 +85,7 @@ struct PopulateScaleBGV : impl::PopulateScaleBGVBase<PopulateScaleBGV> {
     // all plaintext (mgmt.init) should have ScaleLattice for its result.
 
     // pass scale to AnnotateMgmt pass
-    annotateScale(getOperation(), &solver);
+    annotateScale<BGVScaleModel>(getOperation(), &solver);
     OpPassManager annotateMgmt("builtin.module");
     annotateMgmt.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(annotateMgmt, getOperation());

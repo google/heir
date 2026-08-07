@@ -1,6 +1,6 @@
 // RUN: heir-opt %s --split-input-file --secret-insert-mgmt-bgv --populate-scale-bgv | FileCheck %s
 
-module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 17179967489, 35184372121601], P = [35184372203521, 35184372744193], plaintextModulus = 65537>, scheme.bgv} {
+module attributes {backend.lattigo, bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 17179967489, 35184372121601], P = [35184372203521, 35184372744193], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: func @mult
   func.func @mult(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     // CHECK: secret.generic
@@ -25,7 +25,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497
 
 // MatchCrossMulDepth and their actual scale is the same
 
-module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [67239937, 8796093202433], P = [8796093349889], plaintextModulus = 65537>, scheme.bgv} {
+module attributes {backend.lattigo, bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [67239937, 8796093202433], P = [8796093349889], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: func @mul
   func.func @mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     %0 = secret.generic(%arg0 : !secret.secret<i16>) {

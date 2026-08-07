@@ -16,16 +16,14 @@ module attributes {backend.lattigo, scheme.ckks, backend.config_override = {boot
     // CHECK: %[[m2:.*]] = arith.mulf
     // CHECK: %[[boot2:.*]] = mgmt.bootstrap %[[m2]]
     // CHECK: %[[lr2:.*]] = mgmt.level_reduce %[[boot2]]
-    // CHECK: %[[adj2:.*]] = mgmt.adjust_scale %[[lr2]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>}
-    // CHECK: mgmt.modreduce %[[adj2]]
+    // CHECK: mgmt.modreduce %[[lr2]]
     %m2 = arith.mulf %r1, %cst : tensor<1x8xf32>
     %r2 = mgmt.modreduce %m2 : tensor<1x8xf32>
 
     // CHECK: %[[m3:.*]] = arith.mulf
     // CHECK: %[[boot3:.*]] = mgmt.bootstrap %[[m3]]
     // CHECK: %[[lr3:.*]] = mgmt.level_reduce %[[boot3]]
-    // CHECK: %[[adj3:.*]] = mgmt.adjust_scale %[[lr3]] {id = 1 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>}
-    // CHECK: mgmt.modreduce %[[adj3]]
+    // CHECK: mgmt.modreduce %[[lr3]]
     %m3 = arith.mulf %r2, %cst : tensor<1x8xf32>
     %r3 = mgmt.modreduce %m3 : tensor<1x8xf32>
 

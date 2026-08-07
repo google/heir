@@ -15,8 +15,7 @@ module attributes {backend.lattigo, scheme.ckks, backend.config_override = {boot
         // CHECK: %[[relin:.*]] = mgmt.relinearize %[[m]]
         // CHECK: %[[reduced_slice:.*]] = mgmt.modreduce %[[relin]]
         // CHECK: %[[expanded:.*]] = tensor.expand_shape %[[reduced_slice]]
-        // CHECK: %[[adjusted_dest:.*]] = mgmt.adjust_scale %[[bootstrap]]
-        // CHECK: %[[reduced_dest:.*]] = mgmt.modreduce %[[adjusted_dest]]
+        // CHECK: %[[reduced_dest:.*]] = mgmt.modreduce %[[bootstrap]]
         // CHECK: tensor.insert_slice %[[expanded]] into %[[reduced_dest]]
         %updated = tensor.insert_slice %m_2d into %iter[0, 0] [1, 8] [1, 1] : tensor<1x8xf32> into tensor<2x8xf32>
         scf.yield %updated : tensor<2x8xf32>

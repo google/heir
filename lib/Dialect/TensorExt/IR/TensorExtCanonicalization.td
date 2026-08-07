@@ -23,7 +23,7 @@ def IsOneDimTensor : Constraint<
 >;
 
 def DenseElementsAttrIsSplatPred
-    : CPred<"llvm::cast<DenseElementsAttr>($_self).isSplat()">;
+    : CPred<"llvm::isa<mlir::DenseElementsAttr>($_self) && llvm::cast<mlir::DenseElementsAttr>($_self).isSplat()">;
 
 // A constant tensor that has elements with the same value.
 def SplatElementsAttr : ElementsAttrBase<DenseElementsAttrIsSplatPred,

@@ -171,7 +171,7 @@ static LogicalResult addBodyArgumentVariables(ILPModelState& state) {
     int initialScale = state.sw;
     if (mgmt::MgmtAttr mgmtAttr = mgmt::findMgmtAttrAssociatedWith(arg)) {
       initialLevel = mgmtAttr.getLevel();
-      if (!state.levelOnly && mgmtAttr.getScale() != 0) {
+      if (!state.levelOnly && mgmtAttr.getScale() != -1) {
         initialScale = mgmtAttr.getScale();
       }
     }
@@ -381,7 +381,7 @@ static LogicalResult addYieldConstraints(ILPModelState& state) {
           state.valueLevelVars.at(operand) == resultLevel,
           "yieldResultLevel" + std::to_string(index));
 
-      if (state.levelOnly || mgmtAttr.getScale() == 0) continue;
+      if (state.levelOnly || mgmtAttr.getScale() == -1) continue;
       if (!state.valueScaleVars.contains(operand)) continue;
 
       int resultScale = mgmtAttr.getScale();
