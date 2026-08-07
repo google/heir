@@ -68,7 +68,16 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     (* example filepath=tests/Transforms/polynomial_approximation/doctest.mlir *)
   }];
   let dependentDialects = [
-    "mlir::heir::polynomial::PolynomialDialect"
+    "mlir::heir::polynomial::PolynomialDialect",
+    "mlir::arith::ArithDialect"
+  ];
+  let options = [
+    Option<"useCompositeRelu", "use-composite-relu", "bool", "false",
+           "Approximate ReLU (max(x,0)) with the composite-sign method "
+           "(3 chained minimax Chebyshev polynomials computing x*step(x/B), "
+           "B from domain_lower/upper attrs) instead of a single-polynomial "
+           "fit of max(x,0). Much more accurate for deep networks but needs "
+           "more multiplicative depth / bootstrapping.">,
   ];
 }
 

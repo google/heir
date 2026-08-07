@@ -1,5 +1,7 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <functional>
@@ -12,6 +14,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/APFloat.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
@@ -214,6 +217,29 @@ inline APFloat minnumf(const APFloat& lhs, const APFloat& rhs) {
   return llvm::minimumnum(lhsConverted, rhsConverted);
 }
 
+// Rescale `x` from [lower, upper] onto [-1, 1] domain via
+// the explicit affine map x -> x*(2/(U-L)) - (U+L)/(U-L).
+// For symmetric domains the shift is 0, so this is a
+// single scalar multiply.
+static Value rescaleToUnitInterval(PatternRewriter& rewriter, Location loc,
+                                   Value x, double lower, double upper) {
+  assert(lower < upper && "domain must be non-degenerate");
+  APFloat rescale = APFloat(2 / (upper - lower));
+  APFloat shift = APFloat(-(upper + lower) / (upper - lower));
+  Type ty = x.getType();
+  if (!rescale.isExactlyValue(1.0)) {
+    auto c = arith::ConstantOp::create(rewriter, loc, ty,
+                                       getScalarOrDenseAttr(ty, rescale));
+    x = arith::MulFOp::create(rewriter, loc, x, c).getResult();
+  }
+  if (!shift.isZero()) {
+    auto c = arith::ConstantOp::create(rewriter, loc, ty,
+                                       getScalarOrDenseAttr(ty, shift));
+    x = arith::AddFOp::create(rewriter, loc, x, c).getResult();
+  }
+  return x;
+}
+
 template <typename OpTy>
 struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
   ConvertUnaryOp(mlir::MLIRContext* context, DataFlowSolver* solver,
@@ -250,11 +276,14 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
             : rewriter.getF64FloatAttr(upper);
+    double domainLower = domainLowerAttr.getValue().convertToDouble();
+    double domainUpper = domainUpperAttr.getValue().convertToDouble();
+    if (!(domainLower < domainUpper))
+      return op.emitOpError(
+          "domain_lower must be strictly less than domain_upper");
     polynomial::ChebyshevPolynomial poly =
         approximation::caratheodoryFejerApproximation(
-            cppFunc, degreeAttr.getInt(),
-            domainLowerAttr.getValue().convertToDouble(),
-            domainUpperAttr.getValue().convertToDouble());
+            cppFunc, degreeAttr.getInt(), domainLower, domainUpper);
     if (failed(checkApproximationFinite(op, poly))) return failure();
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
@@ -380,10 +409,14 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
             : rewriter.getF64FloatAttr(upper);
+    double domainLower = domainLowerAttr.getValue().convertToDouble();
+    double domainUpper = domainUpperAttr.getValue().convertToDouble();
+    // See ConvertUnaryOp: reject a degenerate, inverted, or NaN domain.
+    if (!(domainLower < domainUpper))
+      return op.emitOpError(
+          "domain_lower must be strictly less than domain_upper");
     ChebyshevPolynomial poly = approximation::caratheodoryFejerApproximation(
-        unaryFunc, degreeAttr.getInt(),
-        domainLowerAttr.getValue().convertToDouble(),
-        domainUpperAttr.getValue().convertToDouble());
+        unaryFunc, degreeAttr.getInt(), domainLower, domainUpper);
     if (failed(checkApproximationFinite(op, poly))) return failure();
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
@@ -495,6 +528,106 @@ struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
   int64_t defaultK;
 };
 
+// Minimax composite-sign coefficients (Chebyshev basis on [-1, 1]) for the
+// degree schedule [15, 15, 27].
+constexpr double kCompositeSignPoly0[] = {
+    -0.0, 0.756018280983,  0.0,  -0.253032654524, 0.0, 0.153152108192,
+    -0.0, -0.110901109874, -0.0, 0.087929151952,  0.0, -0.073912657797,
+    -0.0, 0.064969979227,  0.0,  -0.436979353428};
+constexpr double kCompositeSignPoly1[] = {
+    0.0,  1.236891150475,  0.0,  -0.398085355759, -0.0, 0.222488179803,
+    -0.0, -0.142359510064, -0.0, 0.095177434385,  -0.0, -0.063848823309,
+    -0.0, 0.041804868728,  0.0,  -0.040160164237};
+constexpr double kCompositeSignPoly2[] = {
+    0.500023841858, 0.625914692879, -4.4641296e-05, -0.182119160891,
+    3.664539e-05,   0.083136156201, -2.6313986e-05, -0.039259493351,
+    1.6471087e-05,  0.017457883805, -8.940689e-06,  -0.007013411261,
+    4.17812e-06,    0.002478481503, -1.664388e-06,  -0.000753055967,
+    5.57635e-07,    0.000191995525, -1.5425e-07,    -3.9858889e-05,
+    3.4315e-08,     6.462984e-06,   -5.904e-09,     -7.67161e-07,
+    7.38e-10,       5.9265e-08,     -6e-11,         -2.236e-09};
+
+// Approximates ReLU as `x * step(x / B)` where `step` is the composite-sign
+// approximation (3 chained Chebyshev polys) and `B` is the input bound taken
+// from the op's `domain_lower`/`domain_upper` attrs. This matches orion's
+// ReLU FHE implementation and is far more accurate than a single low-degree
+// polynomial fit to `max(x, 0)` (which has large kink error and extrapolates
+// catastrophically outside its fit domain). Only matches the ReLU shape
+// `arith.maximumf %x, 0` and is gated behind the pass's `useCompositeRelu`
+// option; otherwise the generic single-polynomial ConvertBinaryConstOp path
+// handles maximumf.
+struct ReluViaCompositeSign : public OpRewritePattern<arith::MaximumFOp> {
+  // benefit 2 > the generic ConvertBinaryConstOp benefit (1) so this wins
+  // for the ReLU shape when the option is enabled.
+  ReluViaCompositeSign(mlir::MLIRContext* context, DataFlowSolver* solver)
+      : OpRewritePattern<arith::MaximumFOp>(context, /*benefit=*/2),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(arith::MaximumFOp op,
+                                PatternRewriter& rewriter) const override {
+    // Identify the ReLU shape: one operand is a constant equal to 0.
+    auto lhsConst = getSingleValueOrSplat(op.getLhs());
+    auto rhsConst = getSingleValueOrSplat(op.getRhs());
+    Value x;
+    if (succeeded(rhsConst) && rhsConst.value().isZero()) {
+      x = op.getLhs();
+    } else if (succeeded(lhsConst) && lhsConst.value().isZero()) {
+      x = op.getRhs();
+    } else {
+      return rewriter.notifyMatchFailure(op, "not a ReLU (max(x, 0)) shape");
+    }
+
+    if (!mlir::heir::isSecret(x, solver)) {
+      return rewriter.notifyMatchFailure(op, "operand is not secret");
+    }
+
+    // The ReLU may be scalar (f32) or shaped (tensor<...xf32>); in the
+    // torch-linalg-to-ckks flow the maximumf operates on tensors inside a
+    // secret.generic, so match on the element type and splat constants.
+    Type opType = op.getType();
+    Type elemType = getElementTypeOrSelf(opType);
+    if (!isa<FloatType>(elemType)) {
+      return rewriter.notifyMatchFailure(op, "non-float ReLU operand");
+    }
+
+    // Input bound B from the domain attrs; fall back to the default domain.
+    double lower = kDefaultDomainLower;
+    double upper = kDefaultDomainUpper;
+    if (auto a = dyn_cast_or_null<FloatAttr>(op->getAttr("domain_lower")))
+      lower = a.getValue().convertToDouble();
+    if (auto a = dyn_cast_or_null<FloatAttr>(op->getAttr("domain_upper")))
+      upper = a.getValue().convertToDouble();
+    double bound = std::max(std::abs(lower), std::abs(upper));
+    if (bound == 0.0) bound = 1.0;
+
+    MLIRContext* ctx = op.getContext();
+    Location loc = op.getLoc();
+    PolynomialType polyType =
+        PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
+
+    auto makeEval = [&](Value in, ArrayRef<double> coeffs, double domainLo,
+                        double domainHi) -> Value {
+      ChebyshevPolynomial poly(coeffs);
+      auto polyAttr = TypedChebyshevPolynomialAttr::get(polyType, poly);
+      auto eval = EvalOp::create(rewriter, loc, polyAttr, in);
+      eval->setAttr("domain_lower", rewriter.getF64FloatAttr(domainLo));
+      eval->setAttr("domain_upper", rewriter.getF64FloatAttr(domainHi));
+      return eval.getResult();
+    };
+
+    Value xPrescaled = rescaleToUnitInterval(rewriter, loc, x, -bound, bound);
+    Value s0 = makeEval(xPrescaled, kCompositeSignPoly0, -1.0, 1.0);
+    Value s1 = makeEval(s0, kCompositeSignPoly1, -1.0, 1.0);
+    Value step = makeEval(s1, kCompositeSignPoly2, -1.0, 1.0);
+    // ReLU(x) = x * step(x/B)  (step in [0,1]; B>0 so sign unchanged by scale)
+    rewriter.replaceOpWithNewOp<arith::MulFOp>(op, x, step);
+    return success();
+  }
+
+ private:
+  DataFlowSolver* solver;
+};
+
 struct PolynomialApproximation
     : impl::PolynomialApproximationBase<PolynomialApproximation> {
   using PolynomialApproximationBase::PolynomialApproximationBase;
@@ -514,6 +647,9 @@ struct PolynomialApproximation
 
     // High priority patterns
     patterns.add<ExpOpTaylorApproximation>(context, &solver, /*k=*/7);
+    if (useCompositeRelu) {
+      patterns.add<ReluViaCompositeSign>(context, &solver);
+    }
 
     // Math unary ops
     patterns.add<ConvertUnaryOp<math::AbsFOp>>(context, &solver, absf);
