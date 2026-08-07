@@ -27,10 +27,10 @@
 // BUDGET: %[[v0:.*]] = arith.mulf
 // BUDGET: %[[v1:.*]] = mgmt.relinearize %[[v0]]
 // BUDGET: %[[v2:.*]] = mgmt.modreduce %[[v1]]
-// BUDGET: %[[v3:.*]] = arith.mulf %[[v2]], %[[v2]]
+// BUDGET: %[[boot:.*]] = mgmt.bootstrap %[[v2]]
+// BUDGET: %[[v3:.*]] = arith.mulf %[[boot]], %[[boot]]
 // BUDGET: %[[v4:.*]] = mgmt.relinearize %[[v3]]
-// BUDGET: %[[boot:.*]] = mgmt.bootstrap %[[v4]]
-// BUDGET: mgmt.modreduce %[[boot]]
+// BUDGET: %[[v5:.*]] = mgmt.modreduce %[[v4]]
 
 module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
   func.func @bootstrap_placement(

@@ -9,20 +9,20 @@ module attributes {backend.lattigo, scheme.ckks, backend.config_override = {boot
     // Mul 1: 2 * 2 -> 2. Modreduce -> 1.
     // CHECK: %[[m1:.*]] = arith.mulf
     // CHECK: mgmt.level_reduce %[[m1]]
-    // CHECK: mgmt.modreduce
+    // CHECK: %[[r1:.*]] = mgmt.modreduce
     %m1 = arith.mulf %arg0, %cst : tensor<1x8xf32>
     %r1 = mgmt.modreduce %m1 : tensor<1x8xf32>
 
-    // CHECK: %[[m2:.*]] = arith.mulf
-    // CHECK: %[[boot2:.*]] = mgmt.bootstrap %[[m2]]
-    // CHECK: %[[lr2:.*]] = mgmt.level_reduce %[[boot2]]
-    // CHECK: mgmt.modreduce %[[lr2]]
+    // CHECK: %[[boot2:.*]] = mgmt.bootstrap %[[r1]]
+    // CHECK: %[[m2:.*]] = arith.mulf %[[boot2]]
+    // CHECK: %[[lr2:.*]] = mgmt.level_reduce %[[m2]]
+    // CHECK: %[[r2:.*]] = mgmt.modreduce %[[lr2]]
     %m2 = arith.mulf %r1, %cst : tensor<1x8xf32>
     %r2 = mgmt.modreduce %m2 : tensor<1x8xf32>
 
-    // CHECK: %[[m3:.*]] = arith.mulf
-    // CHECK: %[[boot3:.*]] = mgmt.bootstrap %[[m3]]
-    // CHECK: %[[lr3:.*]] = mgmt.level_reduce %[[boot3]]
+    // CHECK: %[[boot3:.*]] = mgmt.bootstrap %[[r2]]
+    // CHECK: %[[m3:.*]] = arith.mulf %[[boot3]]
+    // CHECK: %[[lr3:.*]] = mgmt.level_reduce %[[m3]]
     // CHECK: mgmt.modreduce %[[lr3]]
     %m3 = arith.mulf %r2, %cst : tensor<1x8xf32>
     %r3 = mgmt.modreduce %m3 : tensor<1x8xf32>

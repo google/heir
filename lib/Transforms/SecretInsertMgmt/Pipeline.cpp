@@ -30,6 +30,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -305,6 +306,82 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
+static bool isSecretVal(Value val, DataFlowSolver* solver) {
+  if (auto defOp = val.getDefiningOp()) {
+    if (isa<mgmt::BootstrapOp>(defOp)) {
+      return true;
+    }
+    if (isa<mgmt::AdjustScaleOp>(defOp)) {
+      return isSecretVal(defOp->getOperand(0), solver);
+    }
+  }
+  return isSecret(val, solver);
+}
+
+struct ScaleSafeTargetsResult {
+  SmallVector<Value> targets;
+  Operation* mulOp = nullptr;
+};
+
+static ScaleSafeTargetsResult getScaleSafeBootstrapTargets(
+    Value val, DataFlowSolver* solver) {
+  ScaleSafeTargetsResult result;
+  Operation* defOp = val.getDefiningOp();
+  if (!defOp) return result;
+
+  if (isa<mgmt::RelinearizeOp, mgmt::AdjustScaleOp, mgmt::LevelReduceOp>(
+          defOp)) {
+    return getScaleSafeBootstrapTargets(defOp->getOperand(0), solver);
+  }
+
+  if (isa<arith::MulIOp, arith::MulFOp>(defOp)) {
+    result.mulOp = defOp;
+    for (Value operand : defOp->getOperands()) {
+      if (isSecretVal(operand, solver)) {
+        result.targets.push_back(operand);
+      }
+    }
+    return result;
+  }
+
+  return result;
+}
+
+static void bootstrapMulOperands(
+    Operation* mulOp, const SmallVector<Value>& scaleSafeTargets,
+    OpBuilder& builder,
+    llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
+    const DominanceInfo& domInfo) {
+  builder.setInsertionPoint(mulOp);
+  for (unsigned i = 0; i < mulOp->getNumOperands(); ++i) {
+    Value operand = mulOp->getOperand(i);
+    if (llvm::is_contained(scaleSafeTargets, operand)) {
+      Value bootstrappedOperand;
+      if (operand.getDefiningOp() &&
+          isa<mgmt::BootstrapOp>(operand.getDefiningOp())) {
+        bootstrappedOperand = operand;
+      } else {
+        auto it = bootstrappedValues.find(operand);
+        if (it != bootstrappedValues.end()) {
+          for (Value cachedVal : it->second) {
+            if (domInfo.dominates(cachedVal.getDefiningOp(), mulOp)) {
+              bootstrappedOperand = cachedVal;
+              break;
+            }
+          }
+        }
+        if (!bootstrappedOperand) {
+          auto bootstrapOp = mgmt::BootstrapOp::create(
+              builder, mulOp->getLoc(), operand.getType(), operand);
+          bootstrappedOperand = bootstrapOp.getResult();
+          bootstrappedValues[operand].push_back(bootstrappedOperand);
+        }
+      }
+      mulOp->setOperand(i, bootstrappedOperand);
+    }
+  }
+}
+
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, int bootstrapLevelsConsumed,
                               bool includeFloats, int* idCounter) {
@@ -337,27 +414,48 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
 
   // Mutate the IR
   OpBuilder builder(top->getContext());
+  llvm::DenseMap<Value, SmallVector<Value, 2>> bootstrappedValues;
+  DominanceInfo domInfo(top);
+
   for (Value needsBootstrap : targets) {
     Operation* defOp = needsBootstrap.getDefiningOp();
     if (defOp && isa<ReducesLevelOpInterface>(defOp)) {
-      // To defer bootstraps as long as possible, we mark the op result of a
-      // modreduce op as needing bootstrap when that modreduce would reduce the
-      // level to less than zero. So instead we need to bootstrap the operand of
-      // the modreduce op.
       auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
       Value operandToReduce = reduceOp.getOperandToReduce().get();
-      builder.setInsertionPoint(defOp);
-      auto bootstrapOp = mgmt::BootstrapOp::create(
-          builder, defOp->getLoc(), operandToReduce.getType(), operandToReduce);
 
-      Value newOperand = bootstrapOp.getResult();
+      if (moduleTargetsCKKS(top)) {
+        ScaleSafeTargetsResult scaleSafeResult =
+            getScaleSafeBootstrapTargets(operandToReduce, &solver);
+        if (!scaleSafeResult.targets.empty()) {
+          assert(scaleSafeResult.mulOp &&
+                 "mulOp should not be null if scaleSafeTargets is not empty");
+          bootstrapMulOperands(scaleSafeResult.mulOp, scaleSafeResult.targets,
+                               builder, bootstrappedValues, domInfo);
+          continue;
+        }
+      }
+
+      builder.setInsertionPoint(defOp);
+      Value newOperand;
+      auto it = bootstrappedValues.find(operandToReduce);
+      if (it != bootstrappedValues.end()) {
+        for (Value cachedVal : it->second) {
+          if (domInfo.dominates(cachedVal.getDefiningOp(), defOp)) {
+            newOperand = cachedVal;
+            break;
+          }
+        }
+      }
+      if (!newOperand) {
+        auto bootstrapOp = mgmt::BootstrapOp::create(builder, defOp->getLoc(),
+                                                     operandToReduce.getType(),
+                                                     operandToReduce);
+        newOperand = bootstrapOp.getResult();
+        bootstrappedValues[operandToReduce].push_back(newOperand);
+      }
+
       if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
           !moduleTargetsCKKS(top)) {
-        // In CKKS, bootstrap resets the scale to Delta. If the next operation
-        // is a modreduce, it will drop the scale by Delta, resulting in a scale
-        // of 0. To prevent this, we insert an adjust_scale op here to raise the
-        // scale to Delta^2 before the modreduce, so the modreduce output scale
-        // remains at Delta.
         auto adjustScaleOp = mgmt::AdjustScaleOp::create(
             builder, defOp->getLoc(), newOperand,
             builder.getI64IntegerAttr((*idCounter)++));
@@ -371,18 +469,37 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
         BlockArgument blockArg = cast<BlockArgument>(needsBootstrap);
         builder.setInsertionPointToStart(blockArg.getOwner());
       }
-      auto bootstrapOp =
-          mgmt::BootstrapOp::create(builder, needsBootstrap.getLoc(),
-                                    needsBootstrap.getType(), needsBootstrap);
-      needsBootstrap.replaceAllUsesExcept(bootstrapOp.getResult(), bootstrapOp);
+      Value newOperand;
+      auto it = bootstrappedValues.find(needsBootstrap);
+      if (it != bootstrappedValues.end()) {
+        for (Value cachedVal : it->second) {
+          if (defOp) {
+            if (domInfo.dominates(cachedVal.getDefiningOp(), defOp)) {
+              newOperand = cachedVal;
+              break;
+            }
+          } else {
+            Block* block = cast<BlockArgument>(needsBootstrap).getOwner();
+            Block* cachedValBlock = cachedVal.getDefiningOp()->getBlock();
+            if (cachedValBlock != block &&
+                domInfo.dominates(cachedValBlock, block)) {
+              newOperand = cachedVal;
+              break;
+            }
+          }
+        }
+      }
+      if (!newOperand) {
+        auto bootstrapOp =
+            mgmt::BootstrapOp::create(builder, needsBootstrap.getLoc(),
+                                      needsBootstrap.getType(), needsBootstrap);
+        newOperand = bootstrapOp.getResult();
+        bootstrappedValues[needsBootstrap].push_back(newOperand);
+      }
+      needsBootstrap.replaceAllUsesExcept(newOperand,
+                                          newOperand.getDefiningOp());
     }
   }
-  // makeAndRunSolver(top, solver, levelBudget);
-  // MLIRContext* ctx = top->getContext();
-  // RewritePatternSet patterns(ctx);
-  // patterns.add<BootstrapWaterLine<mgmt::ModReduceOp>>(ctx, top, &solver,
-  //                                                     bootstrapWaterline);
-  // (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
 void peelPlaintextIterations(Operation* top) {
