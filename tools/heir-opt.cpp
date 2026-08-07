@@ -139,6 +139,7 @@
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#include "lib/Transforms/ValidateScale/ValidateScale.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -425,6 +426,7 @@ int main(int argc, char** argv) {
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerValidateNoisePasses();
+  registerValidateScalePasses();
   registerILPBootstrapPlacementPasses();
   registerOptimizeRelinearizationPasses();
   registerRemoveUnusedPureCallPasses();
