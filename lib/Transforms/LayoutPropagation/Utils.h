@@ -8,6 +8,8 @@
 #include "llvm/include/llvm/ADT/ArrayRef.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
@@ -17,6 +19,29 @@ constexpr StringLiteral kKernelInfoAttrName = "heir.kernel_info";
 constexpr StringLiteral kKernelInputShapeKey = "input_shape";
 constexpr StringLiteral kKernelShapeKey = "result_shape";
 constexpr StringLiteral kGapFactorKey = "gap_factor";
+
+// Symmetric zero padding on the trailing (width) dim that LayoutPropagation
+// folded out of a tensor.pad and into a conv's own padding parameter.
+constexpr StringLiteral kConvFoldedPaddingAttrName = "heir.conv_folded_padding";
+
+// A 1-D conv's data operand as its expanded Toeplitz matrix sees it, paired
+// with the conv `padding` parameter that goes with it.
+struct ConvMatrixOperand {
+  RankedTensorType dataType;
+  int64_t padding = 0;
+};
+
+// Removes `padding` columns from both ends of a rank-3 conv data operand's
+// width dim.
+std::optional<ConvMatrixOperand> foldConvWidthPadding(RankedTensorType dataType,
+                                                      int64_t padding);
+
+// Reads back the padding folded into `op`'s own padding parameter; 0 if none.
+int64_t getConvFoldedPadding(Operation* op);
+
+// Records the padding folded into `op`'s own padding parameter. A `padding` of
+// 0 leaves no attribute behind, keeping it off the convs that fold nothing.
+void setConvFoldedPadding(Operation* op, int64_t padding);
 
 struct KernelInfo {
   SmallVector<int64_t> inputShape;
