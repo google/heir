@@ -15,6 +15,7 @@ cc_library(
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/MathExt/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils/Approximation:CaratheodoryFejer",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",

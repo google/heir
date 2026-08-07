@@ -626,7 +626,7 @@ int main(int argc, char** argv) {
       "math-to-polynomial-approximation",
       "Approximate math operations that cannot be expressed in FHE using "
       "polynomial approximations.",
-      mathToPolynomialApproximationBuilder);
+      [](OpPassManager& pm) { mathToPolynomialApproximationBuilder(pm); });
 
   PassPipelineRegistration<MlirToRLWEPipelineOptions>(
       "torch-linalg-to-ckks", "Convert linalg MLIR exported from torch to CKKS",

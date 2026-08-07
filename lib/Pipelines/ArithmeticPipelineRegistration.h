@@ -77,6 +77,13 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       *this, "bfv-mod-bits",
       llvm::cl::desc("The number of bits for all moduli for B/FV"),
       llvm::cl::init(60)};
+  PassOptions::Option<bool> useCompositeRelu{
+      *this, "use-composite-relu",
+      llvm::cl::desc("Approximate ReLU with the composite-sign method "
+                     "(x*step(x/B), 3 chained minimax Chebyshev polys) "
+                     "instead of a single-polynomial max(x,0) fit. More "
+                     "accurate for deep nets; needs more depth/bootstrapping."),
+      llvm::cl::init(false)};
   PassOptions::Option<bool> debug{
       *this, "debug",
       llvm::cl::desc("Insert debug ports after every secret operation."),
