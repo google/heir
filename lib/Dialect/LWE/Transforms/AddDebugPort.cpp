@@ -125,12 +125,16 @@ void insertValidationOps(func::FuncOp op,
   int count = 0;
   auto insertValidate = [&](Value value, OpBuilder& b) {
     Type valueType = value.getType();
-    if (isa<LWECiphertextType>(getElementTypeOrSelf(valueType))) {
-      if (isAlreadyDebugged(value, debugFuncNames)) return;
-      debug::ValidateOp::create(b, value.getLoc(), value,
-                                "heir_debug_" + std::to_string(count++),
-                                nullptr);
-    }
+    auto ctType = dyn_cast<LWECiphertextType>(getElementTypeOrSelf(valueType));
+    if (!ctType) return;
+    // Skip non-canonical (dimension > 2) ciphertexts. The raw product of two
+    // ciphertexts before relinearization carries an s^2 term that the
+    // decrypt-based debug hook cannot decrypt .
+    // The relinearized result is debugged on the next op.
+    if (ctType.getCiphertextSpace().getSize() > 2) return;
+    if (isAlreadyDebugged(value, debugFuncNames)) return;
+    debug::ValidateOp::create(b, value.getLoc(), value,
+                              "heir_debug_" + std::to_string(count++), nullptr);
   };
 
   Block& entryBlock = op.getBody().getBlocks().front();

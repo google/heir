@@ -187,6 +187,19 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
     return emitError(op.getLoc(),
                      llvm::formatv("Failed to translate op {0}", op.getName()));
   }
+  // Most value-producing ops declare a Go variable for each result (either
+  // `name := ...` or `name, err := ...`). Several emit that declaration
+  // directly via `os <<` and never record the name in declaredVars. When
+  // SelectVariableNames maps a later value to the same Go name (buffer reuse),
+  // a single-assignment site (emitAssignment, e.g. the CopyNew for a
+  // DropLevel/NegateNew) would then redeclare it with `:=` -> a Go
+  // "no new variables on left side of :=" compile error. Record every
+  // result name here so such a reuse correctly emits `=` instead.
+  for (Value result : op.getResults()) {
+    if (variableNames->contains(result)) {
+      declaredVars.insert(getName(result));
+    }
+  }
   return success();
 }
 
