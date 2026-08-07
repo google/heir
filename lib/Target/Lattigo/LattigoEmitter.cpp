@@ -2323,8 +2323,6 @@ LogicalResult LattigoEmitter::printOperation(
   auto btParams = op.getBtParamsLiteral();
   auto paramName = getName(op.getParams());
   auto errName = getErrName();
-  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
   std::string resultName = getName(op.getResult());
   os << resultName << ", " << errName
      << " := bootstrapping.NewParametersFromLiteral(";
@@ -2332,11 +2330,12 @@ LogicalResult LattigoEmitter::printOperation(
   os << "bootstrapping.ParametersLiteral{\n";
   os.indent();
   os << "LogN: utils.Pointy(" << btParams.getLogN() << "),\n";
-  if (numSlotsAttr) {
-    int numSlots = numSlotsAttr.getInt();
-    int logNumSlots = (int)log2(numSlots);
-    os << "LogSlots: utils.Pointy(" << logNumSlots << "),\n";
-  }
+  // Deliberately no LogSlots: leave it at lattigo's default of LogN-1.
+  //
+  // LogSlots is documented as "the maximum number of slots of the ciphertext"
+  // and only sizes the CoeffsToSlots/SlotsToCoeffs matrices; the bootstrapping
+  // ring is built from LogN alone, so its LogMaxDimensions stays at LogN-1
+  // whatever LogSlots says.
   os.unindent();
   os << "})\n";
   printErrPanic(errName);
