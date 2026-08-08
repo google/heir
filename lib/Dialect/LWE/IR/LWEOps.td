@@ -211,7 +211,8 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
   let arguments = (ins
     SignlessIntegerOrFloatLike:$input,
     AnyPlaintextEncodingAttr:$encoding,
-    Polynomial_RingAttr:$ring
+    Polynomial_RingAttr:$ring,
+    OptionalAttr<I64Attr>:$level
   );
 
   let results = (outs LWEPlaintextLike:$output);
