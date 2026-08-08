@@ -21,6 +21,7 @@
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -628,6 +629,47 @@ struct ReluViaCompositeSign : public OpRewritePattern<arith::MaximumFOp> {
   DataFlowSolver* solver;
 };
 
+// Use a square and multiply algorithm for x^n where n is a constant.
+struct SquareAndMultiplyForPowOp : public OpRewritePattern<math::FPowIOp> {
+  SquareAndMultiplyForPowOp(MLIRContext* context)
+      : OpRewritePattern<math::FPowIOp>(context, /*benefit=*/2) {}
+
+  LogicalResult matchAndRewrite(math::FPowIOp op,
+                                PatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value base = op.getLhs();
+    Value exp = op.getRhs();
+
+    APInt expVal;
+    if (!matchPattern(exp, m_ConstantInt(&expVal))) {
+      return rewriter.notifyMatchFailure(
+          op, "exponent is not a single-valued constant");
+    }
+    if (expVal.isNegative()) {
+      return op.emitOpError("negative exponent not supported");
+    }
+
+    int64_t expInt = static_cast<int64_t>(expVal.getSExtValue());
+    if (expInt == 0) {
+      rewriter.replaceOp(
+          op, arith::ConstantOp::create(b, b.getOneAttr(base.getType())));
+      return success();
+    }
+
+    auto res = base;
+    int highestBit = expVal.getActiveBits() - 1;
+    for (int i = highestBit - 1; i >= 0; --i) {
+      res = arith::MulFOp::create(b, res, res);
+      if ((expInt >> i) & 1) {
+        res = arith::MulFOp::create(b, res, base);
+      }
+    }
+
+    rewriter.replaceOp(op, res);
+    return success();
+  }
+};
+
 struct PolynomialApproximation
     : impl::PolynomialApproximationBase<PolynomialApproximation> {
   using PolynomialApproximationBase::PolynomialApproximationBase;
@@ -647,6 +689,7 @@ struct PolynomialApproximation
 
     // High priority patterns
     patterns.add<ExpOpTaylorApproximation>(context, &solver, /*k=*/7);
+    patterns.add<SquareAndMultiplyForPowOp>(context);
     if (useCompositeRelu) {
       patterns.add<ReluViaCompositeSign>(context, &solver);
     }

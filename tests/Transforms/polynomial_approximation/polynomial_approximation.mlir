@@ -115,8 +115,9 @@ func.func @test_sqrt_default_params(%x: f32 {secret.secret}) -> f32 {
 
 // CHECK: @test_fpowi_tensor
 func.func @test_fpowi_tensor(%x: tensor<1x5xf32> {secret.secret}) -> tensor<1x5xf32> {
-  // CHECK: polynomial.eval
+  // CHECK: arith.mulf
   // CHECK-NOT: math.fpowi
+  // CHECK-NOT: polynomial.eval
   %cst = arith.constant dense<2> : tensor<1x5xi64>
   %0 = math.fpowi %x, %cst : tensor<1x5xf32>, tensor<1x5xi64>
   return %0 : tensor<1x5xf32>
@@ -126,8 +127,9 @@ func.func @test_fpowi_tensor(%x: tensor<1x5xf32> {secret.secret}) -> tensor<1x5x
 
 // CHECK: @test_fpowi_scalar
 func.func @test_fpowi_scalar(%x: f32 {secret.secret}) -> f32 {
-  // CHECK: polynomial.eval
+  // CHECK: arith.mulf
   // CHECK-NOT: math.fpowi
+  // CHECK-NOT: polynomial.eval
   %cst = arith.constant 2 : i32
   %0 = math.fpowi %x, %cst : f32, i32
   return %0 : f32
