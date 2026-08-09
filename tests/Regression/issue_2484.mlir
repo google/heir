@@ -21,7 +21,7 @@ func.func @scalar_mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
   %0 = secret.generic(%arg0 : !secret.secret<i16>) {
   ^bb0(%arg1: i16):
     %c2 = arith.constant 2 : i16
-    // expected-error@+1 {{failed to legalize unresolved materialization}}
+    // expected-error@+1 {{failed to legalize unresolved source materialization from}}
     %1 = arith.muli %arg1, %c2 : i16
     // expected-note@+1 {{see existing live user here}}
     secret.yield %1 : i16
