@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Utils.h"
@@ -54,32 +55,38 @@ int RLWEDropLevelNewOp::getLevelsToDrop() { return getLevelToDrop(); }
 
 int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
 
-::mlir::OpOperand& BGVRescaleNewOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> BGVRescaleNewOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& BGVRescaleOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> BGVRescaleOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& CKKSRescaleNewOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> CKKSRescaleNewOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& CKKSRescaleOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> CKKSRescaleOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 ::mlir::OpOperand& CKKSBootstrapOp::getOperandToReset() {
   return getOperation()->getOpOperand(1);
 }
 
-::mlir::OpOperand& RLWEDropLevelNewOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> RLWEDropLevelNewOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& RLWEDropLevelOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> RLWEDropLevelOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 LogicalResult BGVRotateColumnsNewOp::verify() {

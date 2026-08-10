@@ -58,6 +58,7 @@
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/Transforms/Passes.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
+#include "lib/Dialect/ReducesLevelOpInterfaceRegistration.h"
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Transforms/Passes.h"
 #include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
@@ -527,6 +528,7 @@ int main(int argc, char** argv) {
   registerOperandAndResultAttrInterface(registry);
   registerOperandLayoutRequirementOpInterface(registry);
   registerPlaintextOperandInterface(registry);
+  registerReducesLevelOpInterfaceExternalModels(registry);
 
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <variant>
 
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/HEIRInterfaces.h"
@@ -15,6 +16,7 @@
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -23,6 +25,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -53,18 +56,24 @@ namespace heir {
 };
 
 LevelState transferForward(ReducesLevelOpInterface op,
-                           ArrayRef<LevelState> operands) {
-  unsigned operandIdx = op.getOperandToReduce().getOperandNumber();
-  LevelState result = std::visit(
-      Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
-          [](Uninit) -> LevelState { return LevelState(Uninit{}); },
-          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [&](int val) -> LevelState {
-            return LevelState(val + op.getLevelsToDrop());
-          },
-      },
-      operands[operandIdx].get());
+                           ArrayRef<LevelState> operands,
+                           const DataFlowSolver* solver) {
+  auto operandsToReduce = op.getOperandsToReduce(solver);
+  LevelState result;
+  for (auto* operand : operandsToReduce) {
+    unsigned operandIdx = operand->getOperandNumber();
+    LevelState opResult = std::visit(
+        Overloaded{
+            [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
+            [](Uninit) -> LevelState { return LevelState(Uninit{}); },
+            [](Invalid) -> LevelState { return LevelState(Invalid{}); },
+            [&](int val) -> LevelState {
+              return LevelState(val + op.getLevelsToDrop());
+            },
+        },
+        operands[operandIdx].get());
+    result = LevelState::join(result, opResult);
+  }
   LLVM_DEBUG(debugLog("ReduceLevelOpInterface", operands, result));
   return result;
 }
@@ -110,14 +119,16 @@ LevelState transferForward(ResetsLevelOpInterface op,
   return result;
 }
 
-LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands) {
+LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands,
+                             const DataFlowSolver* solver) {
   return llvm::TypeSwitch<Operation*, LevelState>(op)
       .Case<ResetsLevelOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
       .Case<ReducesAllLevelsOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
-      .Case<ReducesLevelOpInterface>(
-          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Case<ReducesLevelOpInterface>([&](auto op) -> LevelState {
+        return transferForward(op, operands, solver);
+      })
       .Default([&](auto* op) -> LevelState {
         LevelState result;
         for (const auto& operand : operands) {
@@ -145,9 +156,31 @@ LogicalResult LevelAnalysis::visitOperation(
   for (auto* operand : operands) {
     operandStates.push_back(operand->getValue());
   }
-  LevelState resultLevel = deriveResultLevel(op, operandStates);
+  bool operandsValid = llvm::all_of(operandStates, [](const LevelState& state) {
+    return !state.isInvalid();
+  });
+  LevelState resultLevel = deriveResultLevel(op, operandStates, &solverRef);
   if (resultLevel.isInt() && resultLevel.getInt() > levelBudget) {
     resultLevel = LevelState(Invalid{});
+  }
+  if (resultLevel.isInvalid() && operandsValid) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "LevelAnalysis: Op " << *op
+                   << " became Invalid! Operands: ";
+      for (auto state : operandStates) {
+        state.print(llvm::dbgs());
+        llvm::dbgs() << ", ";
+      }
+      llvm::dbgs() << "\n";
+      for (Value operand : op->getOperands()) {
+        llvm::dbgs() << "  Operand: " << operand << "\n";
+        if (auto* defOp = operand.getDefiningOp()) {
+          llvm::dbgs() << "    Defined by: " << *defOp << "\n";
+        } else {
+          llvm::dbgs() << "    Block argument\n";
+        }
+      }
+    });
   }
   for (auto result : op->getOpResults()) {
     if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result).value_or(false)) {

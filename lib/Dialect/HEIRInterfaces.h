@@ -16,6 +16,8 @@
 // IWYU pragma: end_keep
 
 namespace mlir {
+class DataFlowSolver;
+
 namespace heir {
 
 class ElementwiseByOperandOpInterface;

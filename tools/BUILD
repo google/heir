@@ -45,6 +45,7 @@ cc_binary(
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect:reduces_level_op_interface_registration",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGIQuart",
         "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",

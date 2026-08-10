@@ -80,12 +80,12 @@ def ReducesLevelOpInterface : OpInterface<"ReducesLevelOpInterface"> {
       /*defaultBody=*/[{ return 1; }]
     >,
     InterfaceMethod<
-      /*desc=*/"Return the OpOperand whose level is reduced.",
-      /*retTy=*/"::mlir::OpOperand&",
-      /*methodName=*/"getOperandToReduce",
-      /*args=*/(ins ),
+      /*desc=*/"Return the OpOperands whose level is reduced.",
+      /*retTy=*/"::llvm::SmallVector<::mlir::OpOperand*>",
+      /*methodName=*/"getOperandsToReduce",
+      /*args=*/(ins "const ::mlir::DataFlowSolver *":$solver),
       /*body=*/[{}],
-      /*defaultBody=*/[{ return $_op->getOpOperand(0); }]
+      /*defaultBody=*/[{ return {&$_op->getOpOperand(0)}; }]
     >
   ];
 }

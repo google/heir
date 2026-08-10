@@ -197,6 +197,7 @@ class LevelAnalysis
  public:
   LevelAnalysis(DataFlowSolver& solver, int levelBudget = -1)
       : dataflow::SparseForwardDataFlowAnalysis<LevelLattice>(solver),
+        solverRef(solver),
         levelBudget(levelBudget >= 0 ? levelBudget : kDefaultLevelBudget) {}
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
@@ -217,10 +218,12 @@ class LevelAnalysis
   }
 
  private:
+  DataFlowSolver& solverRef;
   int levelBudget;
 };
 
-LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands);
+LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands,
+                             const DataFlowSolver* solver);
 
 /// Backward Analyze the level of plaintext operands of ct-pt ops.
 ///

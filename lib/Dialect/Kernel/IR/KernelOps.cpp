@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
@@ -135,14 +136,16 @@ int EvalChebyshevOp::getLevelsToDrop() {
   return baseDepth;
 }
 
-::mlir::OpOperand& EvalChebyshevOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(0);
+::llvm::SmallVector<::mlir::OpOperand*> EvalChebyshevOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(0)};
 }
 
 int LinearTransformOp::getLevelsToDrop() { return 1; }
 
-::mlir::OpOperand& LinearTransformOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(0);
+::llvm::SmallVector<::mlir::OpOperand*> LinearTransformOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(0)};
 }
 
 LogicalResult LinearTransformOp::verify() {

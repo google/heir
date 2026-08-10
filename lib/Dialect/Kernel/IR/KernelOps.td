@@ -16,7 +16,7 @@ class Kernel_Op<string mnemonic, list<Trait> traits = []> :
 
 def Kernel_EvalChebyshevOp : Kernel_Op<"eval_chebyshev", [
   Pure,
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>,
   ElementwiseMappable,
   IncreasesMulDepthOpInterface
 ]> {
@@ -40,7 +40,7 @@ def Kernel_EvalChebyshevOp : Kernel_Op<"eval_chebyshev", [
 
 def Kernel_LinearTransformOp : Kernel_Op<"linear_transform", [
   Pure,
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>,
   ElementwiseMappable,
   IncreasesMulDepthOpInterface
 ]> {

@@ -64,6 +64,19 @@ cc_library(
     alwayslink = 1,
 )
 
+cc_library(
+    name = "reduces_level_op_interface_registration",
+    srcs = ["ReducesLevelOpInterfaceRegistration.cpp"],
+    hdrs = ["ReducesLevelOpInterfaceRegistration.h"],
+    deps = [
+        ":HEIRInterfaces",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 td_library(
     name = "td_files",
     srcs = ["HEIRInterfaces.td"],

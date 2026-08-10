@@ -365,14 +365,14 @@ def SquareInPlaceOp : Openfhe_UnaryInPlaceOp<"square_inplace"> { let summary = "
 def RelinOp : Openfhe_UnaryOp<"relin"> { let summary = "Relinearization of a ciphertext."; }
 def RelinInPlaceOp : Openfhe_UnaryInPlaceOp<"relin_inplace"> { let summary = "In-place relinearization of a ciphertext."; }
 def ModReduceOp : Openfhe_UnaryOp<"mod_reduce", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> { let summary = "mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
 def ModReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"mod_reduce_inplace", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> { let summary = "In-place mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
 
 def LevelReduceOp : Openfhe_UnaryOp<"level_reduce", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>
 ]> {
   let summary = "Reduce the level of a ciphertext.";
   let arguments = (ins
@@ -384,7 +384,7 @@ def LevelReduceOp : Openfhe_UnaryOp<"level_reduce", [
 
 def LevelReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"level_reduce_inplace", [
     InPlaceOpInterface,
-    DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>
+    DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>
 ]> {
   let summary = "In-place level reduction of a ciphertext.";
   let arguments = (ins

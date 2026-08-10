@@ -4,7 +4,7 @@
 // CHECK-BGV-FAIL: error: value has invalid level: %{{.*}} = "arith.muli"
 
 // CHECK-CKKS-PASS: @test_loop
-module {
+module attributes {backend.lattigo} {
   func.func @test_loop(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
     %c1 = arith.constant 1 : index
     %c10 = arith.constant 10 : index

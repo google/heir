@@ -202,7 +202,7 @@ def Lattigo_BGVRelinearizeNewOp : Lattigo_BGVUnaryOp<"relinearize_new"> {
 }
 
 def Lattigo_BGVRescaleNewOp : Lattigo_BGVUnaryOp<"rescale_new", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> {
   let summary = "Rescale a ciphertext in the Lattigo BGV dialect";
   let description = [{
@@ -264,7 +264,7 @@ def Lattigo_BGVRelinearizeOp : Lattigo_BGVUnaryInPlaceOp<"relinearize"> {
 }
 
 def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInPlaceOp<"rescale", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> {
   let summary = "Rescale a ciphertext in the Lattigo BGV dialect";
   let description = [{

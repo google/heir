@@ -66,6 +66,7 @@ class BootstrapWaterlineAnalysis
                              int bootstrapLevelsConsumed = 0)
       : dataflow::SparseForwardDataFlowAnalysis<BootstrapWaterlineLattice>(
             solver),
+        solverRef(solver),
         waterline(waterline),
         levelBudget(levelBudget),
         bootstrapLevelsConsumed(bootstrapLevelsConsumed) {}
@@ -90,6 +91,7 @@ class BootstrapWaterlineAnalysis
   }
 
  private:
+  DataFlowSolver& solverRef;
   int waterline;
   int levelBudget;
   int bootstrapLevelsConsumed;

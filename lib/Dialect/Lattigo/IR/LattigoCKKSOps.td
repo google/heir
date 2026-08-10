@@ -236,7 +236,7 @@ def Lattigo_CKKSRelinearizeNewOp : Lattigo_CKKSUnaryOp<"relinearize_new"> {
 }
 
 def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{
@@ -292,7 +292,7 @@ def Lattigo_CKKSRelinearizeOp : Lattigo_CKKSUnaryInPlaceOp<"relinearize"> {
 }
 
 def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInPlaceOp<"rescale", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{

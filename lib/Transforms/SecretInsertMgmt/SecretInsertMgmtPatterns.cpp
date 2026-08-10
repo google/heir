@@ -52,7 +52,7 @@ LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
       operandStates.push_back(lattice->getValue());
     }
     for (auto result : op->getResults()) {
-      LevelState resultLevel = deriveResultLevel(op, operandStates);
+      LevelState resultLevel = deriveResultLevel(op, operandStates, solver);
       auto* resultLattice = solver->getOrCreateState<LevelLattice>(result);
       resultLattice->getValue() = resultLevel;
     }

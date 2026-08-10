@@ -1,5 +1,6 @@
 #include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
 
+#include <cassert>
 #include <cstdint>
 #include <utility>
 
@@ -7,7 +8,6 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
-#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
@@ -421,47 +421,66 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
     Operation* defOp = needsBootstrap.getDefiningOp();
     if (defOp && isa<ReducesLevelOpInterface>(defOp)) {
       auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
-      Value operandToReduce = reduceOp.getOperandToReduce().get();
+      auto operandsToReduce = reduceOp.getOperandsToReduce(&solver);
 
-      if (moduleTargetsCKKS(top)) {
-        ScaleSafeTargetsResult scaleSafeResult =
-            getScaleSafeBootstrapTargets(operandToReduce, &solver);
-        if (!scaleSafeResult.targets.empty()) {
-          assert(scaleSafeResult.mulOp &&
-                 "mulOp should not be null if scaleSafeTargets is not empty");
-          bootstrapMulOperands(scaleSafeResult.mulOp, scaleSafeResult.targets,
-                               builder, bootstrappedValues, domInfo);
+      for (OpOperand* operand : operandsToReduce) {
+        Value operandToReduce = operand->get();
+        auto* lattice =
+            solver.lookupState<BootstrapWaterlineLattice>(operandToReduce);
+        if (!lattice) continue;
+        LevelState level = lattice->getValue().getLevelState();
+        int levelVal = 0;
+        if (level.isInt()) {
+          levelVal = level.getInt();
+        } else if (level.isMaxLevel()) {
+          levelVal = levelBudget;
+        } else {
           continue;
         }
-      }
+        if (!(levelVal + reduceOp.getLevelsToDrop() > bootstrapWaterline)) {
+          continue;
+        }
 
-      builder.setInsertionPoint(defOp);
-      Value newOperand;
-      auto it = bootstrappedValues.find(operandToReduce);
-      if (it != bootstrappedValues.end()) {
-        for (Value cachedVal : it->second) {
-          if (domInfo.dominates(cachedVal.getDefiningOp(), defOp)) {
-            newOperand = cachedVal;
-            break;
+        if (moduleTargetsCKKS(top)) {
+          ScaleSafeTargetsResult scaleSafeResult =
+              getScaleSafeBootstrapTargets(operandToReduce, &solver);
+          if (!scaleSafeResult.targets.empty()) {
+            assert(scaleSafeResult.mulOp &&
+                   "mulOp should not be null if scaleSafeTargets is not empty");
+            bootstrapMulOperands(scaleSafeResult.mulOp, scaleSafeResult.targets,
+                                 builder, bootstrappedValues, domInfo);
+            continue;
           }
         }
-      }
-      if (!newOperand) {
-        auto bootstrapOp = mgmt::BootstrapOp::create(builder, defOp->getLoc(),
-                                                     operandToReduce.getType(),
-                                                     operandToReduce);
-        newOperand = bootstrapOp.getResult();
-        bootstrappedValues[operandToReduce].push_back(newOperand);
-      }
 
-      if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
-          !moduleTargetsCKKS(top)) {
-        auto adjustScaleOp = mgmt::AdjustScaleOp::create(
-            builder, defOp->getLoc(), newOperand,
-            builder.getI64IntegerAttr((*idCounter)++));
-        newOperand = adjustScaleOp.getResult();
+        builder.setInsertionPoint(defOp);
+        Value newOperand;
+        auto it = bootstrappedValues.find(operandToReduce);
+        if (it != bootstrappedValues.end()) {
+          for (Value cachedVal : it->second) {
+            if (domInfo.dominates(cachedVal.getDefiningOp(), defOp)) {
+              newOperand = cachedVal;
+              break;
+            }
+          }
+        }
+        if (!newOperand) {
+          auto bootstrapOp = mgmt::BootstrapOp::create(
+              builder, defOp->getLoc(), operandToReduce.getType(),
+              operandToReduce);
+          newOperand = bootstrapOp.getResult();
+          bootstrappedValues[operandToReduce].push_back(newOperand);
+        }
+
+        if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
+            !moduleTargetsCKKS(top)) {
+          auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+              builder, defOp->getLoc(), newOperand,
+              builder.getI64IntegerAttr((*idCounter)++));
+          newOperand = adjustScaleOp.getResult();
+        }
+        operand->set(newOperand);
       }
-      reduceOp.getOperandToReduce().set(newOperand);
     } else {
       if (defOp) {
         builder.setInsertionPointAfter(defOp);
