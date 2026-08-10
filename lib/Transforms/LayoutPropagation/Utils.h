@@ -20,27 +20,29 @@ constexpr StringLiteral kKernelInputShapeKey = "input_shape";
 constexpr StringLiteral kKernelShapeKey = "result_shape";
 constexpr StringLiteral kGapFactorKey = "gap_factor";
 
-// Symmetric zero padding on the trailing (width) dim that LayoutPropagation
-// folded out of a tensor.pad and into a conv's own padding parameter.
+// Symmetric zero padding on the spatial dims that LayoutPropagation folded out
+// of a `tensor.pad` and into a conv's own `padding` parameter.
 constexpr StringLiteral kConvFoldedPaddingAttrName = "heir.conv_folded_padding";
 
-// A 1-D conv's data operand as its expanded Toeplitz matrix sees it, paired
-// with the conv `padding` parameter that goes with it.
+// A conv's data operand as its expanded Toeplitz matrix sees it, paired with
+// the conv `padding` parameter that goes with it.
 struct ConvMatrixOperand {
   RankedTensorType dataType;
   int64_t padding = 0;
 };
 
-// Removes `padding` columns from both ends of a rank-3 conv data operand's
-// width dim.
-std::optional<ConvMatrixOperand> foldConvWidthPadding(RankedTensorType dataType,
-                                                      int64_t padding);
+// Removes `padding` entries from both ends of every spatial dim of a conv data
+// operand: the width dim of a rank-3 (N, C, W) operand, or the height and
+// width dims of a rank-4 (N, C, H, W) one. A conv's `padding` parameter is a
+// single symmetric value shared by every spatial dim, which is why one
+// `padding` covers them all.
+std::optional<ConvMatrixOperand> foldConvSpatialPadding(
+    RankedTensorType dataType, int64_t padding);
 
 // Reads back the padding folded into `op`'s own padding parameter; 0 if none.
 int64_t getConvFoldedPadding(Operation* op);
 
-// Records the padding folded into `op`'s own padding parameter. A `padding` of
-// 0 leaves no attribute behind, keeping it off the convs that fold nothing.
+// Records the padding folded into `op`'s own padding parameter.
 void setConvFoldedPadding(Operation* op, int64_t padding);
 
 struct KernelInfo {

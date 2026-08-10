@@ -59,16 +59,19 @@ std::optional<KernelInfo> getKernelInfo(Attribute attr) {
   return info;
 }
 
-std::optional<ConvMatrixOperand> foldConvWidthPadding(RankedTensorType dataType,
-                                                      int64_t padding) {
-  if (dataType.getRank() != 3) return std::nullopt;
-  int64_t width = dataType.getDimSize(2) - 2 * padding;
-  if (width <= 0) return std::nullopt;
+std::optional<ConvMatrixOperand> foldConvSpatialPadding(
+    RankedTensorType dataType, int64_t padding) {
+  // Reject negative padding
+  if (padding < 0) return std::nullopt;
+  if (dataType.getRank() != 3 && dataType.getRank() != 4) return std::nullopt;
+  SmallVector<int64_t> shape(dataType.getShape());
+  // Dims 0 and 1 are (N, C); everything after them is spatial.
+  for (int64_t dim = 2; dim < dataType.getRank(); ++dim) {
+    shape[dim] -= 2 * padding;
+    if (shape[dim] <= 0) return std::nullopt;
+  }
   return ConvMatrixOperand{
-      RankedTensorType::get(
-          {dataType.getDimSize(0), dataType.getDimSize(1), width},
-          dataType.getElementType()),
-      padding};
+      RankedTensorType::get(shape, dataType.getElementType()), padding};
 }
 
 int64_t getConvFoldedPadding(Operation* op) {
@@ -79,7 +82,12 @@ int64_t getConvFoldedPadding(Operation* op) {
 }
 
 void setConvFoldedPadding(Operation* op, int64_t padding) {
-  if (padding == 0) return;
+  if (padding == 0) {
+    // Drop an attribute an earlier run or an op clone left behind: a conv that
+    // folded nothing must not be read as one that did.
+    op->removeAttr(kConvFoldedPaddingAttrName);
+    return;
+  }
   op->setAttr(
       kConvFoldedPaddingAttrName,
       IntegerAttr::get(IntegerType::get(op->getContext(), 64), padding));

@@ -27,7 +27,7 @@ namespace heir {
 namespace kernel {
 namespace {
 
-using tensor4d = std::vector<std::vector<std::vector<std::vector<int>>>>;
+using tensor4d = ConvTensor4D;
 using tensor3d = std::vector<std::vector<std::vector<int>>>;
 
 std::function<int(const std::vector<int64_t>&)> getDataValueFn4D(
@@ -916,6 +916,97 @@ TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2WithPadding) {
                          std::get<0>(GetParam()), std::get<1>(GetParam()));
   checkPaddedConv1dCwFcw(/*padding=*/2, {{{12, 63, 95, 97}, {12, 50, 74, 56}}},
                          std::get<0>(GetParam()), std::get<1>(GetParam()));
+}
+
+// End-to-end Halevi-Shoup matvec for a padded strided 2-D multichannel conv.
+// the data ciphertext is packed row-major at the *unpadded* H and W, and the
+// Toeplitz matrix is built with padding = p so that a window reaching into the
+// padding contributes no column.
+void checkPaddedConv2dChwFchw(int64_t stride, int64_t filterSize,
+                              int64_t padding, int numSlots, bool unroll,
+                              bool interchangeRows) {
+  SCOPED_TRACE("stride = " + std::to_string(stride) +
+               " filterSize = " + std::to_string(filterSize) +
+               " padding = " + std::to_string(padding));
+  MLIRContext context;
+  // 1x4x4x4 input data, 4x4x(filterSize)x(filterSize) filter.
+  int64_t channels = 4;
+  int64_t dataSize = 4;
+  tensor4d data(1, std::vector<std::vector<std::vector<int>>>(
+                       channels, std::vector<std::vector<int>>(
+                                     dataSize, std::vector<int>(dataSize, 0))));
+  for (int64_t c = 0; c < channels; ++c) {
+    for (int64_t h = 0; h < dataSize; ++h) {
+      for (int64_t w = 0; w < dataSize; ++w) {
+        data[0][c][h][w] = (int)((c * 23 + h * 7 + w * 3) % 13);
+      }
+    }
+  }
+  tensor4d filter =
+      deterministicConvFilter(channels, channels, filterSize, filterSize);
+
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, channels, dataSize, dataSize}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({channels, channels, filterSize, filterSize},
+                            mlir::IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
+
+  auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, padding, numSlots, interchangeRows);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  // The matrix shape must be derived the same way the filter was diagonalized,
+  // i.e. against the unpadded data type with padding = p: implementHaleviShoup
+  // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
+  auto expandedFilterShape = get2dConvChwFchwFilterExpandedType(
+      filterType, dataType, padding, strides);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  tensor4d expected = reference2dConv(data, filter, stride, padding);
+  int64_t outputH = expected[0][0].size();
+  int64_t outputW = expected[0][0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, channels, outputH, outputW}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get2dConvResultRelation(outputType, strides, /*padding=*/0, numSlots);
+  if (interchangeRows) {
+    resultLayout.compose(
+        get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots));
+  }
+
+  EXPECT_EQ(unpackLayoutTo4DTensor<int>(resultLayout, {actual},
+                                        {1, channels, outputH, outputW}),
+            expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv2dNchwFchwWithPadding) {
+  bool unroll = std::get<0>(GetParam());
+  // A stride-1 "same" convolution, the shape LayoutPropagation folds a
+  // tensor.pad into. Stride 1 never interchanges rows.
+  checkPaddedConv2dChwFchw(/*stride=*/1, /*filterSize=*/3, /*padding=*/1,
+                           /*numSlots=*/64, unroll,
+                           /*interchangeRows=*/false);
+  // Strided and padded: the unpadded and padded column counts land in
+  // different power-of-two buckets (4*4*4=64 rounds to 64, 4*6*6=144 rounds to
+  // 256), so a matrix built against the padded operand would be sized wrong.
+  checkPaddedConv2dChwFchw(/*stride=*/2, /*filterSize=*/2, /*padding=*/1,
+                           /*numSlots=*/64, unroll, std::get<1>(GetParam()));
 }
 
 TEST_P(KernelImplementationTest,

@@ -527,8 +527,8 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
   int64_t numDiagonals = std::min(paddedRows, paddedCols);
 
   int64_t step3F = interchangeRows ? outputChannels / (g * g) : outputChannels;
-  int64_t step3H = interchangeRows ? outputW * g : outputH;
-  int64_t step3W = interchangeRows ? outputH * g : outputW;
+  int64_t step3H = interchangeRows ? outputH * g : outputH;
+  int64_t step3W = interchangeRows ? outputW * g : outputW;
 
   std::vector<IntegerRelation> relations;
 
