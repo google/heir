@@ -47,7 +47,7 @@ module {
   // CHECK: func @test_encode
   func.func @test_encode(%mod: !module, %pt: memref<!pt>, %re: memref<f64>, %im: memref<f64>) {
     // CHECK: poulpy.encode
-    poulpy.encode %mod, %pt, %re, %im {logDelta = 40 : i64, logBudget = 20 : i64} : (!module, memref<!pt>, memref<f64>, memref<f64>) -> ()
+    poulpy.encode %mod, %pt, %re, %im {logDelta = 40 : i64, logBudget = 20 : i64, base2k = 52 : i64} : (!module, memref<!pt>, memref<f64>, memref<f64>) -> ()
     return
   }
 
@@ -61,7 +61,7 @@ module {
   // CHECK: func @test_encrypt
   func.func @test_encrypt(%mod: !module, %ct: memref<!ct>, %pt: memref<!pt>, %sk: !sk, %scratch: !scratch) {
     // CHECK: poulpy.encrypt
-    poulpy.encrypt %mod, %ct, %pt, %sk, %scratch : (!module, memref<!ct>, memref<!pt>, !sk, !scratch) -> ()
+    poulpy.encrypt %mod, %ct, %pt, %sk, %scratch {base2k = 52 : i64, ctk = 300 : i64} : (!module, memref<!ct>, memref<!pt>, !sk, !scratch) -> ()
     return
   }
 

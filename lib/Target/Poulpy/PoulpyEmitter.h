@@ -1,0 +1,101 @@
+#ifndef LIB_TARGET_POULPY_POULPYEMITTER_H_
+#define LIB_TARGET_POULPY_POULPYEMITTER_H_
+
+#include <string>
+#include <string_view>
+
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
+#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+namespace mlir {
+namespace heir {
+namespace poulpy {
+void registerToPoulpyTranslation();
+
+/// Translates the given operation to Poulpy.
+::mlir::LogicalResult translateToPoulpy(::mlir::Operation* op,
+                                        llvm::raw_ostream& os);
+
+class PoulpyEmitter {
+ public:
+  PoulpyEmitter(raw_ostream& os, SelectVariableNames* variableNames);
+
+  LogicalResult translate(::mlir::Operation& operation);
+  LogicalResult translateBlock(::mlir::Block& block);
+
+ private:
+  /// Output stream to emit to.
+  raw_indented_ostream os;
+
+  /// Pre-populated analysis selecting unique variable names for all the SSA
+  /// values.
+  SelectVariableNames* variableNames;
+
+  llvm::DenseSet<Value> mutatedValues;
+  llvm::DenseSet<Value> pendingAllocs;
+
+  bool encoderEmitted = false;
+  int sourceCounter = 0;
+
+  void computeMutatedValues(func::FuncOp funcOp);
+  void materializeIfPending(Value dst, Value module, Value layoutSource,
+                            bool useSemanticWidth);
+  LogicalResult checkPendingState(Value dst, Operation* op,
+                                  bool shouldBePending);
+  void emitEncoderIfNeeded(Value module);
+
+  void emitCall(Value module, StringRef rustFn, Value dst,
+                ArrayRef<std::string> args, Value scratch = {});
+
+  template <typename OpTy>
+  LogicalResult emitBinaryOp(OpTy op, StringRef rustFn,
+                             ArrayRef<std::string> extraArgs = {});
+  template <typename OpTy>
+  LogicalResult emitBinaryAssignOp(OpTy op, StringRef rustFn,
+                                   ArrayRef<std::string> extraArgs = {});
+
+  // Functions for printing individual ops
+  LogicalResult printOperation(::mlir::ModuleOp op);
+  LogicalResult printOperation(func::FuncOp op);
+  LogicalResult printOperation(func::ReturnOp op);
+  LogicalResult printOperation(func::CallOp op);
+  LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(ModuleCreateOp op);
+  LogicalResult printOperation(ScratchAllocOp op);
+  LogicalResult printOperation(AddOp op);
+  LogicalResult printOperation(AddAssignOp op);
+  LogicalResult printOperation(SubOp op);
+  LogicalResult printOperation(SubAssignOp op);
+  LogicalResult printOperation(MulOp op);
+  LogicalResult printOperation(MulAssignOp op);
+  LogicalResult printOperation(RotateOp op);
+  LogicalResult printOperation(RotateAssignOp op);
+  LogicalResult printOperation(RescaleOp op);
+  LogicalResult printOperation(RescaleAssignOp op);
+  LogicalResult printOperation(CompactLimbsOp op);
+  LogicalResult printOperation(AddUnnormalizedOp op);
+  LogicalResult printOperation(SubUnnormalizedOp op);
+  LogicalResult printOperation(NormalizeOp op);
+  LogicalResult printOperation(EncodeOp op);
+  LogicalResult printOperation(DecodeOp op);
+  LogicalResult printOperation(EncryptOp op);
+  LogicalResult printOperation(DecryptOp op);
+
+  // Emit a Poulpy type
+  LogicalResult emitType(Type type, bool isArg, bool isMutated);
+  FailureOr<std::string> convertType(Type type, bool isArg, bool isMutated);
+};
+
+}  // namespace poulpy
+}  // namespace heir
+}  // namespace mlir
+
+#endif  // LIB_TARGET_POULPY_POULPYEMITTER_H_
