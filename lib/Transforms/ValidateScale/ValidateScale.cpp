@@ -166,6 +166,33 @@ struct ValidateScale : impl::ValidateScaleBase<ValidateScale> {
           }
         }
       }
+
+      // 5. Bootstrap
+      if (auto bootstrapOp = dyn_cast<mgmt::BootstrapOp>(op)) {
+        Value input = bootstrapOp.getInput();
+        Value res = bootstrapOp.getResult();
+        auto inScale = getScale(input);
+        auto resScale = getScale(res);
+        if (inScale && resScale) {
+          const auto& logqi = param.getLogqi();
+          if (logqi.empty()) {
+            result =
+                bootstrapOp.emitOpError("scheme parameters logqi is empty");
+            return;
+          }
+          int64_t firstModBits = static_cast<int64_t>(std::llround(logqi[0]));
+          if (*inScale > firstModBits - 1) {
+            result = bootstrapOp.emitOpError(
+                "input scale must be less than or equal to first-mod-bits - 1");
+            return;
+          }
+          if (*resScale != param.getLogDefaultScale()) {
+            result = bootstrapOp.emitOpError(
+                "output scale must match the default scale");
+            return;
+          }
+        }
+      }
     });
     return result;
   }
