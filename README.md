@@ -12,46 +12,21 @@ compilers. Read the docs at [the HEIR website](https://heir.dev).
 
 For more information on MLIR, see the [MLIR homepage](https://mlir.llvm.org/).
 
-## Quickstart (Python)
+## Quickstart
 
-Pip install the `heir_py` package
+There are currently three ways to use HEIR:
 
-```bash
-pip install heir_py
-```
+- Use [`bazel`](https://bazel.build/) and
+  [`rules_heir`](https://registry.bazel.build/modules/rules_heir/) with either
+  the [OpenFHE](https://openfhe.org/) or
+  [Lattigo](https://github.com/tuneinsight/lattigo) backends.
+- Install [OpenFHE](https://openfhe.org/) and use the
+  [`heir_py`](https://pypi.org/project/heir-py/) Python package.
+- Install HEIR from source and invoke the `heir-opt` and `heir-translate`
+  binaries directly, extracting the generated backend code and integrating it
+  into your project manually.
 
-Then run an example:
-
-```python
-from heir import compile
-from heir.mlir import I64, Secret
-
-@compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
-def func(x: Secret[I64], y: Secret[I64]):
-    sum = x + y
-    diff = x - y
-    mul = x * y
-    expression = sum * diff + mul
-    deadcode = expression * mul
-    return expression
-
-func.setup()
-enc_x = func.encrypt_x(7)
-enc_y = func.encrypt_y(8)
-result_enc = func.eval(enc_x, enc_y)
-result = func.decrypt_result(result_enc)
-
-print(
-  f"Expected result for `func`: {func.original(7,8)}, FHE result:"
-  f" {result}"
-)
-```
-
-This will compile the function above using the BGV scheme to machine code via
-the [OpenFHE](https://openfhe-development.readthedocs.io/en/latest/) backend.
-Then calling the function will encrypt the inputs, run the function, and return
-the decrypted result. The function call `foo(7, 8)` runs the entire
-encrypt-run-decrypt flow for ease of testing.
+See [Getting Started](https://heir.dev/docs/getting_started/) for more details.
 
 ## Building from source
 

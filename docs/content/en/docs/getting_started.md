@@ -5,21 +5,171 @@ weight: 10
 
 ## Getting HEIR
 
+**Note:** the HEIR team is working on having an end-to-end binary for certain
+workflows (such as converting pre-compiled torch models to a specific backend).
+In the mean time, the way to use HEIR involves the 'kitchen sink' binaries
+`heir-opt` (for running compiler passes) and `heir-translate` (for backend
+codegen).
+
+### Using `bazel` and `rules_heir`
+
+If you use the [`bazel` build system](https://bazel.build/), you can use
+[`rules_heir`](https://registry.bazel.build/modules/rules_heir/) to hide many of
+the details of connecting HEIR to your application.
+
+The `rules_heir` [GitHub repository](https://github.com/j2kun/rules_heir) has
+examples.
+
+First add `rules_heir` and the desired backend to your `MODULE.bazel`
+
+```starlark
+# MODULE.bazel
+module(name = "hello_heir", version = "0.0.0")
+bazel_dep(name = "rules_heir", version = "0.1.1")
+
+# gazelle automatically generates BUILD overlays of golang projects
+bazel_dep(name = "gazelle", version = "0.47.0")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_go", version = "0.60.0")
+
+# Go setup
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.24.2")
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+
+# All *direct* Go dependencies of the module have to be listed explicitly.
+use_repo(
+    go_deps,
+    "com_github_tuneinsight_lattigo_v6",
+)
+```
+
+And a `go.mod` file
+
+```go
+// go.mod
+module github.com/<your_username>/hello_heir
+
+go 1.24.2
+
+require github.com/tuneinsight/lattigo/v6 v6.1.0
+
+require (
+    github.com/ALTree/bigfloat v0.0.0-20220102081255-38c8b72a9924 // indirect
+    github.com/davecgh/go-spew v1.1.1 // indirect
+    github.com/google/go-cmp v0.6.0 // indirect
+    github.com/kr/text v0.2.0 // indirect
+    github.com/pmezard/go-difflib v1.0.0 // indirect
+    github.com/stretchr/testify v1.10.0 // indirect
+    golang.org/x/crypto v0.45.0 // indirect
+    golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
+    golang.org/x/sys v0.38.0 // indirect
+    gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+```
+
+Then, for an input IR that computes a dot product:
+
+```mlir
+// hello_world.mlir
+func.func @dot_product(%arg0: tensor<8xf32> {secret.secret}, %arg1: tensor<8xf32> {secret.secret}) -> f32 {
+  %c0 = arith.constant 0 : index
+  %c0_sf32 = arith.constant 0.0 : f32
+  %0 = affine.for %arg2 = 0 to 8 iter_args(%iter = %c0_sf32) -> (f32) {
+    %1 = tensor.extract %arg0[%arg2] : tensor<8xf32>
+    %2 = tensor.extract %arg1[%arg2] : tensor<8xf32>
+    %3 = arith.mulf %1, %2 : f32
+    %4 = arith.addf %iter, %3 : f32
+    affine.yield %4 : f32
+  }
+  return %0 : f32
+}
+```
+
+The `heir_lattigo_lib` macro invokes `heir-opt` and `heir-translate` with
+specified flags
+
+```starlark
+# BUILD.bazel
+load("@rules_go//go:def.bzl", "go_test")
+load("@rules_heir//heir:lattigo.bzl", "heir_lattigo_lib")
+
+heir_lattigo_lib(
+    name = "hello_world",
+    go_library_name = "helloworld",
+    heir_opt_flags = [
+        "--annotate-module=backend=lattigo scheme=ckks",
+        "--mlir-to-ckks=min-slot-count=2048 first-mod-bits=0",
+        "--scheme-to-lattigo",
+    ],
+    mlir_src = "hello_world.mlir",
+    split_preprocessing = False,
+)
+
+go_test(
+    name = "hello_world_test",
+    srcs = ["hello_world_test.go"],
+    embed = [":helloworld"],
+)
+```
+
+and this puts the generated artifacts in `bazel-bin/` (which you can inspect to
+see the generated API, more on that later in this document).
+
+A main harness invokes the generated code:
+
+```go
+// hello_world_test.go
+package helloworld
+
+import (
+    "math"
+    "testing"
+)
+
+func TestHelloWorld(t *testing.T) {
+    evaluator, params, ecd, enc, dec := Dot_product__configure()
+
+    // Vector of plaintext values
+    arg0 := []float32{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8}
+    arg1 := []float32{0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}
+
+    expected := float32(2.40)
+
+    ct0 := Dot_product__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+    ct1 := Dot_product__encrypt__arg1(evaluator, params, ecd, enc, arg1)
+
+    resultCt := Dot_product(evaluator, params, ecd, ct0, ct1)
+
+    result := Dot_product__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+
+    errorThreshold := float64(0.0001)
+    if math.Abs(float64(result-expected)) > errorThreshold {
+        t.Errorf("Decryption error %.2f != %.2f", result, expected)
+    }
+}
+```
+
+And then you can `bazel test -c opt :hello_world_test` to run the example.
+
 ### Using a pre-built nightly binary
 
 HEIR releases a [nightly](https://github.com/google/heir/releases/tag/nightly)
-binary for Linux x86-64. This is intended for testing compiler passes and not
-for production use.
+binary. This is intended for testing compiler passes and not for production use.
+Select a platform from the
+[list of assets](https://github.com/google/heir/releases/tag/nightly), e.g.,
+`heir-opt-manylinux_2_28_x86_64`
 
 ```bash
-wget https://github.com/google/heir/releases/download/nightly/heir-opt
+wget -O heir-opt https://github.com/google/heir/releases/download/nightly/heir-opt-manylinux_2_28_x86_64
 chmod +x heir-opt
 ./heir-opt --help
 ```
 
-Then you can run the examples below, replacing `bazel run //tools:heir-opt --`
-with `./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the
-same way.
+Then you can run the examples below. In the rest of this document, you can
+replace `bazel run //tools:heir-opt --` with `./heir-opt`. HEIR also publishes
+`heir-translate` and `heir-lsp` in the same way.
 
 ### Via pip
 
@@ -37,27 +187,61 @@ heir-opt --help
 heir-translate --help
 ```
 
+While this gives access to the underlying binaries, if you install a supported
+backend (e.g., [OpenFHE](https://openfhe.org/)) on your system, you can also run
+an example through the Python package:
+
+```python
+from heir import compile
+from heir.mlir import I64, Secret
+
+@compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
+def func(x: Secret[I64], y: Secret[I64]):
+    sum = x + y
+    diff = x - y
+    mul = x * y
+    expression = sum * diff + mul
+    deadcode = expression * mul
+    return expression
+
+func.setup()
+enc_x = func.encrypt_x(7)
+enc_y = func.encrypt_y(8)
+result_enc = func.eval(enc_x, enc_y)
+result = func.decrypt_result(result_enc)
+
+print(
+  f"Expected result for `func`: {func.original(7,8)}, FHE result:"
+  f" {result}"
+)
+```
+
+This will compile the function above using the BGV scheme to machine code via
+the [OpenFHE](https://openfhe-development.readthedocs.io/en/latest/) backend.
+Then calling the function will encrypt the inputs, run the function, and return
+the decrypted result. The function call `foo(7, 8)` runs the entire
+encrypt-run-decrypt flow for ease of testing.
+
+**Note:** we require the user install OpenFHE directly, because the Python
+frontend invokes a C++ compiler on the HEIR-generated code, and links against
+OpenFHE. The OpenFHE installation is specific to each system (e.g., for
+OpenFHE-specific configurations like OpenMP).
+
+**Note:** Support for backends besides OpenFHE is in progress.
+
 ### Building From Source
 
 #### Prerequisites
 
 - [Git](https://git-scm.com/)
-- A C++ compiler and linker ([clang](https://clang.llvm.org/) and
-  [lld](https://lld.llvm.org/) or a recent version of `gcc`). If you want to run
-  OpenFHE with parallelism (enabled by default), you'll also need OpenMP.
 - Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk). The precise
   Bazel version used is in `.bazelversion` in the repository root.
 
+Bazel manages all the other dependencies needed (such as the C++ compiler, Go
+compiler, Rust compiler, Python interpreter, and all dependent packages).
+
 <details>
   <summary>Detailed Instructions</summary>
-  The first two requirements are frequently pre-installed
-  or can be installed via the system package manager.
-  For example, on Ubuntu, these can be installed with
-
-```bash
-sudo apt-get update && sudo apt-get install clang lld libomp-dev
-```
-
 You can download the latest Bazelisk release, e.g., for linux-amd64 (see the
 [Bazelisk Release Page](https://github.com/bazelbuild/bazelisk/releases/latest)
 for a list of available binaries):
@@ -92,30 +276,13 @@ configuration if you want to use an IDE to build HEIR.
 
 ```bash
 git clone git@github.com:google/heir.git && cd heir
-bazel build @heir//tools:heir-opt
-```
-
-Some HEIR passes require Yosys as a dependency (`--yosys-optimizer`), which
-itself adds many transitive dependencies that may not build properly on all
-systems. If you would like to skip Yosys and ABC compilation, use the following
-build setting:
-
-```bash
-bazel build --//:enable_yosys=0 --build_tag_filters=-yosys @heir//tools:heir-opt
-```
-
-Adding the following to `.bazelrc` in the HEIR project root will make this the
-default behavior
-
-```
-common --//:enable_yosys=0
-common --build_tag_filters=-yosys
+bazel build -c opt @heir//tools:heir-opt
 ```
 
 #### Optional: Run the tests
 
 ```bash
-bazel test @heir//...
+bazel test -c opt @heir//...
 ```
 
 ## Using HEIR
