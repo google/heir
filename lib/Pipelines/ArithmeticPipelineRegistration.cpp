@@ -213,6 +213,11 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Layout conversions may be repeated, so run CSE
   pm.addPass(createCSEPass());
 
+  EarlyBootstrapPlacementOptions earlyBootstrapOptions;
+  earlyBootstrapOptions.levelBudget = options.greedyLevelBudget;
+  earlyBootstrapOptions.bootstrapWaterline = options.greedyBootstrapWaterline;
+  pm.addPass(createEarlyBootstrapPlacement(earlyBootstrapOptions));
+
   // Linalg kernel implementation
   ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
   convertToCiphertextSemanticsOptions.minSlotCount = options.minSlotCount;

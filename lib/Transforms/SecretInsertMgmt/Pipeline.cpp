@@ -1,5 +1,6 @@
 #include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <utility>
@@ -14,12 +15,14 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Transforms/Halo/Patterns.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallPtrSet.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -29,7 +32,9 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -121,7 +126,9 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   }
 
   int64_t bootstrapLevelsConsumed = 0;
-  int64_t maxLevel = 40;
+  // A default large value when the user does not set a level budget. Used for
+  // ensuring subesquent passes that require a level budget get one.
+  int64_t maxLevel = 100;
   if (succeeded(target)) {
     bootstrapLevelsConsumed = target->bootstrapLevelsConsumed;
   }
@@ -130,35 +137,58 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
                    ? maxLevel
                    : (options.levelBudget + bootstrapLevelsConsumed);
 
-  // Run Level Analysis to check for convergence
+  int idCounter = 0;  // for making adjust_scale op different to avoid cse
+
+  // 1. Hoist invariant bootstraps first
+  if (options.bootstrapWaterline.has_value()) {
+    LDBG(2) << "Running insertBootstrapWaterLine (only hoist) first";
+    int absoluteWaterline = budget - options.bootstrapWaterline.value();
+    insertBootstrapWaterLine(top, absoluteWaterline, budget,
+                             bootstrapLevelsConsumed, options.includeFloats,
+                             &idCounter, /*onlyHoist=*/true);
+  }
+
+  // 2. Re-solve levels to propagate hoisted levels
+  int solverBudget = std::max(budget, (int)maxLevel);
   DataFlowSolver levelSolver;
-  makeAndRunSolver(top, levelSolver, budget);
+  makeAndRunSolver(top, levelSolver, solverBudget);
 
-  auto nonInvariantLoops = getNonInvariantLoops(top, &levelSolver);
+  // 3. Make region branch ops level invariant (using updated levels)
+  makeRegionBranchOpsLevelInvariant(top, solverBudget);
 
+  // 4. Re-solve levels again to propagate aligned levels
+  DataFlowSolver levelSolver2;
+  makeAndRunSolver(top, levelSolver2, solverBudget);
+
+  // 5. Get non-invariant loops now
+  auto nonInvariantLoops = getNonInvariantLoops(top, &levelSolver2);
   LDBG(2) << "Found " << nonInvariantLoops.size() << " non-invariant loops";
-  for (auto* loop : nonInvariantLoops) {
-    LDBG(2) << "Processing non-invariant loop " << *loop;
-    DataFlowSolver secretnessSolver;
-    makeAndRunSecretnessSolver(top, secretnessSolver);
-    if (options.bootstrapWaterline.has_value()) {
+
+  // 6. Bootstrap loop iter args for the remaining non-invariant loops
+  if (options.bootstrapWaterline.has_value()) {
+    for (auto* loop : nonInvariantLoops) {
+      LDBG(2) << "Bootstrapping iter args for non-invariant loop " << *loop;
+      DataFlowSolver secretnessSolver;
+      makeAndRunSecretnessSolver(top, secretnessSolver);
       bootstrapLoopIterArgs(loop, &secretnessSolver);
     }
+  }
 
+  // 7. Unroll remaining non-invariant loops
+  for (auto* loop : nonInvariantLoops) {
+    LDBG(2) << "Unrolling non-invariant loop " << *loop;
     DataFlowSolver freshLevelSolver;
     makeAndRunSolver(top, freshLevelSolver, budget);
     unrollLoopForLevelUtilization(loop, &freshLevelSolver, budget);
   }
 
-  makeRegionBranchOpsLevelInvariant(top);
-
-  int idCounter = 0;  // for making adjust_scale op different to avoid cse
+  // 8. Run full waterline bootstrap insertion
   if (options.bootstrapWaterline.has_value()) {
-    LDBG(2) << "Bootstrap waterline";
+    LDBG(2) << "Running insertBootstrapWaterLine (full) after unrolling";
     int absoluteWaterline = budget - options.bootstrapWaterline.value();
     insertBootstrapWaterLine(top, absoluteWaterline, budget,
                              bootstrapLevelsConsumed, options.includeFloats,
-                             &idCounter);
+                             &idCounter, /*onlyHoist=*/false);
   }
 
   // An if statement must have each branch producing the same level as a result,
@@ -347,36 +377,250 @@ static ScaleSafeTargetsResult getScaleSafeBootstrapTargets(
   return result;
 }
 
+static LoopLikeOpInterface getOutermostLoopForInvariant(Value val,
+                                                        Operation* userOp) {
+  LoopLikeOpInterface outermostLoop = nullptr;
+  Operation* curr = userOp->getParentOp();
+  while (curr) {
+    if (auto loop = dyn_cast<LoopLikeOpInterface>(curr)) {
+      if (loop.isDefinedOutsideOfLoop(val)) {
+        outermostLoop = loop;
+      } else {
+        break;
+      }
+    }
+    curr = curr->getParentOp();
+  }
+  return outermostLoop;
+}
+
+static Value bootstrapValue(
+    Value val, OpBuilder& builder,
+    llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
+    const DominanceInfo& domInfo, Operation* insertionPoint = nullptr) {
+  if (val.getDefiningOp() && isa<mgmt::BootstrapOp>(val.getDefiningOp())) {
+    return val;
+  }
+  Operation* defOp = val.getDefiningOp();
+  Value newOperand;
+  {
+    OpBuilder::InsertionGuard guard(builder);
+    if (insertionPoint) {
+      builder.setInsertionPoint(insertionPoint);
+    } else if (defOp) {
+      builder.setInsertionPointAfter(defOp);
+    } else {
+      BlockArgument blockArg = cast<BlockArgument>(val);
+      builder.setInsertionPointToStart(blockArg.getOwner());
+    }
+
+    Operation* actualInsertionPoint = insertionPoint;
+    if (!actualInsertionPoint) {
+      if (defOp) {
+        actualInsertionPoint = defOp;
+      }
+    }
+
+    auto it = bootstrappedValues.find(val);
+    if (it != bootstrappedValues.end()) {
+      for (Value cachedVal : it->second) {
+        if (actualInsertionPoint) {
+          if (domInfo.dominates(cachedVal.getDefiningOp(),
+                                actualInsertionPoint)) {
+            newOperand = cachedVal;
+            break;
+          }
+        } else {
+          Block* block = cast<BlockArgument>(val).getOwner();
+          Block* cachedValBlock = cachedVal.getDefiningOp()->getBlock();
+          if (cachedValBlock != block &&
+              domInfo.dominates(cachedValBlock, block)) {
+            newOperand = cachedVal;
+            break;
+          }
+        }
+      }
+    }
+    if (!newOperand) {
+      Location loc = insertionPoint ? insertionPoint->getLoc() : val.getLoc();
+      auto bootstrapOp =
+          mgmt::BootstrapOp::create(builder, loc, val.getType(), val);
+      newOperand = bootstrapOp.getResult();
+      bootstrappedValues[val].push_back(newOperand);
+    }
+  }
+  return newOperand;
+}
+
+static bool isRotationByZero(Value val, Value source) {
+  auto rotateOp = val.getDefiningOp<tensor_ext::RotateOp>();
+  if (!rotateOp) return false;
+  if (rotateOp.getOperand(0) != source) return false;
+  auto constOp = rotateOp.getOperand(1).getDefiningOp<arith::ConstantOp>();
+  if (!constOp) return false;
+  auto intAttr = llvm::dyn_cast<IntegerAttr>(constOp.getValue());
+  if (!intAttr) return false;
+  return intAttr.getInt() == 0;
+}
+
+static Value getSourceOfRotations(Value val) {
+  Operation* defOp = val.getDefiningOp();
+  if (!defOp) return nullptr;
+
+  if (auto forOp = dyn_cast<scf::ForOp>(defOp)) {
+    if (forOp.getNumResults() != 1 ||
+        !isa<TensorType>(forOp.getResult(0).getType())) {
+      return nullptr;
+    }
+    Block* body = forOp.getBody();
+    auto yieldOp = dyn_cast<scf::YieldOp>(body->getTerminator());
+    if (!yieldOp || yieldOp.getNumOperands() != 1) return nullptr;
+    Value yieldedVal = yieldOp.getOperand(0);
+
+    auto insertSliceOp = yieldedVal.getDefiningOp<tensor::InsertSliceOp>();
+    if (!insertSliceOp) return nullptr;
+
+    Value insertedVal = insertSliceOp.getSource();
+    auto rotateOp = insertedVal.getDefiningOp<tensor_ext::RotateOp>();
+    if (!rotateOp) return nullptr;
+
+    Value rotateSource = rotateOp.getOperand(0);
+    if (!forOp.isDefinedOutsideOfLoop(rotateSource)) {
+      return nullptr;
+    }
+
+    Value initVal = forOp.getInitArgs()[0];
+    auto initInsertSliceOp = initVal.getDefiningOp<tensor::InsertSliceOp>();
+    if (initInsertSliceOp) {
+      Value initSource = initInsertSliceOp.getSource();
+      if (initSource == rotateSource ||
+          isRotationByZero(initSource, rotateSource)) {
+        return rotateSource;
+      }
+    }
+  }
+  return nullptr;
+}
+
+// Modify the rotations loop in-place to use bootstrappedRotSource
+static void useRotSource(scf::ForOp forOp,
+                         tensor::InsertSliceOp initInsertSliceOp,
+                         Value bootstrappedRotSource) {
+  Block* body = forOp.getBody();
+  auto yieldOp = cast<scf::YieldOp>(body->getTerminator());
+  auto insertSliceOp =
+      cast<tensor::InsertSliceOp>(yieldOp.getOperand(0).getDefiningOp());
+  auto rotateOp =
+      cast<tensor_ext::RotateOp>(insertSliceOp.getSource().getDefiningOp());
+  rotateOp.setOperand(0, bootstrappedRotSource);
+  initInsertSliceOp.setOperand(0, bootstrappedRotSource);
+}
+
+static bool tryHoistBootstrap(
+    Value val, OpBuilder& builder,
+    llvm::DenseMap<Value, SmallVector<Value, 2>>& hoistedTensors,
+    const DominanceInfo& domInfo) {
+  Operation* valDefOp = val.getDefiningOp();
+  if (valDefOp && (isa<tensor::ExtractSliceOp>(valDefOp) ||
+                   isa<tensor::ExtractOp>(valDefOp))) {
+    Value source = valDefOp->getOperand(0);
+    if (source.getDefiningOp() &&
+        isa<mgmt::BootstrapOp>(source.getDefiningOp())) {
+      return true;
+    }
+
+    // Check if source is a rotations loop
+    if (Value rotSource = getSourceOfRotations(source)) {
+      if (rotSource.getDefiningOp() &&
+          isa<mgmt::BootstrapOp>(rotSource.getDefiningOp())) {
+        // Already bootstrapped
+        return true;
+      }
+
+      Operation* rotationsLoopOp = source.getDefiningOp();
+      auto forOp = cast<scf::ForOp>(rotationsLoopOp);
+      Value initVal = forOp.getInitArgs()[0];
+      auto initInsertSliceOp =
+          cast<tensor::InsertSliceOp>(initVal.getDefiningOp());
+
+      // Bootstrap the source of rotations before the initializer of the loop
+      Value bootstrappedRotSource;
+      {
+        OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPoint(initInsertSliceOp);
+        Location loc = rotSource.getLoc();
+        auto bootstrapOp = mgmt::BootstrapOp::create(
+            builder, loc, rotSource.getType(), rotSource);
+        bootstrappedRotSource = bootstrapOp.getResult();
+      }
+
+      useRotSource(forOp, initInsertSliceOp, bootstrappedRotSource);
+
+      return true;
+    }
+
+    // 1. Try to reuse cached bootstrap
+    auto it = hoistedTensors.find(source);
+    if (it != hoistedTensors.end()) {
+      for (Value cachedVal : it->second) {
+        if (domInfo.dominates(cachedVal.getDefiningOp(), valDefOp)) {
+          valDefOp->setOperand(0, cachedVal);
+          return true;
+        }
+      }
+    }
+
+    // 2. Try to hoist
+    if (LoopLikeOpInterface outermostLoop =
+            getOutermostLoopForInvariant(source, valDefOp)) {
+      Value bootstrappedSource;
+      OpBuilder::InsertionGuard guard(builder);
+      if (Operation* sourceDefOp = source.getDefiningOp()) {
+        if (sourceDefOp->getBlock() == outermostLoop->getBlock()) {
+          builder.setInsertionPointAfter(sourceDefOp);
+        } else {
+          builder.setInsertionPoint(outermostLoop);
+        }
+      } else {
+        BlockArgument blockArg = cast<BlockArgument>(source);
+        if (blockArg.getOwner() == outermostLoop->getBlock()) {
+          builder.setInsertionPointToStart(blockArg.getOwner());
+        } else {
+          builder.setInsertionPoint(outermostLoop);
+        }
+      }
+
+      Location loc = source.getLoc();
+      auto bootstrapOp =
+          mgmt::BootstrapOp::create(builder, loc, source.getType(), source);
+      bootstrappedSource = bootstrapOp.getResult();
+      hoistedTensors[source].push_back(bootstrappedSource);
+
+      // Replace all uses of source within the outermostLoop with
+      // bootstrappedSource
+      source.replaceUsesWithIf(bootstrappedSource, [&](OpOperand& operand) {
+        return outermostLoop.getOperation()->isAncestor(operand.getOwner());
+      });
+      return true;
+    }
+  }
+  return false;
+}
+
 static void bootstrapMulOperands(
     Operation* mulOp, const SmallVector<Value>& scaleSafeTargets,
     OpBuilder& builder,
     llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
     const DominanceInfo& domInfo) {
-  builder.setInsertionPoint(mulOp);
   for (unsigned i = 0; i < mulOp->getNumOperands(); ++i) {
     Value operand = mulOp->getOperand(i);
     if (llvm::is_contained(scaleSafeTargets, operand)) {
-      Value bootstrappedOperand;
-      if (operand.getDefiningOp() &&
-          isa<mgmt::BootstrapOp>(operand.getDefiningOp())) {
-        bootstrappedOperand = operand;
-      } else {
-        auto it = bootstrappedValues.find(operand);
-        if (it != bootstrappedValues.end()) {
-          for (Value cachedVal : it->second) {
-            if (domInfo.dominates(cachedVal.getDefiningOp(), mulOp)) {
-              bootstrappedOperand = cachedVal;
-              break;
-            }
-          }
-        }
-        if (!bootstrappedOperand) {
-          auto bootstrapOp = mgmt::BootstrapOp::create(
-              builder, mulOp->getLoc(), operand.getType(), operand);
-          bootstrappedOperand = bootstrapOp.getResult();
-          bootstrappedValues[operand].push_back(bootstrappedOperand);
-        }
+      Operation* insertionPoint = mulOp;
+      if (auto loop = getOutermostLoopForInvariant(operand, mulOp)) {
+        insertionPoint = loop;
       }
+      Value bootstrappedOperand = bootstrapValue(
+          operand, builder, bootstrappedValues, domInfo, insertionPoint);
       mulOp->setOperand(i, bootstrappedOperand);
     }
   }
@@ -384,7 +628,8 @@ static void bootstrapMulOperands(
 
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, int bootstrapLevelsConsumed,
-                              bool includeFloats, int* idCounter) {
+                              bool includeFloats, int* idCounter,
+                              bool onlyHoist) {
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
@@ -412,13 +657,132 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
     }
   });
 
-  // Mutate the IR
   OpBuilder builder(top->getContext());
   llvm::DenseMap<Value, SmallVector<Value, 2>> bootstrappedValues;
   DominanceInfo domInfo(top);
+  llvm::DenseMap<Value, SmallVector<Value, 2>> hoistedTensors;
 
+  // Phase 1: Identify and insert hoisted bootstraps
   for (Value needsBootstrap : targets) {
     Operation* defOp = needsBootstrap.getDefiningOp();
+    SmallVector<Value> leafTargets;
+    if (defOp && isa<ReducesLevelOpInterface>(defOp)) {
+      auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
+      auto operandsToReduce = reduceOp.getOperandsToReduce(&solver);
+      for (OpOperand* operand : operandsToReduce) {
+        Value operandToReduce = operand->get();
+        if (moduleTargetsCKKS(top)) {
+          ScaleSafeTargetsResult scaleSafeResult =
+              getScaleSafeBootstrapTargets(operandToReduce, &solver);
+          if (!scaleSafeResult.targets.empty()) {
+            leafTargets.append(scaleSafeResult.targets.begin(),
+                               scaleSafeResult.targets.end());
+          } else {
+            leafTargets.push_back(operandToReduce);
+          }
+        } else {
+          leafTargets.push_back(operandToReduce);
+        }
+      }
+    } else {
+      leafTargets.push_back(needsBootstrap);
+    }
+
+    for (Value leaf : leafTargets) {
+      Operation* leafDefOp = leaf.getDefiningOp();
+      if (leafDefOp && (isa<tensor::ExtractSliceOp>(leafDefOp) ||
+                        isa<tensor::ExtractOp>(leafDefOp))) {
+        Value source = leafDefOp->getOperand(0);
+        if (source.getDefiningOp() &&
+            isa<mgmt::BootstrapOp>(source.getDefiningOp())) {
+          continue;
+        }
+
+        // Check if source is a rotations loop
+        if (Value rotSource = getSourceOfRotations(source)) {
+          if (rotSource.getDefiningOp() &&
+              isa<mgmt::BootstrapOp>(rotSource.getDefiningOp())) {
+            continue;
+          }
+
+          Operation* rotationsLoopOp = source.getDefiningOp();
+          auto forOp = cast<scf::ForOp>(rotationsLoopOp);
+          Value initVal = forOp.getInitArgs()[0];
+          auto initInsertSliceOp =
+              cast<tensor::InsertSliceOp>(initVal.getDefiningOp());
+
+          // Bootstrap the source of rotations before the initializer of the
+          // loop
+          Value bootstrappedRotSource;
+          {
+            OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPoint(initInsertSliceOp);
+            Location loc = rotSource.getLoc();
+            auto bootstrapOp = mgmt::BootstrapOp::create(
+                builder, loc, rotSource.getType(), rotSource);
+            bootstrappedRotSource = bootstrapOp.getResult();
+          }
+
+          useRotSource(forOp, initInsertSliceOp, bootstrappedRotSource);
+          continue;
+        }
+
+        if (hoistedTensors.count(source)) {
+          continue;
+        }
+        if (LoopLikeOpInterface outermostLoop =
+                getOutermostLoopForInvariant(source, leafDefOp)) {
+          Value bootstrappedSource;
+          OpBuilder::InsertionGuard guard(builder);
+          if (Operation* sourceDefOp = source.getDefiningOp()) {
+            if (sourceDefOp->getBlock() == outermostLoop->getBlock()) {
+              builder.setInsertionPointAfter(sourceDefOp);
+            } else {
+              builder.setInsertionPoint(outermostLoop);
+            }
+          } else {
+            BlockArgument blockArg = cast<BlockArgument>(source);
+            if (blockArg.getOwner() == outermostLoop->getBlock()) {
+              builder.setInsertionPointToStart(blockArg.getOwner());
+            } else {
+              builder.setInsertionPoint(outermostLoop);
+            }
+          }
+
+          Location loc = source.getLoc();
+          auto bootstrapOp =
+              mgmt::BootstrapOp::create(builder, loc, source.getType(), source);
+          bootstrappedSource = bootstrapOp.getResult();
+          hoistedTensors[source].push_back(bootstrappedSource);
+        }
+      }
+    }
+  }
+
+  // Phase 2: Perform replacements using the cache
+  top->walk([&](Operation* op) {
+    if (isa<tensor::ExtractSliceOp>(op) || isa<tensor::ExtractOp>(op)) {
+      Value source = op->getOperand(0);
+      auto it = hoistedTensors.find(source);
+      if (it != hoistedTensors.end()) {
+        for (Value cachedVal : it->second) {
+          if (domInfo.dominates(cachedVal.getDefiningOp(), op)) {
+            op->setOperand(0, cachedVal);
+            break;
+          }
+        }
+      }
+    }
+  });
+
+  if (onlyHoist) {
+    return;
+  }
+
+  // Phase 3: Insert remaining (non-hoisted) bootstraps
+  for (Value needsBootstrap : targets) {
+    Operation* defOp = needsBootstrap.getDefiningOp();
+
     if (defOp && isa<ReducesLevelOpInterface>(defOp)) {
       auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
       auto operandsToReduce = reduceOp.getOperandsToReduce(&solver);
@@ -447,33 +811,39 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
           if (!scaleSafeResult.targets.empty()) {
             assert(scaleSafeResult.mulOp &&
                    "mulOp should not be null if scaleSafeTargets is not empty");
-            bootstrapMulOperands(scaleSafeResult.mulOp, scaleSafeResult.targets,
-                                 builder, bootstrappedValues, domInfo);
+            SmallVector<Value> remainingTargets;
+            for (Value target : scaleSafeResult.targets) {
+              if (!tryHoistBootstrap(target, builder, hoistedTensors,
+                                     domInfo)) {
+                remainingTargets.push_back(target);
+              }
+            }
+            if (!remainingTargets.empty()) {
+              bootstrapMulOperands(scaleSafeResult.mulOp, remainingTargets,
+                                   builder, bootstrappedValues, domInfo);
+            }
             continue;
           }
         }
 
-        builder.setInsertionPoint(defOp);
-        Value newOperand;
-        auto it = bootstrappedValues.find(operandToReduce);
-        if (it != bootstrappedValues.end()) {
-          for (Value cachedVal : it->second) {
-            if (domInfo.dominates(cachedVal.getDefiningOp(), defOp)) {
-              newOperand = cachedVal;
-              break;
-            }
-          }
+        if (tryHoistBootstrap(operandToReduce, builder, hoistedTensors,
+                              domInfo)) {
+          continue;
         }
-        if (!newOperand) {
-          auto bootstrapOp = mgmt::BootstrapOp::create(
-              builder, defOp->getLoc(), operandToReduce.getType(),
-              operandToReduce);
-          newOperand = bootstrapOp.getResult();
-          bootstrappedValues[operandToReduce].push_back(newOperand);
+
+        Operation* insertionPoint = defOp;
+        if (auto loop = getOutermostLoopForInvariant(operandToReduce, defOp)) {
+          insertionPoint = loop;
         }
+
+        Value newOperand =
+            bootstrapValue(operandToReduce, builder, bootstrappedValues,
+                           domInfo, insertionPoint);
 
         if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
             !moduleTargetsCKKS(top)) {
+          OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPoint(insertionPoint);
           auto adjustScaleOp = mgmt::AdjustScaleOp::create(
               builder, defOp->getLoc(), newOperand,
               builder.getI64IntegerAttr((*idCounter)++));
@@ -482,39 +852,11 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
         operand->set(newOperand);
       }
     } else {
-      if (defOp) {
-        builder.setInsertionPointAfter(defOp);
-      } else {
-        BlockArgument blockArg = cast<BlockArgument>(needsBootstrap);
-        builder.setInsertionPointToStart(blockArg.getOwner());
+      if (tryHoistBootstrap(needsBootstrap, builder, hoistedTensors, domInfo)) {
+        continue;
       }
-      Value newOperand;
-      auto it = bootstrappedValues.find(needsBootstrap);
-      if (it != bootstrappedValues.end()) {
-        for (Value cachedVal : it->second) {
-          if (defOp) {
-            if (domInfo.dominates(cachedVal.getDefiningOp(), defOp)) {
-              newOperand = cachedVal;
-              break;
-            }
-          } else {
-            Block* block = cast<BlockArgument>(needsBootstrap).getOwner();
-            Block* cachedValBlock = cachedVal.getDefiningOp()->getBlock();
-            if (cachedValBlock != block &&
-                domInfo.dominates(cachedValBlock, block)) {
-              newOperand = cachedVal;
-              break;
-            }
-          }
-        }
-      }
-      if (!newOperand) {
-        auto bootstrapOp =
-            mgmt::BootstrapOp::create(builder, needsBootstrap.getLoc(),
-                                      needsBootstrap.getType(), needsBootstrap);
-        newOperand = bootstrapOp.getResult();
-        bootstrappedValues[needsBootstrap].push_back(newOperand);
-      }
+      Value newOperand =
+          bootstrapValue(needsBootstrap, builder, bootstrappedValues, domInfo);
       needsBootstrap.replaceAllUsesExcept(newOperand,
                                           newOperand.getDefiningOp());
     }
@@ -546,11 +888,11 @@ void bootstrapLoopIterArgs(Operation* loopOp, DataFlowSolver* solver) {
   (void)applicator.matchAndRewrite(loopOp, rewriter);
 }
 
-void makeRegionBranchOpsLevelInvariant(Operation* top) {
+void makeRegionBranchOpsLevelInvariant(Operation* top, int levelBudget) {
   LDBG(2) << "Making region branch ops level invariant";
   MLIRContext* ctx = top->getContext();
   DataFlowSolver solver;
-  makeAndRunSecretnessSolver(top, solver);
+  makeAndRunSecretnessAndLevelSolver(top, solver, levelBudget);
   RewritePatternSet patterns(ctx);
   patterns.add<UseInitForPlaintextBranchTerminators,
                RegionBranchOpLevelInvariancePattern>(ctx, &solver);
@@ -563,8 +905,11 @@ SmallVector<Operation*> getNonInvariantLoops(Operation* top,
   SmallVector<Operation*> nonInvariantLoops;
 
   auto isInvariant = [&](LoopLikeOpInterface forOp) {
+    LDBG(2) << "Checking invariance for loop: " << *forOp;
     for (auto [i, iterArg] : llvm::enumerate(forOp.getRegionIterArgs())) {
-      if (!isSecret(iterArg, solver)) continue;
+      if (!isSecret(iterArg, solver)) {
+        continue;
+      }
 
       auto* initLattice =
           solver->lookupState<LevelLattice>(forOp.getInits()[i]);
@@ -572,16 +917,36 @@ SmallVector<Operation*> getNonInvariantLoops(Operation* top,
           forOp.getTiedLoopYieldedValue(cast<BlockArgument>(iterArg))->get();
       auto* yieldLattice = solver->lookupState<LevelLattice>(yieldedValue);
 
-      if (!initLattice || !yieldLattice || !initLattice->getValue().isInt() ||
-          !yieldLattice->getValue().isInt()) {
+      if (!initLattice || !yieldLattice) {
+        LDBG(2) << "  Arg " << i << ": missing lattice -> non-invariant";
         return false;
       }
 
-      if (initLattice->getValue().getInt() !=
-          yieldLattice->getValue().getInt()) {
+      LevelState initVal = initLattice->getValue();
+      LevelState yieldVal = yieldLattice->getValue();
+
+      LDBG(2) << "  Arg " << i << ": initVal=" << initVal
+              << ", yieldVal=" << yieldVal;
+
+      if (!initVal.isInitialized() && yieldVal.isInitialized()) {
+        // Init is Uninit, yield is concrete. We can align init to yield.
+        // Treat as invariant.
+        LDBG(2) << "  Arg " << i << ": treated as invariant (Uninit init)";
+        continue;
+      }
+
+      if (!initVal.isInt() || !yieldVal.isInt()) {
+        LDBG(2) << "  Arg " << i << ": not int -> non-invariant";
+        return false;
+      }
+
+      if (initVal.getInt() != yieldVal.getInt()) {
+        LDBG(2) << "  Arg " << i << ": levels mismatch (" << initVal.getInt()
+                << " != " << yieldVal.getInt() << ") -> non-invariant";
         return false;
       }
     }
+    LDBG(2) << "  Loop is invariant";
     return true;
   };
 

@@ -16,6 +16,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Kernel/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

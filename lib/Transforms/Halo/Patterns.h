@@ -74,8 +74,12 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     rewriter.setInsertionPoint(forOp);
     for (auto i : secretInitIndices) {
       auto& initMutable = forOp.getInitsMutable()[i];
-      auto reduceMinOp = mgmt::LevelReduceMinOp::create(
-          rewriter, forOp.getLoc(), initMutable.get());
+      Value initVal = initMutable.get();
+      if (auto reduceOp = initVal.getDefiningOp<mgmt::LevelReduceOp>()) {
+        initVal = reduceOp.getOperand();
+      }
+      auto reduceMinOp =
+          mgmt::LevelReduceMinOp::create(rewriter, forOp.getLoc(), initVal);
       rewriter.modifyOpInPlace(
           forOp, [&]() { initMutable.set(reduceMinOp.getResult()); });
     }

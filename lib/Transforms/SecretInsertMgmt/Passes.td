@@ -138,4 +138,22 @@ def AnnotateBootstrapWaterline : Pass<"annotate-bootstrap-waterline", "ModuleOp"
   ];
 }
 
+def EarlyBootstrapPlacement : Pass<"early-bootstrap-placement", "ModuleOp"> {
+  let summary = "Place bootstraps early on linalg and kernel ops";
+  let description = [{
+    Analyzes the level consumption of linalg and kernel ops inside secret.generic
+    and inserts mgmt.bootstrap ops to ensure levels do not drop below zero.
+    This runs when linalg ops are still present.
+  }];
+  let options = [
+    Option<"levelBudget", "level-budget", "int", /*default=*/"10", "Level budget">,
+    Option<"bootstrapWaterline", "bootstrap-waterline", "int", /*default=*/"0", "Bootstrap waterline">,
+  ];
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::heir::mgmt::MgmtDialect",
+    "mlir::scf::SCFDialect"
+  ];
+}
+
 #endif  // LIB_TRANSFORMS_SECRETINSERTMGMT_PASSES_TD_

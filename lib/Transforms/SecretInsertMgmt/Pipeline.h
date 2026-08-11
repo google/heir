@@ -46,7 +46,8 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
 
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, int bootstrapLevelsConsumed,
-                              bool includeFloats, int* idCounter);
+                              bool includeFloats, int* idCounter,
+                              bool onlyHoist = false);
 
 /// Peels the first iteration of loops if they have plaintext initial values
 /// and secret yielded values. This is needed to ensure level analysis can
@@ -59,7 +60,7 @@ void bootstrapLoopIterArgs(Operation* loopOp, DataFlowSolver* solver);
 
 /// Inserts mgmt.init for plaintext branch terminators and level reduce ops
 /// to ensure level invariance across region branches.
-void makeRegionBranchOpsLevelInvariant(Operation* top);
+void makeRegionBranchOpsLevelInvariant(Operation* top, int levelBudget);
 
 /// Returns a list of loops that are not level invariant, and hence require
 /// bootstrap insertion and may benefit from level unrolling. The returned

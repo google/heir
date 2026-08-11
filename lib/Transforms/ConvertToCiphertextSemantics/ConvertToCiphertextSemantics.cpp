@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "lib/Dialect/Kernel/IR/KernelOps.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -2947,6 +2948,29 @@ struct ConvertLinalgBatchMatmul
   }
 };
 
+struct ConvertBootstrap : public ConversionBase<mgmt::BootstrapOp> {
+  using ConversionBase<mgmt::BootstrapOp>::ConversionBase;
+
+  LogicalResult matchAndRewrite(
+      mgmt::BootstrapOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    LayoutAttr layout = getLayoutAttr(adaptor.getInput());
+    if (!layout) {
+      return op.emitOpError("could not find layout for input");
+    }
+    Type newType = getTypeConverter()->convertType(op.getType(), layout);
+    if (!newType) {
+      return failure();
+    }
+
+    auto newOp = rewriter.replaceOpWithNewOp<mgmt::BootstrapOp>(
+        op, newType, adaptor.getInput());
+    setMaterializedAttr(newOp);
+    newOp->setAttr(kLayoutAttrName, layout);
+    return success();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -2966,9 +2990,10 @@ struct ConvertToCiphertextSemantics
     });
 
     patterns.add<
-        ConvertAnyAddingMaterializedAttr, ConvertConvertLayout, ConvertFunc,
-        ConvertLinalgMatmul, ConvertLinalgBatchMatmul, ConvertLinalgReduce,
-        ConvertLinalgDot, ConvertSecretGeneric, ConvertTensorCollapseShape,
+        ConvertAnyAddingMaterializedAttr, ConvertBootstrap,
+        ConvertConvertLayout, ConvertFunc, ConvertLinalgMatmul,
+        ConvertLinalgBatchMatmul, ConvertLinalgReduce, ConvertLinalgDot,
+        ConvertSecretGeneric, ConvertTensorCollapseShape,
         ConvertTensorExpandShape, ConvertTensorExtractLayout,
         ConvertTensorExtractSlice, ConvertTensorPad, ConvertTensorInsertLayout,
         ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform>(
