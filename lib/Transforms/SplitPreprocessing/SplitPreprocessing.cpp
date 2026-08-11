@@ -10,6 +10,7 @@
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "llvm/include/llvm/ADT/BitVector.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -137,66 +138,62 @@ static bool isAllowedPlaintextType(Type type) {
 static void removeDeadAffineForIterArgs(func::FuncOp funcOp) {
   IRRewriter rewriter(funcOp.getContext());
 
+  // Collect the loops before rewriting any of them. The walk is post-order, so
+  // an inner loop is rebuilt before its parent, and the parent then moves the
+  // rebuilt inner loop along with the rest of its body.
   SmallVector<affine::AffineForOp> loops;
   funcOp.walk([&](affine::AffineForOp forOp) { loops.push_back(forOp); });
 
   for (affine::AffineForOp forOp : loops) {
     unsigned numIterArgs = forOp.getNumIterOperands();
-    if (numIterArgs == 0) continue;
-
-    SmallVector<unsigned> keptIndices;
+    llvm::BitVector deadArgs(numIterArgs);
     for (unsigned i = 0; i < numIterArgs; ++i) {
-      if (!forOp.getRegionIterArgs()[i].use_empty() ||
-          !forOp.getResult(i).use_empty()) {
-        keptIndices.push_back(i);
-      }
+      deadArgs[i] = forOp.getRegionIterArgs()[i].use_empty() &&
+                    forOp.getResult(i).use_empty();
     }
-    if (keptIndices.size() == numIterArgs) continue;  // nothing dead
+    if (deadArgs.none()) continue;  // also covers a loop with no iter_args
+
+    auto yieldOp =
+        cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
+    SmallVector<Value> keptInits;
+    SmallVector<Value> keptYields;
+    for (unsigned i = 0; i < numIterArgs; ++i) {
+      if (deadArgs[i]) continue;
+      keptInits.push_back(forOp.getInits()[i]);
+      keptYields.push_back(yieldOp.getOperand(i));
+    }
 
     rewriter.setInsertionPoint(forOp);
-    SmallVector<Value> keptInits;
-    for (unsigned i : keptIndices) keptInits.push_back(forOp.getInits()[i]);
-
     auto newLoop = affine::AffineForOp::create(
         rewriter, forOp.getLoc(), forOp.getLowerBoundOperands(),
         forOp.getLowerBoundMap(), forOp.getUpperBoundOperands(),
         forOp.getUpperBoundMap(), forOp.getStepAsInt(), keptInits);
+    // The builder sets the bounds, the step, and the segment sizes only.
+    newLoop->setDiscardableAttrs(forOp->getDiscardableAttrDictionary());
 
     // Trim the existing terminator down to the kept loop-carried values.
-    auto yieldOp =
-        cast<affine::AffineYieldOp>(forOp.getBody()->getTerminator());
-    SmallVector<Value> keptYields;
-    for (unsigned i : keptIndices) keptYields.push_back(yieldOp.getOperand(i));
     rewriter.modifyOpInPlace(
         yieldOp, [&]() { yieldOp.getOperandsMutable().assign(keptYields); });
 
-    // With no kept iter_args the builder added a default terminator; drop it so
-    // the merged (trimmed) affine.yield is the loop's only terminator.
-    if (keptInits.empty()) {
-      rewriter.eraseOp(newLoop.getBody()->getTerminator());
-    }
-
-    // Map the old block arguments onto the new loop: induction var, then each
-    // iter_arg. Kept ones map to the new region args; dead ones are unused, so
-    // their (type-matched, dominating) original initializer is a safe
-    // placeholder that is never actually referenced.
-    SmallVector<Value> blockArgReplacements;
-    blockArgReplacements.push_back(newLoop.getInductionVar());
-    unsigned keptCursor = 0;
+    // Move the body over wholesale. Its first argument is the induction
+    // variable, so it becomes the new loop's induction variable, and the kept
+    // region args carry over untouched.
+    Block* body = forOp.getBody();
+    rewriter.eraseBlock(newLoop.getBody());
+    rewriter.inlineRegionBefore(forOp.getRegion(), newLoop.getRegion(),
+                                newLoop.getRegion().end());
+    llvm::BitVector deadBlockArgs(body->getNumArguments());
     for (unsigned i = 0; i < numIterArgs; ++i) {
-      if (keptCursor < keptIndices.size() && keptIndices[keptCursor] == i) {
-        blockArgReplacements.push_back(
-            newLoop.getRegionIterArgs()[keptCursor++]);
-      } else {
-        blockArgReplacements.push_back(forOp.getInits()[i]);
-      }
+      if (deadArgs[i]) deadBlockArgs.set(i + 1);  // +1 for the induction var
     }
-    rewriter.mergeBlocks(forOp.getBody(), newLoop.getBody(),
-                         blockArgReplacements);
+    // Safe because each dead region arg has no uses.
+    body->eraseArguments(deadBlockArgs);
 
-    for (auto [newIdx, oldIdx] : llvm::enumerate(keptIndices)) {
-      rewriter.replaceAllUsesWith(forOp.getResult(oldIdx),
-                                  newLoop.getResult(newIdx));
+    unsigned newIdx = 0;
+    for (unsigned i = 0; i < numIterArgs; ++i) {
+      if (deadArgs[i]) continue;
+      rewriter.replaceAllUsesWith(forOp.getResult(i),
+                                  newLoop.getResult(newIdx++));
     }
     rewriter.eraseOp(forOp);
   }
