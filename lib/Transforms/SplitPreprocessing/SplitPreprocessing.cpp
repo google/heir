@@ -275,13 +275,13 @@ struct SplitPreprocessingPass
     (void)runPipeline(pipeline, funcOp);
 
     // remove-dead-values poisons but cannot structurally strip a dead
-    // affine.for iter_arg (it only does so for scf.for), so the dummy
-    // ciphertext iter_arg left when cloning a loop survives as a ub.poison
-    // loop-carried value that later backend lowering can neither convert nor
-    // emit. Strip those dead iter_args now, then re-run the cleanup so the
-    // orphaned ub.poison initializers are removed too.
-    removeDeadAffineForIterArgs(preprocessingFuncOp);
-    (void)runPipeline(pipeline, preprocessingFuncOp);
+    // affine.for iter_arg (it only does so for scf.for), so a ub.poison
+    // loop-carried value would survive into backend lowering, where it can
+    // neither be converted nor emitted.
+    for (FuncOp newFuncOp : {preprocessingFuncOp, preprocessedFuncOp}) {
+      removeDeadAffineForIterArgs(newFuncOp);
+      (void)runPipeline(pipeline, newFuncOp);
+    }
   }
 
   void updateOriginalFunc(FuncOp funcOp, FuncOp preprocessingFuncOp,

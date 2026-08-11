@@ -45,6 +45,20 @@
 // CHECK:         } {test.keep_me}
 // CHECK:         return
 
+// The preprocessed function loses the plaintext accumulator, because the encode
+// op that used it moved to the preprocessing function. That dead iter_arg must
+// be stripped too, for the same reason: remove-dead-values poisons it, and a
+// ub.poison loop-carried value reaches backend lowering.
+// CHECK:       func.func @two_iter_args__preprocessed
+// CHECK-NOT:     ub.poison
+// CHECK:         affine.for %{{.*}} = 0 to 4 iter_args(%[[SUM:.*]] = %{{.*}}) -> (tensor<1x!ct_L2>) {
+// CHECK-NOT:       ub.poison
+// CHECK:           %[[LOADED:.*]] = preprocessing.load
+// CHECK:           %[[FROM:.*]] = tensor.from_elements %[[LOADED]]
+// CHECK:           %[[ADD:.*]] = ckks.add_plain %[[SUM]], %[[FROM]]
+// CHECK:           affine.yield %[[ADD]] : tensor<1x!ct_L2>
+// CHECK:         return
+
 // Two nested loops carry the same ciphertext accumulator. Both lose their
 // iter_arg. The inner loop is rewritten first, and only that removal makes the
 // outer iter_arg dead, so this covers the cascade and the move of an
