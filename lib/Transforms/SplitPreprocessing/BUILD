@@ -18,6 +18,8 @@ cc_library(
         "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineTransforms",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
