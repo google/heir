@@ -469,6 +469,42 @@ presburger::IntegerRelation getTricyclicLayoutRelation(
   return result;
 }
 
+presburger::IntegerRelation getPeriodicReplicationRelation(
+    int64_t numCiphertexts, int64_t numSlots, int64_t period) {
+  assert(numCiphertexts == 1 && "only support single ciphertext layout");
+  assert(period > 0 && period <= numSlots &&
+         "period must be positive and at most numSlots");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      /*numDomain=*/2, /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int sourceCtIndex = domainOffset;
+  int sourceSlotIndex = domainOffset + 1;
+  int targetCtIndex = rangeOffset;
+  int targetSlotIndex = rangeOffset + 1;
+
+  addBounds(result, sourceCtIndex, 0, numCiphertexts - 1);
+  addBounds(result, sourceSlotIndex, 0, period - 1);
+  addBounds(result, targetSlotIndex, 0, numSlots - 1);
+
+  addConstraint(result, {{sourceCtIndex, 1}, {targetCtIndex, -1}},
+                /*equality=*/true);
+
+  // source_slot = target_slot % period
+  SmallVector<int64_t> targetSlotCoeffs(result.getNumCols(), 0);
+  targetSlotCoeffs[targetSlotIndex] = 1;
+  auto targetSlotMod = addModConstraint(result, targetSlotCoeffs, period);
+  SmallVector<int64_t> sourceEquality(result.getNumCols(), 0);
+  sourceEquality[sourceSlotIndex] = 1;
+  sourceEquality[targetSlotMod] = -1;
+  result.addEquality(sourceEquality);
+
+  return result;
+}
+
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                                                     int64_t minSlotCount) {
   auto domainSize = matrixType.getRank();

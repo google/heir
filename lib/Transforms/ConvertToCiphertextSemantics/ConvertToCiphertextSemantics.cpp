@@ -155,6 +155,23 @@ Operation* remapAndExtractResult(ImplicitLocOpBuilder& builder, Value input,
   return extractRemap;
 }
 
+// Rebuilds the full periodic layout of a kernel's output from its first valid
+// period. Assumes the first period is uncorrupted by wrap-around bounds.
+Operation* replicateFirstPeriodOfResult(ImplicitLocOpBuilder& b, Value input,
+                                        LayoutAttr resultLayout,
+                                        int64_t period) {
+  auto ctSemanticType = cast<RankedTensorType>(input.getType());
+  int64_t numCiphertexts = ctSemanticType.getDimSize(0);
+  int64_t numSlots = ctSemanticType.getDimSize(1);
+  IntegerRelation replication =
+      getPeriodicReplicationRelation(numCiphertexts, numSlots, period);
+  LayoutAttr replicationMapping =
+      LayoutAttr::getFromIntegerRelation(b.getContext(), replication);
+  auto remapOp = tensor_ext::RemapOp::create(b, input, replicationMapping);
+  remapOp->setAttr(kLayoutAttrName, resultLayout);
+  return remapOp;
+}
+
 }  // namespace
 
 // An unset value of a permutation as it's being built up.
@@ -2807,7 +2824,15 @@ struct ConvertLinalgMatmul
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+
+    // Rebuild the full periodic output layout from the first period.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    Operation* replicated =
+        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
+                                     dataSemanticResultType.getNumElements());
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
   }
 
   bool supportsBicyclic(linalg::MatmulOp op, OpAdaptor adaptor) const {
@@ -2856,7 +2881,15 @@ struct ConvertLinalgMatmul
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+
+    // Rebuild the full periodic output layout from the first period.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    Operation* replicated =
+        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
+                                     dataSemanticResultType.getNumElements());
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
   }
 
   LogicalResult matchAndRewrite(
@@ -2934,7 +2967,15 @@ struct ConvertLinalgBatchMatmul
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+
+    // Rebuild the full periodic output layout from the first period.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    Operation* replicated =
+        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
+                                     dataSemanticResultType.getNumElements());
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
   }
 
   LogicalResult matchAndRewrite(

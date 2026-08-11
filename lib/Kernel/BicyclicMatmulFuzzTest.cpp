@@ -11,6 +11,8 @@
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "lib/Utils/MathUtils.h"
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
@@ -28,7 +30,8 @@ std::vector<std::vector<int>> runBicyclicMatmul(const std::vector<int>& vecA,
                                                 int64_t m, int64_t n,
                                                 int64_t p) {
   MLIRContext context;
-  int64_t numSlots = m * n * p;
+  int64_t minSlots = m * n + n * p + m * p;
+  int64_t numSlots = nextPowerOfTwo(minSlots);
 
   auto layoutA = getBicyclicLayoutRelation(
       RankedTensorType::get({m, n}, mlir::IndexType::get(&context)), numSlots);
@@ -52,6 +55,10 @@ std::vector<std::vector<int>> runBicyclicMatmul(const std::vector<int>& vecA,
 
   auto resultLayout = getBicyclicLayoutRelation(
       RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), numSlots);
+  // Restrict the unpacking to the first output period.
+  addBounds(resultLayout,
+            resultLayout.getVarKindOffset(presburger::VarKind::Range) + 1, 0,
+            m * p - 1);
   return unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
 }
 

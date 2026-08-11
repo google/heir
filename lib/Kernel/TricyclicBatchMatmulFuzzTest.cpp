@@ -11,6 +11,8 @@
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "lib/Utils/MathUtils.h"
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
@@ -34,7 +36,8 @@ void tricyclicBatchMatmulMatchesNaive(
   }
 
   MLIRContext context;
-  int64_t numSlots = h * m * n * p;
+  int64_t minSlots = h * (m * n + n * p + m * p);
+  int64_t numSlots = nextPowerOfTwo(minSlots);
 
   RankedTensorType typeA =
       RankedTensorType::get({h, m, n}, mlir::IndexType::get(&context));
@@ -65,18 +68,27 @@ void tricyclicBatchMatmulMatchesNaive(
   RankedTensorType resultType =
       RankedTensorType::get({h, m, p}, mlir::IndexType::get(&context));
   auto resultLayout = getTricyclicLayoutRelation(resultType, numSlots);
-  auto expectedPacked =
-      evaluateLayout<int>(resultLayout, [&](const std::vector<int64_t>& pt) {
-        int64_t ih = pt[0], im = pt[1], ip = pt[2];
-        int sum = 0;
+  // Restrict the unpacking to the first output period.
+  addBounds(resultLayout,
+            resultLayout.getVarKindOffset(presburger::VarKind::Range) + 1, 0,
+            h * m * p - 1);
+  auto actual =
+      unpackLayoutTo3DTensor<int>(resultLayout, {actualVec}, {h, m, p});
+
+  std::vector<std::vector<std::vector<int>>> expected(
+      h, std::vector<std::vector<int>>(m, std::vector<int>(p, 0)));
+  for (int64_t ih = 0; ih < h; ++ih) {
+    for (int64_t im = 0; im < m; ++im) {
+      for (int64_t ip = 0; ip < p; ++ip) {
         for (int64_t in = 0; in < n; ++in) {
-          sum +=
+          expected[ih][im][ip] +=
               vecA[ih * m * n + im * n + in] * vecB[ih * n * p + in * p + ip];
         }
-        return sum;
-      });
+      }
+    }
+  }
 
-  EXPECT_EQ(expectedPacked[0], actualVec);
+  EXPECT_EQ(expected, actual);
 }
 
 auto tricyclicShapeAndTensors() {

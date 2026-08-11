@@ -240,6 +240,24 @@ TEST(UtilsTest, BicyclicLayout3x5Repeated) {
   EXPECT_EQ(packedMatrix, expected);
 }
 
+TEST(UtilsTest, PeriodicReplicationRelation) {
+  int64_t numSlots = 10;
+  int64_t period = 3;
+  IntegerRelation replication =
+      getPeriodicReplicationRelation(/*numCiphertexts=*/1, numSlots, period);
+
+  // Every target slot t is reached exactly from source slot t % period.
+  for (int64_t t = 0; t < numSlots; ++t) {
+    for (int64_t s = 0; s < period; ++s) {
+      EXPECT_EQ(replication.containsPointNoLocal({0, s, 0, t}).has_value(),
+                s == t % period);
+    }
+  }
+
+  // Source slots outside the first period are not in the domain.
+  EXPECT_FALSE(replication.containsPointNoLocal({0, period, 0, period}));
+}
+
 TEST(UtilsTest, BicyclicCtPtDiagonal3x5x7) {
   MLIRContext context;
   int64_t numSlots = 105;
