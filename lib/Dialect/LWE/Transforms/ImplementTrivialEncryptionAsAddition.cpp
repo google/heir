@@ -163,7 +163,8 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
   auto plaintextSpace = plaintextType.getPlaintextSpace();
   auto encodeOp = RLWEEncodeOp::create(
       builder, plaintextType, constantOp.getResult(),
-      plaintextSpace.getEncoding(), plaintextSpace.getRing());
+      plaintextSpace.getEncoding(), plaintextSpace.getRing(),
+      /*level=*/nullptr, /*scale=*/nullptr);
   auto encrypted = RLWEEncryptOp::create(
       builder, ciphertextType, encodeOp.getResult(), encFuncOp.getArgument(0));
   encrypted->setAttrs(originalOp->getAttrs());
