@@ -5737,15 +5737,7 @@ has a unique &lt;code>name&lt;/code> attribute. If any duplicates are found, the
 in their types to specialized ops that drop these unit dimensions.&lt;/p>
 &lt;p>For example, a &lt;code>linalg.matmul&lt;/code> whose RHS has type &lt;code>tensor&amp;lt;32x1xi32&amp;gt;&lt;/code> is
 converted to a &lt;code>linalg.matvec&lt;/code> op on the underlying &lt;code>tensor&amp;lt;32xi32&amp;gt;&lt;/code>.&lt;/p>
-&lt;h3 id="-early-bootstrap-placement">&lt;code>-early-bootstrap-placement&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Place bootstraps early on linalg and kernel ops&lt;/em>&lt;/p>
-&lt;p>Analyzes the level consumption of linalg and kernel ops inside secret.generic
-and inserts mgmt.bootstrap ops to ensure levels do not drop below zero.
-This runs when linalg ops are still present.&lt;/p>
-&lt;h4 id="options-15">Options&lt;/h4>
-&lt;pre tabindex="0">&lt;code>-level-budget : Level budget
--bootstrap-waterline : Bootstrap waterline
-&lt;/code>&lt;/pre>&lt;h3 id="-emit-c-interface">&lt;code>-emit-c-interface&lt;/code>&lt;/h3>
+&lt;h3 id="-emit-c-interface">&lt;code>-emit-c-interface&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Adds llvm.emit_c_interface to each public function.&lt;/em>&lt;/p>
 &lt;h3 id="-expand-copy">&lt;code>-expand-copy&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Expands memref.copy ops to explicit affine loads and stores&lt;/em>&lt;/p>
@@ -5775,14 +5767,14 @@ MemRef, so must be run prior to any affine loop unrolling in a pipeline.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-16">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-15">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-disable-affine-loop : Use this to control to disable using affine loops
 &lt;/code>&lt;/pre>&lt;h3 id="-externalize-constants">&lt;code>-externalize-constants&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Externalize large constants to binary files&lt;/em>&lt;/p>
 &lt;p>Replaces arith.constant operations containing large dense tensors with
 &lt;code>preprocessing.load_resource&lt;/code> ops, and writes the constant data to external
 binary files.&lt;/p>
-&lt;h4 id="options-17">Options&lt;/h4>
+&lt;h4 id="options-16">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-threshold-elements : Minimum number of elements to externalize
 -output-dir : Directory where binary files are written
 -runtime-load-dir : Directory path used in the generated load_resource op
@@ -5837,7 +5829,7 @@ func.func private @__for_loop(%arg0: i8) -&amp;gt; i8 {
 return %102 : i8
 }
 }
-&lt;/code>&lt;/pre>&lt;h4 id="options-18">Options&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="options-17">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-loop-size : Use this to control the minimum loop size to apply this pass
 -min-body-size : Use this to control the minimum loop body size to apply this pass
 &lt;/code>&lt;/pre>&lt;h3 id="-fold-constant-tensors">&lt;code>-fold-constant-tensors&lt;/code>&lt;/h3>
@@ -5968,7 +5960,7 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-19">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-18">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -mod-bits : Default number of bits for all prime coefficient modulusto use for the ciphertext space.
 -min-slot-count : Minimum number of slots for parameter generation.
@@ -6030,7 +6022,7 @@ at the module level.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-19">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -plaintext-modulus : Plaintext modulus.
 -min-slot-count : Minimum number of slots for parameter generation.
@@ -6081,7 +6073,7 @@ factor.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots for parameter generation.
 -first-mod-bits : Default number of bits of the first prime coefficient modulus to use for the ciphertext space.
 -scaling-mod-bits : Default number of bits of the scaling prime coefficient modulus to use for the ciphertext space.
@@ -6113,7 +6105,7 @@ relinearize when the ILP chooses them on a mul result.&lt;/li>
 CKKS scale modeling is selected from CKKS module attributes. Modules
 without CKKS attributes use the generic level-only model, where the
 effective waterline scale and rescaling factor are equal.&lt;/p>
-&lt;h4 id="options-22">Options&lt;/h4>
+&lt;h4 id="options-21">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-bootstrap-waterline : Bootstrap waterline (max level). Levels are 0..bootstrap-waterline (inclusive); inputs start at bootstrap-waterline.
 -scale-waterline : Orbit waterline/base scale bits (Sw). Non-CKKS level-only mode uses this for both Sw and Sf.
 -scale-factor-bits : Orbit rescale factor bits (Sf), i.e. scale bits dropped by one rescale/modreduce.
@@ -6239,7 +6231,7 @@ ciphertexts.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%48&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-23">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-22">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-unroll : Unroll the loop instead of generating a rolled loop
 &lt;/code>&lt;/pre>&lt;h3 id="-implement-shift-network">&lt;code>-implement-shift-network&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Implement tensor_ext.convert_layout ops as shift newtorks&lt;/em>&lt;/p>
@@ -6518,7 +6510,7 @@ the following signatures:&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>jaxiteword&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>jaxiteword&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-24">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-23">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Name of entry function.
 -mul-depth : Manually specify the mul depth (overrides analysis)
 -dnum : Key-switching decomposition parameter
@@ -6535,7 +6527,7 @@ the following signatures:&lt;/p>
 &lt;p>This pass generates helper functions to configure the Lattigo objects for the given function.&lt;/p>
 &lt;p>For example, for an MLIR function &lt;code>@my_func&lt;/code>, the generated helpers have the following signatures&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>evaluator&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>parameter&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>encoder&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>encryptor&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>decryptor&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-25">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-24">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 &lt;/code>&lt;/pre>&lt;h3 id="-layout-optimization">&lt;code>-layout-optimization&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Optimize layout conversions in the IR&lt;/em>&lt;/p>
@@ -6597,7 +6589,7 @@ hoisted.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-25">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 -vve-random-seed : Random seed for Vos-Vos-Erkin shift network randomization. Will be hash-combined with additional seeds based on layouts being converted from and to.
 -vve-random-tries : Number of random tries used to find best Vos-Vos-Erkin shift network during layout optimization.
@@ -6698,7 +6690,7 @@ case it annotates an un-annotated IR with layout attributes.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">10x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-27">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 &lt;/code>&lt;/pre>&lt;h3 id="-linalg-canonicalizations">&lt;code>-linalg-canonicalizations&lt;/code>&lt;/h3>
 &lt;p>&lt;em>This pass canonicalizes the linalg.transpose operation of a constant into a transposed constant.&lt;/em>&lt;/p>
@@ -6763,7 +6755,7 @@ is listed alongside each method. The chosen method is controlled by the
 &lt;p>// TODO(#1565): Add support for Chebyshev-basis methods
 // - &lt;code>&amp;quot;clenshaw&amp;quot;&lt;/code>: Clenshaw&amp;rsquo;s method (Chebyshev basis)
 // - &lt;code>&amp;quot;bsgs&amp;quot;&lt;/code>: Baby Step Giant Step (Chebyshev basis)&lt;/p>
-&lt;h4 id="options-28">Options&lt;/h4>
+&lt;h4 id="options-27">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-method : The method used to lower polynomial.eval
 -min-coefficient-threshold : Minimum threshold for coefficients to be included in the lowered polynomial. Coefficients with absolute value below this threshold will be dropped.
 &lt;/code>&lt;/pre>&lt;h3 id="-lower-unpack">&lt;code>-lower-unpack&lt;/code>&lt;/h3>
@@ -6793,7 +6785,7 @@ arguments, and the debug port is called after each homomorphic operation:&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> __heir_debug&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%sk&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%ct1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-29">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-28">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 -insert-debug-after-every-op : Whether to add debug ports after every op
@@ -6946,7 +6938,7 @@ Mac operation and removes the mul operation.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-30">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-29">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -mul-depth : Manually specify the mul depth
 -ring-dim : Manually specify the ring dimension (insecure is implied)
@@ -7049,7 +7041,7 @@ relinearization strategy. It solves an ILP for each &lt;code>func&lt;/code> op i
 &lt;a href="https://heir.dev/docs/design/relinearization_ilp/">docs at the HEIR website&lt;/a>.
 The model is an adaptation of the ILP described in
 &lt;a href="https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis">a blog post by Jeremy Kun&lt;/a>.&lt;/p>
-&lt;h4 id="options-31">Options&lt;/h4>
+&lt;h4 id="options-30">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
 -allow-mixed-degree-operands : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 &lt;/code>&lt;/pre>&lt;h3 id="-partial-unroll-for-level-consumption">&lt;code>-partial-unroll-for-level-consumption&lt;/code>&lt;/h3>
@@ -7128,7 +7120,7 @@ unrolling calculation to use a particular value for its max level.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-32">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-31">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-force-max-level : If nonzero, forces the inferred maximum level to the given value.
 &lt;/code>&lt;/pre>&lt;h3 id="-polynomial-approximation">&lt;code>-polynomial-approximation&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Approximate ops by polynomials&lt;/em>&lt;/p>
@@ -7231,7 +7223,7 @@ for the same (or less) homomorphic level usage.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-33">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-32">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-composite-relu : Approximate ReLU (max(x,0)) with the composite-sign method (3 chained minimax Chebyshev polynomials computing x*step(x/B), B from domain_lower/upper attrs) instead of a single-polynomial fit of max(x,0). Much more accurate for deep networks but needs more multiplicative depth / bootstrapping.
 &lt;/code>&lt;/pre>&lt;h3 id="-polynomial-to-mod-arith">&lt;code>-polynomial-to-mod-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>polynomial&lt;/code> to standard MLIR dialects.&lt;/em>&lt;/p>
@@ -7318,7 +7310,7 @@ generated by the &lt;code>generate-param-ckks&lt;/code> pass.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-34">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-33">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 &lt;/code>&lt;/pre>&lt;h3 id="-preprocessing-to-lattigo">&lt;code>-preprocessing-to-lattigo&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower Preprocessing ops to Lattigo Plaintexts&lt;/em>&lt;/p>
@@ -7510,7 +7502,7 @@ if these operations does not have the attribute already.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> mgmt&lt;span style="color:#000;font-weight:bold">.&lt;/span>relinearize &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">test.attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">test.attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-35">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-34">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-attr-name : The attribute name to propagate with.
 -reverse : Whether to propagate in reverse
 &lt;/code>&lt;/pre>&lt;h3 id="-reconcile-mixed-secretness-iter-args">&lt;code>-reconcile-mixed-secretness-iter-args&lt;/code>&lt;/h3>
@@ -7628,7 +7620,7 @@ with the same ciphertext level and scale. If discrepancies are found,
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-36">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-35">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-level-budget : The maximum level allowed before it is considered invalid
 &lt;/code>&lt;/pre>&lt;h3 id="-remove-unused-memref">&lt;code>-remove-unused-memref&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Cleanup any unused memrefs&lt;/em>&lt;/p>
@@ -7804,7 +7796,7 @@ power of two before applying this logic.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-37">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-36">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-n : Ciphertext slot capacity
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-add-debug-port">&lt;code>-secret-add-debug-port&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Add debug port to secret-arithmetic ops&lt;/em>&lt;/p>
@@ -7837,7 +7829,7 @@ each homomorphic operation:&lt;/p>
 secret key material into the debug handler call. See &lt;code>lwe-add-debug-port&lt;/code> for
 cryptosystem-aware analogues of this pass. This pass must remain, in
 particular, to support the plaintext pipeline.&lt;/p>
-&lt;h4 id="options-38">Options&lt;/h4>
+&lt;h4 id="options-37">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-insert-debug-after-every-op : Whether to add debug calls after every op
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-capture-generic-ambient-scope">&lt;code>-secret-capture-generic-ambient-scope&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Capture the ambient scope used in a secret.generic&lt;/em>&lt;/p>
@@ -7860,7 +7852,7 @@ program that operates on a secret type annotates the input to a region as
 list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
 limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.&lt;/p>
-&lt;h4 id="options-39">Options&lt;/h4>
+&lt;h4 id="options-38">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
@@ -7904,7 +7896,7 @@ back to the IR by using &lt;code>--secret-import-execution-result=file-name=trac
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">secret.execution_result =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">5.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">6.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">8.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">9.0&lt;/span>&lt;span style="color:#000;font-weight:bold">]}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-40">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-39">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-file-name : file name of the execution result
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-insert-mgmt-bfv">&lt;code>-secret-insert-mgmt-bfv&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Place BFV ciphertext management operations&lt;/em>&lt;/p>
@@ -7991,7 +7983,7 @@ lower to corresponding RNS Type.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-41">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-40">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-after-mul : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -level-budget : An optional maximum level budget for the pipeline to assume
@@ -8008,7 +8000,7 @@ where when all levels are consumed then a bootstrap is inserted.&lt;/p>
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
 TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).&lt;/p>
-&lt;h4 id="options-42">Options&lt;/h4>
+&lt;h4 id="options-41">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-after-mul : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
@@ -8030,7 +8022,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-43">Options&lt;/h4>
+&lt;h4 id="options-42">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>cggi&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -8046,7 +8038,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-44">Options&lt;/h4>
+&lt;h4 id="options-43">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-slot-count : Minimum number of slots to use for packing messages in ciphertexts.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-mod-arith">&lt;code>-secret-to-mod-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>mod-arith&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -8059,7 +8051,7 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that &lt;code>canonicalize&lt;/code> was run so that
 non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&amp;rsquo;s block
 arguments.&lt;/p>
-&lt;h4 id="options-45">Options&lt;/h4>
+&lt;h4 id="options-44">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-modulus : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
 -log-scale : Log base 2 of the scale for encoding floating points as ints.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
@@ -8067,7 +8059,7 @@ arguments.&lt;/p>
 &lt;p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.&lt;/p>
-&lt;h4 id="options-46">Options&lt;/h4>
+&lt;h4 id="options-45">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-function : function to add secret annotations to
 &lt;/code>&lt;/pre>&lt;h3 id="-select-rewrite">&lt;code>-select-rewrite&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Rewrites arith.select to a CMUX style expression&lt;/em>&lt;/p>
@@ -8168,7 +8160,7 @@ limit.&lt;/p>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-47">Options&lt;/h4>
+&lt;h4 id="options-46">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tensor-ext-to-tensor">&lt;code>-tensor-ext-to-tensor&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tensor_ext&lt;/code> to &lt;code>tensor&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -8251,7 +8243,7 @@ this is done by the &lt;code>generate-param-&amp;lt;scheme&amp;gt;&lt;/code> pas
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic"># with commandline --debug-only=ValidateNoise&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-48">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-47">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -annotate-noise-bound : Annotate the noise bound to the IR.
 &lt;/code>&lt;/pre>&lt;h3 id="-validate-preprocessing">&lt;code>-validate-preprocessing&lt;/code>&lt;/h3>
@@ -8313,37 +8305,56 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-05-21</title><link>https://heir.dev/blog/2026/05/21/heir-meeting-2026-05-21/</link><pubDate>Thu, 21 May 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/05/21/heir-meeting-2026-05-21/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-01-29</title><link>https://heir.dev/blog/2026/01/29/heir-meeting-2026-01-29/</link><pubDate>Thu, 29 Jan 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/01/29/heir-meeting-2026-01-29/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1fJEsjluRXy36DPgAoUGCYVMaq6JD2p4nGfuld3op7tU/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/VA2TxDtyflA">video recording&lt;/a> from the HEIR meeting on
-2026-05-21.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2026-02-26</title><link>https://heir.dev/blog/2026/02/26/heir-meeting-2026-02-26/</link><pubDate>Thu, 26 Feb 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/02/26/heir-meeting-2026-02-26/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1zyvgThdgsXrW5Q3Y3SlMHDsoL6-B4PbkalOCezhf-NY/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/2YKdhbEVZz0">video recording&lt;/a> from the HEIR meeting on
+2026-01-29.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-07-10</title><link>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</link><pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1kg4xfoHWD1NcWiwxPze-sYEslTehj2QcJwbAA_BJ8pQ/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/RzIUyE5ZLm4">video recording&lt;/a> from the HEIR meeting on
-2026-02-26.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+&lt;a href="https://docs.google.com/document/d/17HaAzW2KZMlwgQwVttDblWY3Ta7ey5LvJ0XOKvnnLZE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/dCBWr05kOks">video recording&lt;/a> from the HEIR meeting on
+2025-06-12.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-03-20</title><link>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</link><pubDate>Thu, 20 Mar 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
-2025-04-17.&lt;/p>
-&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
-management in the compiler. This talk
-&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
-&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1TMXQBVumA4YmOTH5QgKR27_Sb-60PI7bKyltJ-D3jbE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/ULRFEmhwzZE">video recording&lt;/a> from the HEIR meeting on
+2025-03-20.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-16.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-13.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-04.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-03-07.&lt;/p>
+&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
+RWC conferences. Hope to see you all there!&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-08.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-12-12.&lt;/p>
+&lt;p>This is the last meeting for 2023. Please respond to
+&lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
+preferences.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1MYjjkytck0fxySbrh49hxBJgNM78NXSD0ZwzAgEPOUw/edit?usp=sharing">notes&lt;/a>
@@ -8354,6 +8365,13 @@ from the HEIR meeting on 2023-10-24.&lt;/p>
 (&lt;a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">recording&lt;/a>), and the similar talk
 at the LLVM developers meeting talk was the previous Wednesday, though the video
 has not yet been posted for that.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
+&lt;p>The third HEIR meeting was 2023-07-18
+(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
+&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
+on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
+join.
+(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -26531,1023 +26549,4 @@ the modulus of them must be mutually coprime.&lt;/p>
 &lt;p>&lt;code>isCompatibleWith&lt;/code> must be commutative, in the sense
 that &lt;code>type1.isCompatibleWith(type2)&lt;/code> if and only if
 &lt;code>type2.isCompatibleWith(type1)&lt;/code>.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item><item><title>Docs: Rotom</title><link>https://heir.dev/docs/dialects/rotom/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/rotom/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="rotom-dialect">&amp;lsquo;rotom&amp;rsquo; Dialect&lt;/h1>
-&lt;p>Dialect for Rotom&amp;rsquo;s layout representation.
-See the Rotom paper: &lt;a href="https://eprint.iacr.org/2025/1319">https://eprint.iacr.org/2025/1319&lt;/a>&lt;/p>
-&lt;h2 id="rotom-attributes">Rotom attributes&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="dimattr">DimAttr&lt;/h3>
-&lt;p>&lt;em>A single Rotom layout dimension.&lt;/em>&lt;/p>
-&lt;p>Encodes a traversal dimension: logical axis index, size, and stride.&lt;/p>
-&lt;p>Sentinel &lt;code>dim&lt;/code> values (no source tensor axis):&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>-1&lt;/code>: replication (logical fill along this layout piece)&lt;/li>
-&lt;li>&lt;code>-2&lt;/code>: gap (padding / unused slots; constrained to zero in materialization)&lt;/li>
-&lt;/ul>
-&lt;p>Non-negative &lt;code>dim&lt;/code> values index into the logical tensor shape. In the
-assembly form the sentinels are spelled &lt;code>R&lt;/code> (replication) and &lt;code>G&lt;/code> (gap),
-e.g. &lt;code>[R:4:1]&lt;/code>; the numeric ids are also accepted on input.&lt;/p>
-&lt;h4 id="parameters">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">dim&lt;/td>
-&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">size&lt;/td>
-&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">stride&lt;/td>
-&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="layoutattr">LayoutAttr&lt;/h3>
-&lt;p>&lt;em>A Rotom layout made from an ordered list of dims.&lt;/em>&lt;/p>
-&lt;p>A Rotom layout is an ordered list of &lt;code>rotom.dim&lt;/code> dimensions plus the slot
-count &lt;code>n&lt;/code> (ciphertext slot capacity).&lt;/p>
-&lt;p>Rotom&amp;rsquo;s split between ciphertext dims and slot dims is denoted by a
-&lt;code>|&lt;/code> inside the dims list (e.g., &lt;code>dims = [[0:2:4] | [0:4:1]]&lt;/code>).
-Slot dims must fill &lt;code>n&lt;/code> exactly; unused capacity is denoted
-with an explicit gap piece (e.g. &lt;code>[G:4:1]&lt;/code>).
-See &lt;a href="https://eprint.iacr.org/2025/1319.pdf">Section 4.2 of the Rotom paper&lt;/a>.&lt;/p>
-&lt;p>Optional &lt;strong>rolls&lt;/strong> encode a &lt;code>roll(i,j)&lt;/code> metadata object: each pair &lt;code>(i, j)&lt;/code>
-indexes into the &lt;code>dims&lt;/code> array (the flattened &lt;code>ct_dims + slot_dims&lt;/code> list) and
-rewrites &lt;code>dims[i]&lt;/code>&amp;rsquo;s index to &lt;code>(idx_i - idx_j) mod size(dims[i])&lt;/code>. The two
-extents need not match: the shift reduces modulo the rolled dim&amp;rsquo;s extent, so
-a smaller partner covers a prefix of the rotations and a larger one wraps.&lt;/p>
-&lt;h4 id="parameters-1">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">dims&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">n&lt;/td>
-&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">rolls&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="seedattr">SeedAttr&lt;/h3>
-&lt;p>&lt;em>A list of Rotom layouts for seeding.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#rotom.seed&amp;lt;
-::mlir::ArrayAttr # layouts
-&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>Contains a list of &lt;code>rotom.layout&lt;/code> attributes representing the initial
-seeding layouts explored by Rotom.&lt;/p>
-&lt;h4 id="parameters-2">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">layouts&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item><item><title>Docs: SCIFRBool</title><link>https://heir.dev/docs/dialects/scifrbool/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/scifrbool/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="scifrbool-dialect">&amp;lsquo;scifrbool&amp;rsquo; Dialect&lt;/h1>
-&lt;p>&lt;em>Cornami SCIFR Boolean dialect for FHE Applications.&lt;/em>&lt;/p>
-&lt;h2 id="scifrbool-types">SCIFRBool types&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrboolbootstrapkeytype">SCIFRBoolBootstrapKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Bootstrap operation in SCIFRBool.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrbool.bootstrap_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrboolkeyswitchkeytype">SCIFRBoolKeySwitchKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Keyswitch operation in SCIFRBool.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrbool.key_switch_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrboolserverparameterstype">SCIFRBoolServerParametersType&lt;/h3>
-&lt;p>&lt;em>The server parameters required to map to cornami hardware in SCIFRBool.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrbool.server_parameters&lt;/code>&lt;/p>
-&lt;h2 id="scifrbool-ops">SCIFRBool ops&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrbooland-cornamiscifrboolandop">&lt;code>scifrbool.and&lt;/code> (cornami::scifrbool::AndOp)&lt;/h3>
-&lt;p>&lt;em>Logical AND of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.and` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolnand-cornamiscifrboolnandop">&lt;code>scifrbool.nand&lt;/code> (cornami::scifrbool::NandOp)&lt;/h3>
-&lt;p>&lt;em>Logical NAND of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.nand` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolnor-cornamiscifrboolnorop">&lt;code>scifrbool.nor&lt;/code> (cornami::scifrbool::NorOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.nor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolnot-cornamiscifrboolnotop">&lt;code>scifrbool.not&lt;/code> (cornami::scifrbool::NotOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.not` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolor-cornamiscifrboolorop">&lt;code>scifrbool.or&lt;/code> (cornami::scifrbool::OrOp)&lt;/h3>
-&lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.or` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolsection-cornamiscifrboolsectionop">&lt;code>scifrbool.section&lt;/code> (cornami::scifrbool::SectionOp)&lt;/h3>
-&lt;p>&lt;em>Wraps a single operation&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.section` `(` operands `)` $body attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Section op is intended to handle kernel outlining, move kernels of instructions. Section contains the code scheduled to Fractal Array.&lt;/p>
-&lt;p>Traits: &lt;code>NoTerminator&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolxnor-cornamiscifrboolxnorop">&lt;code>scifrbool.xnor&lt;/code> (cornami::scifrbool::XNorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XNOR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.xnor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolxor-cornamiscifrboolxorop">&lt;code>scifrbool.xor&lt;/code> (cornami::scifrbool::XorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.xor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item><item><title>Docs: SCIFRCkks</title><link>https://heir.dev/docs/dialects/scifrckks/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/scifrckks/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="scifrckks-dialect">&amp;lsquo;scifrckks&amp;rsquo; Dialect&lt;/h1>
-&lt;p>&lt;em>Cornami SCIFR CKKS dialect for FHE Applications.&lt;/em>&lt;/p>
-&lt;p>MLIR Dialect for Cornami SCIFR CKKS Dialect
-Cornami SCIFR CKKS dialect
-Concepts
-Section
-Contains Operators and HBM Regions and memory transfers operations
-Section can be reduced to FA (for executable) or default (which is not executable)
-Operator
-Operators are from AppStream FHE or FractlsBase only&lt;/p>
-&lt;h2 id="scifrckks-types">SCIFRCkks types&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrckksbootstrapkeytype">SCIFRCkksBootstrapKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Bootstrap operation in SCIFRCkks.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.bootstrap_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrckksciphertexttype">SCIFRCkksCiphertextType&lt;/h3>
-&lt;p>&lt;em>A type for SCIFRCkks Ciphertext&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.ciphertext&lt;/code>&lt;/p>
-&lt;h3 id="scifrckkskeyswitchkeytype">SCIFRCkksKeySwitchKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Keyswitch operation in SCIFRCkks.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.key_switch_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrckksserverparameterstype">SCIFRCkksServerParametersType&lt;/h3>
-&lt;p>&lt;em>The server parameters required to map to cornami hardware in SCIFRCkks.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.server_parameters&lt;/code>&lt;/p>
-&lt;h2 id="scifrckks-ops">SCIFRCkks ops&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrckksadd-scifrckksaddop">&lt;code>scifrckks.Add&lt;/code> (scifrckks::AddOp)&lt;/h3>
-&lt;p>&lt;em>Add two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Add` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckksaddc-scifrckksaddconstop">&lt;code>scifrckks.AddC&lt;/code> (scifrckks::AddConstOp)&lt;/h3>
-&lt;p>&lt;em>Add ciphertext with constant Op.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.AddC` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckksmul-scifrckksmulop">&lt;code>scifrckks.Mul&lt;/code> (scifrckks::MulOp)&lt;/h3>
-&lt;p>&lt;em>Mul two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Mul` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckksrelin-scifrckksrelinop">&lt;code>scifrckks.Relin&lt;/code> (scifrckks::RelinOp)&lt;/h3>
-&lt;p>&lt;em>Relinearize a ciphertext.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Relin` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h3 id="scifrckkssub-scifrckkssubop">&lt;code>scifrckks.Sub&lt;/code> (scifrckks::SubOp)&lt;/h3>
-&lt;p>&lt;em>Sub two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Sub` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckkssubc-scifrckkssubconstop">&lt;code>scifrckks.SubC&lt;/code> (scifrckks::SubConstOp)&lt;/h3>
-&lt;p>&lt;em>Subtract ciphertext from a constant Op.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.SubC` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item><item><title>Docs: Secret</title><link>https://heir.dev/docs/dialects/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/secret/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="secret-dialect">&amp;lsquo;secret&amp;rsquo; Dialect&lt;/h1>
-&lt;p>Secret is a dialect for computations that operate on encrypted data.&lt;/p>
-&lt;p>Secret is intended to serve as a scheme-agnostic front-end for the HEIR
-ecosystem of dialects. It is supposed to be fully interoperable with the
-rest of MLIR via secret.generic, while lower-level HEIR dialects would have
-custom types for arithmetic on secret integers of various bit widths.&lt;/p>
-&lt;h2 id="secret-attributes">Secret attributes&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="kernelattr">KernelAttr&lt;/h3>
-&lt;p>&lt;em>An annotation describing an implementation kernel for a given op.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#secret.kernel&amp;lt;
-::mlir::heir::KernelName, # name
-bool # force
-&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>This attribute is used for two purposes:&lt;/p>
-&lt;ol>
-&lt;li>To allow the input IR to annotate fixed kernels on ops that the rest of the
-compiler must respect.&lt;/li>
-&lt;li>To allow the layout optimization pipeline to materialize its kernel selection
-decisions to the IR.&lt;/li>
-&lt;/ol>
-&lt;p>The &lt;code>name&lt;/code> field corresponds to an internally-defined kernel name, and if
-&lt;code>force&lt;/code> is set to &lt;code>true&lt;/code>, then the kernel may not be overridden by HEIR&amp;rsquo;s
-internal passes.&lt;/p>
-&lt;h4 id="parameters">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">name&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::heir::KernelName&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">force&lt;/td>
-&lt;td style="text-align:center">&lt;code>bool&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h2 id="secret-types">Secret types&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="secrettype">SecretType&lt;/h3>
-&lt;p>&lt;em>A secret value&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!secret.secret&amp;lt;
-Type # valueType
-&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>A generic wrapper around another MLIR type, representing an encrypted value
-but not specifying the manner of encryption. This is useful in HEIR because
-the compiler may choose various details of the FHE scheme based on the
-properties of the input program, the backend target hardware, and cost
-models of the various passes.&lt;/p>
-&lt;h4 id="parameters-1">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">valueType&lt;/td>
-&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h2 id="secret-ops">Secret ops&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="secretcast-heirsecretcastop">&lt;code>secret.cast&lt;/code> (heir::secret::CastOp)&lt;/h3>
-&lt;p>&lt;em>A placeholder cast from one secret type to another&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.cast` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>A &lt;code>cast&lt;/code> operation represents a type cast from one secret type to another,
-that is used to enable the intermixing of various equivalent secret types
-before a lower-level FHE scheme has been chosen.&lt;/p>
-&lt;p>For example, &lt;code>secret.cast&lt;/code> can be used to convert a &lt;code>secret&amp;lt;i8&amp;gt;&lt;/code> to a
-&lt;code>secret&amp;lt;tensor&amp;lt;8xi1&amp;gt;&amp;gt;&lt;/code> as a compatibility layer between boolean and
-non-boolean parts of a program. The pass that later lowers the IR to
-specific FHE schemes would need to replace these casts with appropriate
-scheme-specific operations, and it is left to those later passes to
-determine which casts are considered valid.&lt;/p>
-&lt;p>Example:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>cast &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%result2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>cast &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i4&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretconceal-heirsecretconcealop">&lt;code>secret.conceal&lt;/code> (heir::secret::ConcealOp)&lt;/h3>
-&lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.conceal` $cleartext attr-dict `:` qualified(type($cleartext)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Convert a value to a secret containing the same value.&lt;/p>
-&lt;p>This op represents a scheme-agnostic encryption operation, as well as a
-&amp;ldquo;trivial encryption&amp;rdquo; operation which is needed for some FHE schemes. This
-op is also useful for type materialization in the dialect conversion
-framework.&lt;/p>
-&lt;p>Examples:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>conceal &lt;span style="color:#000">%value&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cleartext&lt;/code>&lt;/td>
-&lt;td>any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretgeneric-heirsecretgenericop">&lt;code>secret.generic&lt;/code> (heir::secret::GenericOp)&lt;/h3>
-&lt;p>&lt;em>Lift a plaintext computation to operate on secrets.&lt;/em>&lt;/p>
-&lt;p>&lt;code>secret.generic&lt;/code> lifts a plaintext computation to operate on one or more
-secrets. The lifted computation is represented as a region containing a
-single block terminated by &lt;code>secret.yield&lt;/code>. The arguments of the &lt;code>secret.generic&lt;/code>
-may include one or more &lt;code>!secret.secret&lt;/code> types. The arguments of the block
-in the op&amp;rsquo;s body correspond to the underlying plaintext types of the secrets.&lt;/p>
-&lt;p>&lt;code>secret.generic&lt;/code> is not isolated from above, so you may directly reference
-values in the enclosing scope. This is required to support using
-&lt;code>secret.generic&lt;/code> inside of ops with &lt;code>AffineScope&lt;/code>, while having the body
-of the generic use the induction variables defined by the affine scope.&lt;/p>
-&lt;p>Basic examples:&lt;/p>
-&lt;p>Add two secret integers together&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%X&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Add a secret value with a plaintext value. I.e., not all arguments to the
-op need be secret.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%X&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The same as above, but the plaintext op is not passed through the basic
-block.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%X&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>SingleBlockImplicitTerminator&amp;lt;YieldOp&amp;gt;&lt;/code>, &lt;code>SingleBlock&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>, &lt;code>OperandAndResultAttrInterface&lt;/code>, &lt;code>RegionBranchOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>results&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretreveal-heirsecretrevealop">&lt;code>secret.reveal&lt;/code> (heir::secret::RevealOp)&lt;/h3>
-&lt;p>&lt;em>Convert a secret value into a non-secret&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.reveal` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($cleartext))
-&lt;/code>&lt;/pre>&lt;p>Convert a secret into a non-secret containing the same value.&lt;/p>
-&lt;p>This op represents a scheme-agnostic decryption operation. This op is also
-useful for target materialization in the dialect conversion framework.&lt;/p>
-&lt;p>Examples:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>reveal &lt;span style="color:#000">%secret_value&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cleartext&lt;/code>&lt;/td>
-&lt;td>any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretseparator-heirsecretseparatorop">&lt;code>secret.separator&lt;/code> (heir::secret::SeparatorOp)&lt;/h3>
-&lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.separator` attr-dict ($inputs^ `:` type($inputs))?
-&lt;/code>&lt;/pre>&lt;p>This operation is used as a separation boundary between logical subunits of
-the module. This is used in conjunction with
-&lt;code>--secret-distribute-generic=distribute-through=secret.separator&lt;/code> to break a
-generic around these separators and allow for optimization passes to
-analyze and optimize the sub-units locally.&lt;/p>
-&lt;p>In order to allow bufferization of modules with this operation, we must
-register a (bogus) memory effect that also prevents this operation from
-being trivially dead during operation folding.&lt;/p>
-&lt;p>This operation also accepts operands, which act as boundaries between the
-logical units. This enforces separation of memref and affine optimizations
-between the subunits, preventing optimizations from removing the operand and
-combining the two separated regions. The operand can be thought of as an
-return value of the logical subunit.&lt;/p>
-&lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretyield-heirsecretyieldop">&lt;code>secret.yield&lt;/code> (heir::secret::YieldOp)&lt;/h3>
-&lt;p>&lt;em>Secret yield operation&lt;/em>&lt;/p>
-&lt;p>&lt;code>secret.yield&lt;/code> is a special terminator operation for blocks inside regions
-in &lt;code>secret&lt;/code> generic ops. It returns the cleartext value of the
-corresponding private computation to the immediately enclosing &lt;code>secret&lt;/code>
-generic op.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>HasParent&amp;lt;GenericOp&amp;gt;&lt;/code>, &lt;code>ReturnLike&lt;/code>, &lt;code>Terminator&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RegionBranchTerminatorOpInterface&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>values&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item></channel></rss>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item></channel></rss>
