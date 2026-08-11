@@ -11872,6 +11872,8 @@ applied.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An encoding of a scalar in the constant coefficient or An encoding of cleartexts directly as coefficients. or An encoding of cleartexts via the inverse canonical embedding. or An encoding of cleartexts via CRT slots.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>scale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
