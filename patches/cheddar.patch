@@ -1,0 +1,138 @@
+diff --git a/include/common/PtrList.h b/include/common/PtrList.h
+index 4444444..5555555 100644
+--- a/include/common/PtrList.h
++++ b/include/common/PtrList.h
+@@ -11,7 +11,7 @@ template <typename word, int num_poly>
+ struct OutputPtrList {
+   word *ptrs_[num_poly];
+ 
+-  OutputPtrList() {
++  __host__ __device__ OutputPtrList() {
+     for (int i = 0; i < num_poly; i++) {
+       ptrs_[i] = nullptr;
+     }
+@@ -39,7 +39,7 @@ struct InputPtrList {
+   const word *ptrs_[num_poly];
+   int extra_ = 0;
+ 
+-  InputPtrList() {
++  __host__ __device__ InputPtrList() {
+     for (int i = 0; i < num_poly; i++) {
+       ptrs_[i] = nullptr;
+     }
+@@ -68,7 +68,7 @@ struct PermuteInputPtrList {
+   int extra_ = 0;
+   uint32_t galois_factor_ = 1;
+ 
+-  PermuteInputPtrList() {
++  __host__ __device__ PermuteInputPtrList() {
+     for (int i = 0; i < num_poly; i++) {
+       ptrs_[i] = nullptr;
+     }
+@@ -98,7 +98,7 @@ struct CPAccumInputPtrList {
+   const word *common_ptr_;
+   int common_extra_ = 0;
+ 
+-  CPAccumInputPtrList() {
++  __host__ __device__ CPAccumInputPtrList() {
+     for (int i = 0; i < num_poly; i++) {
+       ptrs_[i] = nullptr;
+     }
+diff --git a/include/core/Encode.h b/include/core/Encode.h
+index 2222222..3333333 100644
+--- a/include/core/Encode.h
++++ b/include/core/Encode.h
+@@ -46,6 +46,13 @@ class Encoder {
+    */
+   Encoder(const Parameter<word> &param, const NTTHandler<word> &ntt_handler);
+ 
++  /**
++   * @brief Canonical CKKS encode scale at the given level. Added for HEIR's
++   * cheddar backend: cheddar.encode emits encoder.GetScale(level) so plaintexts
++   * are encoded at the parameter set's exact per-level scale.
++   */
++  double GetScale(int level) const { return param_.GetScale(level); }
++
+   /**
+    * @brief Encode a message into a plaintext for a given level and scale.
+    * The message will be padded to the nearest power of 2.
+diff --git a/src/extension/EvalPoly.cpp b/src/extension/EvalPoly.cpp
+index 97bf07a..1f5e67b 100644
+--- a/src/extension/EvalPoly.cpp
++++ b/src/extension/EvalPoly.cpp
+@@ -504,8 +504,8 @@ void EvalPolyNode<word>::Compile(ConstContextPtr<word> context,
+     auto [_, split_scale] = basis_eval.GetBaseLevelAndScale(split_degree_);
+     double high_scale = working_scale / split_scale;
+     if (is_high_constant_) {
+-      context->encoder_.EncodeConstant(high_constant_, high_scale,
+-                                       working_level,
++      context->encoder_.EncodeConstant(high_constant_, working_level,
++                                       high_scale,
+                                        coefficients_[split_degree_]);
+     } else {
+       high_->Compile(context, basis_eval, working_level, high_scale, true);
+diff --git a/parameters/BUILD.bazel b/parameters/BUILD.bazel
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/parameters/BUILD.bazel
+@@ -0,0 +1,5 @@
++filegroup(
++    name = "param_files",
++    srcs = glob(["*.json"]),
++    visibility = ["//visibility:public"],
++)
+diff --git a/unittest/BUILD.bazel b/unittest/BUILD.bazel
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/unittest/BUILD.bazel
+@@ -0,0 +1,48 @@
++load("@rules_cc//cc:defs.bzl", "cc_test")
++
++cc_test(
++    name = "basic_test",
++    timeout = "eternal",
++    srcs = [
++        "BasicTest.cpp",
++        "Testbed.h",
++    ],
++    data = ["//parameters:param_files"],
++    defines = [
++        # Path relative to the runfiles cwd of the *main* (heir) workspace.
++        "PARAM_DIR=\\\"../+cheddar_deps+cheddar/parameters\\\"",
++        "_ALLOW_UNSUPPORTED_LIBCPP",
++        "_LIBCPP_NO_ABI_TAG",
++        "_VSTD=std",
++    ],
++    includes = ["."],
++    deps = [
++        "//:cheddar",
++        "@googletest//:gtest_main",
++        "@nlohmann_json//:json",
++    ],
++)
++
++cc_test(
++    name = "boot_test",
++    timeout = "eternal",
++    srcs = [
++        "Bootstrapping.cpp",
++        "Testbed.h",
++    ],
++    data = ["//parameters:param_files"],
++    defines = [
++        "ENABLE_EXTENSION",
++        # Path relative to the runfiles cwd of the *main* (heir) workspace.
++        "PARAM_DIR=\\\"../+cheddar_deps+cheddar/parameters\\\"",
++        "_ALLOW_UNSUPPORTED_LIBCPP",
++        "_LIBCPP_NO_ABI_TAG",
++        "_VSTD=std",
++    ],
++    includes = ["."],
++    deps = [
++        "//:cheddar",
++        "@googletest//:gtest_main",
++        "@nlohmann_json//:json",
++    ],
++)

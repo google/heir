@@ -71,6 +71,32 @@ config_setting(
     },
 )
 
+# CHEDDAR GPU FHE backend (opt-in, requires CUDA).
+# Enable with `--config=cheddar`
+string_flag(
+    name = "enable_cheddar",
+    build_setting_default = "0",
+)
+
+config_setting(
+    name = "config_enable_cheddar",
+    flag_values = {
+        ":enable_cheddar": "1",
+    },
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "config_enable_cheddar_linux_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    flag_values = {
+        ":enable_cheddar": "1",
+    },
+)
+
 # OpenFHE interpreter
 string_flag(
     name = "openfhe_enable_timing",
