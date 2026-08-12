@@ -65,6 +65,20 @@ build:linux --linkopt="-fuse-ld=lld"
 # target links with a C++ lib.
 build:linux --linkopt="-Wl,-no-pie"
 
+# CHEDDAR GPU FHE backend (opt-in, requires CUDA). CHEDDAR's CUDA sources are
+# compiled with the hermetic clang toolchain via rules_cuda.
+build:cheddar --//:enable_cheddar=1
+build:cheddar --extra_toolchains=@cuda//toolchain:all
+build:cheddar --@rules_cuda//cuda:compiler=clang
+# Compile CUDA with the hermetic clang from the configured cc_toolchain
+# (instead of rules_cuda's `which clang` fallback).
+build:cheddar --repo_env=CUDA_COMPILER_USE_CC_TOOLCHAIN=true
+build:cheddar --@rules_cuda//cuda:copts=-D_ALLOW_UNSUPPORTED_LIBCPP
+build:cheddar --@rules_cuda//cuda:copts=-D_LIBCPP_NO_ABI_TAG
+build:cheddar --@rules_cuda//cuda:copts=-D_VSTD=std
+build:cheddar --@rules_cuda//cuda:copts=-DSPDLOG_FMT_EXTERNAL
+build:cheddar --@rules_cuda//cuda:archs=sm_60,sm_61,sm_70,sm_75,sm_80,sm_86,sm_89,sm_90
+
 # macos specific options
 # openmp is not supported in apple clang
 build:macos --@openfhe//:enable_openmp=False
