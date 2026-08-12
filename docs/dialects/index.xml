@@ -8480,7 +8480,15 @@ If it is set to true, the evaluator will evaluate operations in B/FV style.&lt;/
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_plaintext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new plaintext value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>The optional &lt;code>level&lt;/code> attribute is the level to allocate the plaintext at.
+When absent, the
+plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -8697,7 +8705,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
@@ -8752,7 +8760,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.&lt;/p>
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-4">Attributes:&lt;/h4>
+&lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
@@ -9132,7 +9140,7 @@ the Lattigo polynomial evaluator API.&lt;/p>
 &lt;p>The codegen constructs the Lattigo polynomial and, using an existing polynomial
 evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-5">Attributes:&lt;/h4>
+&lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>coefficients&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>array attribute&lt;/td>&lt;/tr>
@@ -9226,7 +9234,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;p>The input value tensor should have elements of float type or complex type.&lt;/p>
 &lt;p>The &lt;code>scale&lt;/code> attribute indicates the scaling factor for encoding.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-6">Attributes:&lt;/h4>
+&lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>scale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -9335,7 +9343,7 @@ it is zero by default.&lt;/p>
 &lt;li>Evaluate the transformation on the input ciphertext&lt;/li>
 &lt;/ol>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-7">Attributes:&lt;/h4>
+&lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
@@ -9534,7 +9542,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-8">Attributes:&lt;/h4>
+&lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>btParamsLiteral&lt;/code>&lt;/td>&lt;td>::mlir::heir::lattigo::CKKSBootstrappingParametersLiteralAttr&lt;/td>&lt;td>Literal bootstrapping parameters for Lattigo CKKS&lt;/td>&lt;/tr>
@@ -9661,7 +9669,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>paramsLiteral&lt;/code>&lt;/td>&lt;td>::mlir::heir::lattigo::CKKSParametersLiteralAttr&lt;/td>&lt;td>Literal parameters for Lattigo CKKS&lt;/td>&lt;/tr>
@@ -9686,7 +9694,15 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_plaintext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new plaintext value in the Lattigo CKKS dialect.&lt;/p>
+&lt;p>The optional &lt;code>level&lt;/code> attribute is the level to allocate the plaintext at.
+When absent, the
+plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="attributes-11">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-33">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -9946,7 +9962,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-10">Attributes:&lt;/h4>
+&lt;h4 id="attributes-12">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
@@ -10005,7 +10021,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-11">Attributes:&lt;/h4>
+&lt;h4 id="attributes-13">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
@@ -10194,7 +10210,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-12">Attributes:&lt;/h4>
+&lt;h4 id="attributes-14">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -10244,7 +10260,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-13">Attributes:&lt;/h4>
+&lt;h4 id="attributes-15">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -10334,7 +10350,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-14">Attributes:&lt;/h4>
+&lt;h4 id="attributes-16">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galoisElement&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
@@ -11862,6 +11878,14 @@ an encryption of round(Q&amp;rsquo; / Q * x).&lt;/p>
 an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
 be floating points, and a scaling factor described by the encoding will be
 applied.&lt;/p>
+&lt;p>The optional &lt;code>level&lt;/code> attribute records the level of the ciphertext this
+plaintext will be combined with, i.e., the &lt;code>current&lt;/code> index of that
+ciphertext&amp;rsquo;s modulus chain. It is
+recorded on the op rather than in &lt;code>!lwe.lwe_plaintext&lt;/code> because that type is
+not RNS-aware (see #1643), and it must be attached where the plaintext is
+created, since passes such as &lt;code>--split-preprocessing&lt;/code> later sever the
+def-use chain to the consuming ciphertext op. When absent, backends fall
+back to the top level of the modulus chain.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i16 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
@@ -11872,7 +11896,7 @@ applied.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An encoding of a scalar in the constant coefficient or An encoding of cleartexts directly as coefficients. or An encoding of cleartexts via the inverse canonical embedding. or An encoding of cleartexts via CRT slots.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>scale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-14">Operands:&lt;/h4>
@@ -13341,6 +13365,23 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h2 id="modarith-additional-definitions">ModArith additional definitions&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="typeinterface-definitions">TypeInterface definitions&lt;/h1>
+&lt;h2 id="modqtypeinterface-modqtypeinterface">ModQTypeInterface (&lt;code>ModQTypeInterface&lt;/code>)&lt;/h2>
+&lt;p>Interface for types that support modular arithmetic semantics.&lt;/p>
+&lt;h3 id="methods">Methods:&lt;/h3>
+&lt;h4 id="getloweringtype">&lt;code>getLoweringType&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getLoweringType&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the lowered storage type for this modular type. Plain ModArith types lower to an integer type; RNS types lower to a rank-1 tensor whose extent is the residue count and whose element type is the residue storage type.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
+&lt;h4 id="getnumresidues">&lt;code>getNumResidues&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">getNumResidues&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the number of residue limbs represented by this modular type. Types need not implement this function as a default is provided.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
+&lt;h4 id="getresiduetype">&lt;code>getResidueType&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getResidueType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">index&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the residue type at the given index.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="lifttype">LiftType&lt;/h3>
 &lt;p>&lt;em>ModArith lift type&lt;/em>&lt;/p>
 &lt;h4 id="cases">Cases:&lt;/h4>
@@ -13364,24 +13405,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;td>centered&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="typeinterface-definitions">TypeInterface definitions&lt;/h1>
-&lt;h2 id="modqtypeinterface-modqtypeinterface">ModQTypeInterface (&lt;code>ModQTypeInterface&lt;/code>)&lt;/h2>
-&lt;p>Interface for types that support modular arithmetic semantics.&lt;/p>
-&lt;h3 id="methods">Methods:&lt;/h3>
-&lt;h4 id="getloweringtype">&lt;code>getLoweringType&lt;/code>&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getLoweringType&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the lowered storage type for this modular type. Plain ModArith types lower to an integer type; RNS types lower to a rank-1 tensor whose extent is the residue count and whose element type is the residue storage type.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
-&lt;h4 id="getnumresidues">&lt;code>getNumResidues&lt;/code>&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">getNumResidues&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the number of residue limbs represented by this modular type. Types need not implement this function as a default is provided.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
-&lt;h4 id="getresiduetype">&lt;code>getResidueType&lt;/code>&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getResidueType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">index&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the residue type at the given index.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
+&lt;/table></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="openfhe-dialect">&amp;lsquo;openfhe&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The &lt;code>openfhe&lt;/code> dialect is an exit dialect for generating c++ code against the OpenFHE library API.&lt;/p>
