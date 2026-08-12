@@ -68,10 +68,11 @@ void tricyclicBatchMatmulMatchesNaive(
   RankedTensorType resultType =
       RankedTensorType::get({h, m, p}, mlir::IndexType::get(&context));
   auto resultLayout = getTricyclicLayoutRelation(resultType, numSlots);
-  // Restrict the unpacking to the first output period.
+  // Restrict the unpacking to the reach-derived valid prefix.
+  int64_t validPrefix = numSlots - (h * n * p - 1 + h * m * (n - 1));
   addBounds(resultLayout,
             resultLayout.getVarKindOffset(presburger::VarKind::Range) + 1, 0,
-            h * m * p - 1);
+            validPrefix - 1);
   auto actual =
       unpackLayoutTo3DTensor<int>(resultLayout, {actualVec}, {h, m, p});
 

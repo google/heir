@@ -4,11 +4,10 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 openfhe_end_to_end_test(
     name = "batch_matmul_test",
-    size = "medium",
     generated_lib_header = "batch_matmul_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=min-slot-count=4096 experimental-disable-loop-unroll=true greedy-level-budget=40 first-mod-bits=60 scaling-mod-bits=50 greedy-bootstrap-waterline=20",
+        "--mlir-to-ckks=min-slot-count=4096 experimental-disable-loop-unroll=true greedy-level-budget=40 first-mod-bits=60 scaling-mod-bits=50",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:batch_matmul.mlir",

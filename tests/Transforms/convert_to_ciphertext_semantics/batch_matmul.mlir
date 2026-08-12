@@ -5,7 +5,7 @@
 #layout2 = #tensor_ext.layout<"{ [i0, i1, i2] -> [ct, slot] : ct = 0 and (399i0 - 210i1 - 190i2 + slot) mod 798 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 18 and 0 <= i2 <= 20 and 0 <= slot <= 8191 }">
 #layout3 = #tensor_ext.layout<"{ [i0, i1, i2] -> [ct, slot] : ct = 0 and (-323i0 - 19i1 - i2 + slot) mod 1024 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 16 and 0 <= i2 <= 8191 - 323i0 - 19i1 and i2 <= 18 and 0 <= slot <= 8191 and 8192*floor((-1024 + 323i0 + 19i1 + i2)/8192) <= -8192 + 323i0 + 19i1 + i2 }">
 module {
-  // CHECK: #[[replication:layout[0-9]*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 714 = 0 and 0 <= i1 <= 713 and 0 <= slot <= 8191 }">
+  // CHECK: #[[replication:layout[0-9]*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 6426 = 0 and 0 <= i1 <= 6425 and 0 <= slot <= 8191 }">
   // CHECK: @batch_matmul_secret_secret
   // CHECK-NOT: linalg.batch_matmul
   // CHECK: tensor_ext.remap

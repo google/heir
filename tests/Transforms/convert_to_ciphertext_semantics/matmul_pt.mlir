@@ -10,14 +10,15 @@
 #layout_ct2 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (14i0 - 15i1 + slot) mod 35 = 0 and 0 <= i0 <= 4 and 0 <= i1 <= 6 and 0 <= slot <= 63 }">
 
 module {
-  // CHECK: #[[replication:layout[0-9]*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 21 = 0 and 0 <= i1 <= 20 and 0 <= slot <= 1023 }">
+  // CHECK: #[[replication1:layout[0-9]*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 1008 = 0 and 0 <= i1 <= 1007 and 0 <= slot <= 1023 }">
+  // CHECK: #[[replication2:layout[0-9]*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 987 = 0 and 0 <= i1 <= 986 and 0 <= slot <= 1023 }">
 
   // CHECK: @matmul_ctpt
   // CHECK-NOT: linalg.matmul
   // CHECK: tensor_ext.rotate
   // CHECK: arith.mulf
   // CHECK: tensor_ext.remap
-  // CHECK-SAME: permutation = #[[replication]]
+  // CHECK-SAME: permutation = #[[replication1]]
   func.func @matmul_ctpt(%arg0: !secret.secret<tensor<3x5xf32>> {tensor_ext.layout = #layout_ct}, %arg1: tensor<5x7xf32>) -> (!secret.secret<tensor<3x7xf32>> {tensor_ext.layout = #layout_out}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<3x7xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<3x5xf32>> {tensor_ext.layout = #layout_ct}) {
@@ -35,7 +36,7 @@ module {
   // CHECK: tensor_ext.rotate
   // CHECK: arith.mulf
   // CHECK: tensor_ext.remap
-  // CHECK-SAME: permutation = #[[replication]]
+  // CHECK-SAME: permutation = #[[replication2]]
   func.func @matmul_ptct(%arg0: tensor<3x5xf32>, %arg1: !secret.secret<tensor<5x7xf32>> {tensor_ext.layout = #layout_ct2}) -> (!secret.secret<tensor<3x7xf32>> {tensor_ext.layout = #layout_out}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<3x7xf32>
     %0 = secret.generic(%arg1: !secret.secret<tensor<5x7xf32>> {tensor_ext.layout = #layout_ct2}) {

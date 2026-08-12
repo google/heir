@@ -55,10 +55,11 @@ std::vector<std::vector<int>> runBicyclicMatmul(const std::vector<int>& vecA,
 
   auto resultLayout = getBicyclicLayoutRelation(
       RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), numSlots);
-  // Restrict the unpacking to the first output period.
+  // Restrict the unpacking to the reach-derived valid prefix.
+  int64_t validPrefix = numSlots - (n * p - 1 + m * (n - 1));
   addBounds(resultLayout,
             resultLayout.getVarKindOffset(presburger::VarKind::Range) + 1, 0,
-            m * p - 1);
+            validPrefix - 1);
   return unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
 }
 

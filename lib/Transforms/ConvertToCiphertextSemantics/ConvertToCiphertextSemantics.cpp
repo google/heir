@@ -155,16 +155,20 @@ Operation* remapAndExtractResult(ImplicitLocOpBuilder& builder, Value input,
   return extractRemap;
 }
 
-// Rebuilds the full periodic layout of a kernel's output from its first valid
-// period. Assumes the first period is uncorrupted by wrap-around bounds.
-Operation* replicateFirstPeriodOfResult(ImplicitLocOpBuilder& b, Value input,
+// Rebuilds the full periodic layout of a kernel's output from the valid prefix
+// of the periodic pattern. Greedily replicates the valid periodic prefix of the
+// layout until the all of the slot count is covered.
+Operation* replicateValidPrefixOfResult(ImplicitLocOpBuilder& b, Value input,
                                         LayoutAttr resultLayout,
-                                        int64_t period) {
+                                        int64_t inputPeriod,
+                                        int64_t validPrefix) {
   auto ctSemanticType = cast<RankedTensorType>(input.getType());
   int64_t numCiphertexts = ctSemanticType.getDimSize(0);
   int64_t numSlots = ctSemanticType.getDimSize(1);
-  IntegerRelation replication =
-      getPeriodicReplicationRelation(numCiphertexts, numSlots, period);
+  int64_t actualValidPrefix =
+      validPrefix > 0 ? (validPrefix / inputPeriod) * inputPeriod : 0;
+  IntegerRelation replication = getPeriodicReplicationRelation(
+      numCiphertexts, numSlots, actualValidPrefix);
   LayoutAttr replicationMapping =
       LayoutAttr::getFromIntegerRelation(b.getContext(), replication);
   auto remapOp = tensor_ext::RemapOp::create(b, input, replicationMapping);
@@ -2825,12 +2829,20 @@ struct ConvertLinalgMatmul
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
 
-    // Rebuild the full periodic output layout from the first period.
+    // Rebuild the full periodic output layout from the widest valid
+    // period-aligned window. The rotation reach of rotate-and-reduce with
+    // `steps` iterations of stride `period` is period * (steps - 1).
     auto dataSemanticResultType =
         cast<RankedTensorType>(op->getResult(0).getType());
-    Operation* replicated =
-        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
-                                     dataSemanticResultType.getNumElements());
+    int64_t reach = period * (steps - 1);
+    auto ctSemanticResultType =
+        cast<RankedTensorType>(addBias->getResult(0).getType());
+    int64_t validPrefix = ctSemanticResultType.getDimSize(1) - reach;
+    LLVM_DEBUG(llvm::dbgs() << "Bicyclic diagonal matmul valid prefix: "
+                            << validPrefix << "\n");
+    Operation* replicated = replicateValidPrefixOfResult(
+        b, addBias->getResult(0), layoutAttr,
+        dataSemanticResultType.getNumElements(), validPrefix);
     setMaterializedAttr(replicated);
     rewriter.replaceOp(op, replicated);
   }
@@ -2882,12 +2894,23 @@ struct ConvertLinalgMatmul
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
 
-    // Rebuild the full periodic output layout from the first period.
+    // Rebuild the full periodic output layout from the widest valid
+    // period-aligned window. For (m x n) * (n x p), the BSGS rotation reach
+    // is n * p - 1 + m * (n - 1).
     auto dataSemanticResultType =
         cast<RankedTensorType>(op->getResult(0).getType());
-    Operation* replicated =
-        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
-                                     dataSemanticResultType.getNumElements());
+    int64_t m = lhsType.getDimSize(0);
+    int64_t n = lhsType.getDimSize(1);
+    int64_t p = rhsType.getDimSize(1);
+    int64_t reach = n * p - 1 + m * (n - 1);
+    auto ctSemanticResultType =
+        cast<RankedTensorType>(addBias->getResult(0).getType());
+    int64_t validPrefix = ctSemanticResultType.getDimSize(1) - reach;
+    LLVM_DEBUG(llvm::dbgs()
+               << "Bicyclic matmul valid prefix: " << validPrefix << "\n");
+    Operation* replicated = replicateValidPrefixOfResult(
+        b, addBias->getResult(0), layoutAttr,
+        dataSemanticResultType.getNumElements(), validPrefix);
     setMaterializedAttr(replicated);
     rewriter.replaceOp(op, replicated);
   }
@@ -2968,12 +2991,24 @@ struct ConvertLinalgBatchMatmul
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
 
-    // Rebuild the full periodic output layout from the first period.
+    // Rebuild the full periodic output layout from the widest valid
+    // period-aligned window. For (h x m x n) * (h x n x p), the BSGS rotation
+    // reach is h * n * p - 1 + h * m * (n - 1).
     auto dataSemanticResultType =
         cast<RankedTensorType>(op->getResult(0).getType());
-    Operation* replicated =
-        replicateFirstPeriodOfResult(b, addBias->getResult(0), layoutAttr,
-                                     dataSemanticResultType.getNumElements());
+    int64_t h = lhsType.getShape()[0];
+    int64_t m = lhsType.getShape()[1];
+    int64_t n = lhsType.getShape()[2];
+    int64_t p = rhsType.getShape()[2];
+    int64_t reach = h * n * p - 1 + h * m * (n - 1);
+    auto ctSemanticResultType =
+        cast<RankedTensorType>(addBias->getResult(0).getType());
+    int64_t validPrefix = ctSemanticResultType.getDimSize(1) - reach;
+    LLVM_DEBUG(llvm::dbgs() << "Tricyclic batch matmul valid prefix: "
+                            << validPrefix << "\n");
+    Operation* replicated = replicateValidPrefixOfResult(
+        b, addBias->getResult(0), layoutAttr,
+        dataSemanticResultType.getNumElements(), validPrefix);
     setMaterializedAttr(replicated);
     rewriter.replaceOp(op, replicated);
   }
