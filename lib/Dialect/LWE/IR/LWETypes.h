@@ -2,6 +2,7 @@
 #define LIB_DIALECT_LWE_IR_LWETYPES_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
@@ -43,6 +44,11 @@ FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType);
 // Return the LWECiphertextType resulting from setting the level to a specific
 // value.
 LWECiphertextType cloneAtLevel(LWECiphertextType inputType, int64_t level);
+
+// Return the level of a ciphertext type, i.e., the index of the top modulus of
+// its modulus chain. Returns nullopt for schemes that don't use a modulus
+// chain
+std::optional<int64_t> getLevel(LWECiphertextType ctType);
 
 }  // namespace lwe
 }  // namespace heir

@@ -13,10 +13,27 @@ cc_library(
     ],
     deps = [
         ":AddDebugPort",
+        ":AnnotatePlaintextLevel",
         ":DecomposeLWEOps",
         ":ImplementTrivialEncryptionAsAddition",
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "AnnotatePlaintextLevel",
+    srcs = ["AnnotatePlaintextLevel.cpp"],
+    hdrs = ["AnnotatePlaintextLevel.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:CallOpInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 

@@ -17,9 +17,14 @@ def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext"> {
   let summary = "Create a new plaintext in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo BGV dialect.
+
+    The optional `level` attribute is the level to allocate the plaintext at.
+    When absent, the
+    plaintext is allocated at `params.MaxLevel()`.
   }];
   let arguments = (ins
-    Lattigo_BGVParameter:$params
+    Lattigo_BGVParameter:$params,
+    OptionalAttr<ConfinedAttr<I64Attr, [IntNonNegative]>>:$level
   );
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }

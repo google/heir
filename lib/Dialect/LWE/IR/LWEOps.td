@@ -201,6 +201,15 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
     be floating points, and a scaling factor described by the encoding will be
     applied.
 
+    The optional `level` attribute records the level of the ciphertext this
+    plaintext will be combined with, i.e., the `current` index of that
+    ciphertext's modulus chain. It is
+    recorded on the op rather than in `!lwe.lwe_plaintext` because that type is
+    not RNS-aware (see #1643), and it must be attached where the plaintext is
+    created, since passes such as `--split-preprocessing` later sever the
+    def-use chain to the consuming ciphertext op. When absent, backends fall
+    back to the top level of the modulus chain.
+
     Examples:
 
     ```
@@ -212,7 +221,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
     SignlessIntegerOrFloatLike:$input,
     AnyPlaintextEncodingAttr:$encoding,
     Polynomial_RingAttr:$ring,
-    OptionalAttr<I64Attr>:$level,
+    OptionalAttr<ConfinedAttr<I64Attr, [IntNonNegative]>>:$level,
     OptionalAttr<I64Attr>:$scale
   );
 
