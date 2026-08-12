@@ -147,6 +147,7 @@ cc_test(
         ":Utils",
         "@googletest//:gtest_main",
         "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

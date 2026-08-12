@@ -1262,6 +1262,21 @@ struct ConvertLinalgConv2D : public ConversionBase<linalg::Conv2DOp> {
   bool unrollKernels;
 };
 
+// Rebuild the operand shape honoring any zero `tensor.pad` it folded into the
+// conv's `padding` parameter. `dataType` is the operand shape before that fold
+FailureOr<ConvMatrixOperand> foldedConvMatrixOperand(
+    Operation* op, RankedTensorType dataType) {
+  int64_t padding = getConvFoldedPadding(op);
+  std::optional<ConvMatrixOperand> matrixOperand =
+      foldConvSpatialPadding(dataType, padding);
+  if (!matrixOperand) {
+    return op->emitError() << kConvFoldedPaddingAttrName << " of " << padding
+                           << " does not fit this conv's data operand "
+                           << dataType;
+  }
+  return *matrixOperand;
+}
+
 struct ConvertLinalgConv1DNcwFcw
     : public ConversionBase<linalg::Conv1DNcwFcwOp> {
  public:
@@ -1299,9 +1314,6 @@ struct ConvertLinalgConv1DNcwFcw
     return isPowerOfTwoDims && isConv1dAsMatvec;
   }
 
-  // Rebuild the operand shape LayoutPropagation diagonalized the filter
-  // against, honoring any zero tensor.pad it folded into the conv's `padding`
-  // parameter.
   FailureOr<RankedTensorType> expandedFilterShape(
       linalg::Conv1DNcwFcwOp op) const {
     auto filterType = cast<RankedTensorType>(op.getInputs()[1].getType());
@@ -1309,14 +1321,9 @@ struct ConvertLinalgConv1DNcwFcw
     int64_t stride =
         llvm::to_vector(op.getStrides().getValues<int64_t>()).front();
 
-    int64_t padding = getConvFoldedPadding(op);
-    std::optional<ConvMatrixOperand> matrixOperand =
-        foldConvWidthPadding(dataType, padding);
-    if (!matrixOperand) {
-      return op.emitError()
-             << kConvFoldedPaddingAttrName << " of " << padding
-             << " does not fit this conv's data operand " << dataType;
-    }
+    FailureOr<ConvMatrixOperand> matrixOperand =
+        foldedConvMatrixOperand(op, dataType);
+    if (failed(matrixOperand)) return failure();
     return get1dConvCwFcwFilterExpandedType(filterType, matrixOperand->dataType,
                                             stride, matrixOperand->padding);
   }
@@ -1435,7 +1442,30 @@ struct ConvertLinalgConv2DNchwFchw
     return isPowerOfTwoDims && isConv2dAsMatvec;
   }
 
-  void haleviShoupKernel(
+  FailureOr<RankedTensorType> expandedFilterShape(
+      linalg::Conv2DNchwFchwOp op) const {
+    auto filterType = cast<RankedTensorType>(op.getInputs()[1].getType());
+    RankedTensorType dataType =
+        cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto infoAttr = op->getAttr(kKernelInfoAttrName);
+    auto info = getKernelInfo(infoAttr);
+    if (info && !info->inputShape.empty()) {
+      // Use the kernel info attribute's input shape for the kernel. This
+      // accounts for any padding on the data-semantic tensor to allow for
+      // channel packing.
+      dataType =
+          RankedTensorType::get(info->inputShape, dataType.getElementType());
+    }
+
+    FailureOr<ConvMatrixOperand> matrixOperand =
+        foldedConvMatrixOperand(op, dataType);
+    if (failed(matrixOperand)) return failure();
+    return get2dConvChwFchwFilterExpandedType(
+        filterType, matrixOperand->dataType, matrixOperand->padding,
+        llvm::to_vector(op.getStrides().getValues<int64_t>()));
+  }
+
+  LogicalResult haleviShoupKernel(
       linalg::Conv2DNchwFchwOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const {
     LLVM_DEBUG(
@@ -1450,26 +1480,11 @@ struct ConvertLinalgConv2DNchwFchw
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
     SSAValue matrixLeaf(matrix);
 
-    RankedTensorType dataType =
-        cast<RankedTensorType>(op.getInputs()[0].getType());
-    auto infoAttr = op->getAttr(kKernelInfoAttrName);
-    if (auto info = getKernelInfo(infoAttr)) {
-      // Use the kernel info attribute's input shape for the kernel. This
-      // accounts for any padding on the data-semantic tensor to allow for
-      // channel packing.
-      dataType =
-          RankedTensorType::get(info->inputShape, dataType.getElementType());
-    }
-
     // The original matrix shape is the shape of the expanded filter before
     // diagonalization.
-    // NOTE: `padding=0` is only correct because nothing folds a `tensor.pad`
-    // into a 2-D conv's padding parameter. If that changes, go through
-    // foldConvWidthPadding the way ConvertLinalgConv1DNcwFcw does; see
-    // ConvMatrixOperand.
-    RankedTensorType expandedMatrixType = get2dConvChwFchwFilterExpandedType(
-        cast<RankedTensorType>(op.getInputs()[1].getType()), dataType,
-        /*padding=*/0, llvm::to_vector(op.getStrides().getValues<int64_t>()));
+    FailureOr<RankedTensorType> expandedMatrixType = expandedFilterShape(op);
+    if (failed(expandedMatrixType)) return failure();
+
     // Collect any zero diagonals of the filter matrix.
     LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
     auto filterRelation = filterLayout.getIntegerRelation();
@@ -1488,7 +1503,7 @@ struct ConvertLinalgConv2DNchwFchw
                                              data.getType().getShape().back());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType.getShape(), dagType,
+                             expandedMatrixType->getShape(), dagType,
                              zeroDiagonals,
                              /*unroll=*/unrollKernels);
 
@@ -1504,6 +1519,7 @@ struct ConvertLinalgConv2DNchwFchw
     // Add the initial accumulator value.
     Value result = adaptor.getOutputs()[0];
     addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
+    return success();
   }
 
   LogicalResult matchAndRewrite(
@@ -1520,8 +1536,7 @@ struct ConvertLinalgConv2DNchwFchw
     }
 
     if (supportsExpandedHaleviShoup(op, adaptor)) {
-      haleviShoupKernel(op, adaptor, rewriter);
-      return success();
+      return haleviShoupKernel(op, adaptor, rewriter);
     }
 
     return op.emitError() << "unsupported layout for 2d conv";
