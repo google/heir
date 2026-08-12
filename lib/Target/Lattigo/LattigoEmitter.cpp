@@ -1654,6 +1654,48 @@ const auto* negateTemplate = R"GO(
     {2}.GetRLWEParameters().RingQ().AtLevel({1}.LevelQ()).Neg({1}.Value[{0}], {1}.Value[{0}])
   }
 )GO";
+
+// Return the number of moduli in the Q chain the parameters declare, or nullopt
+// when the module holds no parameters literal
+template <typename ParamsLiteralAttr, typename NewParamsOp>
+std::optional<int64_t> getQChainLength(Operation* op) {
+  auto module = op->getParentOfType<ModuleOp>();
+  if (!module) return std::nullopt;
+
+  std::optional<int64_t> length;
+  module.walk([&](NewParamsOp paramsOp) {
+    ParamsLiteralAttr literal = paramsOp.getParamsLiteral();
+    if (auto q = literal.getQ()) {
+      length = q.size();
+    } else if (auto logQ = literal.getLogQ()) {
+      length = logQ.size();
+    }
+    // Several parameter sets in one module would each bound their own
+    // plaintexts, which this lookup cannot tell apart. Decline to guess.
+    return length ? WalkResult::interrupt() : WalkResult::advance();
+  });
+  return length;
+}
+
+// Render the level argument of a {bgv,ckks}.NewPlaintext call. Fails when the
+// requested level is past the top of the modulus chain:
+template <typename ParamsLiteralAttr, typename NewParamsOp,
+          typename NewPlaintextOp>
+FailureOr<std::string> getPlaintextLevel(NewPlaintextOp op,
+                                         StringRef paramsName) {
+  std::optional<int64_t> level = op.getLevel();
+  if (!level) return (paramsName + ".MaxLevel()").str();
+
+  std::optional<int64_t> qChainLength =
+      getQChainLength<ParamsLiteralAttr, NewParamsOp>(op);
+  if (qChainLength && *level >= *qChainLength) {
+    return op.emitOpError()
+           << "level " << *level << " is past the top of the modulus chain, "
+           << "which has " << *qChainLength << " moduli and so a maximum level "
+           << "of " << (*qChainLength - 1);
+  }
+  return std::to_string(*level);
+}
 }  // namespace
 
 LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
@@ -1710,10 +1752,16 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
+  FailureOr<std::string> level =
+      getPlaintextLevel<BGVParametersLiteralAttr,
+                        BGVNewParametersFromLiteralOp>(op,
+                                                       getName(op.getParams()));
+  if (failed(level)) return failure();
+
   std::string resultName = getName(op.getResult());
   os << resultName << " := bgv.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
-  os << getName(op.getParams()) << ".MaxLevel()";
+  os << *level;
   os << ")\n";
   if (resultName != "_") {
     declaredVars.insert(resultName);
@@ -2004,10 +2052,16 @@ LogicalResult LattigoEmitter::printOperation(
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSNewPlaintextOp op) {
+  FailureOr<std::string> level =
+      getPlaintextLevel<CKKSParametersLiteralAttr,
+                        CKKSNewParametersFromLiteralOp>(
+          op, getName(op.getParams()));
+  if (failed(level)) return failure();
+
   std::string resultName = getName(op.getResult());
   os << resultName << " := ckks.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
-  os << getName(op.getParams()) << ".MaxLevel()";
+  os << *level;
   os << ")\n";
   if (resultName != "_") {
     declaredVars.insert(resultName);

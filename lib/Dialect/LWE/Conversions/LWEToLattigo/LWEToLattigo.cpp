@@ -541,9 +541,12 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
     Value params = result2.value();
 
     Value input = adaptor.getInput();
+    // A missing level attribute leaves the allocation at
+    // params.MaxLevel().
     auto alloc = AllocOp::create(
         rewriter, op.getLoc(),
-        this->typeConverter->convertType(op.getOutput().getType()), params);
+        this->typeConverter->convertType(op.getOutput().getType()), params,
+        op.getLevelAttr());
 
     auto encoding = op.getEncoding();
     int64_t scale = lwe::getScalingFactorFromEncodingAttr(encoding);

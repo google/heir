@@ -86,10 +86,8 @@ LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
 
   // Intentionally use op.getCleartext() because we don't want to type-convert
   // the input to a ciphertext.
-  IntegerAttr levelAttr;
   IntegerAttr scaleAttr;
-  if (auto mc = ctTy.getModulusChain()) {
-    levelAttr = rewriter.getI64IntegerAttr(mc.getCurrent());
+  if (ctTy.getModulusChain()) {
     scaleAttr =
         rewriter.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
             ctTy.getPlaintextSpace().getEncoding()));
@@ -97,7 +95,7 @@ LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
   auto encoded = lwe::RLWEEncodeOp::create(
       rewriter, op.getLoc(), encodeOpResultTy, op.getCleartext(),
       ctTy.getPlaintextSpace().getEncoding(),
-      ctTy.getPlaintextSpace().getRing(), levelAttr, scaleAttr);
+      ctTy.getPlaintextSpace().getRing(), /*level=*/nullptr, scaleAttr);
   auto newOp =
       lwe::TrivialEncryptOp::create(rewriter, op.getLoc(), resultTy, encoded);
   newOp->setAttrs(op->getAttrs());
@@ -153,20 +151,20 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
                                                 resultCtTy.getPlaintextSpace());
 
-  IntegerAttr encLevelAttr;
+  // As above, --lwe-annotate-plaintext-level owns the level.
   IntegerAttr encScaleAttr;
-  if (auto mc = resultCtTy.getModulusChain()) {
-    encLevelAttr = rewriter.getI64IntegerAttr(mc.getCurrent());
+  if (resultCtTy.getModulusChain()) {
     encScaleAttr =
         rewriter.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
             resultCtTy.getPlaintextSpace().getEncoding()));
   }
 
   auto encryptFn = [&](Value cleartext) -> lwe::RLWEEncryptOp {
-    auto encoded = lwe::RLWEEncodeOp::create(
-        rewriter, op.getLoc(), plaintextTy, cleartext,
-        resultCtTy.getPlaintextSpace().getEncoding(),
-        resultCtTy.getPlaintextSpace().getRing(), encLevelAttr, encScaleAttr);
+    auto encoded =
+        lwe::RLWEEncodeOp::create(rewriter, op.getLoc(), plaintextTy, cleartext,
+                                  resultCtTy.getPlaintextSpace().getEncoding(),
+                                  resultCtTy.getPlaintextSpace().getRing(),
+                                  /*level=*/nullptr, encScaleAttr);
     auto encryptOp = lwe::RLWEEncryptOp::create(
         rewriter, op.getLoc(), resultCtTy, encoded.getResult(), keyBlockArg);
     // Copy attributes from the original op to preserve any mgmt attrs needed by

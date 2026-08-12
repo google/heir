@@ -69,6 +69,42 @@ def ImplementTrivialEncryptionAsAddition : Pass<"implement-trivial-encryption-as
   let options = [];
 }
 
+def AnnotatePlaintextLevel : Pass<"lwe-annotate-plaintext-level", "mlir::ModuleOp"> {
+  let summary = "Annotate `lwe.rlwe_encode` ops with the level they are used at";
+  let description = [{
+    Sets the `level` attribute of each `lwe.rlwe_encode` op to the level its
+    plaintext is used at, found by walking forward from the encode op through
+    plaintext-typed values.
+
+    Backends allocate a plaintext at the top of the modulus chain unless told
+    otherwise, but encoding cost is dominated by per-RNS-limb work, so a
+    plaintext only ever combined with a level 3 ciphertext is cheaper to encode
+    with 4 limbs than with all of them. For a ct-pt op the result is unchanged
+    either way: combining a ciphertext and a plaintext yields the lower of the
+    two levels, so annotating with the *highest* level among such uses is the
+    smallest choice that serves them all.
+
+    `lwe.rlwe_encrypt` is not a ct-pt op and does not follow that rule. It has
+    no ciphertext operand to be clamped against, so the backend builds the
+    ciphertext at the plaintext's own level and the annotation is exact rather
+    than a lower bound. Annotating an encryption therefore changes what the
+    client emits, not just how many limbs it encodes: where the entry level sits
+    below the top of the chain, the ciphertext now enters at the level its type
+    declares instead of at `MaxLevel`. A plaintext that both feeds an encryption
+    and is combined with a higher-level ciphertext has no correct level, and is
+    left to the fallback.
+
+    Run this after CSE. Identical encode ops that CSE has merged are cheaper as
+    one plaintext at the highest level than as several at their own levels,
+    since each encode pays a fixed cost on top of the per-limb work.
+
+    (* example filepath=tests/Dialect/LWE/Transforms/annotate_plaintext_level.mlir *)
+  }];
+  let dependentDialects = [
+    "mlir::heir::lwe::LWEDialect",
+  ];
+}
+
 def DecomposeLWEOps : Pass<"lwe-decompose"> {
   let summary = "Decomposes complex LWE ops into primitive LWE ops";
   let description = [{

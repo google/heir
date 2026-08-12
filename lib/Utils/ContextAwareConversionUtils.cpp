@@ -59,10 +59,13 @@ FailureOr<Value> encodeCleartextAsPlaintext(
       ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextSpace.getRing(),
                                         plaintextEncoding));
 
-  IntegerAttr levelAttr;
+  // The level is deliberately left unset here, for
+  // `--lwe-annotate-plaintext-level` to fill in. Reading it off this one
+  // ciphertext would record a level per *use*, which keeps CSE from merging the
+  // encodings of a constant that several levels share. One plaintext at the
+  // highest of those levels serves them all, and costs fewer limbs in total.
   IntegerAttr scaleAttr;
-  if (auto mc = ciphertextElementType.getModulusChain()) {
-    levelAttr = builder.getI64IntegerAttr(mc.getCurrent());
+  if (ciphertextElementType.getModulusChain()) {
     scaleAttr = builder.getI64IntegerAttr(
         lwe::getScalingFactorFromEncodingAttr(plaintextEncoding));
   }
@@ -76,7 +79,7 @@ FailureOr<Value> encodeCleartextAsPlaintext(
   if (cleartextTensorTy.getRank() == 1) {
     Value encodeOp = lwe::RLWEEncodeOp::create(
                          builder, plaintextTy, cleartext, plaintextEncoding,
-                         plaintextSpace.getRing(), levelAttr, scaleAttr)
+                         plaintextSpace.getRing(), /*level=*/nullptr, scaleAttr)
                          .getResult();
     return encodeOp;
   }
@@ -95,10 +98,11 @@ FailureOr<Value> encodeCleartextAsPlaintext(
     SmallVector<OpFoldResult> strides(2, builder.getIndexAttr(1));
     auto slice = tensor::ExtractSliceOp::create(builder, sliceTy, cleartext,
                                                 offsets, sizes, strides);
-    Value encodedSlice = lwe::RLWEEncodeOp::create(
-                             builder, plaintextTy, slice, plaintextEncoding,
-                             plaintextSpace.getRing(), levelAttr, scaleAttr)
-                             .getResult();
+    Value encodedSlice =
+        lwe::RLWEEncodeOp::create(builder, plaintextTy, slice,
+                                  plaintextEncoding, plaintextSpace.getRing(),
+                                  /*level=*/nullptr, scaleAttr)
+            .getResult();
     encodedSlices.push_back(encodedSlice);
   }
 

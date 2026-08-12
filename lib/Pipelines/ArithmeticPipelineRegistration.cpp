@@ -9,6 +9,7 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
+#include "lib/Dialect/LWE/Transforms/AnnotatePlaintextLevel.h"
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
@@ -550,6 +551,12 @@ void mlirToRLWEPipeline(OpPassManager& pm,
 
   // TODO(#2554): skip this pass if the backend supports trivial encryption
   pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
+
+  // Record the level each plaintext is used at, so backends can encode only the
+  // limbs it needs. This must run after the CSE above, which merges identical
+  // encode ops, and before split-preprocessing, which severs the use chain
+  // from an encode op to the ciphertext op consuming it.
+  pm.addPass(lwe::createAnnotatePlaintextLevel());
 
   // Add a __preprocessed helper for offline pre-packing of plaintexts
   if (options.enableSplitPreprocessing) {
