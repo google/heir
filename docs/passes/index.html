@@ -13,7 +13,7 @@ This pass rewrites activation patterns, such as ReLU implemented as a select and
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
 func.func @relu(%arg0: f32) -> f32 { %cst_0 = arith.constant 0.000000e+00 : f32 %0 = arith.cmpf ugt, %arg0, %cst_0 : f32 %1 = arith.select %0, %arg0, %cst_0 : f32 return %1 : f32 } Output:
-module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="29236"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
+module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="29215"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
 This pass rewrites activation patterns, such as ReLU implemented as a select and compare, to simpler operations like min/max.
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
@@ -3247,8 +3247,7 @@ a <code>secret.generic</code> region. The output type is also converted to
 boolean circuit that uses the arith and comb dialects.</p><p>Note that booleanization changes the function signature: multi-bit integers
 are transformed to a tensor of booleans, for example, an <code>i8</code> is converted
 to <code>tensor&lt;8xi1></code>.</p><p>The optimizer will be applied to each <code>secret.generic</code> op containing
-arithmetic ops that can be optimized.</p><p>Optional parameters:</p><ul><li><code>abc-fast</code>: Run the abc optimizer in &ldquo;fast&rdquo; mode, getting faster compile
-time at the expense of a possibly larger output circuit.</li><li><code>unroll-factor</code>: Before optimizing the circuit, unroll loops by a given
+arithmetic ops that can be optimized.</p><p>Optional parameters:</p><ul><li><code>unroll-factor</code>: Before optimizing the circuit, unroll loops by a given
 factor. If unset, this pass will not unroll any loops.</li><li><code>print-stats</code>: Prints statistics about the optimized circuits.</li><li><code>mode={Boolean,LUT}</code>: Map gates to boolean gates or lookup table gates.</li><li><code>use-submodules</code>: Extract the body of a generic op into submodules.
 Useful for large programs with generics that can be isolated. This should
 not be used when distributing generics through loops to avoid index
