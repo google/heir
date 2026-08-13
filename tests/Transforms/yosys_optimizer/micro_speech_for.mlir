@@ -1,4 +1,4 @@
-// RUN: heir-opt --yosys-optimizer='abc-fast=true' %s | FileCheck %s
+// RUN: heir-opt --yosys-optimizer %s | FileCheck %s
 
 // CHECK: @for_25_20_8
 func.func @for_25_20_8(

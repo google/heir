@@ -2,7 +2,7 @@
 // Tests use-submodules error when optimizing a generic distributed through
 // affine for loops.
 
-// RUN: heir-opt -yosys-optimizer="abc-fast=true use-submodules=true" %s --verify-diagnostics
+// RUN: heir-opt -yosys-optimizer="use-submodules=true" %s --verify-diagnostics
 
 module attributes {tf_saved_model.semantics} {
   func.func @main(%arg0: !secret.secret<tensor<1x1xi16>>, %0: !secret.secret<tensor<1x1xi8>>) -> (!secret.secret<tensor<1x1xi8>>) {

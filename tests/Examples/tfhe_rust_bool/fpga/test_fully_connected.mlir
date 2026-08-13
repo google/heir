@@ -1,4 +1,4 @@
-// heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
+// heir-opt --mlir-to-cggi --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
 // cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 | FileCheck %s
 
 // This takes takes the input x and outputs a FC layer operation.

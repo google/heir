@@ -14,7 +14,7 @@ namespace heir {
 enum Mode { Boolean, LUT3, LUT4 };
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
-    const std::string& yosysFilesPath, const std::string& abcPath, bool abcFast,
+    const std::string& yosysFilesPath, const std::string& abcPath,
     int unrollFactor = 0, bool useSubmodules = true, Mode mode = LUT3,
     bool printStats = false);
 
@@ -23,10 +23,6 @@ std::unique_ptr<mlir::Pass> createYosysOptimizer(
 
 struct YosysOptimizerPipelineOptions
     : public PassPipelineOptions<YosysOptimizerPipelineOptions> {
-  PassOptions::Option<bool> abcFast{*this, "abc-fast",
-                                    llvm::cl::desc("Run abc in fast mode."),
-                                    llvm::cl::init(false)};
-
   PassOptions::Option<int> unrollFactor{
       *this, "unroll-factor",
       llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
