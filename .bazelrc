@@ -31,6 +31,8 @@ common --remote_cache=grpcs://heir.buildbuddy.io
 common --remote_cache_compression
 common --remote_header=x-buildbuddy-api-key=IqGGzfrvMgDJh927qtrw
 common --remote_timeout=10m
+# Helps prevent disconnects when GHA-hosted runners talk to BuildBuddy
+common --grpc_keepalive_time=30s
 
 # Force downloading of TableGen-generated files (.inc) for local debugging and
 # IDE autocompletion support.
