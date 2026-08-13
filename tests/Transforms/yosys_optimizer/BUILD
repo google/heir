@@ -23,7 +23,6 @@ glob_lit_tests(
     default_tags = ["yosys"],
     driver = "@heir//tests:run_lit.sh",
     size_override = {
-        "micro_speech_for.mlir": "large",
         "64_bit_mul.mlir": "large",
     },
     tags_override = {
