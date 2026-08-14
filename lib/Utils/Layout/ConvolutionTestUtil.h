@@ -2,6 +2,7 @@
 #define LIB_UTILS_LAYOUT_CONVOLUTION_TEST_UTIL_H_
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -13,6 +14,12 @@ namespace heir {
 
 // A dense (N, C, H, W) integer tensor, as the conv test references use it.
 using ConvTensor4D = std::vector<std::vector<std::vector<std::vector<int>>>>;
+
+// Returns the [idx] -> slot pairs of a single-ciphertext packing or
+// column-space permutation, sorted, so that a test can compare a relation
+// against an expected packing directly.
+std::vector<std::pair<int64_t, int64_t>> collectSlots(
+    const presburger::IntegerRelation& relation);
 
 // Number of windows a filter of `filterExtent` takes across one spatial dim of
 // `dataExtent`, zero-padded by `padding` on both ends. Shared so that every

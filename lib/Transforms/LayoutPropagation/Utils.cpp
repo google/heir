@@ -74,23 +74,22 @@ std::optional<ConvMatrixOperand> foldConvSpatialPadding(
       RankedTensorType::get(shape, dataType.getElementType()), padding};
 }
 
-int64_t getConvFoldedPadding(Operation* op) {
-  if (auto attr = op->getAttrOfType<IntegerAttr>(kConvFoldedPaddingAttrName)) {
+int64_t getConvKernelParam(Operation* op, StringRef name) {
+  if (auto attr = op->getAttrOfType<IntegerAttr>(name)) {
     return attr.getInt();
   }
   return 0;
 }
 
-void setConvFoldedPadding(Operation* op, int64_t padding) {
-  if (padding == 0) {
+void setConvKernelParam(Operation* op, StringRef name, int64_t value) {
+  if (value == 0) {
     // Drop an attribute an earlier run or an op clone left behind: a conv that
-    // folded nothing must not be read as one that did.
-    op->removeAttr(kConvFoldedPaddingAttrName);
+    // folded or absorbed nothing must not be read as one that did.
+    op->removeAttr(name);
     return;
   }
-  op->setAttr(
-      kConvFoldedPaddingAttrName,
-      IntegerAttr::get(IntegerType::get(op->getContext(), 64), padding));
+  op->setAttr(name,
+              IntegerAttr::get(IntegerType::get(op->getContext(), 64), value));
 }
 
 int64_t maxOfMaxes(ArrayRef<int64_t> d1, ArrayRef<int64_t> d2) {

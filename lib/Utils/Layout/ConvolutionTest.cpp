@@ -10,6 +10,7 @@
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/ConvolutionTestUtil.h"
 #include "lib/Utils/Layout/Evaluate.h"
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
@@ -1139,6 +1140,160 @@ TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedInterchangedNonSquare) {
                                    padding, /*ciphertextSize=*/128,
                                    /*interchangeRows=*/true);
   }
+}
+
+// A gap-2 packing of a (1, 2, 4) operand: element (c, w) sits in slot
+// 2 * (4c + w). `low` shifts the layout's spatial domain, which is what
+// tensor.pad does to the layout of the value it pads.
+IntegerRelation gappedDataLayout(int64_t low) {
+  std::string lowStr = std::to_string(low);
+  return getIntegerRelationFromIslStr(
+             "{ [n, c, w] -> [ct, slot] : n = 0 and ct = 0 and 0 <= c <= 1 "
+             "and " +
+             lowStr + " <= w <= 3 + " + lowStr + " and slot = 2 * (4c + w - " +
+             lowStr + ") }")
+      .value();
+}
+
+TEST(ConvolutionTest, TestConv1dDataColumnPermutation) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 4}, IndexType::get(&context));
+
+  auto permutation = get1dConvDataColumnPermutation(
+      dataType, gappedDataLayout(/*low=*/0), /*padding=*/0);
+  ASSERT_TRUE(succeeded(permutation));
+
+  // Column j reads slot 2j: the matrix consumes the gapped packing in place.
+  std::vector<std::pair<int64_t, int64_t>> expected;
+  for (int64_t j = 0; j < 8; ++j) expected.push_back({j, 2 * j});
+  EXPECT_EQ(collectSlots(permutation.value()), expected);
+}
+
+TEST(ConvolutionTest, TestConv1dDataColumnPermutationFoldedPadding) {
+  // A pad of 1 folded into the conv's own padding: the matrix is built against
+  // the unpadded (1, 2, 4) operand, while the layout indexes the padded
+  // (1, 2, 6) value. Column j must still read the slot holding unpadded
+  // element j, so the same gap-2 packing comes back as column j -> slot 2j.
+  MLIRContext context;
+  RankedTensorType matrixDataType =
+      RankedTensorType::get({1, 2, 4}, IndexType::get(&context));
+
+  auto permutation = get1dConvDataColumnPermutation(
+      matrixDataType, gappedDataLayout(/*low=*/1), /*padding=*/1);
+  ASSERT_TRUE(succeeded(permutation));
+
+  std::vector<std::pair<int64_t, int64_t>> expected;
+  for (int64_t j = 0; j < 8; ++j) expected.push_back({j, 2 * j});
+  EXPECT_EQ(collectSlots(permutation.value()), expected);
+}
+
+TEST(ConvolutionTest, TestConv1dDataColumnPermutationRejectsInteriorHole) {
+  // Same folded-pad shape as above, but the layout maps only every third
+  // spatial index, so columns 1, 2, 5 and 6 get no slot. The lowest and highest
+  // columns still have one, so the bounds run 0..7 exactly as in the healthy
+  // case, and a check that only compares them accepts this and silently drops
+  // four real elements from the plaintext matrix. With a fold every column is
+  // real data, so it must fail.
+  MLIRContext context;
+  RankedTensorType matrixDataType =
+      RankedTensorType::get({1, 2, 4}, IndexType::get(&context));
+
+  // Without a fold the columns still span the padded value, so a column with no
+  // slot may be a pad zero and the caller decides. This case shows the bounds
+  // cannot see the hole: columns 0 and 7 are both mapped, yet half are missing.
+  IntegerRelation unfoldedHole =
+      getIntegerRelationFromIslStr(
+          "{ [n, c, w] -> [ct, slot] : n = 0 and ct = 0 and 0 <= c <= 1 and "
+          "0 <= w <= 3 and w mod 3 = 0 and slot = 2 * (4c + w) }")
+          .value();
+  auto unchecked = get1dConvDataColumnPermutation(matrixDataType, unfoldedHole,
+                                                  /*padding=*/0);
+  ASSERT_TRUE(succeeded(unchecked));
+  auto mapped = getMappedConvMatrixColumns(unchecked.value());
+  EXPECT_EQ(mapped.size(), 4u);
+  EXPECT_TRUE(mapped.contains(0));
+  EXPECT_TRUE(mapped.contains(7));
+
+  // With a fold every column is real data, so the same shape of hole fails.
+  IntegerRelation foldedHole =
+      getIntegerRelationFromIslStr(
+          "{ [n, c, w] -> [ct, slot] : n = 0 and ct = 0 and 0 <= c <= 1 and "
+          "1 <= w <= 4 and (w - 1) mod 3 = 0 and slot = 2 * (4c + w - 1) }")
+          .value();
+  EXPECT_TRUE(failed(get1dConvDataColumnPermutation(matrixDataType, foldedHole,
+                                                    /*padding=*/1)));
+}
+
+TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedAbsorbsGappedPacking) {
+  // The end of the chain the two changes above serve: a folded pad and a gapped
+  // packing at once. The matrix is built against the unpadded (1, 2, 4) operand
+  // with the pad of 1 in its own `padding` parameter, and it absorbs the gap-2
+  // packing of the padded value. The result must be the reference Toeplitz
+  // matrix with column j moved to slot 2j, and zero everywhere else.
+  MLIRContext context;
+  const int64_t outputChannels = 2;
+  const int64_t inputChannels = 2;
+  const int64_t filterWidth = 3;
+  const int64_t dataWidth = 4;
+  const int64_t stride = 1;
+  const int64_t padding = 1;
+  const int64_t ciphertextSize = 16;
+
+  std::vector<std::vector<std::vector<int>>> filter(
+      outputChannels, std::vector<std::vector<int>>(
+                          inputChannels, std::vector<int>(filterWidth, 0)));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t c = 0; c < inputChannels; ++c) {
+      for (int64_t k = 0; k < filterWidth; ++k) {
+        filter[f][c][k] = (int)((f * 37 + c * 11 + k * 3) % 17) + 1;
+      }
+    }
+  }
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, filterWidth}, IndexType::get(&context));
+  RankedTensorType matrixDataType = RankedTensorType::get(
+      {1, inputChannels, dataWidth}, IndexType::get(&context));
+
+  auto permutation = get1dConvDataColumnPermutation(
+      matrixDataType, gappedDataLayout(/*low=*/padding), padding);
+  ASSERT_TRUE(succeeded(permutation));
+
+  auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, matrixDataType, stride, padding, ciphertextSize,
+      /*interchangeRows=*/false, &permutation.value());
+  ASSERT_TRUE(succeeded(maybeRel));
+
+  auto expected =
+      reference1dConvCwFcwMatrix(filter, dataWidth, stride, padding);
+  int64_t rows = expected.size();
+  std::vector<std::vector<int>> expectedGapped(
+      rows, std::vector<int>(ciphertextSize, 0));
+  for (int64_t row = 0; row < rows; ++row) {
+    for (size_t col = 0; col < expected[row].size(); ++col) {
+      expectedGapped[row][2 * col] = expected[row][col];
+    }
+  }
+
+  auto packed = evaluateLayout(maybeRel.value(), getFilterValueFn);
+  EXPECT_EQ(undiagonalizeMatrix(packed, rows, ciphertextSize), expectedGapped);
+}
+
+TEST(ConvolutionTest, TestConv1dDataColumnPermutationRejectsWrongPadding) {
+  // The layout was shifted by 1, so reading it back with a padding of 2 moves
+  // the window past the end of its domain and leaves columns with no slot.
+  // Dropping those columns would drop real data, so this must fail instead.
+  MLIRContext context;
+  RankedTensorType matrixDataType =
+      RankedTensorType::get({1, 2, 4}, IndexType::get(&context));
+
+  EXPECT_TRUE(failed(get1dConvDataColumnPermutation(
+      matrixDataType, gappedDataLayout(/*low=*/1), /*padding=*/2)));
 }
 
 }  // namespace

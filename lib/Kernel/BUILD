@@ -142,6 +142,7 @@ cc_test(
         "@heir//lib/Utils/Layout:Convolution",
         "@heir//lib/Utils/Layout:ConvolutionTestUtil",
         "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:IslConversion",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
