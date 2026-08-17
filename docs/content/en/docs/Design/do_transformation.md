@@ -26,7 +26,7 @@ of this transformation.
 func.func @my_function(%input : i1 {secret.secret}) -> () {
   ...
   // Violation: %input is used as a condition causing a data-dependent branch
-  %result =`%input -> (i16) {
+  %result = scf.if %input -> (i16) {
         %a = arith.muli %b, %c : i16
         scf.yield %a : i16
       } else {
