@@ -1,3 +1,4 @@
+load("@heir//bazel:yosys.bzl", "requires_yosys")
 load("@heir//tests/Examples/tfhe_rust:test.bzl", "tfhe_rs_end_to_end_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
@@ -31,6 +32,10 @@ tfhe_rs_end_to_end_test(
     ],
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "add_round_key.mlir",
+    # TODO: the no-yosys --mlir-to-cggi=data-type=Integer pipeline produces IR
+    # for this input that crashes --emit-tfhe-rust-hl (OpOperand index
+    # assertion); only built with yosys until that is fixed.
+    target_compatible_with = requires_yosys(),
     test_src = "src/main_add_round_key.rs",
 )
 
@@ -43,5 +48,9 @@ tfhe_rs_end_to_end_test(
     ],
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "hello_world_clean_xsmall.mlir",
+    # TODO: the no-yosys --mlir-to-cggi=data-type=Integer pipeline produces IR
+    # for this input that crashes --emit-tfhe-rust-hl (OpOperand index
+    # assertion); only built with yosys until that is fixed.
+    target_compatible_with = requires_yosys(),
     test_src = "src/main_hello_world.rs",
 )

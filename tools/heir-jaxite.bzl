@@ -4,7 +4,7 @@ load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 load("@rules_python//python:py_library.bzl", "py_library")
 
-def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name = "", tags = [], deps = [], **kwargs):
+def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name = "", tags = [], deps = [], target_compatible_with = None, **kwargs):
     """A rule for generating Jaxite code.
 
     Args:
@@ -14,6 +14,7 @@ def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name 
       py_lib_target_name: target_name for the py_library.
       tags: Tags to pass to py_test.
       deps: Deps to pass to py_test and py_library.
+      target_compatible_with: constraints to pass to all generated targets.
       **kwargs: Keyword arguments to pass to py_library and py_test.
     """
     heir_opt_name = name + ".heir_opt"
@@ -33,6 +34,7 @@ def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name 
             # HEIR jaxite only supports lut 3 operations
             data = ["@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v"],
             tags = tags,
+            target_compatible_with = target_compatible_with,
         )
     else:
         generated_heir_opt_name = mlir_src
@@ -43,11 +45,13 @@ def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name 
         pass_flags = ["--emit-jaxite"],
         generated_filename = generated_py_filename,
         tags = tags,
+        target_compatible_with = target_compatible_with,
     )
     py_library(
         name = py_lib_target_name,
         srcs = [":" + generated_py_filename],
         deps = deps + ["@heir_pip_deps//jaxite"],
         tags = tags,
+        target_compatible_with = target_compatible_with,
         **kwargs
     )

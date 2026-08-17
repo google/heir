@@ -4,7 +4,7 @@ load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
-def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
+def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], target_compatible_with = None, **kwargs):
     """A rule for running generating tfhe-rs and running a test on it.
 
     Args:
@@ -16,6 +16,7 @@ def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_tr
       data: Data dependencies to be passed to heir_opt
       tags: Tags to pass to rust_library
       deps: Deps to pass to rust_library
+      target_compatible_with: constraints to pass to all generated targets.
       **kwargs: Keyword arguments to pass to rust_library.
     """
     rs_codegen_target = name + ".heir_translate_rs"
@@ -33,6 +34,7 @@ def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_tr
             tags = tags,
             HEIR_YOSYS = True,
             data = ["@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v", "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v"] + data,
+            target_compatible_with = target_compatible_with,
         )
     else:
         generated_heir_opt_name = mlir_src
@@ -43,6 +45,7 @@ def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_tr
         pass_flags = heir_translate_flags,
         generated_filename = generated_rs_filename,
         tags = tags,
+        target_compatible_with = target_compatible_with,
     )
     rust_library(
         name = rs_lib_target_name,
@@ -54,5 +57,6 @@ def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_tr
         ],
         tags = tags,
         data = data,
+        target_compatible_with = target_compatible_with,
         **kwargs
     )

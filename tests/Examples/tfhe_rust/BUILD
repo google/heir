@@ -1,3 +1,4 @@
+load("@heir//bazel:yosys.bzl", "requires_yosys")
 load("@heir//tests/Examples/tfhe_rust:test.bzl", "tfhe_rs_end_to_end_test")
 load("@heir//tools:heir-tfhe-rs.bzl", "tfhe_rs_lib")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
@@ -63,6 +64,7 @@ tfhe_rs_end_to_end_test(
     tags = [
         "yosys",
     ],
+    target_compatible_with = requires_yosys(),
     test_src = "src/main_fully_connected.rs",
 )
 
@@ -81,6 +83,7 @@ tfhe_rs_end_to_end_test(
     tags = [
         "yosys",
     ],
+    target_compatible_with = requires_yosys(),
     test_src = "src/main_sbox.rs",
 )
 
@@ -99,6 +102,7 @@ tfhe_rs_end_to_end_test(
     tags = [
         "yosys",
     ],
+    target_compatible_with = requires_yosys(),
     test_src = "src/main_multi_output.rs",
 )
 

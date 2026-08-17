@@ -1,4 +1,5 @@
 load("//bazel:lit.bzl", "glob_lit_tests")
+load("//bazel:yosys.bzl", "requires_yosys")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
@@ -32,5 +33,6 @@ glob_lit_tests(
             "manual",
         ],
     },
+    target_compatible_with = requires_yosys(),
     test_file_exts = ["mlir"],
 )

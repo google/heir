@@ -3,9 +3,9 @@
 load("@heir//tools:heir-jaxite.bzl", "fhe_jaxite_lib")
 load("@rules_python//python:py_test.bzl", "py_test")
 
-def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_pass_flags = [], tags = [], deps = [], **kwargs):
+def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_pass_flags = [], tags = [], deps = [], target_compatible_with = None, **kwargs):
     py_lib_target_name = "%s_py_lib" % name
-    fhe_jaxite_lib(name, mlir_src, py_lib_target_name = py_lib_target_name, tags = tags, deps = deps, heir_opt_pass_flags = heir_opt_pass_flags, **kwargs)
+    fhe_jaxite_lib(name, mlir_src, py_lib_target_name = py_lib_target_name, tags = tags, deps = deps, heir_opt_pass_flags = heir_opt_pass_flags, target_compatible_with = target_compatible_with, **kwargs)
     py_test(
         name = name,
         srcs = [test_src],
@@ -16,4 +16,5 @@ def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_pass_flags = [], t
             "@abseil-py//absl/testing:absltest",
         ],
         tags = tags,
+        target_compatible_with = target_compatible_with,
     )

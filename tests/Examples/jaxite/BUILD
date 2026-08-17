@@ -2,6 +2,7 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@heir//tests/Examples/jaxite:test.bzl", "jaxite_end_to_end_test")
 load("@rules_python//python:py_library.bzl", "py_library")
 load("//bazel:lit.bzl", "glob_lit_tests")
+load("//bazel:yosys.bzl", "requires_yosys")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -13,6 +14,7 @@ glob_lit_tests(
     data = ["@heir//tests:test_utilities"],
     driver = "@heir//tests:run_lit.sh",
     exclude = ["fully_connected.jaxite.mlir"],
+    target_compatible_with = requires_yosys(),
     test_file_exts = ["mlir"],
 )
 
@@ -30,6 +32,7 @@ jaxite_end_to_end_test(
     ],
     mlir_src = "add_one_lut3.mlir",
     tags = ["yosys"],
+    target_compatible_with = requires_yosys(),
     test_src = "add_one_lut3_test.py",
     deps = [":test_utils"],
 )

@@ -5,7 +5,7 @@ load("@rules_python//python:py_test.bzl", "py_test")
 
 _DEFAULT_FILE_EXTS = ["mlir"]
 
-def lit_test(name = None, src = None, size = "small", tags = None, data = None):
+def lit_test(name = None, src = None, size = "small", tags = None, data = None, target_compatible_with = None):
     """Define a lit test.
 
     In its simplest form, a manually defined lit test would look like this:
@@ -33,6 +33,7 @@ def lit_test(name = None, src = None, size = "small", tags = None, data = None):
       size: the size of the test.
       tags: tags to pass to the target.
       data: the data to pass to the target.
+      target_compatible_with: constraints to pass to the target.
     """
     if not src:
         fail("src must be specified")
@@ -59,6 +60,7 @@ def lit_test(name = None, src = None, size = "small", tags = None, data = None):
         # needed for Python 3.11+, cf. https://github.com/llvm/llvm-project/pull/87022
         deps = [Label("@llvm-project//llvm:lit")],
         tags = tags,
+        target_compatible_with = target_compatible_with,
     )
 
 def glob_lit_tests(
@@ -71,7 +73,9 @@ def glob_lit_tests(
         size_override = None,
         test_file_exts = None,
         default_tags = None,
-        tags_override = None):
+        tags_override = None,
+        target_compatible_with = None,
+        target_compatible_with_override = None):
     """Searches the caller's directory for files to run as lit tests.
 
     Args:
@@ -85,11 +89,15 @@ def glob_lit_tests(
         that should be defined as tests.
       default_tags: [str] tags to add to each test
       tags_override: tags to pass to each generated target.
+      target_compatible_with: constraints to pass to each generated target.
+      target_compatible_with_override: a dictionary giving per-source-file
+        constraints, overriding target_compatible_with.
     """
     exclude = exclude or []
     test_file_exts = test_file_exts or _DEFAULT_FILE_EXTS
     size_override = size_override or dict()
     tags_override = tags_override or dict()
+    target_compatible_with_override = target_compatible_with_override or dict()
     default_tags = default_tags or []
     tests = native.glob(["*." + ext for ext in test_file_exts], exclude = exclude, allow_empty = True)
 
@@ -99,4 +107,5 @@ def glob_lit_tests(
             size = size_override.get(curr_test, "small"),
             tags = default_tags + tags_override.get(curr_test, []),
             data = data,
+            target_compatible_with = target_compatible_with_override.get(curr_test, target_compatible_with),
         )
