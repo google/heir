@@ -1,6 +1,8 @@
 """Module extensions for MLIR Tutorial dependencies."""
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 def _llvm_deps_impl(_):
     """Implementation of the llvm_deps module extension."""
@@ -27,3 +29,34 @@ def _llvm_deps_impl(_):
 llvm_deps = module_extension(
     implementation = _llvm_deps_impl,
 )
+
+CHEDDAR_COMMIT = "307b49cbe03e7f8f14bf31485f716c1090c9ec9d"
+
+def _cheddar_deps_impl(_):
+    maybe(
+        new_git_repository,
+        name = "cheddar",
+        build_file = "@heir//bazel/cheddar:cheddar.BUILD",
+        commit = CHEDDAR_COMMIT,
+        remote = "https://github.com/scale-snu/cheddar-fhe.git",
+        patches = ["@heir//patches:cheddar.patch"],
+        patch_args = ["-p1"],
+    )
+    maybe(
+        http_archive,
+        name = "rmm",
+        build_file = "@heir//bazel/cheddar:rmm.BUILD",
+        integrity = "sha256-XrU9m0N9g6ABhp9b720nKx1Q2bUk3xzugzvJG3V29ls=",
+        strip_prefix = "rmm-22.12.00",
+        urls = ["https://github.com/rapidsai/rmm/archive/refs/tags/v22.12.00.tar.gz"],
+    )
+    maybe(
+        http_archive,
+        name = "libtommath",
+        build_file = "@heir//bazel/cheddar:libtommath.BUILD",
+        integrity = "sha256-Bora9RVdKNSsl265XqDfHss2LyDXdyhxVMIqJP2zX6o=",
+        strip_prefix = "libtommath-1.2.1",
+        urls = ["https://github.com/libtom/libtommath/archive/refs/tags/v1.2.1.tar.gz"],
+    )
+
+cheddar_deps = module_extension(implementation = _cheddar_deps_impl)
