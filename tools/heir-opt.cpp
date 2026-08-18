@@ -9,6 +9,7 @@
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
+// This comment includes internal conversions
 #include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
@@ -44,6 +45,7 @@
 #include "lib/Dialect/Openfhe/Conversions/OpenFHEToEmitC/OpenfheToEmitCDialectInterface.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
+// This comment includes internal dialects
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
@@ -79,6 +81,7 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
+// This comment includes internal pipelines
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Target/CompilationTarget/RegisterAllBackends.h"
 #include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
@@ -141,6 +144,7 @@
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "lib/Transforms/ValidateScale/ValidateScale.h"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -196,14 +200,6 @@
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/InliningUtils.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
-
-#ifndef HEIR_NO_YOSYS
-#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
-#endif
-
-// This comment includes internal conversions
-// This comment includes internal dialects
-// This comment includes internal pipelines
 
 using namespace mlir;
 using namespace heir;
@@ -449,8 +445,7 @@ int main(int argc, char** argv) {
   registerSoftmaxToCgfSoftmaxPasses();
   registerInlineActivationsPass();
   registerSplitPreprocessingPass();
-  // Register yosys optimizer pipeline if configured.
-#ifndef HEIR_NO_YOSYS
+  // Register the Yosys optimizer pipeline.
 #ifndef HEIR_ABC_BINARY
   llvm::errs() << "HEIR_ABC_BINARY #define not properly set";
   return EXIT_FAILURE;
@@ -475,13 +470,6 @@ int main(int argc, char** argv) {
       "Convert a func using standard MLIR dialects to FHE using "
       "CGGI.",
       mlirToCGGIPipelineBuilder(yosysRunfilesEnvPath, abcEnvPath));
-#else
-  PassPipelineRegistration<mlir::heir::MLIRToCGGIPipelineOptions>(
-      "mlir-to-cggi",
-      "Convert a func using standard MLIR dialects to FHE using "
-      "CGGI.",
-      mlirToCGGIPipelineBuilder());
-#endif
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();

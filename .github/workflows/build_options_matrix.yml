@@ -19,9 +19,6 @@ jobs:
         enable_openmp:
           - 0
           - 1
-        enable_yosys:
-          - 0
-          - 1
       fail-fast: false
     runs-on:
       labels: ubuntu-latest
@@ -37,7 +34,6 @@ jobs:
           read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
           bazel build --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \
             --//:enable_openmp=${{ matrix.enable_openmp }} \
-            --//:enable_yosys=${{ matrix.enable_yosys }} \
             "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
             //...
@@ -47,7 +43,6 @@ jobs:
           read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
           bazel test --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \
             --//:enable_openmp=${{ matrix.enable_openmp }} \
-            --//:enable_yosys=${{ matrix.enable_yosys }} \
             "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
             //...

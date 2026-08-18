@@ -25,9 +25,8 @@ package_group(
 
 # copybara: fuzztest_ci_invocation
 
-# Disables deps for CI tools and tests.
-# use by passing `--//:enable_openmp=0` or `--//:enable_yosys=0`
-# to `bazel build` or `bazel test`
+# Disables OpenMP deps for CI tools and tests.
+# Use by passing `--//:enable_openmp=0` to `bazel build` or `bazel test`.
 
 # OpenMP
 string_flag(
@@ -49,26 +48,6 @@ config_setting(
         ":enable_openmp": "0",
     },
     visibility = ["//visibility:public"],
-)
-
-# Yosys
-string_flag(
-    name = "enable_yosys",
-    build_setting_default = "1",
-)
-
-config_setting(
-    name = "config_enable_yosys",
-    flag_values = {
-        ":enable_yosys": "1",
-    },
-)
-
-config_setting(
-    name = "config_disable_yosys",
-    flag_values = {
-        ":enable_yosys": "0",
-    },
 )
 
 # OpenFHE interpreter

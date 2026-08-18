@@ -45,12 +45,7 @@ cc_library(
     name = "BooleanPipelineRegistration",
     srcs = ["BooleanPipelineRegistration.cpp"],
     hdrs = ["BooleanPipelineRegistration.h"],
-    defines = select({
-        "@heir//:config_enable_yosys": [],
-        "//conditions:default": ["HEIR_NO_YOSYS=1"],
-    }),
     deps = [
-        ":PipelineRegistration",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool",
@@ -71,28 +66,21 @@ cc_library(
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
-        "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/ReductionCanonicalizations",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/TensorLinalgToAffineLoops",
         "@heir//lib/Transforms/TensorToScalars",
-        "@heir//lib/Transforms/UnusedMemRef",
+        "@heir//lib/Transforms/YosysOptimizer",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineTransforms",
         "@llvm-project//mlir:ArithTransforms",
-        "@llvm-project//mlir:BufferizationTransforms",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:LinalgTransforms",
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:Transforms",
-    ] + select({
-        "@heir//:config_enable_yosys": [
-            "@heir//lib/Transforms/YosysOptimizer",
-        ],
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 cc_library(
