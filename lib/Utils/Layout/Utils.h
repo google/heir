@@ -66,9 +66,15 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
     RankedTensorType matrixType, int64_t minSlotCount);
 
 // Applies a diagonal layout onto a given 2-D matrix layout.
+//
+// The matrix shape is read off `relation`'s own range bounds, which can be
+// tighter than the matrix the kernel is sized from: a trailing row or column
+// that no entry ever reaches lowers the derived bound. Pass `matrixShape` to
+// diagonalize against an explicit {rows, cols} instead, so that the layout and
+// the kernel agree.
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
-    int64_t minSlotCount);
+    int64_t minSlotCount, ArrayRef<int64_t> matrixShape = {});
 
 // Returns an IntegerRelation that represents a bicyclic layout for a matrix.
 // See https://eprint.iacr.org/2024/1762 for details.

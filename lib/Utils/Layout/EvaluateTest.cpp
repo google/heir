@@ -621,15 +621,23 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsWithInterchange) {
   EXPECT_THAT(result, Eq(expected));
 }
 
-TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
-  MLIRContext context;
-  RankedTensorType filterType =
-      RankedTensorType::get({8, 1, 2, 2}, IndexType::get(&context));
-  RankedTensorType dataType =
-      RankedTensorType::get({1, 1, 4, 4}, IndexType::get(&context));
-  SmallVector<int64_t> strides = {2, 2};
+// Checks that the staged filter layout the pass uses agrees with the
+// single-relation reference for a 2-D conv of the given shape.
+void checkConv2dFilterRelationsEquivalence(MLIRContext& context,
+                                           int64_t outputChannels,
+                                           int64_t inputChannels,
+                                           int64_t dataSize, int64_t stride,
+                                           int64_t minSlotCount) {
+  SCOPED_TRACE("outputChannels = " + std::to_string(outputChannels) +
+               " inputChannels = " + std::to_string(inputChannels) +
+               " dataSize = " + std::to_string(dataSize) +
+               " stride = " + std::to_string(stride));
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataSize, dataSize}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
   int64_t padding = 0;
-  int64_t minSlotCount = 32;
 
   auto singleRel = get2dConvChwFchwFilterDiagonalizedRelation(
       filterType, dataType, strides, padding, minSlotCount,
@@ -649,15 +657,17 @@ TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
     composed.compose(rels[i]);
   }
 
-  // Filter is 8x1x2x2
   std::vector<std::vector<std::vector<std::vector<int>>>> filter(
-      8, std::vector<std::vector<std::vector<int>>>(
-             1, std::vector<std::vector<int>>(2, std::vector<int>(2, 0))));
+      outputChannels, std::vector<std::vector<std::vector<int>>>(
+                          inputChannels, std::vector<std::vector<int>>(
+                                             2, std::vector<int>(2))));
   int val = 1;
-  for (int f = 0; f < 8; ++f) {
-    for (int kh = 0; kh < 2; ++kh) {
-      for (int kw = 0; kw < 2; ++kw) {
-        filter[f][0][kh][kw] = val++;
+  for (int f = 0; f < outputChannels; ++f) {
+    for (int c = 0; c < inputChannels; ++c) {
+      for (int kh = 0; kh < 2; ++kh) {
+        for (int kw = 0; kw < 2; ++kw) {
+          filter[f][c][kh][kw] = val++;
+        }
       }
     }
   }
@@ -672,6 +682,30 @@ TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
   auto resultComposed = evaluateLayout(composed, getValueFn);
 
   EXPECT_THAT(resultComposed, Eq(resultSingle));
+}
+
+TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
+  MLIRContext context;
+  checkConv2dFilterRelationsEquivalence(context, /*outputChannels=*/8,
+                                        /*inputChannels=*/1, /*dataSize=*/4,
+                                        /*stride=*/2, /*minSlotCount=*/32);
+}
+
+TEST(EvaluateTest, GapPaddedConvFilterDiagonalizedRelationsEquivalence) {
+  // Channel counts that are not a multiple of gap^2 = 4, so the layout pads the
+  // channel dimension. The staged relations must reserve the same padding rows
+  // as the single-relation reference.
+  MLIRContext context;
+  for (int64_t outputChannels : {1, 2, 3}) {
+    checkConv2dFilterRelationsEquivalence(context, outputChannels,
+                                          /*inputChannels=*/1, /*dataSize=*/4,
+                                          /*stride=*/2, /*minSlotCount=*/32);
+  }
+  for (int64_t outputChannels : {5, 6, 7}) {
+    checkConv2dFilterRelationsEquivalence(context, outputChannels,
+                                          /*inputChannels=*/2, /*dataSize=*/4,
+                                          /*stride=*/2, /*minSlotCount=*/64);
+  }
 }
 
 }  // namespace

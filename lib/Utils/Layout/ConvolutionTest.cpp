@@ -1022,21 +1022,25 @@ void checkConv2dChwFchwDiagonalized(
       {1, inputChannels, dataH, dataW}, IndexType::get(&context));
   SmallVector<int64_t> strides = {stride, stride};
 
-  auto expandedType = get2dConvChwFchwFilterExpandedType(filterType, dataType,
-                                                         padding, strides);
+  auto expandedType = get2dConvChwFchwFilterExpandedType(
+      filterType, dataType, padding, strides, interchangeRows);
   auto expected =
       reference2dConvChwFchwMatrix(filter, dataH, dataW, stride, padding);
   int64_t rows = expandedType.getDimSize(0);
   int64_t cols = expandedType.getDimSize(1);
-  ASSERT_EQ(rows, (int64_t)expected.size());
+  // An interchanged layout reserves whole g x g channel blocks, so its matrix
+  // can hold more rows than the reference has: the extra rows belong to the
+  // padding channels and stay zero.
+  int64_t referenceRows = (int64_t)expected.size();
+  ASSERT_GE(rows, referenceRows);
   ASSERT_EQ(cols, (int64_t)expected[0].size());
 
   // The non-diagonalized relation must agree with the reference Toeplitz
-  // matrix.
+  // matrix. It is not interchanged, so it has no padding rows.
   auto expandedRelation =
       get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
   EXPECT_EQ(evaluateLayout(expandedRelation, getFilterValueFn,
-                           SmallVector<int64_t>{rows, cols}),
+                           SmallVector<int64_t>{referenceRows, cols}),
             expected);
 
   // Row interchange permutes the matrix rows into the pixel-shuffled order the
@@ -1050,7 +1054,9 @@ void checkConv2dChwFchwDiagonalized(
     int64_t outputH = convOutputExtent(dataH, filterSize, stride, padding);
     int64_t outputW = convOutputExtent(dataW, filterSize, stride, padding);
     int64_t wOut = outputW * g;
-    ASSERT_EQ(outputChannels % (g * g), 0);
+    // Sized to the reserved blocks, so the rows of the padding channels are
+    // present and zero.
+    expectedRows.assign(rows, std::vector<int>(cols, 0));
     for (int64_t f = 0; f < outputChannels; ++f) {
       for (int64_t oh = 0; oh < outputH; ++oh) {
         for (int64_t ow = 0; ow < outputW; ++ow) {
@@ -1123,6 +1129,20 @@ TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedInterchangedPadded) {
                                    /*inputChannels=*/2, /*filterSize=*/3,
                                    /*dataH=*/6, /*dataW=*/6, /*stride=*/2,
                                    padding, /*ciphertextSize=*/128,
+                                   /*interchangeRows=*/true);
+  }
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedInterchangedChannelPadding) {
+  // Output channel counts that are not a multiple of gap^2 = 4. The
+  // interchanged layout reserves a whole block, so the matrix gains zero rows
+  // for the channels that are not there.
+  MLIRContext context;
+  for (int64_t outputChannels : {1, 2, 3, 5, 6, 7}) {
+    checkConv2dChwFchwDiagonalized(context, outputChannels,
+                                   /*inputChannels=*/2, /*filterSize=*/3,
+                                   /*dataH=*/6, /*dataW=*/6, /*stride=*/2,
+                                   /*padding=*/0, /*ciphertextSize=*/128,
                                    /*interchangeRows=*/true);
   }
 }
