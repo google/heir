@@ -141,6 +141,7 @@
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "lib/Transforms/ValidateScale/ValidateScale.h"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -196,10 +197,6 @@
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/InliningUtils.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
-
-#ifndef HEIR_NO_YOSYS
-#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
-#endif
 
 // This comment includes internal conversions
 // This comment includes internal dialects
@@ -449,8 +446,7 @@ int main(int argc, char** argv) {
   registerSoftmaxToCgfSoftmaxPasses();
   registerInlineActivationsPass();
   registerSplitPreprocessingPass();
-  // Register yosys optimizer pipeline if configured.
-#ifndef HEIR_NO_YOSYS
+  // Register the Yosys optimizer pipeline.
 #ifndef HEIR_ABC_BINARY
   llvm::errs() << "HEIR_ABC_BINARY #define not properly set";
   return EXIT_FAILURE;
@@ -475,13 +471,6 @@ int main(int argc, char** argv) {
       "Convert a func using standard MLIR dialects to FHE using "
       "CGGI.",
       mlirToCGGIPipelineBuilder(yosysRunfilesEnvPath, abcEnvPath));
-#else
-  PassPipelineRegistration<mlir::heir::MLIRToCGGIPipelineOptions>(
-      "mlir-to-cggi",
-      "Convert a func using standard MLIR dialects to FHE using "
-      "CGGI.",
-      mlirToCGGIPipelineBuilder());
-#endif
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();

@@ -18,8 +18,6 @@ glob_lit_tests(
         ":yosys_test_utilities",
         "@heir//tests:test_utilities",
     ],
-    # A select on the test files and data for this test based on HEIR_NO_YOSYS
-    # won't work because selects do not expand in macros.
     default_tags = ["yosys"],
     driver = "@heir//tests:run_lit.sh",
     size_override = {

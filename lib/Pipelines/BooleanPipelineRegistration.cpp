@@ -22,12 +22,11 @@
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
@@ -35,10 +34,6 @@
 #include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
-
-#ifndef HEIR_NO_YOSYS
-#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
-#endif
 
 using namespace mlir;
 using namespace heir;
@@ -49,7 +44,6 @@ namespace mlir::heir {
 static std::vector<std::string> opsToDistribute = {"secret.separator"};
 static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
 
-#ifndef HEIR_NO_YOSYS
 CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string& yosysFilesPath,
                                               const std::string& abcPath) {
   return [=](OpPassManager& pm, const MLIRToCGGIPipelineOptions& options) {
@@ -144,65 +138,6 @@ void mlirToCGGIPipeline(OpPassManager& pm,
   pm.addPass(createCSEPass());
   pm.addPass(createSCCPPass());
 }
-#else
-CGGIPipelineBuilder mlirToCGGIPipelineBuilder() {
-  return [=](OpPassManager& pm, const MLIRToCGGIPipelineOptions& options) {
-    mlirToCGGIPipeline(pm, options);
-  };
-}
-
-void mlirToCGGIPipeline(OpPassManager& pm,
-                        const MLIRToCGGIPipelineOptions& options) {
-  pm.addPass(debug::createDebugValidateNames());
-  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
-      .insertDebugAfterEveryOp = options.debug}));
-  // Bufferize
-  ::mlir::heir::oneShotBufferize(pm);
-
-  // Affine
-  pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
-  pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  pm.addPass(createExpandCopyPass());
-  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
-  pm.addPass(memref::createFoldMemRefAliasOpsPass());
-
-  // Affine loop optimizations
-  pm.addNestedPass<FuncOp>(
-      affine::createLoopFusionPass(0, 0, true, affine::FusionMode::Greedy));
-  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
-  pm.addPass(createForwardStoreToLoad());
-  pm.addPass(affine::createAffineParallelize());
-  pm.addPass(createForwardStoreToLoad());
-  pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
-
-  // Cleanup
-  pm.addPass(createMemrefGlobalReplacePass());
-  ::mlir::arith::ArithIntRangeNarrowingOptions arithOps;
-  arithOps.bitwidthsSupported = llvm::to_vector(bitWidths);
-  pm.addPass(::mlir::arith::createArithIntRangeNarrowing(arithOps));
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createSCCPPass());
-  pm.addPass(createCSEPass());
-  pm.addPass(createSymbolDCEPass());
-
-  // Booleanize
-  switch (options.dataType) {
-    case Integer:
-      pm.addPass(arith::createArithToCGGI());
-      break;
-    case Bool:
-      llvm_unreachable("Booleanization is not supported without Yosys.");
-  }
-
-  pm.addPass(createForwardStoreToLoad());
-  pm.addPass(createRemoveUnusedMemRef());
-  pm.addPass(createCSEPass());
-  pm.addPass(createSCCPPass());
-}
-#endif
 
 CGGIBackendPipelineBuilder toTfheRsPipelineBuilder() {
   return [=](OpPassManager& pm) {

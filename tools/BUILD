@@ -14,33 +14,22 @@ WORKSPACE_PATH = ""
 cc_binary(
     name = "heir-opt",
     srcs = ["heir-opt.cpp"],
-    data = select({
-        "@heir//:config_enable_yosys": [
-            "@abc//:abc_bin",
-            "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v",
-            "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
-        ],
-        "//conditions:default": [],
-    }),
+    data = [
+        "@abc//:abc_bin",
+        "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v",
+        "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
+    ],
     # The strings in these defines are passed through various pre-processors,
     # including the materializing of quoted strings as done in bash, so to
     # ensure that the #define'd variables stay quoted strings in the generated
     # C++, we need to enclose them in `\\\"` (an escaped backslash followed by
     # an escaped quote).
-    defines = select({
-        "@heir//:config_enable_yosys": [
-            "HEIR_ABC_BINARY=\\\"$(rootpath @abc//:abc_bin)\\\"",
-            "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
-        ],
-        "//conditions:default": ["HEIR_NO_YOSYS=1"],
-    }),
+    defines = [
+        "HEIR_ABC_BINARY=\\\"$(rootpath @abc//:abc_bin)\\\"",
+        "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
+    ],
     includes = ["include"],
-    deps = select({
-        "@heir//:config_enable_yosys": [
-            "@heir//lib/Transforms/YosysOptimizer",
-        ],
-        "//conditions:default": [],
-    }) + [
+    deps = [
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseAnalysis",  # buildcleaner: keep
@@ -197,6 +186,7 @@ cc_binary(
         "@heir//lib/Transforms/UnusedMemRef",
         "@heir//lib/Transforms/ValidateNoise",
         "@heir//lib/Transforms/ValidateScale",
+        "@heir//lib/Transforms/YosysOptimizer",
         "@hermetic_llvm//openmp:libomp",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
