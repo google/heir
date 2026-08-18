@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "conv2dnchwpadded",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=min-slot-count=1024 greedy-modulus-switch-after-mul=true",
+        "--mlir-to-ckks=min-slot-count=1024 greedy-modulus-switch-after-mul=true experimental-disable-loop-unroll=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:conv2d_nchw_padded.mlir",
