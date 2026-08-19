@@ -24,6 +24,7 @@ cc_library(
         ":types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:SideEffectInterfaces",
@@ -40,6 +41,7 @@ td_library(
     ],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:DestinationStyleOpInterfaceTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",

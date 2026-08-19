@@ -7,7 +7,8 @@
 // CHECK: resource element type 'f16' is stored as 2 bytes per element, but the generated loader reads float32
 module attributes {scheme.bgv} {
   func.func @f16_resource() -> memref<4xf16> {
-    %0 = preprocessing.load_resource "p/f16.bin" : memref<4xf16>
+    %0 = memref.alloc() : memref<4xf16>
+    preprocessing.load_resource "p/f16.bin" into %0 : (memref<4xf16>) -> ()
     return %0 : memref<4xf16>
   }
 }

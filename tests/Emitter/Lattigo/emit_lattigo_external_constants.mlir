@@ -84,7 +84,9 @@
 
 module attributes {scheme.bgv} {
   func.func @test_external_constant(%arg0: memref<4xi32>) -> memref<4xi32> {
-    %0 = preprocessing.load_resource "some/path/constant_1.bin" : memref<4xi32>
+    %0 = memref.alloc() : memref<4xi32>
+    preprocessing.load_resource "some/path/constant_1.bin" into %0
+        : (memref<4xi32>) -> ()
     %res = memref.alloc() : memref<4xi32>
     affine.for %i = 0 to 4 {
       %val0 = memref.load %arg0[%i] : memref<4xi32>
@@ -96,7 +98,9 @@ module attributes {scheme.bgv} {
   }
 
   func.func @test_external_constant_i1(%arg0: memref<4xi1>) -> memref<4xi1> {
-    %0 = preprocessing.load_resource "some/path/constant_i1.bin" : memref<4xi1>
+    %0 = memref.alloc() : memref<4xi1>
+    preprocessing.load_resource "some/path/constant_i1.bin" into %0
+        : (memref<4xi1>) -> ()
     %res = memref.alloc() : memref<4xi1>
     affine.for %i = 0 to 4 {
       %val0 = memref.load %arg0[%i] : memref<4xi1>

@@ -22,7 +22,8 @@ def ExternalizeConstants : Pass<"externalize-constants"> {
 
   let dependentDialects = [
     "mlir::arith::ArithDialect",
-    "mlir::heir::preprocessing::PreprocessingDialect"
+    "mlir::heir::preprocessing::PreprocessingDialect",
+    "mlir::tensor::TensorDialect"
   ];
 }
 
