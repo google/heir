@@ -225,15 +225,15 @@ FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
   LogicalResult prepassResult = success();
   moduleOp.walk([&](preprocessing::LoadResourceOp op) {
     hasResources = true;
-    Value result = op.getResult();
+    Value resource = op.getLoadedResource();
     // These globals are emitted once at module scope, so they cannot be named
     // after the SSA value: SelectVariableNames restarts its numbering in each
     // function, and two functions would produce the same global. Index into
     // `resources` instead, which is module-wide.
     std::string globalName = "g_resource" + std::to_string(resources.size());
-    resourceGlobals[result] = globalName;
+    resourceGlobals[resource] = globalName;
 
-    auto type = result.getType();
+    auto type = resource.getType();
     auto typeString = convertType(type);
     if (failed(typeString)) {
       prepassResult = failure();
@@ -1285,6 +1285,8 @@ LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(memref::AllocOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
   MemRefType type = op.getType();
   auto eltTypeStr = convertType(type.getElementType());
   if (failed(eltTypeStr)) return failure();
