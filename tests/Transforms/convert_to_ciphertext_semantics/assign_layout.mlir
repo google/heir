@@ -64,7 +64,11 @@ module {
   // CHECK: @empty
   func.func @empty() -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
     %0 = secret.generic() {
-      // CHECK: %[[empty:.*]] = tensor.empty() : tensor<1x32xi16>
+      // An empty tensor holds no data, so laying it out is materialising
+      // undefined values. The layout step emits zeros instead: cheap here, and
+      // the only safe choice once the elements are ciphertexts.
+      // CHECK-NOT: tensor.empty
+      // CHECK: %[[empty:.*]] = arith.constant dense<0> : tensor<1x32xi16>
       %empty = tensor.empty() : tensor<32xi16>
       %1 = tensor_ext.assign_layout %empty {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
       secret.yield %1 : tensor<32xi16>

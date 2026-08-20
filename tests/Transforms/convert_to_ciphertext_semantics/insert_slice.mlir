@@ -8,10 +8,13 @@ module {
   func.func @trivial_insert(%arg0: !secret.secret<tensor<4x4xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x2x4x4xf32>> {tensor_ext.layout = #layout}) {
     %0 = tensor.empty() : tensor<1x2x4x4xf32>
     // CHECK: secret.generic
+    // Each destination is materialised just before the inserts that fill it,
+    // rather than both up front, so the two tensor.empty ops are no longer
+    // adjacent.
     // CHECK: %[[v0:.*]] = tensor.empty() : tensor<2x32xf32>
-    // CHECK: %[[v3:.*]] = tensor.empty() : tensor<2x32xf32>
     // CHECK: arith.addf
     // CHECK-COUNT-2: tensor.insert_slice
+    // CHECK: %[[v3:.*]] = tensor.empty() : tensor<2x32xf32>
     // CHECK-COUNT-2: tensor.insert_slice
     // CHECK: arith.addf
     // CHECK: return
@@ -37,9 +40,10 @@ module {
   func.func @remap_input(%arg0: !secret.secret<tensor<4x4xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x2x4x4xf32>> {tensor_ext.layout = #layout}) {
     %0 = tensor.empty() : tensor<1x2x4x4xf32>
     // CHECK: secret.generic
-    // CHECK: tensor.empty() : tensor<2x32xf32>
+    // The remap now happens before the destination is materialised, and one
+    // destination serves both inserts, so there is a single tensor.empty.
     // CHECK: tensor_ext.remap
-    // CHECK: %[[v3:.*]] = tensor.empty() : tensor<2x32xf32>
+    // CHECK: tensor.empty() : tensor<2x32xf32>
     // CHECK: arith.addf
     // CHECK-COUNT-2: tensor.insert_slice
     // CHECK: arith.addf

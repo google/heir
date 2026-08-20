@@ -7,7 +7,15 @@
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
   // CHECK: func @test_insert_slice_into_empty
   func.func @test_insert_slice_into_empty(%arg1: !extract_ty {mgmt.mgmt = #mgmt}) -> (!secret_tensor_ty {mgmt.mgmt = #mgmt}) {
-    // CHECK: tensor.empty() : tensor<1x!lwe
+    // An accumulator's init must be a valid ciphertext at every element, not an
+    // undefined one: a rolled kernel fills it element by element while
+    // whole-tensor consumers already read every element, and an undefined
+    // ciphertext has no runtime representation.
+    // CHECK-NOT: tensor.empty() : tensor<1x!lwe
+    // CHECK: arith.constant dense<0>
+    // CHECK: lwe.rlwe_encode
+    // CHECK: lwe.trivial_encrypt
+    // CHECK: tensor.from_elements
     %empty  = tensor.empty() : tensor<1x1024xi32>
     %empty_init = mgmt.init %empty {mgmt.mgmt = #mgmt} : tensor<1x1024xi32>
     %0 = secret.generic(%arg1: !extract_ty) {
