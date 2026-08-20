@@ -387,7 +387,13 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
   if (!op.getInits().empty()) {
     suffix = " });\n";
 
-    emitAssignPrefix(op->getResult(0));
+    if (op.getNumResults() == 1) {
+      emitAssignPrefix(op.getResult(0));
+    } else {
+      os << "let (" << commaSeparatedValues(op.getResults(), [&](Value value) {
+        return variableNames->getNameForValue(value);
+      }) << ") = ";
+    }
 
     os << "(" << op.getConstantLowerBound() << ".."
        << op.getConstantUpperBound() << ")" << ".fold(";
@@ -402,10 +408,11 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
                                  [&](Value value) {
                                    return variableNames->getNameForValue(value);
                                  })
-         << "), |mut ("
+         << "), |("
          << commaSeparatedValues(op.getRegionIterArgs(),
                                  [&](Value value) {
-                                   return variableNames->getNameForValue(value);
+                                   return "mut " +
+                                          variableNames->getNameForValue(value);
                                  })
          << "), ";
     }
@@ -432,11 +439,18 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(affine::AffineYieldOp op) {
-  if (op->getNumResults() != 0) {
-    return op.emitOpError() << "AffineYieldOp has non-zero number of results";
+  if (op.getNumOperands() == 0) {
+    return success();
   }
 
-  os << variableNames->getNameForValue(op->getOperand(0)) << "\n";
+  if (op.getNumOperands() == 1) {
+    os << variableNames->getNameForValue(op.getOperand(0)) << "\n";
+    return success();
+  }
+
+  os << "(" << commaSeparatedValues(op.getOperands(), [&](Value value) {
+    return variableNames->getNameForValue(value);
+  }) << ")\n";
 
   return success();
 }
