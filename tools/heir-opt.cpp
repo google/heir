@@ -172,6 +172,7 @@
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
@@ -354,6 +355,7 @@ int main(int argc, char** argv) {
   bufferization::registerBufferizationPasses();
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  bufferization::registerBufferizableOpInterfaceExternalModels(registry);
   bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);
   cf::registerBufferizableOpInterfaceExternalModels(registry);
