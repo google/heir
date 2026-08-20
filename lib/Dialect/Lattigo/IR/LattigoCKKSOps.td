@@ -398,6 +398,7 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
     // Parameters corresponding to the lattigo lintrans.Parameters struct
     ConfinedType<TensorOrMemRef<[AnyFloat]>, [HasAnyRankOfPred<[2]>]>:$diagonals,
     DenseI32ArrayAttr:$diagonal_indices,
+    OptionalAttr<DenseI32ArrayAttr>:$source_row_indices,
     Builtin_IntegerAttr:$levelQ,
     Builtin_IntegerAttr:$logBabyStepGiantStepRatio
 
@@ -411,6 +412,57 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
     // For CKKS these are hard-coded to [1, N/2] for N = ring modulus degree
     // Builtin_IntegerAttr:$logDimensionsRows,
     // Builtin_IntegerAttr:$logDimensionsCols,
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+def Lattigo_CKKSPrepareLinearTransformOp : Lattigo_CKKSOp<"prepare_linear_transform", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
+  let summary = "Prepare (encode) a linear transform for evaluation";
+  let description = [{
+    Builds and encodes a lintrans.LinearTransformation from the given float
+    diagonals: the cleartext half of lattigo.ckks.linear_transform. Row i of
+    the `diagonals` holds the generalized diagonal named by
+    `diagonal_indices[i]`. If `source_row_indices` is present, that diagonal is
+    instead read from row `source_row_indices[i]`.
+
+    All of lintrans.Parameters is determined here at compile time: `levelQ`
+    names the modulus level (the encoding scale is the backend's scale for
+    that level), `logSlots` the encoded slot count, and
+    `logBabyStepGiantStepRatio` the BSGS split. The op needs no ciphertext, so
+    it can run entirely ahead of any inference.
+
+    The op implements RotationOpInterface: the Galois keys an application of
+    the transform needs are a function of the diagonal indices, slot count,
+    and BSGS split, all of which are recorded here.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSParameter:$params,
+    Lattigo_CKKSEncoder:$encoder,
+    ConfinedType<TensorOrMemRef<[AnyFloat]>, [HasAnyRankOfPred<[2]>]>:$diagonals,
+    DenseI32ArrayAttr:$diagonal_indices,
+    OptionalAttr<DenseI32ArrayAttr>:$source_row_indices,
+    Builtin_IntegerAttr:$levelQ,
+    Builtin_IntegerAttr:$logSlots,
+    Builtin_IntegerAttr:$logBabyStepGiantStepRatio
+  );
+  let results = (outs Lattigo_CKKSLinearTransformation:$transformation);
+}
+
+def Lattigo_CKKSApplyLinearTransformOp : Lattigo_CKKSOp<"apply_linear_transform"> {
+  let summary = "Apply a prepared linear transform to a ciphertext";
+  let description = [{
+    Evaluates a transformation prepared by
+    lattigo.ckks.prepare_linear_transform on a ciphertext: the online half of
+    lattigo.ckks.linear_transform. The ciphertext must be at the level the
+    transformation was prepared for. Evaluation preserves that level; the
+    rescale emitted after this operation performs the transform's level drop.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    Lattigo_CKKSLinearTransformation:$transformation
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }

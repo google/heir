@@ -1,6 +1,8 @@
 #ifndef LIB_DIALECT_MODULEATTRIBUTES_H_
 #define LIB_DIALECT_MODULEATTRIBUTES_H_
 
+#include <cstdint>
+
 #include "llvm/include/llvm/ADT/StringRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"   // from @llvm-project
@@ -26,6 +28,11 @@ constexpr const static ::llvm::StringLiteral kRequestedSlotCountAttrName =
     "scheme.requested_slot_count";
 constexpr const static ::llvm::StringLiteral kActualSlotCountAttrName =
     "scheme.actual_slot_count";
+
+// Returns the number of slots ciphertexts in this module are encoded for:
+// `ringCapacity`, capped by the module's requested slot count when it asked for
+// a sparser packing.
+int64_t getEncodedSlotCount(Operation* moduleOp, int64_t ringCapacity);
 
 bool moduleIsBGV(Operation* moduleOp);
 bool moduleIsBFV(Operation* moduleOp);

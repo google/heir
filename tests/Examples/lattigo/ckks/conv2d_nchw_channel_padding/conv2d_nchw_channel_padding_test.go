@@ -66,10 +66,10 @@ func TestConv2dChannelPadding(t *testing.T) {
 
 	ct0 := Conv2d_channel_pad__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 	startPre := time.Now()
-	filterPlains := conv2dnchwchannelpadding_utils.Conv2d_channel_pad__preprocessing(params, ecd)
+	linearTransforms, filterPlains := conv2dnchwchannelpadding_utils.Conv2d_channel_pad__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 	start := time.Now()
-	resultCt := Conv2d_channel_pad__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Conv2d_channel_pad__preprocessed(evaluator, params, ecd, ct0, linearTransforms, filterPlains)
 	t.Logf("Conv2d (preprocessed) took %s", time.Since(start))
 	result := Conv2d_channel_pad__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 

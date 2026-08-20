@@ -57,6 +57,7 @@ cc_binary(
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
         "@heir//lib/Dialect/JaxiteWord/Transforms",
         "@heir//lib/Dialect/Kernel/IR:Dialect",
+        "@heir//lib/Dialect/Kernel/Transforms",
         "@heir//lib/Dialect/KeyMgmt/IR:Dialect",
         "@heir//lib/Dialect/LWE/Conversions/LWEToJaxiteWord",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",

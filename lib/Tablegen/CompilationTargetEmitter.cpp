@@ -85,13 +85,16 @@ bool emitCompilationTargetRegistration(const llvm::RecordKeeper& records,
     auto hasKernelChebyshev = target->getValueAsInt("has_kernel_chebyshev");
     auto hasKernelLinearTransform =
         target->getValueAsInt("has_kernel_linear_transform");
+    auto hasPreparedLinearTransform =
+        target->getValueAsInt("has_prepared_linear_transform");
 
     os << "void registerTarget" << name << "() {\n"
        << "  "
           "CompilationTargetRegistry::registerTarget(CompilationTarget{"
           "BackendName::"
        << name << ", " << bootstrapLevelsConsumed << ", " << hasKernelChebyshev
-       << ", " << hasKernelLinearTransform << "});\n"
+       << ", " << hasKernelLinearTransform << ", " << hasPreparedLinearTransform
+       << "});\n"
        << "}\n\n";
   }
   return false;

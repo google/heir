@@ -4,6 +4,7 @@
 #include <bit>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -148,10 +149,135 @@ int LinearTransformOp::getLevelsToDrop() { return 1; }
   return {&getOperation()->getOpOperand(0)};
 }
 
+int ApplyLinearTransformOp::getLevelsToDrop() { return 1; }
+
+::llvm::SmallVector<::mlir::OpOperand*>
+ApplyLinearTransformOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(0)};
+}
+
+namespace {
+
+// Returns the total slot capacity of a (possibly tensor-wrapped) ciphertext
+// input, or nullopt when the type does not determine one.
+std::optional<int64_t> getInputSlotSize(Type inputType) {
+  auto inputRankedType = dyn_cast<RankedTensorType>(inputType);
+  if (!inputRankedType) return std::nullopt;
+
+  auto elementType = inputRankedType.getElementType();
+  int64_t slotsPerCiphertext = 1;
+  if (auto ctType = dyn_cast<lwe::LWECiphertextType>(elementType)) {
+    auto plaintextSpace = ctType.getPlaintextSpace();
+    auto ring = plaintextSpace.getRing();
+    slotsPerCiphertext =
+        ring.getPolynomialModulus().getPolynomial().getDegree();
+    if (isa<lwe::InverseCanonicalEncodingAttr>(plaintextSpace.getEncoding())) {
+      slotsPerCiphertext /= 2;
+    }
+  }
+
+  if (inputRankedType.getRank() == 1) {
+    return inputRankedType.getDimSize(0) * slotsPerCiphertext;
+  }
+  if (inputRankedType.getRank() == 2 && inputRankedType.getDimSize(0) == 1) {
+    return inputRankedType.getDimSize(1) * slotsPerCiphertext;
+  }
+  return std::nullopt;
+}
+
+// Returns the modulus-chain level of a (possibly tensor-wrapped) LWE
+// ciphertext type, or nullopt when the type carries no modulus chain.
+std::optional<int64_t> getInputLevel(Type inputType) {
+  auto ctType = dyn_cast<lwe::LWECiphertextType>(inputType);
+  if (!ctType) {
+    if (auto tensorType = dyn_cast<RankedTensorType>(inputType)) {
+      ctType = dyn_cast<lwe::LWECiphertextType>(tensorType.getElementType());
+    }
+  }
+  if (!ctType) return std::nullopt;
+  return lwe::getLevel(ctType);
+}
+
+LogicalResult verifyDiagonalRows(Operation* op, ShapedType diagonalsType,
+                                 DenseI64ArrayAttr diagonalIndices,
+                                 DenseI64ArrayAttr sourceRowIndices) {
+  int64_t numDiagonals = diagonalsType.getDimSize(0);
+  int64_t numIndices = diagonalIndices.size();
+  if (!sourceRowIndices) {
+    if (numDiagonals != numIndices) {
+      return op->emitOpError("number of diagonals (")
+             << numDiagonals << ") must match number of diagonal indices ("
+             << numIndices << ")";
+    }
+    return success();
+  }
+
+  if (static_cast<int64_t>(sourceRowIndices.size()) != numIndices) {
+    return op->emitOpError("number of source row indices (")
+           << sourceRowIndices.size()
+           << ") must match number of diagonal indices (" << numIndices << ")";
+  }
+  if (ShapedType::isDynamic(numDiagonals)) return success();
+  for (int64_t row : sourceRowIndices.asArrayRef()) {
+    if (row < 0 || row >= numDiagonals) {
+      return op->emitOpError("source row index ")
+             << row << " is out of bounds for " << numDiagonals
+             << " diagonal rows";
+    }
+  }
+  return success();
+}
+
+}  // namespace
+
+LogicalResult PrepareLinearTransformOp::verify() {
+  auto diagonalsType = dyn_cast<ShapedType>(getDiagonals().getType());
+  if (!diagonalsType) {
+    return emitOpError("diagonals must have a shaped type");
+  }
+  if (diagonalsType.getRank() != 2) {
+    return emitOpError("diagonals must be a 2D tensor");
+  }
+
+  if (failed(verifyDiagonalRows(getOperation(), diagonalsType,
+                                getDiagonalIndicesAttr(),
+                                getSourceRowIndicesAttr())))
+    return failure();
+
+  int64_t slots = getPrepared().getType().getSlots();
+  if (diagonalsType.getDimSize(1) > slots) {
+    return emitOpError("diagonals slot size (")
+           << diagonalsType.getDimSize(1)
+           << ") exceeds the prepared slot count (" << slots << ")";
+  }
+  return success();
+}
+
+LogicalResult ApplyLinearTransformOp::verify() {
+  PreparedLinearTransformType preparedType = getPrepared().getType();
+
+  // A wrong level would silently evaluate a wrongly-scaled transform, so
+  // require the prepared level to match the ciphertext exactly.
+  std::optional<int64_t> inputLevel = getInputLevel(getInput().getType());
+  if (inputLevel.has_value() && *inputLevel != preparedType.getLevel()) {
+    return emitOpError("input ciphertext level (")
+           << *inputLevel << ") does not match the prepared transform level ("
+           << preparedType.getLevel() << ")";
+  }
+
+  std::optional<int64_t> inputSlots = getInputSlotSize(getInput().getType());
+  if (inputSlots.has_value() && *inputSlots < preparedType.getSlots()) {
+    return emitOpError("input slot size (")
+           << *inputSlots << ") is smaller than the prepared slot count ("
+           << preparedType.getSlots() << ")";
+  }
+  return success();
+}
+
 LogicalResult LinearTransformOp::verify() {
   auto inputType = getInput().getType();
-  auto diagonalsAttr = getDiagonals();
-  auto diagonalsType = dyn_cast<ShapedType>(diagonalsAttr.getType());
+  auto diagonalsType = dyn_cast<ShapedType>(getDiagonals().getType());
   if (!diagonalsType) {
     return emitOpError("diagonals must have a shaped type");
   }
@@ -197,13 +323,10 @@ LogicalResult LinearTransformOp::verify() {
     }
   }
 
-  int64_t numDiagonals = diagonalsType.getDimSize(0);
-  int64_t numIndices = getDiagonalIndices().size();
-  if (numDiagonals != numIndices) {
-    return emitOpError("number of diagonals (")
-           << numDiagonals << ") must match number of diagonal indices ("
-           << numIndices << ")";
-  }
+  if (failed(verifyDiagonalRows(getOperation(), diagonalsType,
+                                getDiagonalIndicesAttr(),
+                                getSourceRowIndicesAttr())))
+    return failure();
 
   return success();
 }

@@ -17,8 +17,7 @@ func TestMatvec(t *testing.T) {
 
 	expected := float32(78.4)
 	ct0 := Matvec__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	zeroCt := Matvec__encrypt__zero__0(evaluator, params, ecd, enc)
-	resultCt := Matvec(evaluator, params, ecd, ct0, zeroCt)
+	resultCt := Matvec(evaluator, params, ecd, ct0)
 	result := Matvec__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	// Error threshold increased to 4.0 due to fallback to Halevi-Shoup kernel
 	// which has different noise characteristics.

@@ -165,6 +165,25 @@ CKKSLinearTransformOp::getRotationIndices() {
   return result;
 }
 
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSPrepareLinearTransformOp::getRotationIndices() {
+  // Lattigo reduces its BSGS split and Galois elements modulo the transform's
+  // slot count, not the width of the diagonals it was handed, so take the slot
+  // count this op recorded. Reading the operand's shape would also assert on
+  // the memref form the op accepts after bufferization.
+  int64_t slots = int64_t{1} << getLogSlots().getInt();
+  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
+  auto rotations = lintransRotationIndices(
+      getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+  SmallVector<OpFoldResult> result;
+  result.reserve(rotations.size());
+  auto* ctx = getContext();
+  for (int64_t rot : rotations) {
+    result.push_back(IntegerAttr::get(IndexType::get(ctx), rot));
+  }
+  return result;
+}
+
 }  // namespace lattigo
 }  // namespace heir
 }  // namespace mlir

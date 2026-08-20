@@ -7,4 +7,5 @@ def Lattigo : CompilationTarget<"lattigo"> {
   let bootstrapLevelsConsumed = 0;
   let has_kernel_chebyshev = 1;
   let has_kernel_linear_transform = 1;
+  let has_prepared_linear_transform = 1;
 }

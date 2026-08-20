@@ -15,11 +15,19 @@ module attributes {backend.lattigo, scheme.ckks} {
   // CHECK: func.func @pooling
   // ROLL: func.func @pooling
   // ROLL: func.call @_assign_layout
-  // ROLL-COUNT-2: scf.for
-  // ROLL: scf.if
-  // ROLL: scf.for
+  // Rolled kernels do not need a rotation loop here either: the transform stays
+  // a single compact op that the backend evaluates directly, so the scf.for /
+  // scf.if nest the expanded form required is gone.
+  // ROLL: tensor_ext.rotate_and_reduce
+  // ROLL-SAME: tensor_ext.lintrans
 
-  // CHECK-COUNT-65: tensor_ext.rotate
+  // The Halevi-Shoup transform stays compact for a backend that can evaluate a
+  // linear transform directly: one rotate_and_reduce carrying the diagonals,
+  // where the expanded rotate/multiply/accumulate form needed 65 rotations. The
+  // rotations that remain are the squat-packing post-reduction (the packing has
+  // fewer rows than columns), not part of the transform itself.
+  // CHECK: tensor_ext.rotate_and_reduce
+  // CHECK-SAME: tensor_ext.lintrans
   // CHECK: return
 
   func.func @pooling(%arg0: !secret.secret<tensor<1x4x28x28xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x4x14x14xf32>> {tensor_ext.layout = #layout}) {
