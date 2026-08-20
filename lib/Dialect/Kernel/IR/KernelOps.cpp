@@ -187,10 +187,12 @@ LogicalResult LinearTransformOp::verify() {
       return emitOpError("input must be 1D or 2D ranked tensor");
     }
 
+    // The diagonals may be narrower than the ciphertext: the transform then
+    // acts on the leading slots and the backend's encoder zero-fills the rest.
     int64_t diagonalSlotSize = diagonalsType.getDimSize(1);
-    if (inputSize != diagonalSlotSize) {
+    if (inputSize < diagonalSlotSize) {
       return emitOpError("input slot size (")
-             << inputSize << ") must match diagonals slot size ("
+             << inputSize << ") is smaller than diagonals slot size ("
              << diagonalSlotSize << ")";
     }
   }

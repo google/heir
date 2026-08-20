@@ -1,4 +1,8 @@
-// RUN: heir-opt "--secret-insert-mgmt-ckks=after-mul=true before-mul-include-first-mul=false bootstrap-waterline=10 level-budget=2 min-slot-count=1024" %s | FileCheck %s
+// RUN: heir-opt "--secret-insert-mgmt-ckks=after-mul=true before-mul-include-first-mul=false bootstrap-waterline=10 level-budget=18 min-slot-count=1024" %s | FileCheck %s
+
+// The level budget is stated in full: a lattigo bootstrap consumes none of the
+// compute chain, so the pass no longer adds its depth to the budget on the
+// test's behalf.
 
 // CHECK: func.func @matvec
 // CHECK-SAME: {mgmt.mgmt = #mgmt.mgmt<level = 1>}

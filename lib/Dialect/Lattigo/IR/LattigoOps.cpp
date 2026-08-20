@@ -1,5 +1,6 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 
+#include <bit>
 #include <cstdint>
 
 #include "lib/Dialect/HEIRInterfaces.h"
@@ -75,6 +76,22 @@ int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
   return {&getOperation()->getOpOperand(1)};
 }
 
+int CKKSChebyshevOp::getLevelsToDrop() {
+  // Mirrors kernel::EvalChebyshevOp's lattigo case: the polynomial evaluator
+  // consumes one level per level of the binary evaluation tree.
+  auto coefficients = getCoefficients().getValue();
+  if (coefficients.empty()) {
+    // The zero polynomial consumes no depth.
+    return 0;
+  }
+  return std::bit_width(static_cast<uint64_t>(coefficients.size() - 1));
+}
+
+::llvm::SmallVector<::mlir::OpOperand*> CKKSChebyshevOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
+}
+
 ::mlir::OpOperand& CKKSBootstrapOp::getOperandToReset() {
   return getOperation()->getOpOperand(1);
 }
@@ -131,7 +148,10 @@ CKKSRotateNewOp::getRotationIndices() {
 
 ::llvm::SmallVector<::mlir::OpFoldResult>
 CKKSLinearTransformOp::getRotationIndices() {
-  auto diagonalsType = cast<RankedTensorType>(getDiagonals().getType());
+  // The diagonals arrive as a tensor before bufferization and as a memref
+  // after it, and this accessor is reachable in both states.
+  //  Match on ShapedType so it does not assert on legal IR.
+  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
   int64_t slots = diagonalsType.getShape()[1];
   int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
   auto rotations = lintransRotationIndices(

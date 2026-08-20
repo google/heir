@@ -365,6 +365,10 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
     This operation applies a linear transform on a CKKS ciphertext using
     the provided float diagonals.
 
+    The transform is built at the input ciphertext's own level, so evaluating
+    it technically consumes no level: the result comes back at the input's level
+    but with a multiplied scale (requiring a separate rescale afterwards).
+
     The linear transform is defined by a set of diagonals, where each diagonal
     represents a specific shift and scaling of the input ciphertext slots.
 
@@ -425,7 +429,10 @@ def Lattigo_CKKSNewPolynomialEvaluatorOp : Lattigo_CKKSOp<"new_polynomial_evalua
 }
 
 
-def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphertext", "output"]>]> {
+def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [
+  AllTypesMatch<["ciphertext", "output"]>,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>
+]> {
   let summary = "Evaluate a chebyshev polynomial on a lattigo CKKS ciphertext";
   let description = [{
     This operation evaluates a chebyshev polynomial on a CKKS ciphertext using

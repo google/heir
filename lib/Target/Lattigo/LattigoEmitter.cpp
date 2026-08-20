@@ -2080,7 +2080,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   auto valueName = getName(op.getValue());
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
+      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
   if (numSlotsAttr) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
     imports.insert(std::string(kRingImport));
@@ -2281,7 +2281,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
 
   std::string resultName = getName(op.getResult());
   emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ")");
+                                        getName(op.getInput()) + ".CopyNew())");
   return success();
 }
 
