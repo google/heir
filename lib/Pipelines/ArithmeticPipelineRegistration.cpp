@@ -69,6 +69,7 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#include "lib/Transforms/ValidateScale/ValidateScale.h"
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
@@ -502,6 +503,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       populateScaleCKKSOptions.beforeMulIncludeFirstMul =
           options.greedyModulusSwitchBeforeFirstMul;
       pm.addPass(createPopulateScaleCKKS(populateScaleCKKSOptions));
+      pm.addPass(createValidateScale());
       break;
     }
     default:
