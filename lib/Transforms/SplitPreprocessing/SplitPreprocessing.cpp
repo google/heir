@@ -378,13 +378,13 @@ struct SplitPreprocessingPass
     }
 
     // Create a preprocessing.storage type with the set plaintext types
-    DenseSet<Type> encodeTypesDeduped;
+    // Preserve first-occurrence order as it determines storage field indices.
+    SmallVector<Type> encodeTypes;
     for (Operation* input : analysis.encodeOps) {
-      encodeTypesDeduped.insert(
-          getElementTypeOrSelf(input->getResult(0).getType()));
+      Type encodeTy = getElementTypeOrSelf(input->getResult(0).getType());
+      if (!llvm::is_contained(encodeTypes, encodeTy))
+        encodeTypes.push_back(encodeTy);
     }
-    SmallVector<Type> encodeTypes(encodeTypesDeduped.begin(),
-                                  encodeTypesDeduped.end());
     auto storageTy =
         preprocessing::PreprocessingStorageType::get(context, encodeTypes);
 
