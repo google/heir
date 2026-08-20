@@ -14,7 +14,7 @@
 // CHECK: ![[EVAL:.*]] = !lattigo.ckks.evaluator
 
 module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797018652673, 35184372121601], P = [1152921504606994433], logDefaultScale = 45, encryptionTechnique = extended>, scheme.ckks} {
-  // CHECK: func.func @test_linear_transform(%[[EVAL:.*]]: ![[EVAL]], %{{.*}}: {{.*}}, %[[ENCODER:.*]]: ![[ENCODER]], %[[CT:.*]]: ![[CT]]) -> ![[CT]]
+  // CHECK: func.func @test_linear_transform(%[[EVAL:.*]]: ![[EVAL]], %{{.*}}: {{.*}}, %[[ENCODER:.*]]: ![[ENCODER]], %[[CT:.*]]: ![[CT]]{{.*}}) -> ![[CT]]
   // CHECK: %[[DIAGONALS:.*]] = arith.constant dense<{{\[\[}}1.000000e+00, 2.000000e+00], [3.000000e+00, 4.000000e+00{{\]\]}}> : tensor<2x2xf64>
   // CHECK: %[[VAL_3:.*]] = lattigo.ckks.linear_transform %[[EVAL]], %[[ENCODER]], %[[CT]], %[[DIAGONALS]] {diagonal_indices = array<i32: 0, 1>, levelQ = 1 : i64, logBabyStepGiantStepRatio = 0 : i64} : (![[EVAL]], ![[ENCODER]], ![[CT]], tensor<2x2xf64>) -> ![[CT]]
   // CHECK: return %[[VAL_3]] : ![[CT]]

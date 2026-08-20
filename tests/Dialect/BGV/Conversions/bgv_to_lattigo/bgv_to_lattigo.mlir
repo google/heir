@@ -32,7 +32,7 @@
 // CHECK: module
 module attributes {scheme.bgv} {
   // CHECK: @test_ops
-  // CHECK-SAME: ([[C:%.+]]: [[S:.*evaluator]], [[X:%.+]]: [[T:!lattigo.rlwe.ciphertext]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:!lattigo.rlwe.plaintext]])
+  // CHECK-SAME: ([[C:%.+]]: [[S:.*evaluator]], {{%.+}}: !lattigo.bgv.parameter, {{%.+}}: !lattigo.bgv.encoder, [[X:%.+]]: [[T:!lattigo.rlwe.ciphertext]]{{[^,]*}}, [[Y:%.+]]: [[T]]{{[^,]*}}, [[Z:%.+]]: [[P:!lattigo.rlwe.plaintext]])
   func.func @test_ops(%x : !ct, %y : !ct, %z : !pt) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.add_new [[C]], %[[x:.*]], %[[y:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
     %add = bgv.add %x, %y  : (!ct, !ct) -> !ct
