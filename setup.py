@@ -209,7 +209,11 @@ class BuildBazelExtension(build_ext.build_ext):
           f"--platforms=@build_bazel_apple_support//platforms:darwin_{target_arch}"
       )
 
+    # Fetch external deps in a separate phase first
+    fetch_argv = ["bazel", "fetch", ext.bazel_target] + bazel_argv[3:]
+
     with _maybe_patch_toolchains():
+      self.spawn(fetch_argv)
       self.spawn(bazel_argv)
 
     # copy the Bazel build artifacts into setuptools' libdir,

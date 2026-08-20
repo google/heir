@@ -1,0 +1,48 @@
+# Populate the BuildBuddy remote cache for x86_64 linux by building //tools:all.
+# REQUIRES THAT YOU HAVE A WRITE-ENABLED BUILDBUDDY API KEY IN YOUR  .bazelrc.user !!!
+# Usage: sky launch -y -c heir-warm-cache --down sky/warm_cache.yaml
+
+# If you want to warm the cache for macOS instead, you can (locally, on a mac) run the following command which (assuming a write-enabled key is available) will populate the caches required by a `uv sync` on macOS:
+# bazel build //tools:heir-opt.stripped //tools:heir-translate.stripped @abc//:abc_bin.stripped --compilation_mode=opt --strip=always --cxxopt=-std=c++20 --@rules_python//python/config_settings:python_version=3.12 --macos_minimum_os=10.15 --platforms=@build_bazel_apple_support//platforms:darwin_arm64 --remote_upload_local_results
+
+name: heir-warm-cache
+
+workdir: .
+
+# Defaults: target and config used by the Python wheel build / editable install compiles.
+# CONFIG must match setup.py's bazel_argv EXACTLY or the consumer misses the
+# action cache for the config-dependent subtree: setup.py additionally passes
+# --@rules_python//python/config_settings:python_version=<builder's X.Y>, which
+# was the source of the residual few-hundred AC misses next to 15k hits (the
+# hermetic C++ compiles are python-agnostic and hit either way). Set PYVER to
+# the python of the consuming uv sync (e.g. medusa's venv). cibuildwheel CI
+# builds additionally pass --stripopt=--strip-all (aggressive_strip); local /
+# uv-sync installs do not.
+envs:
+  PYVER: "3.12"
+  TARGETS: "//tools:heir-opt.stripped //tools:heir-translate.stripped @abc//:abc_bin.stripped"
+  CONFIG: "--compilation_mode=opt --strip=always --cxxopt=-std=c++20"
+
+resources:
+  cpus: 1+
+  memory: 1+
+  autostop:
+    idle_minutes: 10
+
+setup: |
+  set -ex
+  # No apt step: the build registers a hermetic LLVM toolchain (see
+  # MODULE.bazel), so bazel brings its own compiler and linker, and wget is
+  # already on the image. Installing clang here downloaded ~200 MB to be
+  # ignored, and an apt fetch is the slowest, least reliable part of a launch.
+  if ! command -v bazel &> /dev/null; then
+    sudo wget -q https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 -O /usr/local/bin/bazel
+    sudo chmod +x /usr/local/bin/bazel
+  fi
+
+run: |
+  set -ex
+  PYFLAG="--@rules_python//python/config_settings:python_version=${PYVER}"
+  bazel fetch $TARGETS $CONFIG $PYFLAG
+  # Run build actions on BuildBuddy's remote executors.
+  bazel build $TARGETS $CONFIG $PYFLAG --config=remote
