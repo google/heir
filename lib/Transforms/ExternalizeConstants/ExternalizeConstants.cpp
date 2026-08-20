@@ -5,16 +5,17 @@
 #include <vector>
 
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
-#include "llvm/include/llvm/Support/FileSystem.h"      // from @llvm-project
-#include "llvm/include/llvm/Support/MD5.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Path.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/WalkResult.h"      // from @llvm-project
+#include "llvm/include/llvm/Support/FileSystem.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/MD5.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/Path.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -128,11 +129,14 @@ struct ExternalizeConstants
       llvm::sys::path::append(runtimePath, fileName);
 
       rewriter.setInsertionPoint(constantOp);
+      Value destination = tensor::EmptyOp::create(rewriter, constantOp.getLoc(),
+                                                  tensorType.getShape(),
+                                                  tensorType.getElementType());
       auto loadOp = preprocessing::LoadResourceOp::create(
-          rewriter, constantOp.getLoc(), tensorType,
-          rewriter.getStringAttr(runtimePath.str()));
+          rewriter, constantOp.getLoc(), TypeRange{tensorType},
+          rewriter.getStringAttr(runtimePath.str()), destination);
 
-      rewriter.replaceOp(constantOp, loadOp.getResult());
+      rewriter.replaceOp(constantOp, loadOp->getResult(0));
       return WalkResult::advance();
     });
   }

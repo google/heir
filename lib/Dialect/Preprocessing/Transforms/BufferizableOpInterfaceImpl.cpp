@@ -3,78 +3,57 @@
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "mlir/include/mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Bufferization/IR/BufferizationTypeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace preprocessing {
 
-// load_resource requires special bufferization because in the backend it
-// corresponds to populating static global data with bytes from a file, and
-// bufferizing this requires us to avoid inserting deallocations.
 struct LoadResourceOpInterface
-    : public ::mlir::bufferization::BufferizableOpInterface::ExternalModel<
+    : public bufferization::BufferizableOpInterface::ExternalModel<
           LoadResourceOpInterface, LoadResourceOp> {
-  LogicalResult bufferize(
-      Operation* op, RewriterBase& rewriter,
-      const ::mlir::bufferization::BufferizationOptions& options,
-      ::mlir::bufferization::BufferizationState& state) const {
-    auto loadResourceOp = cast<LoadResourceOp>(op);
-    auto tensorType = dyn_cast<RankedTensorType>(loadResourceOp.getType());
-
-    if (!tensorType) return success();
-
-    Attribute memorySpace;
-    if (auto memSpace = options.defaultMemorySpaceFn(
-            cast<::mlir::bufferization::TensorLikeType>(tensorType)))
-      memorySpace = *memSpace;
-    else
-      return op->emitError("could not infer memory space");
-
-    auto memrefType =
-        MemRefType::get(tensorType.getShape(), tensorType.getElementType(),
-                        MemRefLayoutAttrInterface(), memorySpace);
-
-    ::mlir::bufferization::replaceOpWithNewBufferizedOp<LoadResourceOp>(
-        rewriter, op, memrefType, loadResourceOp.getPathAttr());
-    return success();
-  }
-
-  // Everything else is boilerplate for this core step: telling MLIR it cannot
-  // write to this buffer.
-  bool isWritable(Operation* op, Value value,
-                  const ::mlir::bufferization::AnalysisState& state) const {
+  bool bufferizesToMemoryRead(Operation* op, OpOperand& opOperand,
+                              const bufferization::AnalysisState& state) const {
     return false;
   }
 
-  FailureOr<::mlir::bufferization::BufferLikeType> getBufferType(
-      Operation* op, Value value,
-      const ::mlir::bufferization::BufferizationOptions& options,
-      const ::mlir::bufferization::BufferizationState& state,
-      SmallVector<Value>& invocationStack) const {
+  bool bufferizesToMemoryWrite(
+      Operation* op, OpOperand& opOperand,
+      const bufferization::AnalysisState& state) const {
     auto loadResourceOp = cast<LoadResourceOp>(op);
-    auto tensorType = dyn_cast<RankedTensorType>(loadResourceOp.getType());
-    if (!tensorType) return failure();
+    return loadResourceOp.isDpsInit(&opOperand);
+  }
 
-    Attribute memorySpace;
-    if (auto memSpace = options.defaultMemorySpaceFn(
-            cast<::mlir::bufferization::TensorLikeType>(tensorType)))
-      memorySpace = *memSpace;
-    else
-      return op->emitError("could not infer memory space");
+  bufferization::AliasingValueList getAliasingValues(
+      Operation* op, OpOperand& opOperand,
+      const bufferization::AnalysisState& state) const {
+    auto loadResourceOp = cast<LoadResourceOp>(op);
+    if (loadResourceOp.isDpsInit(&opOperand)) {
+      return {{loadResourceOp.getTiedOpResult(&opOperand),
+               bufferization::BufferRelation::Equivalent}};
+    }
+    return {};
+  }
 
-    return cast<::mlir::bufferization::BufferLikeType>(
-        MemRefType::get(tensorType.getShape(), tensorType.getElementType(),
-                        MemRefLayoutAttrInterface(), memorySpace));
+  bool isWritable(Operation* op, Value value,
+                  const bufferization::AnalysisState& state) const {
+    return false;
+  }
+
+  LogicalResult bufferize(Operation* op, RewriterBase& rewriter,
+                          const bufferization::BufferizationOptions& options,
+                          bufferization::BufferizationState& state) const {
+    auto loadResourceOp = cast<LoadResourceOp>(op);
+    FailureOr<Value> destination = bufferization::getBuffer(
+        rewriter, loadResourceOp.getDestination(), options, state);
+    if (failed(destination)) return failure();
+
+    LoadResourceOp::create(rewriter, op->getLoc(), TypeRange{},
+                           loadResourceOp.getPathAttr(), *destination);
+    bufferization::replaceOpWithBufferizedValues(rewriter, op, *destination);
+    return success();
   }
 };
 
