@@ -44,12 +44,13 @@ jobs:
       - name: Get version
         id: get-version
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag_name || '' }}
         run: |
           python scripts/get_version.py \
-            --event "${{ github.event_name }}" \
-            --ref "${{ github.ref }}" \
-            --tag "${{ github.event.release.tag_name || inputs.tag_name || '' }}" \
-            --package "heir_py" \
+            --event "$GITHUB_EVENT_NAME" \
+            --ref "$GITHUB_REF" \
+            --tag "$RELEASE_TAG" \
             --gha
 
   build_sdist:
@@ -71,9 +72,11 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install build
       - name: Build sdist
+        env:
+          RELEASE_VERSION: ${{ needs.setup-version.outputs.version }}
         run: |
-          if [[ -n "${{ needs.setup-version.outputs.version }}" ]]; then
-            export SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.setup-version.outputs.version }}"
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            export SETUPTOOLS_SCM_PRETEND_VERSION="$RELEASE_VERSION"
           fi
           python -m build --sdist
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -138,13 +141,15 @@ jobs:
 
       - name: Create Archive
         id: archive
+        env:
+          RELEASE_VERSION: ${{ needs.setup-version.outputs.version }}
         run: |
-          TAG_NAME="${{ needs.setup-version.outputs.version }}"
+          TAG_NAME="$RELEASE_VERSION"
           if [[ ! "$TAG_NAME" =~ ^v ]]; then
             TAG_NAME="v$TAG_NAME"
           fi
-          git archive --format=tar.gz --prefix=heir-$TAG_NAME/ -o heir-$TAG_NAME.tar.gz HEAD
-          sha256sum heir-$TAG_NAME.tar.gz > heir-$TAG_NAME.tar.gz.sha256
+          git archive --format=tar.gz --prefix="heir-$TAG_NAME/" -o "heir-$TAG_NAME.tar.gz" HEAD
+          sha256sum "heir-$TAG_NAME.tar.gz" > "heir-$TAG_NAME.tar.gz.sha256"
           echo "archive_file=heir-$TAG_NAME.tar.gz" >> "$GITHUB_OUTPUT"
           echo "checksum_file=heir-$TAG_NAME.tar.gz.sha256" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -210,8 +215,10 @@ jobs:
       - name: Determine Tag Name
         id: tag
         shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.setup-version.outputs.version }}
         run: |
-          TAG_NAME="${{ needs.setup-version.outputs.version }}"
+          TAG_NAME="$RELEASE_VERSION"
           if [[ ! "$TAG_NAME" =~ ^v ]]; then
             TAG_NAME="v$TAG_NAME"
           fi
