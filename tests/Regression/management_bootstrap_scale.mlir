@@ -1,14 +1,8 @@
-// RUN: heir-opt --mlir-to-ckks="greedy-level-budget=1" %s | FileCheck %s
+// RUN: heir-opt --mlir-to-ckks="greedy-level-budget=1" %s | FileCheck %s --implicit-check-not=ckks.bootstrap --implicit-check-not=mgmt.mul_headroom
 
-// The conservative headroom policy refreshes both level-zero operands before
-// the multiplication.
-
-// CHECK: %[[LHS:.*]] = ckks.rescale {{.*}} : {{.*}} -> !ct_L0
-// CHECK: %[[RHS:.*]] = ckks.rescale {{.*}} : {{.*}} -> !ct_L0
-// CHECK: %[[BOOT_LHS:.*]] = ckks.bootstrap %[[LHS]] : !ct_L0 -> !ct_L1
-// CHECK: %[[BOOT_RHS:.*]] = ckks.bootstrap %[[RHS]] : !ct_L0 -> !ct_L1
-// CHECK: ckks.mul %[[BOOT_LHS]], %[[BOOT_RHS]] : (!ct_L1, !ct_L1)
-// CHECK-NOT: ckks.bootstrap
+// CHECK: %[[SQUARE_L0:.*]] = ckks.rescale {{.*}} : {{.*}} -> !ct_L0
+// CHECK: %[[SQUARE_L1:.*]] = ckks.bootstrap %[[SQUARE_L0]] : !ct_L0 -> !ct_L1
+// CHECK: ckks.mul {{.*}}%[[SQUARE_L1]]{{.*}} : (!ct_L1, !ct_L1)
 
 module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
   func.func @bootstrap_add_result(%x: f32 {secret.secret}) -> f32 {
