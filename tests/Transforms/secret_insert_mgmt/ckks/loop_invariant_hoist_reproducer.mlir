@@ -6,7 +6,14 @@
 
 #layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 16 = 0 and 0 <= i1 <= 12 and 0 <= slot <= 4095 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<1x13xf32>, layout = #layout>
-module attributes {backend.lattigo, scheme.ckks} {
+// The level trajectory captured below assumes a bootstrap that consumes 16
+// levels of the compute chain, which is how this reproducer was taken off
+// tcresnet8small. Lattigo bootstraps in its own parameter set and so consumes
+// none (see lib/Target/Lattigo/TargetConfig.td); that is incidental to what
+// this test asserts, which is where the bootstraps land relative to the loop,
+// so keep the original cost as an override rather than recapturing the module.
+module attributes {backend.lattigo, scheme.ckks,
+                   backend.config_override = {bootstrapLevelsConsumed = 16 : i32}} {
   func.func private @_assign_layout_16889166383960922983() -> tensor<64x4096xf32> attributes {client.pack_func = {func_name = "tcresnet8small"}} {
     %cst = arith.constant dense_resource<__elided__> : tensor<48x48x6xf32>
     %c48_i32 = arith.constant 48 : i32

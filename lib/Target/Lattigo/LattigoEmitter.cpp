@@ -2080,7 +2080,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   auto valueName = getName(op.getValue());
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
+      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
   if (numSlotsAttr) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
     imports.insert(std::string(kRingImport));
@@ -2280,8 +2280,14 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
   imports.insert(std::string(kBootstrappingImport));
 
   std::string resultName = getName(op.getResult());
+  // Bootstrap mod-ups its argument into the bootstrapping ring in place and
+  // leaves it there, but the op is a function of its operand: the operand can
+  // still be live, and a composite ReLU makes that the common case, since
+  // x * step(x) needs the un-bootstrapped x next to the refreshed branch that
+  // produced step(x). Hand lattigo a copy so the operand survives. The copy is
+  // negligible next to a bootstrap, so it is not worth making it conditional.
   emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ")");
+                                        getName(op.getInput()) + ".CopyNew())");
   return success();
 }
 

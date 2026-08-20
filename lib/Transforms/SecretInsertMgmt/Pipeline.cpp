@@ -650,6 +650,13 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
     if (isa<secret::SecretType>(value.getType())) {
       return;
     }
+    // Only a ciphertext can be bootstrapped. A plaintext has no level state
+    // for the analysis to track, which reads as "needs bootstrap", and
+    // refreshing it would leave a mgmt.bootstrap on a plaintext operand that
+    // no lowering can convert.
+    if (!isSecret(value, &solver)) {
+      return;
+    }
     if (auto* lattice = solver.lookupState<BootstrapWaterlineLattice>(value)) {
       if (lattice->getValue().getNeedsBootstrap()) {
         targets.push_back(value);
