@@ -92,6 +92,7 @@ cc_library(
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/CKKS/Transforms:CKKSToLWE",
         "@heir//lib/Dialect/Debug/Transforms:ValidateNames",
+        "@heir//lib/Dialect/Kernel/Transforms:PrepareLinearTransforms",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",

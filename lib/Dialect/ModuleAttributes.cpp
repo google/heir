@@ -1,5 +1,8 @@
 #include "lib/Dialect/ModuleAttributes.h"
 
+#include <algorithm>
+#include <cstdint>
+
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
@@ -13,6 +16,14 @@ namespace heir {
 /*===----------------------------------------------------------------------===*/
 // Module Attributes for Scheme
 /*===----------------------------------------------------------------------===*/
+
+int64_t getEncodedSlotCount(Operation* moduleOp, int64_t ringCapacity) {
+  if (auto requested = dyn_cast_or_null<IntegerAttr>(
+          moduleOp->getAttr(kRequestedSlotCountAttrName))) {
+    return std::min(ringCapacity, requested.getInt());
+  }
+  return ringCapacity;
+}
 
 bool moduleIsBGV(Operation* moduleOp) {
   return moduleOp->getAttrOfType<mlir::UnitAttr>(kBGVSchemeAttrName) != nullptr;

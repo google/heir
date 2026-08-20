@@ -55,11 +55,11 @@ func TestPooling(t *testing.T) {
 	ct0 := Pooling1d__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	startPre := time.Now()
-	filterPlains := pooling1d_utils.Pooling1d__preprocessing(params, ecd)
+	filterPlains, linearTransforms := pooling1d_utils.Pooling1d__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := Pooling1d__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Pooling1d__preprocessed(evaluator, params, ecd, ct0, filterPlains, linearTransforms)
 	t.Logf("Pooling1d (preprocessed) took %s", time.Since(start))
 
 	result := Pooling1d__decrypt__result0(evaluator, params, ecd, dec, resultCt)

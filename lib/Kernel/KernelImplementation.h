@@ -599,29 +599,39 @@ implementCiphertextCiphertextBabyStepGiantStep(
                                        derivedRotationIndexFn);
 }
 
-// Returns an arithmetic DAG that implements the Halevi-Shoup matrix
-// multiplication algorithm. This implementation uses a rotate-and-reduce
-// operation, followed by a summation of partial sums if the matrix is not
-// square.
+// Stage 1 of Halevi-Shoup: the weighted sum of the vector's rotations, one term
+// per diagonal of the packed matrix.
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
-implementHaleviShoup(const T& vector, const T& matrix,
-                     std::vector<int64_t> originalMatrixShape,
-                     const DagType& dagType,
-                     std::map<int, bool> zeroDiagonals = {},
-                     bool unroll = true) {
+implementHaleviShoupDiagonalSum(const T& vector, const T& matrix,
+                                const DagType& dagType,
+                                std::map<int, bool> zeroDiagonals = {},
+                                bool unroll = true) {
+  int64_t numRotations = matrix.getShape()[0];
+  return implementRotateAndReduce<T>(vector, std::optional<T>(matrix),
+                                     /*period=*/1,
+                                     /*steps=*/numRotations, dagType,
+                                     zeroDiagonals,
+                                     /*reduceOp=*/"arith.addi",
+                                     /*unroll=*/unroll);
+}
+
+// Stage 2 of Halevi-Shoup: the post-processing partial-rotate-and-reduce that a
+// squat-diagonal packing needs, which brings together the partial sums of a
+// matrix with fewer rows than columns. A square packing needs no fold, and
+// `summedShifts` comes straight back.
+//
+// `originalMatrixShape` is the shape the packing was built against, NOT the
+// shape of the packed matrix.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementSquatDiagonalFold(std::shared_ptr<ArithmeticDagNode<T>> summedShifts,
+                           std::vector<int64_t> originalMatrixShape,
+                           const DagType& dagType, bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
   using NodePtr = std::shared_ptr<NodeTy>;
-  int64_t numRotations = matrix.getShape()[0];
-
-  auto rotateAndReduceResult = implementRotateAndReduce<T>(
-      vector, std::optional<T>(matrix), /*period=*/1,
-      /*steps=*/numRotations, dagType, zeroDiagonals,
-      /*reduceOp=*/"arith.addi",
-      /*unroll=*/unroll);
-
-  auto summedShifts = rotateAndReduceResult;
 
   int64_t matrixNumRows = nextPowerOfTwo(originalMatrixShape[0]);
   int64_t matrixNumCols = nextPowerOfTwo(originalMatrixShape[1]);
@@ -630,8 +640,6 @@ implementHaleviShoup(const T& vector, const T& matrix,
     return summedShifts;
   }
 
-  // Post-processing partial-rotate-and-reduce step required for
-  // squat-diagonal packing.
   int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
   if (unroll) {
     int64_t shift = matrixNumCols / 2;
@@ -657,6 +665,24 @@ implementHaleviShoup(const T& vector, const T& matrix,
         return NodeTy::yield({newSum, newShift});
       });
   return NodeTy::resultAt(loopNode, 0);
+}
+
+// Returns an arithmetic DAG that implements the Halevi-Shoup matrix
+// multiplication algorithm. This implementation uses a rotate-and-reduce
+// operation, followed by a summation of partial sums if the matrix is not
+// square.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementHaleviShoup(const T& vector, const T& matrix,
+                     std::vector<int64_t> originalMatrixShape,
+                     const DagType& dagType,
+                     std::map<int, bool> zeroDiagonals = {},
+                     bool unroll = true) {
+  auto summedShifts = implementHaleviShoupDiagonalSum<T>(
+      vector, matrix, dagType, zeroDiagonals, unroll);
+  return implementSquatDiagonalFold<T>(summedShifts, originalMatrixShape,
+                                       dagType, unroll);
 }
 
 // Returns an arithmetic DAG that implements the bicyclic matrix multiplication
