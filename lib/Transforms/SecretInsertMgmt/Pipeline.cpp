@@ -397,7 +397,8 @@ static LoopLikeOpInterface getOutermostLoopForInvariant(Value val,
 static Value bootstrapValue(
     Value val, OpBuilder& builder,
     llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
-    const DominanceInfo& domInfo, Operation* insertionPoint = nullptr) {
+    const DominanceInfo& domInfo, Operation* insertionPoint = nullptr,
+    bool markMulHeadroom = false) {
   if (val.getDefiningOp() && isa<mgmt::BootstrapOp>(val.getDefiningOp())) {
     return val;
   }
@@ -445,6 +446,10 @@ static Value bootstrapValue(
       Location loc = insertionPoint ? insertionPoint->getLoc() : val.getLoc();
       auto bootstrapOp =
           mgmt::BootstrapOp::create(builder, loc, val.getType(), val);
+      if (markMulHeadroom) {
+        bootstrapOp->setDiscardableAttr(mgmt::MgmtDialect::kMulHeadroomAttrName,
+                                        builder.getUnitAttr());
+      }
       newOperand = bootstrapOp.getResult();
       bootstrappedValues[val].push_back(newOperand);
     }
@@ -611,7 +616,8 @@ static void bootstrapMulOperands(
     Operation* mulOp, const SmallVector<Value>& scaleSafeTargets,
     OpBuilder& builder,
     llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
-    const DominanceInfo& domInfo, bool replaceDominatedUses = false) {
+    const DominanceInfo& domInfo, bool replaceDominatedUses = false,
+    bool markMulHeadroom = false) {
   for (unsigned i = 0; i < mulOp->getNumOperands(); ++i) {
     Value operand = mulOp->getOperand(i);
     if (llvm::is_contained(scaleSafeTargets, operand)) {
@@ -619,8 +625,9 @@ static void bootstrapMulOperands(
       if (auto loop = getOutermostLoopForInvariant(operand, mulOp)) {
         insertionPoint = loop;
       }
-      Value bootstrappedOperand = bootstrapValue(
-          operand, builder, bootstrappedValues, domInfo, insertionPoint);
+      Value bootstrappedOperand =
+          bootstrapValue(operand, builder, bootstrappedValues, domInfo,
+                         insertionPoint, markMulHeadroom);
       if (replaceDominatedUses) {
         Operation* bootstrapOp = bootstrappedOperand.getDefiningOp();
         operand.replaceUsesWithIf(bootstrappedOperand, [&](OpOperand& use) {
@@ -672,7 +679,8 @@ static void insertCKKSMulHeadroomBootstraps(Operation* top,
   for (const ScaleSafeTargetsResult& target : targets) {
     bootstrapMulOperands(target.mulOp, target.targets, builder,
                          bootstrappedValues, domInfo,
-                         /*replaceDominatedUses=*/true);
+                         /*replaceDominatedUses=*/true,
+                         /*markMulHeadroom=*/true);
   }
 }
 

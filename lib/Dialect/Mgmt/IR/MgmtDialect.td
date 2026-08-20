@@ -20,6 +20,9 @@ def Mgmt_Dialect : Dialect {
     constexpr const static ::llvm::StringLiteral
         kArgMgmtAttrName = "mgmt.mgmt";
 
+    constexpr const static ::llvm::StringLiteral
+        kMulHeadroomAttrName = "mgmt.mul_headroom";
+
     /// Name of the attribute holding OpenfheParamsAttr
     constexpr const static ::llvm::StringLiteral
         kArgOpenfheParamsAttrName = "mgmt.openfhe_params";

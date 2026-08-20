@@ -120,6 +120,40 @@ struct MergeAdjustScaleIntoInit : public OpRewritePattern<mgmt::AdjustScaleOp> {
   }
 };
 
+struct ElideRedundantMulHeadroomBootstrap
+    : public OpRewritePattern<mgmt::BootstrapOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mgmt::BootstrapOp op,
+                                PatternRewriter& rewriter) const override {
+    if (!op->getDiscardableAttr(mgmt::MgmtDialect::kMulHeadroomAttrName)) {
+      return failure();
+    }
+
+    auto required = mgmt::findMgmtAttrAssociatedWith(op.getResult());
+    if (!required || required.getScale() == -1) {
+      return failure();
+    }
+
+    Value ancestor = op.getInput();
+    while (ancestor) {
+      if (mgmt::findMgmtAttrAssociatedWith(ancestor) == required) {
+        rewriter.replaceOp(op, ancestor);
+        return success();
+      }
+
+      Operation* definingOp = ancestor.getDefiningOp();
+      if (!isa_and_nonnull<mgmt::AdjustScaleOp, mgmt::ModReduceOp,
+                           mgmt::LevelReduceOp>(definingOp)) {
+        break;
+      }
+      ancestor = definingOp->getOperand(0);
+    }
+
+    return failure();
+  }
+};
+
 struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
   using PopulateScaleCKKSBase::PopulateScaleCKKSBase;
 
@@ -428,6 +462,13 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
     OpPassManager annotateMgmt("builtin.module");
     annotateMgmt.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(annotateMgmt, getOperation());
+
+    RewritePatternSet bootstrapPatterns(&getContext());
+    bootstrapPatterns.add<ElideRedundantMulHeadroomBootstrap>(&getContext());
+    (void)walkAndApplyPatterns(getOperation(), std::move(bootstrapPatterns));
+    getOperation()->walk([](mgmt::BootstrapOp op) {
+      op->removeDiscardableAttr(mgmt::MgmtDialect::kMulHeadroomAttrName);
+    });
 
     // Step 5: Materialization
     LDBG() << "convert adjust_scale to mul_plain";
