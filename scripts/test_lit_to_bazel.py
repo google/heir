@@ -8,6 +8,9 @@ patch = absltest.mock.patch
 PIPE = lit_to_bazel_lib.PIPE
 convert_to_run_commands = lit_to_bazel_lib.convert_to_run_commands
 normalize_lit_test_file_arg = lit_to_bazel_lib.normalize_lit_test_file_arg
+get_command_without_bazel_prefix = (
+    lit_to_bazel_lib.get_command_without_bazel_prefix
+)
 
 
 class LitToBazelTest(absltest.TestCase):
@@ -185,6 +188,35 @@ class LitToBazelTest(absltest.TestCase):
             ),
             "/workspace/tests/foo.mlir",
         )
+
+  def test_get_command_without_bazel_prefix_no_run_lines(self):
+    """A file with no RUN lines should yield an empty command, not crash."""
+    with absltest.mock.patch(
+        "builtins.open",
+        absltest.mock.mock_open(read_data="func.func @foo() -> i8\n"),
+    ):
+      self.assertEqual(get_command_without_bazel_prefix("fake.mlir"), "")
+
+  def test_get_command_without_bazel_prefix_only_filecheck(self):
+    """A file whose only RUN line is FileCheck should yield an empty command."""
+    with absltest.mock.patch(
+        "builtins.open",
+        absltest.mock.mock_open(read_data="// RUN: FileCheck %s\n"),
+    ):
+      self.assertEqual(get_command_without_bazel_prefix("fake.mlir"), "")
+
+  def test_get_command_without_bazel_prefix_filecheck_then_pipe(self):
+    """A FileCheck command followed by a pipe should not crash."""
+    with absltest.mock.patch(
+        "builtins.open",
+        absltest.mock.mock_open(
+            read_data="// RUN: FileCheck %s | heir-opt --canonicalize\n"
+        ),
+    ):
+      self.assertEqual(
+          get_command_without_bazel_prefix("fake.mlir"),
+          "| heir-opt --canonicalize",
+      )
 
 
 if __name__ == "__main__":

@@ -130,11 +130,11 @@ def get_command_without_bazel_prefix(lit_test_file) -> str:
   commands = convert_to_run_commands(run_lines)
   commands = [x for x in commands if "FileCheck" not in x]
   # remove consecutive and trailing pipes
-  if commands[-1] == PIPE:
+  if commands and commands[-1] == PIPE:
     commands.pop()
   deduped_commands = []
   for command in commands:
-    if command == PIPE and deduped_commands[-1] == PIPE:
+    if command == PIPE and deduped_commands and deduped_commands[-1] == PIPE:
       continue
     deduped_commands.append(command)
 
