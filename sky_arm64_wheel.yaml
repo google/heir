@@ -1,0 +1,44 @@
+# SkyPilot task for testing Linux wheel builds
+# Usage: sky launch sky_arm64_wheel.yaml -c heir-wheel-arm64 -i 10 -y
+# afterwards: rsync -Pav heir-wheel:~/sky_workdir/wheelhouse/ ./wheelhouse/
+resources:
+  instance_type: m7g.16xlarge  # 64 vCPU, 256GB RAM, Graviton3 ARM64
+  # Idle stop (not down) after 30 minutes so the cluster doesn't burn
+  # money sitting empty after a build, but stays around for a quick
+  # `sky start` when iterating on wheel builds. `down: true` would tear
+  # down the VM and force a full re-provision next time.
+  autostop:
+    idle_minutes: 30
+
+# Syncs the working directory to ~/sky_workdir on the remote.
+# Respects .gitignore, so bazel-bin/, venv/, .venv/ etc. are excluded.
+workdir: .
+
+setup: |
+  set -euo pipefail
+  sudo systemctl start docker || true
+  # Install cibuildwheel in an isolated venv with Python 3.12 via uv,
+  # without touching the system Python (which SkyPilot/ray depends on).
+  uv tool install cibuildwheel --python 3.12
+
+run: |
+  set -euo pipefail
+  if [ -f pyproject.toml ]; then
+    repo_root="$PWD"
+  elif [ -f "$HOME/sky_workdir/pyproject.toml" ]; then
+    repo_root="$HOME/sky_workdir"
+  else
+    echo "Could not locate HEIR repo root" >&2
+    exit 1
+  fi
+  cd "$repo_root"
+  export PATH="$HOME/.local/bin:$PATH"
+  # CIBW_TEST_SKIP=* disables the post-build smoke-test phase. Without it
+  # cibuildwheel runs `python frontend/example.py` inside the manylinux
+  # container, which executes real FHE inference per example — adds ~5-15
+  # min after the actual wheel is built. The downstream consumer (medusa)
+  # already tests the wheel end-to-end on its own SkyPilot cluster, so the
+  # cibuildwheel test step is redundant.
+  CIBW_TEST_SKIP="*" cibuildwheel --only cp312-manylinux_aarch64
+  echo "Wheel built successfully:"
+  ls -la wheelhouse/
