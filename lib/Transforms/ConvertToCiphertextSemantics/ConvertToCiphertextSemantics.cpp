@@ -966,6 +966,12 @@ struct PreserveLinalgMatvecAsLinearTransform
     }
 
     int64_t numDiagonals = convertedMatrixType.getShape()[0];
+    int64_t numCols = matrixType.getDimSize(1);
+    if (numDiagonals < numCols) {
+      return rewriter.notifyMatchFailure(
+          op, "requires post-processing (numDiagonals < numCols)");
+    }
+
     int64_t slots = convertedMatrixType.getShape()[1];
     auto elementType = matrixType.getElementType();
 
@@ -975,8 +981,6 @@ struct PreserveLinalgMatvecAsLinearTransform
     auto matrixRelation = matrixLayout.getIntegerRelation();
     PointPairCollector collector(2, 2);
     enumeratePoints(matrixRelation, collector);
-
-    int64_t numCols = matrixType.getDimSize(1);
     for (const auto& pointPair : collector.points) {
       int64_t row = pointPair.first[0];
       int64_t col = pointPair.first[1];
