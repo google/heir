@@ -61,8 +61,17 @@ LogicalResult BootstrapWaterlineAnalysis::visitOperation(
     // But since that operand has already been processed by the analysis, we
     // mark the op result and then patch it up by the pass that uses this
     // analysis.
+    bool lacksMulHeadroom = false;
+    if (requireMulHeadroom && isa<IncreasesMulDepthOpInterface>(op)) {
+      SmallVector<OpOperand*> secretOperands;
+      getSecretOperands(op, secretOperands);
+      lacksMulHeadroom = secretOperands.size() >= 2 &&
+                         prospectiveLevel.isInt() &&
+                         prospectiveLevel.getInt() + 1 > levelBudget;
+    }
+
     bool exceedsWaterline =
-        prospectiveLevel.isInvalid() ||
+        lacksMulHeadroom || prospectiveLevel.isInvalid() ||
         (prospectiveLevel.isInt() && prospectiveLevel.getInt() > waterline);
 
     resultNeedsBootstrap = exceedsWaterline;

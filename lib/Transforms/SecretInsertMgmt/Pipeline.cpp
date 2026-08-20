@@ -611,7 +611,7 @@ static void bootstrapMulOperands(
     Operation* mulOp, const SmallVector<Value>& scaleSafeTargets,
     OpBuilder& builder,
     llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
-    const DominanceInfo& domInfo) {
+    const DominanceInfo& domInfo, bool replaceDominatedUses = false) {
   for (unsigned i = 0; i < mulOp->getNumOperands(); ++i) {
     Value operand = mulOp->getOperand(i);
     if (llvm::is_contained(scaleSafeTargets, operand)) {
@@ -621,8 +621,58 @@ static void bootstrapMulOperands(
       }
       Value bootstrappedOperand = bootstrapValue(
           operand, builder, bootstrappedValues, domInfo, insertionPoint);
-      mulOp->setOperand(i, bootstrappedOperand);
+      if (replaceDominatedUses) {
+        Operation* bootstrapOp = bootstrappedOperand.getDefiningOp();
+        operand.replaceUsesWithIf(bootstrappedOperand, [&](OpOperand& use) {
+          return use.getOwner() != bootstrapOp &&
+                 domInfo.dominates(bootstrapOp, use.getOwner());
+        });
+      } else {
+        mulOp->setOperand(i, bootstrappedOperand);
+      }
     }
+  }
+}
+
+static void insertCKKSMulHeadroomBootstraps(Operation* top,
+                                            int bootstrapWaterline,
+                                            int levelBudget,
+                                            int bootstrapLevelsConsumed) {
+  DataFlowSolver solver;
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget,
+                                          bootstrapLevelsConsumed,
+                                          /*requireMulHeadroom=*/true);
+  if (failed(solver.initializeAndRun(top))) {
+    LDBG() << "Failed to run multiplication headroom analysis!";
+    return;
+  }
+
+  SmallVector<ScaleSafeTargetsResult> targets;
+  top->walk([&](Operation* op) {
+    if (!isa<IncreasesMulDepthOpInterface>(op) || op->getNumResults() != 1) {
+      return;
+    }
+    auto* lattice =
+        solver.lookupState<BootstrapWaterlineLattice>(op->getResult(0));
+    if (!lattice || !lattice->getValue().getNeedsBootstrap()) {
+      return;
+    }
+    ScaleSafeTargetsResult target =
+        getScaleSafeBootstrapTargets(op->getResult(0), &solver);
+    if (!target.targets.empty()) {
+      targets.push_back(std::move(target));
+    }
+  });
+
+  OpBuilder builder(top->getContext());
+  llvm::DenseMap<Value, SmallVector<Value, 2>> bootstrappedValues;
+  DominanceInfo domInfo(top);
+  for (const ScaleSafeTargetsResult& target : targets) {
+    bootstrapMulOperands(target.mulOp, target.targets, builder,
+                         bootstrappedValues, domInfo,
+                         /*replaceDominatedUses=*/true);
   }
 }
 
@@ -630,6 +680,11 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, int bootstrapLevelsConsumed,
                               bool includeFloats, int* idCounter,
                               bool onlyHoist) {
+  if (!onlyHoist && moduleTargetsCKKS(top)) {
+    insertCKKSMulHeadroomBootstraps(top, bootstrapWaterline, levelBudget,
+                                    bootstrapLevelsConsumed);
+  }
+
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();

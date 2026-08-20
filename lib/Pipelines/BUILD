@@ -158,6 +158,7 @@ cc_library(
         "@heir//lib/Transforms/SplitPreprocessing",
         "@heir//lib/Transforms/TensorLinalgToAffineLoops",
         "@heir//lib/Transforms/ValidateNoise",
+        "@heir//lib/Transforms/ValidateScale",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineTransforms",
         "@llvm-project//mlir:LinalgTransforms",
