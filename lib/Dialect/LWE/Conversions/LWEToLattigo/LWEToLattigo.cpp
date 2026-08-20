@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
@@ -994,6 +995,37 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
   void runOnOperation() override {
     // Save the dialect attributes of func::CallOp before conversion.
     saveFuncCallOpDialectAttrs();
+
+    // Every lattigo ciphertext has the same opaque type, so a ciphertext
+    // argument that arrives having already consumed levels is
+    // indistinguishable from a fresh one afterwards. Record the consumed
+    // levels while the LWE type still carries the modulus chain, so analyses
+    // running on the lowered IR do not assume the argument is at the top of
+    // the chain.
+    getOperation()->walk([&](FunctionOpInterface funcOp) {
+      if (funcOp.getFunctionBody().empty()) {
+        return;
+      }
+      for (BlockArgument arg : funcOp.getArguments()) {
+        auto ctTy = dyn_cast<lwe::LWECiphertextType>(
+            getElementTypeOrSelf(arg.getType()));
+        if (!ctTy) {
+          continue;
+        }
+        auto chain = ctTy.getModulusChain();
+        if (!chain) {
+          continue;
+        }
+        int maxLevel = static_cast<int>(chain.getElements().size()) - 1;
+        int depth = maxLevel - chain.getCurrent();
+        if (depth <= 0) {
+          continue;
+        }
+        funcOp.setArgAttr(
+            arg.getArgNumber(), kEntryLevelDepthAttrName,
+            IntegerAttr::get(IntegerType::get(&getContext(), 64), depth));
+      }
+    });
 
     MLIRContext* context = &getContext();
     auto* module = getOperation();
