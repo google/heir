@@ -1013,13 +1013,10 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
     return op->emitOpError() << "Expected 3-D data tensor (N=1, C, W)";
   }
 
-  // Since the stride will be used as the gap factor, the layout requires that
-  // the number of output channels is divisible by gap.
-  // TODO(#2883): handle padding the output channels to be divisible by gap.
-  if (outputType.getDimSize(1) % stride != 0) {
-    return op->emitOpError()
-           << "Expected number of output channels to be divisible by gap";
-  }
+  // The stride doubles as the gap factor, and the shuffled layout groups the
+  // output channels into blocks of `stride`. When the channel count is not a
+  // multiple of it, the layout reserves the next multiple and leaves the extra
+  // channels empty; see getPaddedConvChannels.
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
 
@@ -1133,12 +1130,13 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
     return op->emitOpError() << "Failed to get kernel info for data input";
   }
   // The gap factor accumulates the producer's gap, so it can exceed the stride
-  // when this conv follows another strided one. The interchanged layout divides
-  // the output channels by gap^2, so guard against the gap actually used rather
-  // than against the stride alone.
+  // when this conv follows another strided one.
   auto gapFactor = strides[0] * dataKernelInfo->gapFactor;
-  // TODO(#2883): handle padding the output channels to be divisible by gap^2.
-  if (interchangeRows &&
+  // The layout relations shuffle by this conv's own stride, so that is the
+  // block size the channel padding below rounds up to. A conv whose gap exceeds
+  // its stride packs its result against gap^2 instead, and padding cannot
+  // reconcile the two, so keep rejecting those rather than mis-packing them.
+  if (interchangeRows && gapFactor != strides[0] &&
       outputType.getDimSize(1) % (gapFactor * gapFactor) != 0) {
     return op->emitOpError()
            << "Expected number of output channels (" << outputType.getDimSize(1)
@@ -1176,7 +1174,12 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
                             outputType.getDimSize(2) * gapFactor);
     int64_t wFhe = std::max(matrixOperand.dataType.getDimSize(3),
                             outputType.getDimSize(3) * gapFactor);
-    int64_t cFhe = outputType.getDimSize(1) / (gapFactor * gapFactor);
+    // The interchanged layout groups the output channels into gap x gap blocks,
+    // so the ciphertext holds whole blocks. A channel count that is not a
+    // multiple of gap^2 rounds up, and the extra channels stay empty.
+    int64_t cFhe =
+        getPaddedConvChannels(outputType.getDimSize(1), gapFactor * gapFactor) /
+        (gapFactor * gapFactor);
     fheOutputType =
         RankedTensorType::get({outputType.getDimSize(0), cFhe, hFhe, wFhe},
                               outputType.getElementType());
@@ -1238,8 +1241,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   // pixel-shuffled gap. Future users may need to insert a layout conversion.
   auto result = op->getResult(0);
   Attribute resultLayoutAttr;
-  presburger::IntegerRelation rel1 =
-      get2dConvResultRelation(outputType, strides, /*padding=*/0, minSlotCount);
+  presburger::IntegerRelation rel1 = get2dConvResultRelation(
+      outputType, strides, /*padding=*/0, minSlotCount, interchangeRows);
 
   if (interchangeRows) {
     presburger::IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(

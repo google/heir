@@ -11,6 +11,14 @@
 namespace mlir {
 namespace heir {
 
+// A gapped (pixel-shuffled) convolution layout folds a block of output channels
+// into each spatial block: `gap * gap` channels for a 2-D conv, `gap` channels
+// for a 1-D conv. That shuffle is a bijection only when the channel count is a
+// multiple of the block, so a layout reserves the next multiple and leaves the
+// extra channels empty. The expanded filter matrix has zero rows for them, and
+// the result layout maps nothing into their slots.
+int64_t getPaddedConvChannels(int64_t outputChannels, int64_t channelsPerBlock);
+
 // Returns an IntegerRelation that expands a 2-D filter matrix used in a
 // convolution into a 2-D matrix such that the convolution is
 // equivalent a matrix product with the flattened input vector. Each row
@@ -69,14 +77,20 @@ presburger::IntegerRelation get1dConvCwFcwFilterRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t stride,
     int64_t padding);
 
+// `interchangeRows` must match the flag the filter layout was built with: an
+// interchanged (pixel-shuffled) layout reserves whole channel blocks, so its
+// matrix has extra zero rows when the channel count is not a multiple of the
+// block. The Halevi-Shoup kernel is sized from this type, so it has to agree
+// with the layout relation.
 RankedTensorType get1dConvCwFcwFilterExpandedType(RankedTensorType filterType,
                                                   RankedTensorType dataType,
                                                   int64_t stride,
-                                                  int64_t padding);
+                                                  int64_t padding,
+                                                  bool interchangeRows = true);
 
 RankedTensorType get2dConvChwFchwFilterExpandedType(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
-    ArrayRef<int64_t> strides = {1, 1});
+    ArrayRef<int64_t> strides = {1, 1}, bool interchangeRows = true);
 
 // Returns an IntegerRelation that represents a diagonalized 2-D Toeplitz matrix
 // that is used to compute a 1-D multichannel convolution filter such that the
@@ -137,10 +151,14 @@ presburger::IntegerRelation get1dConvResultRelation(
 // Returns an IntegerRelation that corresponds to the output layout of a 2-D
 // multi-channel convolution. This includes the row interchange from pixel
 // shuffling. The result is a relation mapping to (ct, slot) of the output.
-presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
-                                                    ArrayRef<int64_t> strides,
-                                                    int64_t padding,
-                                                    int64_t minSlotCount);
+//
+// Set `interchangeRows` when the caller composes this with
+// get2dConvRowInterchangeLayoutRelation: a shuffled result reserves whole
+// channel blocks, and both relations must use that same larger extent as the
+// replication period.
+presburger::IntegerRelation get2dConvResultRelation(
+    RankedTensorType outputType, ArrayRef<int64_t> strides, int64_t padding,
+    int64_t minSlotCount, bool interchangeRows = false);
 
 presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
     RankedTensorType outputType, ArrayRef<int64_t> strides,

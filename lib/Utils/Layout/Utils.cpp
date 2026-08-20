@@ -236,18 +236,21 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
-    int64_t minSlotCount) {
-  // Get size of the matrix.
-  auto rowBound = relation.getConstantBound64(
-      BoundType::UB, relation.getVarKindOffset(VarKind::Range));
-  auto colBound = relation.getConstantBound64(
-      BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
-  if (!rowBound.has_value() || !colBound.has_value()) {
-    return failure();
+    int64_t minSlotCount, ArrayRef<int64_t> matrixShape) {
+  SmallVector<int64_t> shape(matrixShape);
+  if (shape.empty()) {
+    // Get size of the matrix.
+    auto rowBound = relation.getConstantBound64(
+        BoundType::UB, relation.getVarKindOffset(VarKind::Range));
+    auto colBound = relation.getConstantBound64(
+        BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
+    if (!rowBound.has_value() || !colBound.has_value()) {
+      return failure();
+    }
+    shape = {rowBound.value() + 1, colBound.value() + 1};
   }
   RankedTensorType matrixType =
-      RankedTensorType::get({rowBound.value() + 1, colBound.value() + 1},
-                            originalType.getElementType());
+      RankedTensorType::get(shape, originalType.getElementType());
   auto diagonalRelation = getDiagonalLayoutRelation(matrixType, minSlotCount);
 
   // Compose these relations.
