@@ -18,16 +18,13 @@
 namespace mlir::heir::rotom {
 namespace {
 
-/// Maps a `#rotom.dim` from the layout's `dims` list to its iterator index `i*`
-/// after preprocessing (match logical axis, size, and stride).
-static FailureOr<int64_t> varIndexForRotomDim(const SmallVector<DimAttr>& axes,
-                                              DimAttr want) {
+/// Maps a tensor axis id to its iterator index `i*` after preprocessing.
+/// Preprocessing dedupes traversal pieces per logical axis (a mixed-radix
+/// split contributes one variable), so the axis id identifies the variable.
+static FailureOr<int64_t> varIndexForAxis(const SmallVector<DimAttr>& axes,
+                                          int64_t axis) {
   for (int64_t i = 0; i < static_cast<int64_t>(axes.size()); ++i) {
-    if (axes[i].getDim() == want.getDim() &&
-        axes[i].getSize() == want.getSize() &&
-        axes[i].getStride() == want.getStride()) {
-      return i;
-    }
+    if (axes[i].getDim() == axis) return i;
   }
   return failure();
 }
@@ -156,51 +153,106 @@ static LogicalResult emitSegmentAddress(
     axisExprs.push_back("i" + std::to_string(i));
   }
 
-  // Apply roll(a,b) transforms left-to-right:
-  // t_a <- (t_a - t_b) mod extent(a).
+  // Apply rolls left-to-right. A piece FROM rewrites that piece's own
+  // mixed-radix digit in place, (digit - shift) mod extent(piece),
+  // leaving its axis's other digits untouched; an `axis` FROM rewrites the
+  // whole axis index mod its full extent, so the shift borrows across digits
+  // (each piece then takes its digit of the rolled index). The shift is the
+  // by argument's index: a traversal piece's digit (its whole index when the
+  // axis is unsplit), a whole axis via `axis`, a slot replication's replica
+  // index, or a gap's block index.
   //
-  // The rewrite lands wherever the FROM dimension sits -- the ciphertext
-  // address, the slot address, or both when it straddles the boundary. BY is
-  // another traversal dimension on either axis, or a slot replication/gap
-  // block index, so a roll diagonalizes a ciphertext dimension against a slot
-  // one (one ciphertext per diagonal) or two slot dimensions (a Halevi-Shoup
-  // slot diagonal); a roll within the ciphertext axis is a free ciphertext
+  // The rewrite lands wherever the FROM pieces sit -- the ciphertext
+  // address, the slot address, or both when the axis straddles the boundary.
+  // A roll diagonalizes a ciphertext dimension against a slot one (one
+  // ciphertext per diagonal) or two slot dimensions (a Halevi-Shoup slot
+  // diagonal); a roll within the ciphertext axis is a free ciphertext
   // relabeling that enumeration never generates.
   if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {
-      const int64_t fromIdx = rolls[i];
-      const int64_t toIdx = rolls[i + 1];
-      if (fromIdx < 0 || toIdx < 0 ||
-          fromIdx >= static_cast<int64_t>(rotomDims.size()) ||
-          toIdx >= static_cast<int64_t>(rotomDims.size())) {
+      const RollArg from = decodeRollArg(rolls[i]);
+      const RollArg by = decodeRollArg(rolls[i + 1]);
+      if (!from.isAxis && from.index >= static_cast<int64_t>(rotomDims.size()))
         return failure();
-      }
-      auto fromDim = cast<DimAttr>(rotomDims[fromIdx]);
-      auto toDim = cast<DimAttr>(rotomDims[toIdx]);
-      FailureOr<int64_t> maybeFromVar = varIndexForRotomDim(axes, fromDim);
+      if (!by.isAxis && by.index >= static_cast<int64_t>(rotomDims.size()))
+        return failure();
+      DimAttr fromPiece =
+          from.isAxis ? DimAttr() : dyn_cast<DimAttr>(rotomDims[from.index]);
+      if (!from.isAxis && !fromPiece) return failure();
+      const int64_t fromAxis = from.isAxis ? from.index : fromPiece.getDim();
+      FailureOr<int64_t> maybeFromVar = varIndexForAxis(axes, fromAxis);
       if (failed(maybeFromVar)) return failure();
       const int64_t fromVar = *maybeFromVar;
+
       std::string toExpr;
-      if (toDim.isGap()) {
-        // Rolling by a gap dim: the shift is the gap's existential block
-        // index, so block g holds the rolled dim cyclically shifted by g.
-        toExpr = "g" + std::to_string(gapIndexForPosition(rotomDims, toIdx));
-      } else if (toDim.isReplicate()) {
-        // Rolling by a replication dim: the shift is the replica index, whose
-        // existential variable is named after the piece's replication slot.
-        int64_t replicationIndex = 0;
-        for (int64_t k = 0; k < toIdx; ++k) {
-          if (cast<DimAttr>(rotomDims[k]).isReplicate()) ++replicationIndex;
-        }
-        toExpr = "d" + std::to_string(numAxes + replicationIndex);
-      } else {
-        FailureOr<int64_t> maybeToVar = varIndexForRotomDim(axes, toDim);
+      if (by.isAxis) {
+        // Rolling by a whole axis: the shift is the axis's (possibly
+        // already-rolled) index expression.
+        FailureOr<int64_t> maybeToVar = varIndexForAxis(axes, by.index);
         if (failed(maybeToVar)) return failure();
         toExpr = axisExprs[*maybeToVar];
+      } else {
+        auto toDim = dyn_cast<DimAttr>(rotomDims[by.index]);
+        if (!toDim) return failure();
+        if (toDim.isGap()) {
+          // Rolling by a gap dim: the shift is the gap's existential block
+          // index, so block g holds the rolled index cyclically shifted by g.
+          toExpr =
+              "g" + std::to_string(gapIndexForPosition(rotomDims, by.index));
+        } else if (toDim.isReplicate()) {
+          // Rolling by a replication dim: the shift is the replica index,
+          // whose existential variable is named after the piece's replication
+          // slot.
+          int64_t replicationIndex = 0;
+          for (int64_t k = 0; k < by.index; ++k) {
+            if (cast<DimAttr>(rotomDims[k]).isReplicate()) ++replicationIndex;
+          }
+          toExpr = "d" + std::to_string(numAxes + replicationIndex);
+        } else {
+          FailureOr<int64_t> maybeToVar = varIndexForAxis(axes, toDim.getDim());
+          if (failed(maybeToVar)) return failure();
+          toExpr = axisExprs[*maybeToVar];
+          const AxisPieces toAxis = axisPieces(rotomDims, toDim.getDim());
+          if (toAxis.isSplit()) {
+            // The by piece's digit: (i / stride) mod extent, with the modulus
+            // redundant on the most-significant digit.
+            const int64_t fullTo = toAxis.extent;
+            if (toDim.getStride() > 1) {
+              toExpr = floorDivExpr(toExpr, toDim.getStride());
+            }
+            if (toDim.getStride() * toDim.getSize() < fullTo) {
+              toExpr = modExpr(toExpr, toDim.getSize());
+            }
+          }
+        }
       }
-      std::string diffExpr = "(" + axisExprs[fromVar] + " - " + toExpr + ")";
-      axisExprs[fromVar] = modExpr(diffExpr, fromDim.getSize());
+
+      const AxisPieces fromAxisPieces = axisPieces(rotomDims, fromAxis);
+      if (from.isAxis || !fromAxisPieces.isSplit()) {
+        // Whole-axis rewrite (the piece spelling of an unsplit axis is the
+        // same operation: its one piece's digit is the axis index).
+        std::string diffExpr = "(" + axisExprs[fromVar] + " - " + toExpr + ")";
+        axisExprs[fromVar] = modExpr(diffExpr, fromAxisPieces.extent);
+      } else {
+        // Piece rewrite on a split axis: replace this piece's digit with
+        // (digit - shift) mod extent(piece), i.e. add
+        // stride * (newDigit - digit) to the axis index. No borrow crosses
+        // into the other digits.
+        const int64_t stride = fromPiece.getStride();
+        const int64_t extent = fromPiece.getSize();
+        const std::string axisExpr = axisExprs[fromVar];
+        std::string digit = axisExpr;
+        if (stride > 1) digit = floorDivExpr(digit, stride);
+        if (stride * extent < fromAxisPieces.extent) {
+          digit = modExpr(digit, extent);
+        }
+        const std::string newDigit =
+            modExpr("(" + digit + " - " + toExpr + ")", extent);
+        axisExprs[fromVar] = "(" + axisExpr + " + " + std::to_string(stride) +
+                             " * (" + newDigit + ") - " +
+                             std::to_string(stride) + " * (" + digit + "))";
+      }
     }
   }
 
