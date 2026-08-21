@@ -64,6 +64,49 @@ Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
   return keyBlockArg;
 }
 
+// A tensor of ciphertexts holding a trivial encryption of zero at every
+// element.
+//
+// Used where an accumulator would otherwise be left as a `tensor.empty` of
+// ciphertexts. There is no representation of an uninitialised ciphertext -- a
+// nil pointer in the lattigo backend -- and `tensor.empty` permits any use of
+// its result, so materialising zeros is the only semantics-preserving lowering.
+// A rolled kernel fills such a tensor one element at a time while whole-tensor
+// consumers (bootstrap placement, level management) already read every element.
+//
+// One ciphertext is encoded and splatted rather than encoding a tensor of
+// plaintexts: a tensor-typed `lwe.rlwe_encode` is rejected downstream by
+// split-preprocessing.
+static Value materializeZeroCiphertextTensor(OpBuilder& builder, Location loc,
+                                             Type cleartextTy,
+                                             RankedTensorType resultTy) {
+  auto ctTy = cast<lwe::LWECiphertextType>(resultTy.getElementType());
+  auto plaintextTy = lwe::LWEPlaintextType::get(builder.getContext(),
+                                                ctTy.getPlaintextSpace());
+
+  // A single ciphertext holds the trailing (slot) dimensions of the cleartext
+  // tensor; the leading dimensions index ciphertexts.
+  auto cleartextTensorTy = cast<RankedTensorType>(cleartextTy);
+  auto zeroTy = RankedTensorType::get(
+      cleartextTensorTy.getShape().drop_front(resultTy.getShape().size()),
+      cleartextTensorTy.getElementType());
+  Value zero = arith::ConstantOp::create(builder, loc, zeroTy,
+                                         builder.getZeroAttr(zeroTy));
+
+  IntegerAttr scaleAttr;
+  if (ctTy.getModulusChain()) {
+    scaleAttr = builder.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
+        ctTy.getPlaintextSpace().getEncoding()));
+  }
+  Value encoded = lwe::RLWEEncodeOp::create(
+      builder, loc, plaintextTy, zero, ctTy.getPlaintextSpace().getEncoding(),
+      ctTy.getPlaintextSpace().getRing(), /*level=*/nullptr, scaleAttr);
+  Value zeroCt = lwe::TrivialEncryptOp::create(builder, loc, ctTy, encoded);
+
+  SmallVector<Value> elements(resultTy.getNumElements(), zeroCt);
+  return tensor::FromElementsOp::create(builder, loc, resultTy, elements);
+}
+
 LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
     secret::ConcealOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
@@ -457,9 +500,9 @@ FailureOr<Operation*> ConvertInsertSlice::matchAndRewriteInner(
   if (auto initOp = dyn_cast_or_null<mgmt::InitOp>(dest.getDefiningOp())) {
     if (auto emptyOp = dyn_cast_or_null<tensor::EmptyOp>(
             initOp.getOperand().getDefiningOp())) {
-      dest = tensor::EmptyOp::create(rewriter, op.getLoc(),
-                                     resultTensorOfCtsTy.getShape(),
-                                     resultTensorOfCtsTy.getElementType());
+      dest = materializeZeroCiphertextTensor(rewriter, op.getLoc(),
+                                             initOp.getOperand().getType(),
+                                             resultTensorOfCtsTy);
       if (initOp.use_empty()) rewriter.eraseOp(initOp);
       if (emptyOp.use_empty()) rewriter.eraseOp(emptyOp);
     }
@@ -507,8 +550,9 @@ LogicalResult ConvertEmpty::matchAndRewrite(
     return rewriter.notifyMatchFailure(
         op, "failed to convert empty tensor type to tensor of ciphertext");
 
-  rewriter.replaceOpWithNewOp<tensor::EmptyOp>(op, ciphertextType.getShape(),
-                                               ciphertextType.getElementType());
+  rewriter.replaceOp(op, materializeZeroCiphertextTensor(
+                             rewriter, op.getLoc(), op.getOperand().getType(),
+                             ciphertextType));
   return success();
 }
 

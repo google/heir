@@ -230,8 +230,8 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
 
 LogicalResult LowerToKernelEvalChebyshev::matchAndRewrite(
     EvalOp op, PatternRewriter& rewriter) const {
-  if (!mlir::heir::isSecret(op.getValue(), &solver)) {
-    return rewriter.notifyMatchFailure(op, "operand is not secret");
+  if (!mlir::heir::isSecret(op.getResult(), &solver)) {
+    return rewriter.notifyMatchFailure(op, "result is not secret");
   }
   auto attr = dyn_cast<polynomial::TypedChebyshevPolynomialAttr>(
       op.getPolynomialAttr());

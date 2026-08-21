@@ -6,6 +6,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -45,6 +46,8 @@ class DagBuilder {
   FailureOr<NodePtr> visit(arith::SubFOp op);
   FailureOr<NodePtr> visit(arith::SubIOp op);
   FailureOr<NodePtr> visit(arith::NegFOp op);
+  FailureOr<NodePtr> visit(affine::AffineForOp op);
+  FailureOr<NodePtr> visit(affine::AffineYieldOp op);
   FailureOr<NodePtr> visit(scf::ForOp op);
   FailureOr<NodePtr> visit(scf::IfOp op);
   FailureOr<NodePtr> visit(scf::YieldOp op);

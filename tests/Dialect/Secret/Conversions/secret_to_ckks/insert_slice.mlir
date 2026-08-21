@@ -8,7 +8,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
   func.func @scalar(%arg0: !secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 45>, tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x1x4x4xf32>, layout = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 1023 }">>}, %arg1: tensor<2x1x3x3xf32>) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 45>, tensor_ext.original_type = #original_type}) {
     // CHECK: func.func @scalar
     // CHECK-SAME: (%[[arg0:.*]]: ![[ct]]
-    // CHECK: %[[v0:.*]] = tensor.empty() : tensor<1x![[ct]]>
+    // The accumulator's init is materialized as a trivial encryption of zero,
+    // not an undefined tensor of ciphertexts; see materializeZeroCiphertextTensor.
+    // CHECK: %[[zero:.*]] = arith.constant dense<0
+    // CHECK: %[[pt:.*]] = lwe.rlwe_encode %[[zero]]
+    // CHECK: %[[zeroct:.*]] = lwe.trivial_encrypt %[[pt]]
+    // CHECK: %[[v0:.*]] = tensor.from_elements %[[zeroct]]
     // CHECK: %[[v1:.*]] = tensor.insert %[[arg0]] into %[[v0]]
     // CHECK: return %[[v1]] : tensor<1x![[ct]]>
     %3 = tensor.empty() : tensor<1x1024xf32>
@@ -32,7 +37,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
   func.func @tensor(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 90>, tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x1x4x4xf32>, layout = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 1023 }">>}, %arg1: tensor<2x1x3x3xf32>) -> (!secret.secret<tensor<2x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 90>, tensor_ext.original_type = #original_type}) {
     // CHECK: func.func @tensor
     // CHECK-SAME: (%[[arg0:.*]]: tensor<1x![[ct]]>
-    // CHECK: %[[v0:.*]] = tensor.empty() : tensor<2x![[ct]]>
+    // Note this insert covers slot 1 only, so slot 0 is never written: exactly
+    // the case where an undefined ciphertext would be read downstream.
+    // CHECK: %[[zero:.*]] = arith.constant dense<0
+    // CHECK: %[[pt:.*]] = lwe.rlwe_encode %[[zero]]
+    // CHECK: %[[zeroct:.*]] = lwe.trivial_encrypt %[[pt]]
+    // CHECK: %[[v0:.*]] = tensor.from_elements %[[zeroct]]
     // CHECK: %[[v1:.*]] = tensor.insert_slice %[[arg0]] into %[[v0]][1] [1] [1] : tensor<1x![[ct]]> into tensor<2x![[ct]]>
     // CHECK: return %[[v1]] : tensor<2x![[ct]]>
     %4 = tensor.empty() : tensor<2x1024xf32>

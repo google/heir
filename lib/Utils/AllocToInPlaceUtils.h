@@ -199,10 +199,16 @@ class CallerProvidedStorageInfo {
           continue;
         }
 
-        // LevelState stores depth (levels consumed, 0 to L).
-        // We cannot reuse storage if it has already consumed more levels than
-        // the op expects. i.e., storage depth > op depth.
-        if (storageLevel->getInt() > opLevel->getInt()) {
+        // LevelState stores depth (levels consumed, 0 to L). Reuse ONLY when
+        // the storage's current depth EXACTLY matches the op's result depth.
+        // Accepting `storage depth <= op depth` lets a buffer last written at a
+        // shallower depth be reused for a deeper result; the IR stays
+        // type-correct but the emitted destination carries the wrong runtime
+        // level, so the value is later multiplied at the modulus floor and the
+        // backend fails ("cannot Rescale: input Ciphertext level is too low").
+        // Exact-depth reuse keeps the in-place optimization for same-level
+        // buffers while staying sound.
+        if (storageLevel->getInt() != opLevel->getInt()) {
           continue;
         }
       }

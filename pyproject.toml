@@ -3,12 +3,12 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "heir_py"
+name = "belfort-heir"
 dynamic = ["version"]
 authors = [
   { name = "Jeremy Kun", email = "jkun@google.com" },
   { name = "Asra Ali", email = "asraa@google.com" },
-  { name = "Alexander Viand", email = "alexander.viand@intel.com" },
+  { name = "Alexander Viand", email = "alexander.viand@belfortlabs.com" },
 ]
 description = "The HEIR compiler"
 readme = "README.md"
@@ -72,7 +72,7 @@ dev = [
 # For `uv sync` (which includes `dev` by default) or / `pip install --group dev`.
 # Not visible to pip-compile, so requirements.txt is generated with explicit --extra flags.
 [dependency-groups]
-dev = ["heir_py[dev,python,openfhe]"]
+dev = ["belfort-heir[dev,python,openfhe]"]
 
 [project.urls]
 Homepage = "https://heir.dev"

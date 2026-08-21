@@ -174,7 +174,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp, CKKSSubOp,
               CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp, CKKSRotateOp,
               CKKSRelinearizeNewOp, CKKSRescaleNewOp, CKKSRotateNewOp,
-              CKKSLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp,
+              CKKSLinearTransformOp, CKKSPrepareLinearTransformOp,
+              CKKSApplyLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp,
               CKKSNewBootstrappingParametersFromLiteralOp,
               CKKSGenEvaluationKeysBootstrappingOp,
               CKKSNewBootstrappingEvaluatorOp>(
@@ -2280,8 +2281,14 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
   imports.insert(std::string(kBootstrappingImport));
 
   std::string resultName = getName(op.getResult());
+  // Bootstrap mod-ups its argument into the bootstrapping ring in place and
+  // leaves it there, but the op is a function of its operand: the operand can
+  // still be live, and a composite ReLU makes that the common case, since
+  // x * step(x) needs the un-bootstrapped x next to the refreshed branch that
+  // produced step(x). Hand lattigo a copy so the operand survives. The copy is
+  // negligible next to a bootstrap, so it is not worth making it conditional.
   emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ")");
+                                        getName(op.getInput()) + ".CopyNew())");
   return success();
 }
 
@@ -2302,10 +2309,18 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   }
 
   int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
+  Type elementType = diagonalsType.getElementType();
+  bool isF64 = false;
+  if (auto floatType = dyn_cast<FloatType>(elementType)) {
+    if (floatType.getWidth() == 64) {
+      isF64 = true;
+    }
+  }
 
   // Generate unique variable names
   std::string diagonalsMapName = outputName + "_diags";
   std::string diagonalIndices = outputName + "_diags_idx";
+  std::string sourceRowIndices = outputName + "_source_rows";
   std::string ltParamsName = outputName + "_params";
   std::string ltName = outputName + "_lt";
   std::string ltEvalName = outputName + "_lteval";
@@ -2313,11 +2328,29 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
 
   os << diagonalIndices
      << " := " << printDenseI32ArrayAttr(op.getDiagonalIndicesAttr()) << "\n";
+  std::string sourceRow = "i";
+  if (auto sourceRows = op.getSourceRowIndicesAttr()) {
+    os << sourceRowIndices << " := " << printDenseI32ArrayAttr(sourceRows)
+       << "\n";
+    sourceRow = sourceRowIndices + "[i]";
+  }
   os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
   os << "for i, diagIndex := range " << diagonalIndices << " {\n";
   os.indent();
-  os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "[i*"
-     << slotsPerDiagonal << ":(i+1)*" << slotsPerDiagonal << "]\n";
+  if (isF64) {
+    os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "["
+       << sourceRow << "*" << slotsPerDiagonal << ":(" << sourceRow << "+1)*"
+       << slotsPerDiagonal << "]\n";
+  } else {
+    os << "diag := make([]float64, " << slotsPerDiagonal << ")\n";
+    os << "for j := 0; j < " << slotsPerDiagonal << "; j++ {\n";
+    os.indent();
+    os << "diag[j] = float64(" << diagonalsName << "[" << sourceRow << "*"
+       << slotsPerDiagonal << " + j])\n";
+    os.unindent();
+    os << "}\n";
+    os << diagonalsMapName << "[diagIndex] = diag\n";
+  }
   os.unindent();
   os << "}\n";
 
@@ -2325,10 +2358,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   os.indent();
   os << "DiagonalsIndexList: " << diagonalsMapName
      << ".DiagonalsIndexList(),\n";
-  os << "LevelQ: " << op.getLevelQ().getInt() << ",\n";
+  os << "LevelQ: " << inputName << ".Level(),\n";
   os << "LevelP: " << evaluatorName << ".GetRLWEParameters().MaxLevelP(),\n";
   os << "Scale: rlwe.NewScale(" << evaluatorName << ".GetRLWEParameters().Q()["
-     << op.getLevelQ().getInt() << "]),\n";
+     << inputName << ".Level()]),\n";
   os << "LogDimensions: " << inputName << ".LogDimensions,\n";
   os << "LogBabyStepGiantStepRatio: "
      << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
@@ -2346,6 +2379,115 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   os << outputName << ", " << errName << " := " << ltEvalName
      << ".EvaluateNew(";
   os << inputName << ", " << ltName << ")\n";
+  printErrPanic(errName);
+  if (outputName != "_") {
+    declaredVars.insert(outputName);
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSPrepareLinearTransformOp op) {
+  imports.insert(std::string(kLintransImport));
+  imports.insert(std::string(kRingImport));
+  imports.insert(std::string(kRlweImport));
+
+  auto paramsName = getName(op.getParams());
+  auto encoderName = getName(op.getEncoder());
+  auto diagonalsName = getName(op.getDiagonals());
+  auto ltName = getName(op.getTransformation());
+
+  auto diagonalsType = cast<ShapedType>(op.getDiagonals().getType());
+  if (diagonalsType.getRank() != 2) {
+    return op.emitOpError("Expected 2D tensor for diagonals");
+  }
+  int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
+  Type elementType = diagonalsType.getElementType();
+  bool isF64 = false;
+  if (auto floatType = dyn_cast<FloatType>(elementType)) {
+    if (floatType.getWidth() == 64) {
+      isF64 = true;
+    }
+  }
+
+  int64_t levelQ = op.getLevelQ().getInt();
+  std::string diagonalsMapName = ltName + "_diags";
+  std::string diagonalIndices = ltName + "_diags_idx";
+  std::string sourceRowIndices = ltName + "_source_rows";
+  std::string ltParamsName = ltName + "_params";
+  std::string errName = getErrName();
+
+  os << diagonalIndices
+     << " := " << printDenseI32ArrayAttr(op.getDiagonalIndicesAttr()) << "\n";
+  std::string sourceRow = "i";
+  if (auto sourceRows = op.getSourceRowIndicesAttr()) {
+    os << sourceRowIndices << " := " << printDenseI32ArrayAttr(sourceRows)
+       << "\n";
+    sourceRow = sourceRowIndices + "[i]";
+  }
+  os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
+  os << "for i, diagIndex := range " << diagonalIndices << " {\n";
+  os.indent();
+  if (isF64) {
+    os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "["
+       << sourceRow << "*" << slotsPerDiagonal << ":(" << sourceRow << "+1)*"
+       << slotsPerDiagonal << "]\n";
+  } else {
+    os << "diag := make([]float64, " << slotsPerDiagonal << ")\n";
+    os << "for j := 0; j < " << slotsPerDiagonal << "; j++ {\n";
+    os.indent();
+    os << "diag[j] = float64(" << diagonalsName << "[" << sourceRow << "*"
+       << slotsPerDiagonal << " + j])\n";
+    os.unindent();
+    os << "}\n";
+    os << diagonalsMapName << "[diagIndex] = diag\n";
+  }
+  os.unindent();
+  os << "}\n";
+
+  // Every lintrans.Parameters field is a compile-time constant here (LevelQ
+  // and the scale come from the level the transform was prepared for), so a
+  // level mismatch is caught by the apply verifier instead of silently
+  // mis-encoding against a runtime ciphertext.
+  os << ltParamsName << " := lintrans.Parameters{\n";
+  os.indent();
+  os << "DiagonalsIndexList: " << diagonalsMapName
+     << ".DiagonalsIndexList(),\n";
+  os << "LevelQ: " << levelQ << ",\n";
+  os << "LevelP: " << paramsName << ".GetRLWEParameters().MaxLevelP(),\n";
+  os << "Scale: rlwe.NewScale(" << paramsName << ".GetRLWEParameters().Q()["
+     << levelQ << "]),\n";
+  os << "LogDimensions: ring.Dimensions{Rows: 0, Cols: "
+     << op.getLogSlots().getInt() << "},\n";
+  os << "LogBabyStepGiantStepRatio: "
+     << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
+  os.unindent();
+  os << "}\n";
+
+  os << ltName << " := lintrans.NewTransformation(" << paramsName
+     << ".GetRLWEParameters(), " << ltParamsName << ")\n";
+  os << errName << " := lintrans.Encode[float64](" << encoderName << ", "
+     << diagonalsMapName << ", " << ltName << ")\n";
+  printErrPanic(errName);
+  if (ltName != "_") {
+    declaredVars.insert(ltName);
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSApplyLinearTransformOp op) {
+  imports.insert(std::string(kLintransImport));
+
+  auto evaluatorName = getName(op.getEvaluator());
+  auto inputName = getName(op.getInput());
+  auto outputName = getName(op.getOutput());
+  auto ltName = getName(op.getTransformation());
+
+  std::string ltEvalName = outputName + "_lteval";
+  std::string errName = getErrName();
+
+  os << ltEvalName << " := lintrans.NewEvaluator(" << evaluatorName << ")\n";
+  os << outputName << ", " << errName << " := " << ltEvalName << ".EvaluateNew("
+     << inputName << ", " << ltName << ")\n";
   printErrPanic(errName);
   if (outputName != "_") {
     declaredVars.insert(outputName);
@@ -2636,6 +2778,11 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("*bootstrapping.Evaluator"); })
       .Case<CKKSParameterType>(
           [&](auto ty) { return std::string("ckks.Parameters"); })
+      .Case<CKKSLinearTransformationType>([&](auto ty) {
+        // lintrans.NewTransformation returns (and EvaluateNew takes) the
+        // struct by value.
+        return std::string("lintrans.LinearTransformation");
+      })
       .Case<CKKSBootstrappingParameterType>(
           [&](auto ty) { return std::string("bootstrapping.Parameters"); })
       .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {

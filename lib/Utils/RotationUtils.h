@@ -20,7 +20,7 @@ inline int64_t normalizeRotation(int64_t rot, int64_t slots) {
 /// Mirrors Lattigo's lintrans.FindBestBSGSRatio.
 inline int64_t findBestBSGSRatio(llvm::ArrayRef<int32_t> diags, int64_t slots,
                                  int64_t logMaxRatio) {
-  int64_t maxRatio = 1LL << logMaxRatio;
+  double maxRatio = static_cast<double>(1LL << logMaxRatio);
   for (int64_t n1 = 1; n1 < slots; n1 <<= 1) {
     llvm::DenseSet<int64_t> rotN1Set, rotN2Set;
     for (auto rot : diags) {
@@ -28,12 +28,17 @@ inline int64_t findBestBSGSRatio(llvm::ArrayRef<int32_t> diags, int64_t slots,
       rotN1Set.insert(normalizeRotation((r / n1) * n1, slots));
       rotN2Set.insert(r % n1);
     }
-    int64_t nbN1 = static_cast<int64_t>(rotN1Set.size()) - 1;
-    int64_t nbN2 = static_cast<int64_t>(rotN2Set.size()) - 1;
-    if (nbN1 > 0) {
-      if (nbN2 == maxRatio * nbN1) return n1;
-      if (nbN2 > maxRatio * nbN1) return n1 / 2;
-    }
+    // Float division without a nonzero guard, as Lattigo does it. A sparse
+    // diagonal set reaches nbN1 == 0 with nbN2 > 0, where the resulting +inf
+    // ratio must take the `> maxRatio` branch; 0/0 is NaN, compares false and
+    // continues. Guarding nbN1 > 0 instead skips those iterations and can pick
+    // a different N1 than the backend, which then generates rotation keys for
+    // the wrong Galois elements.
+    double nbN1 = static_cast<double>(rotN1Set.size()) - 1;
+    double nbN2 = static_cast<double>(rotN2Set.size()) - 1;
+    double ratio = nbN2 / nbN1;
+    if (ratio == maxRatio) return n1;
+    if (ratio > maxRatio) return n1 / 2;
   }
   return 1;
 }

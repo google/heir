@@ -18,6 +18,21 @@ module attributes {
     return %0 : !secret.secret<f64>
   }
 
+  // CHECK: @test_secret_kernel_chain
+  func.func @test_secret_kernel_chain(%x: !secret.secret<f64>) -> !secret.secret<f64> {
+    // CHECK: %[[EVAL_0:.*]] = kernel.eval_chebyshev
+    // CHECK: %[[EVAL_1:.*]] = kernel.eval_chebyshev %[[EVAL_0]]
+    // CHECK: kernel.eval_chebyshev %[[EVAL_1]]
+    %0 = secret.generic(%x : !secret.secret<f64>) {
+    ^body(%x_val: f64):
+      %1 = polynomial.eval #polynomial.typed_chebyshev_polynomial<[1.0, 2.0]> : !polynomial.polynomial<ring=<coefficientType=f64>>, %x_val {domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f64
+      %2 = polynomial.eval #polynomial.typed_chebyshev_polynomial<[1.0, 2.0]> : !polynomial.polynomial<ring=<coefficientType=f64>>, %1 {domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f64
+      %3 = polynomial.eval #polynomial.typed_chebyshev_polynomial<[1.0, 2.0]> : !polynomial.polynomial<ring=<coefficientType=f64>>, %2 {domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f64
+      secret.yield %3 : f64
+    } -> (!secret.secret<f64>)
+    return %0 : !secret.secret<f64>
+  }
+
   // CHECK: @test_public_kernel
   func.func @test_public_kernel(%x: f64) -> f64 {
     // CHECK-NOT: kernel.eval_chebyshev

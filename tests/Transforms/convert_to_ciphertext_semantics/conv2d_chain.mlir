@@ -18,22 +18,22 @@
 #layout11 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 8 = 0 and (-i1 + ct + slot) mod 16 = 0 and 0 <= i0 <= 5 and 0 <= i1 <= 8 and 0 <= ct <= 7 and 0 <= slot <= 31 }">
 #layout12 = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and i3 = 0 and (-3i2 + ct) mod 8 = 0 and 0 <= i2 <= 1 and 0 <= ct <= 7 and 0 <= slot <= 31 and -5 - 3i2 + ct + slot <= 16*floor((7 + ct + slot)/16) <= -3i2 + ct + slot and 16*floor((7 + ct + slot)/16) <= ct + slot }">
 module attributes {backend.lattigo, scheme.ckks} {
+  // A backend that evaluates a linear transform directly keeps each convolution
+  // as one compact rotate_and_reduce carrying its diagonals, instead of the
+  // expanded per-diagonal extract_slice / rotate / multiply chain. The trailing
+  // rotate-and-add is the squat-packing post-reduction of the second transform.
   // CHECK: func.func @conv2d_chain
-  // CHECK-DAG: %[[c8:.*]] = arith.constant 8 : index
-  // CHECK-DAG: %[[c_minus_3:.*]] = arith.constant -3 : index
-  // CHECK-DAG: %[[c3:.*]] = arith.constant 3 : index
-  // CHECK-DAG: %[[c_minus_4:.*]] = arith.constant -4 : index
-  // CHECK-DAG: %[[c4:.*]] = arith.constant 4 : index
-  // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
   // CHECK: secret.generic
   // CHECK: ^body(%[[input:.*]]: tensor<1x4096xf32>):
   // CHECK: %[[filter1:.*]] = func.call @_assign_layout_{{.*}} : (tensor<1x1x2x2xf32>) -> tensor<16x4096xf32>
+  // CHECK: %[[conv1:.*]] = tensor_ext.rotate_and_reduce %[[input]], %[[filter1]]
+  // CHECK-SAME: tensor_ext.lintrans
+  // CHECK: %[[bias1:.*]] = arith.addf %[[conv1]]
   // CHECK: %[[filter2:.*]] = func.call @_assign_layout_{{.*}} : (tensor<1x1x2x1xf32>) -> tensor<8x4096xf32>
-  // Verify filter row stride 3 since row interchanging doesn't happen with gap_factor = 1
-  // CHECK: %[[slice2:.*]] = tensor.extract_slice %[[filter2]][%[[c3]], 0] [1, 4096] [1, 1] : tensor<8x4096xf32> to tensor<1x4096xf32>
-  // CHECK: %[[diag2:.*]] = tensor_ext.rotate %[[slice2]], %[[c_minus_3]] : tensor<1x4096xf32>, index
-  // CHECK: arith.mulf %[[diag2]], {{.*}} : tensor<1x4096xf32>
-  // CHECK: tensor_ext.rotate {{.*}}, %[[c3]] : tensor<1x4096xf32>, index
+  // CHECK: %[[conv2:.*]] = tensor_ext.rotate_and_reduce %[[bias1]], %[[filter2]]
+  // CHECK-SAME: tensor_ext.lintrans
+  // CHECK: %[[rot:.*]] = tensor_ext.rotate %[[conv2]]
+  // CHECK: arith.addf %[[conv2]], %[[rot]]
   // CHECK: secret.yield
   func.func @conv2d_chain(%arg0: !secret.secret<tensor<1x1x4x4xf32>> {heir.kernel_info = {gap_factor = 1 : i64, input_shape = array<i64>, result_shape = array<i64: 1, 1, 4, 4>}, tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x1x2x3xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<1.000000e+00> : tensor<1x1x2x1xf32>

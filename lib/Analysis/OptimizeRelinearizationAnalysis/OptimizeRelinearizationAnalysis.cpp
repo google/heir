@@ -8,6 +8,7 @@
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -230,7 +231,12 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     }
 
     bool requireLinear = false;
-    if (isa<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp>(op)) {
+    // A linear transform is a bundle of rotations under Galois keys, and a
+    // Chebyshev evaluation multiplies its input, so like rotation both need a
+    // linear operand; without this the model may defer a relinearization past
+    // them and leave it applied to an already-linear result.
+    if (isa<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp,
+            kernel::LinearTransformOp, kernel::EvalChebyshevOp>(op)) {
       requireLinear = true;
     } else {
       SmallVector<OpOperand*, 4> secretOperands;

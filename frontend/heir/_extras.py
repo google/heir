@@ -20,5 +20,5 @@ def require(dependency, extra):
     raise ImportError(
         f"Failed to import {dependency}. This suggests heir was installed with"
         f" pip and missing the {extra} extra; install it via `pip install"
-        f" heir_py[{extra}]`."
+        f" belfort-heir[{extra}]`."
     )

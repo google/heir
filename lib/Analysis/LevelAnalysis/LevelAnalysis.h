@@ -17,7 +17,8 @@
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 // This file contains a pair of forward and backward analyses that allow one to
 // determine the "level" (in the sense of remaining multiplicative depth) of SSA
@@ -40,6 +41,11 @@
 // analysis, and mod_reduce/level_reduce causes levels do decrement.
 namespace mlir {
 namespace heir {
+/// Records how many levels a ciphertext function argument has already consumed
+/// on entry. Backend dialects give every ciphertext the same opaque type, so an
+/// analysis running after that lowering cannot recover the argument's level
+/// from the type and would otherwise assume the argument is fresh.
+constexpr StringRef kEntryLevelDepthAttrName = "lwe.entry_level_depth";
 
 constexpr int kDefaultLevelBudget = 40;
 
@@ -202,7 +208,32 @@ class LevelAnalysis
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToEntryState(LevelLattice* lattice) override {
-    propagateIfChanged(lattice, lattice->join(LevelState(0)));
+    // A function argument is not necessarily fresh: a client may hand the
+    // entry point a ciphertext that has already consumed levels. Assuming
+    // depth 0 makes every value derived from such an argument look shallower
+    // than it is, which later reads as "this buffer still has levels left".
+    propagateIfChanged(
+        lattice,
+        lattice->join(LevelState(getEntryLevelDepth(lattice->getAnchor()))));
+  }
+
+  /// Levels already consumed by `value` on entry, from the attribute the
+  /// backend lowering leaves behind. Zero (fresh) when unannotated.
+  static int getEntryLevelDepth(Value value) {
+    auto arg = dyn_cast_or_null<BlockArgument>(value);
+    if (!arg) {
+      return 0;
+    }
+    auto funcOp =
+        dyn_cast_or_null<FunctionOpInterface>(arg.getOwner()->getParentOp());
+    if (!funcOp || arg.getOwner() != &funcOp.getFunctionBody().front()) {
+      return 0;
+    }
+    if (auto attr = funcOp.getArgAttrOfType<IntegerAttr>(
+            arg.getArgNumber(), kEntryLevelDepthAttrName)) {
+      return static_cast<int>(attr.getInt());
+    }
+    return 0;
   }
 
   LogicalResult visitOperation(Operation* op,

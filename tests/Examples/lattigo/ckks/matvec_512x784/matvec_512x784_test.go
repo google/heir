@@ -17,10 +17,11 @@ func TestMatvec(t *testing.T) {
 
 	expected := float32(78.4)
 	ct0 := Matvec__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	zero := Matvec__encrypt__zero__0(evaluator, params, ecd, enc)
-	resultCt := Matvec(evaluator, params, ecd, ct0, zero)
+	resultCt := Matvec(evaluator, params, ecd, ct0)
 	result := Matvec__decrypt__result0(evaluator, params, ecd, dec, resultCt)
-	errorThreshold := float64(2.0)
+	// Error threshold increased to 4.0 due to fallback to Halevi-Shoup kernel
+	// which has different noise characteristics.
+	errorThreshold := float64(4.0)
 	for i := 0; i < rows; i++ {
 		if math.Abs(float64(result[i]-expected)) > errorThreshold {
 			t.Errorf("Decryption error at index %d: %.2f != %.2f", i, result[i], expected)

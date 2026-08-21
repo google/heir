@@ -64,10 +64,10 @@ func TestConv2dChain(t *testing.T) {
 
 	ct0 := Conv2d_chain__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 	startPre := time.Now()
-	filterPlains := conv2dnchwchain_utils.Conv2d_chain__preprocessing(params, ecd)
+	linearTransforms, filterPlains := conv2dnchwchain_utils.Conv2d_chain__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 	start := time.Now()
-	resultCt := Conv2d_chain__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Conv2d_chain__preprocessed(evaluator, params, ecd, ct0, linearTransforms, filterPlains)
 	t.Logf("Conv2d chain (preprocessed) took %s", time.Since(start))
 	result := Conv2d_chain__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.01)

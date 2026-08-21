@@ -53,8 +53,8 @@ func TestInPlaceRotation(t *testing.T) {
 		t.Errorf("Expected mul to be in-place (same pointer), but got different pointers: rotate=%s, mul=%s", pRotate, pMul)
 	}
 
-	if pMul != pResult {
-		t.Errorf("Expected rescale to be in-place (same pointer), but got different pointers: mul=%s, result=%s", pMul, pResult)
+	if pMul == pResult {
+		t.Errorf("Expected rescale to be out-of-place (different pointers), but got the same pointer: %s", pMul)
 	}
 
 	// Verify that the result has the expected length

@@ -344,14 +344,18 @@ static FailureOr<Value> implementAssignLayoutStep(
     return zeroOp.getResult();
   }
 
-  // The input came from an empty tensor, so we can just create an empty
-  // ciphertext semantic tensor type.
-  if (auto emptyOp = dyn_cast_or_null<tensor::EmptyOp>(input.getDefiningOp())) {
-    auto emptyCiphertextOp = tensor::EmptyOp::create(
-        builder, builder.getLoc(), targetType.getShape(),
-        targetType.getElementType());
-    createdOpCallback(emptyCiphertextOp);
-    return emptyCiphertextOp.getResult();
+  // The input came from an empty tensor. Zero-fill it rather than leaving the
+  // ciphertext tensor undefined: an undefined ciphertext has no runtime
+  // representation (a nil pointer in the lattigo backend, garbage elsewhere),
+  // and an accumulator is only written element by element, so a pass that
+  // consumes the whole tensor - bootstrap placement does - reads the elements
+  // that the loop has not reached yet. Zeros lower to a trivial encryption of
+  // zero, which is a valid ciphertext at every element.
+  if (isa_and_nonnull<tensor::EmptyOp>(input.getDefiningOp())) {
+    auto zeroOp = arith::ConstantOp::create(builder, targetType,
+                                            builder.getZeroAttr(targetType));
+    createdOpCallback(zeroOp);
+    return zeroOp.getResult();
   }
 
   // If the input has a bicyclic or tricyclic CRT layout, we directly compute

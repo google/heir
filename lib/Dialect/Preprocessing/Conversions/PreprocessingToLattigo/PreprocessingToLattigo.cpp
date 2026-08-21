@@ -47,8 +47,10 @@ struct PreprocessingToLattigo
       return;
     }
 
-    Type targetType = lattigo::RLWEPlaintextType::get(&getContext());
-    SingleMemrefPreprocessingTypeConverter typeConverter(analysis, targetType);
+    // By this point LWEToLattigo has already converted the storage's element
+    // types to lattigo types, so each unique element type (plaintexts,
+    // prepared linear transformations) lowers to its own flat memref.
+    FlatMemrefPreprocessingTypeConverter typeConverter(analysis);
 
     ConversionTarget target(getContext());
     target.addIllegalDialect<PreprocessingDialect>();
@@ -58,7 +60,8 @@ struct PreprocessingToLattigo
                            lattigo::LattigoDialect>();
 
     RewritePatternSet patterns(&getContext());
-    populateCommonPreprocessingToMemrefPatterns(typeConverter, patterns);
+    populatePreprocessingToFlatMemrefPatterns(typeConverter, patterns,
+                                              analysis);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
