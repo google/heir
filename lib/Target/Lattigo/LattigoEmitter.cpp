@@ -2080,7 +2080,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   auto valueName = getName(op.getValue());
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
+      op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
   if (numSlotsAttr) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
     imports.insert(std::string(kRingImport));
@@ -2302,6 +2302,13 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   }
 
   int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
+  Type elementType = diagonalsType.getElementType();
+  bool isF64 = false;
+  if (auto floatType = dyn_cast<FloatType>(elementType)) {
+    if (floatType.getWidth() == 64) {
+      isF64 = true;
+    }
+  }
 
   // Generate unique variable names
   std::string diagonalsMapName = outputName + "_diags";
@@ -2310,14 +2317,28 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   std::string ltName = outputName + "_lt";
   std::string ltEvalName = outputName + "_lteval";
   std::string errName = getErrName();
+  std::string slotsName = outputName + "_slots";
 
   os << diagonalIndices
      << " := " << printDenseI32ArrayAttr(op.getDiagonalIndicesAttr()) << "\n";
+  os << slotsName << " := 1 << " << inputName << ".LogDimensions.Cols\n";
   os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
   os << "for i, diagIndex := range " << diagonalIndices << " {\n";
   os.indent();
-  os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "[i*"
-     << slotsPerDiagonal << ":(i+1)*" << slotsPerDiagonal << "]\n";
+  if (isF64) {
+    os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "[i*"
+       << slotsPerDiagonal << ":i*" << slotsPerDiagonal << " + " << slotsName
+       << "]\n";
+  } else {
+    os << "diag := make([]float64, " << slotsName << ")\n";
+    os << "for j := 0; j < " << slotsName << "; j++ {\n";
+    os.indent();
+    os << "diag[j] = float64(" << diagonalsName << "[i*" << slotsPerDiagonal
+       << " + j])\n";
+    os.unindent();
+    os << "}\n";
+    os << diagonalsMapName << "[diagIndex] = diag\n";
+  }
   os.unindent();
   os << "}\n";
 
@@ -2325,10 +2346,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   os.indent();
   os << "DiagonalsIndexList: " << diagonalsMapName
      << ".DiagonalsIndexList(),\n";
-  os << "LevelQ: " << op.getLevelQ().getInt() << ",\n";
+  os << "LevelQ: " << inputName << ".Level(),\n";
   os << "LevelP: " << evaluatorName << ".GetRLWEParameters().MaxLevelP(),\n";
   os << "Scale: rlwe.NewScale(" << evaluatorName << ".GetRLWEParameters().Q()["
-     << op.getLevelQ().getInt() << "]),\n";
+     << inputName << ".Level()]),\n";
   os << "LogDimensions: " << inputName << ".LogDimensions,\n";
   os << "LogBabyStepGiantStepRatio: "
      << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";

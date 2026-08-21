@@ -17,8 +17,7 @@ func TestMatvec(t *testing.T) {
 
 	expected := float32(51.2)
 	ct0 := Matvec__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	zero := Matvec__encrypt__zero__0(evaluator, params, ecd, enc)
-	resultCt := Matvec(evaluator, params, ecd, ct0, zero)
+	resultCt := Matvec(evaluator, params, ecd, ct0)
 	result := Matvec__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.00001)
 	for i := 0; i < rows; i++ {
