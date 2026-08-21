@@ -17,6 +17,7 @@
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/ConvolutionTestUtil.h"
 #include "lib/Utils/Layout/Evaluate.h"
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
@@ -848,6 +849,91 @@ TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2) {
 
   // Result is 4 2x2 tensors with a row-major layout.
   EXPECT_EQ(actualUnpacked, expected);
+}
+
+// Absorbing the data packing into the filter's column space widens the diagonal
+// layout to the full ciphertext. The kernel folds its partial sums using its
+// own column count, so that count must be the width the layout was built with,
+// not the logical C*W of the expanded Toeplitz matrix.
+TEST(KernelImplementationTest, TestConv1dCwFcwAbsorbedPackingWidth) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 6}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3}, mlir::IndexType::get(&context));
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 2, 4}, mlir::IndexType::get(&context));
+
+  int64_t numSlots = 32;
+  int64_t stride = 1;
+  bool interchangeRows = true;
+
+  tensor3d data = {{{0, 1, 2, 3, 4, 5}, {6, 7, 8, 9, 10, 11}}};
+  tensor3d filter = {{{3, 4, 1}, {1, 5, 2}}, {{1, 2, 3}, {2, 2, 2}}};
+
+  tensor3d expected = {{{0, 0, 0, 0}, {0, 0, 0, 0}}};
+  for (int f = 0; f < 2; ++f)
+    for (int w = 0; w < 4; ++w)
+      for (int c = 0; c < 2; ++c)
+        for (int k = 0; k < 3; ++k)
+          expected[0][f][w] += filter[f][c][k] * data[0][c][w + k];
+
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+
+  auto runKernel = [&](const std::vector<std::vector<int>>& packedData,
+                       const presburger::IntegerRelation& filterLayout,
+                       ArrayRef<int64_t> matrixShape) {
+    LiteralValue matrixInput = evaluateLayout(filterLayout, getFilterValueFn);
+    LiteralValue vectorInput = packedData[0];
+    auto dag = implementHaleviShoup(vectorInput, matrixInput, matrixShape.vec(),
+                                    DagType::intTensor(32, {numSlots}),
+                                    /*zeroDiagonals=*/{}, /*unroll=*/true);
+    auto slots = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+    auto resultLayout = get1dConvResultRelation(outputType, stride, 0, numSlots,
+                                                interchangeRows);
+    return unpackLayoutTo3DTensor<int>(resultLayout, {slots}, {1, 2, 4});
+  };
+
+  // Row-major data: the matrix columns are logical data indices, so the
+  // expanded Toeplitz width is the width the layout was built with.
+  auto rowMajorLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  auto rowMajorFilter = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, 0, numSlots, interchangeRows);
+  ASSERT_TRUE(succeeded(rowMajorFilter));
+  auto expandedType =
+      get1dConvCwFcwFilterExpandedType(filterType, dataType, stride, 0);
+  EXPECT_EQ(runKernel(evaluateLayout(rowMajorLayout, getDataValueFn3D(data)),
+                      rowMajorFilter.value(), expandedType.getShape()),
+            expected);
+
+  // Gap-packed data: element j sits in slot 2j. Absorbing that packing makes
+  // the matrix columns ciphertext slots, so the matrix is numSlots wide.
+  auto gappedLayout =
+      getIntegerRelationFromIslStr(
+          "{ [n, c, w] -> [ct, slot] : n = 0 and ct = 0 and 0 <= c <= 1 and "
+          "0 <= w <= 5 and slot = 12c + 2w }")
+          .value();
+  auto columnPermutation =
+      get1dConvDataColumnPermutation(dataType, gappedLayout);
+  ASSERT_TRUE(succeeded(columnPermutation));
+  auto representative =
+      getDiagonalColumnRepresentative(columnPermutation.value(), numSlots);
+  ASSERT_TRUE(succeeded(representative));
+
+  auto absorbedFilter = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, 0, numSlots, interchangeRows,
+      &representative.value());
+  ASSERT_TRUE(succeeded(absorbedFilter));
+  SmallVector<int64_t> absorbedShape = {expandedType.getDimSize(0), numSlots};
+  // The gap packing leaves the top slots empty, so state the ciphertext shape
+  // rather than letting it come from the relation's tightest slot bound.
+  std::vector<std::vector<int>> gappedData = evaluateLayout<int>(
+      gappedLayout, getDataValueFn3D(data), SmallVector<int64_t>{1, numSlots});
+  EXPECT_EQ(runKernel(gappedData, absorbedFilter.value(), absorbedShape),
+            expected);
 }
 
 // End-to-end Halevi-Shoup matvec for a padded strided 1-D multichannel conv, in

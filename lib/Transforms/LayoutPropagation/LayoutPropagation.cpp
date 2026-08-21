@@ -143,41 +143,23 @@ std::pair<Value, LayoutAttr> convertToLayout(
 struct FoldedConvPadding {
   // What the Toeplitz matrix must be built against.
   ConvMatrixOperand matrixOperand;
-  // The layout the padded operand must already carry for the fold to be valid.
+  // The layout that holds only the unpadded data, at the positions the unpadded
+  // operand would occupy on its own.
   IntegerRelation targetRelation;
+  // Whether the padded operand already carries `targetRelation`.
+  bool layoutMatchesTarget = false;
 };
 
-// Try to fold a zero `tensor.pad` on the spatial dims of a conv's `data`
-// operand into the conv's own `padding` parameter.
+// The symmetric zero padding a `tensor.pad` puts on the last `numSpatialDims`
+// dims of `data`, as a conv's own `padding` parameter would express it.
 //
-// `matrixDataType` is the padded operand shape the Toeplitz matrix would
-// otherwise be built against: the op's data type for a 1-D conv, or the FHE
-// input shape recorded in the kernel info for a 2-D conv. It must be rank 3
-// (N, C, W) or rank 4 (N, C, H, W), both with N=1.
-//
-// Returns nullopt when the pattern does not apply, in which case the caller
-// keeps the unfolded path.
-std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
-    Value data, RankedTensorType matrixDataType, LayoutAttr dataLayout,
-    int64_t ciphertextSize) {
-  int64_t rank = matrixDataType.getRank();
-  if ((rank != 3 && rank != 4) || matrixDataType.getDimSize(0) != 1) {
-    return std::nullopt;
-  }
-  // For a 2-D conv `matrixDataType` comes from the kernel info rather than from
-  // `data` itself, and the kernel info is copied verbatim across rank-changing
-  // ops, so its rank is not guaranteed to match the operand's layout. Comparing
-  // relations over different spaces is meaningless (and asserts), so bail out.
-  if (dataLayout.getIntegerRelation().getNumDomainVars() !=
-      static_cast<unsigned>(rank)) {
-    return std::nullopt;
-  }
-  // Dims 0 and 1 are (N, C); everything after them is spatial.
-  size_t numSpatialDims = rank - 2;
-
-  // DropUnitDims rewrites a rank-3 pad into
-  // collapse_shape -> tensor.pad (rank 2) -> expand_shape, so peel any
-  // reshape/cast chain to find the pad.
+// DropUnitDims rewrites a rank-3 pad into
+// collapse_shape -> tensor.pad (rank 2) -> expand_shape, so peel any
+// reshape/cast chain to find the pad. Returns nullopt unless the pad is by
+// zero, static, symmetric, equal across the spatial dims, and absent on the
+// leading dims, which is what a single `padding` parameter can express.
+std::optional<int64_t> getConvSpatialZeroPad(Value data,
+                                             size_t numSpatialDims) {
   Value cursor = data;
   tensor::PadOp padOp;
   while (Operation* def = cursor.getDefiningOp()) {
@@ -199,10 +181,6 @@ std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
                               matchPattern(padValue, m_Zero()));
   if (!zeroPad) return std::nullopt;
 
-  // A conv's `padding` parameter is a single symmetric value shared by every
-  // spatial dim, so only a pad that is symmetric, equal across the spatial
-  // dims, and absent on the leading dims is expressible as one, and only when
-  // the bounds are static. The pad may have dropped leading unit dims.
   if (!padOp.getLow().empty() || !padOp.getHigh().empty()) return std::nullopt;
   ArrayRef<int64_t> low = padOp.getStaticLow();
   ArrayRef<int64_t> high = padOp.getStaticHigh();
@@ -215,6 +193,58 @@ std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
     int64_t expectedPad = (low.size() - i <= numSpatialDims) ? p : 0;
     if (low[i] != expectedPad || high[i] != expectedPad) return std::nullopt;
   }
+  return p;
+}
+
+// Whether dropping the 1-D conv matrix columns that `columnPermutation` leaves
+// without a slot changes nothing, because each one multiplies a zero.
+//
+// Such a column is provably zero only inside the zero region of a `tensor.pad`
+// on `data`. Any other partial packing would lose live data.
+//
+// `operand.padding != 0` cannot reach here with a hole: that is the folded
+// path, where get1dConvDataColumnPermutation already rejected one.
+bool dropped1dConvColumnsAreZero(Value data, const ConvMatrixOperand& operand,
+                                 const IntegerRelation& columnPermutation) {
+  int64_t width = operand.dataType.getDimSize(2);
+  int64_t numColumns = operand.dataType.getDimSize(1) * width;
+  llvm::DenseSet<int64_t> mapped =
+      getMappedConvMatrixColumns(columnPermutation);
+  if (static_cast<int64_t>(mapped.size()) == numColumns) return true;
+
+  std::optional<int64_t> pad =
+      getConvSpatialZeroPad(data, /*numSpatialDims=*/1);
+  if (!pad) return false;
+  for (int64_t column = 0; column < numColumns; ++column) {
+    int64_t w = column % width;
+    if (!mapped.contains(column) && w >= *pad && w < width - *pad) return false;
+  }
+  return true;
+}
+
+// Try to fold a zero `tensor.pad` on the spatial dims of a conv's `data`
+// operand into the conv's own `padding` parameter.
+//
+// Returns nullopt when the pad pattern does not apply, in which case the caller
+// keeps the unfolded path.
+std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
+    Value data, RankedTensorType matrixDataType, LayoutAttr dataLayout,
+    int64_t ciphertextSize) {
+  int64_t rank = matrixDataType.getRank();
+  if ((rank != 3 && rank != 4) || matrixDataType.getDimSize(0) != 1) {
+    return std::nullopt;
+  }
+  if (dataLayout.getIntegerRelation().getNumDomainVars() !=
+      static_cast<unsigned>(rank)) {
+    return std::nullopt;
+  }
+  // Dims 0 and 1 are (N, C); everything after them is spatial.
+  size_t numSpatialDims = rank - 2;
+
+  std::optional<int64_t> spatialPad =
+      getConvSpatialZeroPad(data, numSpatialDims);
+  if (!spatialPad) return std::nullopt;
+  int64_t p = *spatialPad;
 
   // The reshape chain above means the pad's spatial dims are not guaranteed to
   // be this conv operand's spatial dims, so validate before building a type
@@ -224,9 +254,7 @@ std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
   if (!matrixOperand) return std::nullopt;
 
   // The layout we expect on the padded value: the unpadded row-major layout
-  // with each spatial index shifted by `p`. If the actual layout is anything
-  // else (a conversion intervened, a non-row-major producer, reshapes that did
-  // not cancel) do not fold.
+  // with each spatial index shifted by `p`.
   IntegerRelation expected =
       getRowMajorLayoutRelation(matrixOperand->dataType, ciphertextSize);
   unsigned domainOffset =
@@ -234,17 +262,100 @@ std::optional<FoldedConvPadding> tryFoldPadIntoConvPadding(
   for (int64_t dim = 2; dim < rank; ++dim) {
     expected = shiftVar(expected, domainOffset + dim, p);
   }
-  if (!isRelationEqual(dataLayout.getIntegerRelation(), expected)) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "conv found a pad of " << p
-               << " but the operand layout does not match the shifted "
-                  "unpadded row-major layout; not folding\n");
+  bool layoutMatchesTarget =
+      isRelationEqual(dataLayout.getIntegerRelation(), expected);
+
+  LLVM_DEBUG(
+      llvm::dbgs() << "conv can fold tensor.pad of " << p
+                   << " into the conv padding parameter; operand layout "
+                   << (layoutMatchesTarget ? "matches" : "does not match")
+                   << " the shifted unpadded row-major layout\n");
+  return FoldedConvPadding{*matrixOperand, expected, layoutMatchesTarget};
+}
+
+// How a 1-D conv will read its data operand.
+struct ConvDataPlan {
+  // What the Toeplitz matrix is built against.
+  ConvMatrixOperand matrixOperand;
+  // Set when the matrix absorbs the data's slot packing into its column space.
+  std::optional<IntegerRelation> columnPermutation;
+  // Set when the data must be converted to this relation first. Never set
+  // together with `columnPermutation`.
+  std::optional<IntegerRelation> conversionTarget;
+};
+
+// Encode the data's slot packing into the public diagonal filter packing, so
+// that a non-row-major single-ciphertext input needs no online conversion.
+// `operand` is what the matrix is built against, which fixes the column space
+// the permutation is indexed in.
+std::optional<IntegerRelation> tryAbsorbConv1dDataPacking(
+    Value data, Value filter, const ConvMatrixOperand& operand,
+    LayoutAttr dataLayout, int64_t minSlotCount, DataFlowSolver* solver) {
+  if (isSecret(filter, solver)) return std::nullopt;
+  Value logicalFilter = filter;
+  if (auto assignLayout =
+          logicalFilter.getDefiningOp<tensor_ext::AssignLayoutOp>()) {
+    logicalFilter = assignLayout.getValue();
+  }
+  auto filterConstantOp = logicalFilter.getDefiningOp<arith::ConstantOp>();
+  if (!filterConstantOp || !isa<ElementsAttr>(filterConstantOp.getValue())) {
     return std::nullopt;
   }
+  auto columnPermutation = get1dConvDataColumnPermutation(
+      operand.dataType, dataLayout.getIntegerRelation(), operand.padding);
+  if (failed(columnPermutation)) return std::nullopt;
+  // A replicated packing holds each element in several slots. Reduce it to one
+  // representative slot per element, so the column substitution is a function.
+  auto representative =
+      getDiagonalColumnRepresentative(columnPermutation.value(), minSlotCount);
+  if (failed(representative)) return std::nullopt;
+  if (!dropped1dConvColumnsAreZero(data, operand, representative.value())) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "conv_1d cannot absorb the data packing: it drops matrix "
+                  "columns that are not provably zero\n");
+    return std::nullopt;
+  }
+  return representative.value();
+}
 
-  LLVM_DEBUG(llvm::dbgs() << "conv folding tensor.pad of " << p
-                          << " into the conv padding parameter\n");
-  return FoldedConvPadding{*matrixOperand, expected};
+// Decide how a 1-D conv reads its data operand, taking the first of these that
+// holds. A folded operand comes first because it keeps the padding out of the
+// matrix columns, and reading the data where it already sits comes before
+// absorbing, because absorbing widens the matrix to the whole ciphertext.
+std::optional<ConvDataPlan> planFoldedConv1dDataAccess(
+    Value data, Value filter, RankedTensorType dataType, LayoutAttr dataLayout,
+    int64_t minSlotCount, DataFlowSolver* solver) {
+  std::optional<FoldedConvPadding> folded =
+      tryFoldPadIntoConvPadding(data, dataType, dataLayout, minSlotCount);
+  if (!folded) return std::nullopt;
+  if (folded->layoutMatchesTarget) return ConvDataPlan{folded->matrixOperand};
+  std::optional<IntegerRelation> absorbed = tryAbsorbConv1dDataPacking(
+      data, filter, folded->matrixOperand, dataLayout, minSlotCount, solver);
+  if (!absorbed) return std::nullopt;
+  return ConvDataPlan{folded->matrixOperand, std::move(absorbed)};
+}
+
+ConvDataPlan planConv1dDataAccess(Value data, Value filter,
+                                  RankedTensorType dataType,
+                                  LayoutAttr dataLayout, int64_t minSlotCount,
+                                  DataFlowSolver* solver) {
+  if (auto folded = planFoldedConv1dDataAccess(
+          data, filter, dataType, dataLayout, minSlotCount, solver)) {
+    return std::move(*folded);
+  }
+
+  // Unfolded: the matrix keeps a column per padded element, and the data must
+  // carry the plain row-major layout, either already or after absorption.
+  ConvMatrixOperand matrixOperand{dataType};
+  IntegerRelation rowMajor = getRowMajorLayoutRelation(dataType, minSlotCount);
+  if (isRelationEqual(dataLayout.getIntegerRelation(), rowMajor)) {
+    return ConvDataPlan{matrixOperand};
+  }
+  if (auto absorbed = tryAbsorbConv1dDataPacking(
+          data, filter, matrixOperand, dataLayout, minSlotCount, solver)) {
+    return ConvDataPlan{matrixOperand, std::move(absorbed)};
+  }
+  return ConvDataPlan{matrixOperand, std::nullopt, std::move(rowMajor)};
 }
 
 // Return a copy of the kernel info associated with the value and update the
@@ -1023,27 +1134,20 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
 
-  ConvMatrixOperand matrixOperand{dataType};
-  IntegerRelation targetDataRelation =
-      getRowMajorLayoutRelation(dataType, minSlotCount);
-  // A fold only succeeds once `data` is proven to already carry the target
-  // relation, so only the unfolded path can still need a conversion.
-  bool dataLayoutMatchesTarget = false;
-  if (auto folded =
-          tryFoldPadIntoConvPadding(data, dataType, dataLayout, minSlotCount)) {
-    matrixOperand = folded->matrixOperand;
-    targetDataRelation = folded->targetRelation;
-    dataLayoutMatchesTarget = true;
-  }
+  ConvDataPlan plan = planConv1dDataAccess(data, filter, dataType, dataLayout,
+                                           minSlotCount, solver);
+  const ConvMatrixOperand& matrixOperand = plan.matrixOperand;
 
-  if (!dataLayoutMatchesTarget &&
-      !isRelationEqual(dataLayout.getIntegerRelation(), targetDataRelation)) {
+  if (plan.conversionTarget) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, "
                                "inserting layout conversion.\n");
-    auto [toReplace, newDataLayoutAttr] =
-        convertToLayout(ctx, builder, op, data, dataLayout, targetDataRelation);
+    auto [toReplace, newDataLayoutAttr] = convertToLayout(
+        ctx, builder, op, data, dataLayout, *plan.conversionTarget);
     debugAssignLayout(toReplace, newDataLayoutAttr);
     assignedLayouts.insert({toReplace, newDataLayoutAttr});
+  } else if (plan.columnPermutation) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_1d absorbing data packing into the "
+                               "diagonal filter layout.\n");
   }
 
   // The kernel for this operation requires expanding the conv filter matrix
@@ -1051,7 +1155,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   LayoutAttr filterLayout = getComposedLayoutAttr(filter);
   auto convRelation = get1dConvCwFcwFilterDiagonalizedRelation(
       filterType, matrixOperand.dataType, stride, matrixOperand.padding,
-      minSlotCount, /*interchangeRows=*/interchangeRows);
+      minSlotCount, /*interchangeRows=*/interchangeRows,
+      plan.columnPermutation ? &*plan.columnPermutation : nullptr);
   if (failed(convRelation)) {
     return failure();
   }
@@ -1086,6 +1191,10 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   // Record what the filter was diagonalized against, so that
   // ConvertToCiphertextSemantics rebuilds the same expanded matrix shape.
   setConvFoldedPadding(op, matrixOperand.padding);
+  // Absorbing built the filter layout at full ciphertext width. The kernel
+  // folds its partial sums over the matrix width, so it must read the same
+  // number.
+  setAbsorbedMatrixWidth(op, plan.columnPermutation ? minSlotCount : 0);
 
   assignedLayouts.insert({result, resultLayoutAttr});
   setResultLayoutAttr(op, kernelInfoAttr);
@@ -1157,11 +1266,13 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   ConvMatrixOperand matrixOperand{fheInputType};
   IntegerRelation targetDataRelation =
       getRowMajorLayoutRelation(fheInputType, minSlotCount);
-  // A fold only succeeds once `data` is proven to already carry the target
-  // relation, so only the unfolded path can still need a conversion.
+  // This conv has no way to read the data anywhere but the target positions, so
+  // it only folds a pad that `data` already carries the target relation for.
+  // Only the unfolded path can then still need a conversion.
   bool dataLayoutMatchesTarget = false;
   if (auto folded = tryFoldPadIntoConvPadding(data, fheInputType, dataLayout,
-                                              minSlotCount)) {
+                                              minSlotCount);
+      folded && folded->layoutMatchesTarget) {
     matrixOperand = folded->matrixOperand;
     targetDataRelation = folded->targetRelation;
     dataLayoutMatchesTarget = true;
