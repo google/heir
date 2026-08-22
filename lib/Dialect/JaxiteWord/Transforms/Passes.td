@@ -8,26 +8,25 @@ def ConfigureCryptoContext : Pass<"jaxiteword-configure-crypto-context"> {
   let description = [{
     This pass generates helper functions to generate and configure the CROSS
     crypto context for the given function. It analyzes the entry function to
-    determine the required CKKS scheme parameters, multiplication depth,
-    rotation indices, and relinearization needs, then synthesizes setup
-    functions using `jaxiteword.gen_params` and
+    determine the required CKKS scheme parameters and rotation indices, then
+    synthesizes setup functions using `jaxiteword.gen_params` and
     `jaxiteword.program_initialization`.
 
     For example, for an MLIR function `@my_func`, the generated helpers have
     the following signatures:
     ```mlir
-    func.func @my_func__generate_crypto_context() -> !jaxiteword.crypto_context
+    func.func @my_func__generate_crypto_context()
+        -> !jaxiteword.crypto_context
 
     func.func @my_func__configure_crypto_context(
-        !jaxiteword.crypto_context, !jaxiteword.private_key)
+        !jaxiteword.crypto_context, !jaxiteword.public_key,
+        !jaxiteword.private_key, !jaxiteword.eval_key)
     ```
   }];
   let dependentDialects = ["mlir::heir::jaxiteword::JaxiteWordDialect"];
   let options = [
     Option<"entryFunction", "entry-function", "std::string",
            /*default=*/"", "Name of entry function.">,
-    Option<"mulDepth", "mul-depth", "int",
-           /*default=*/"0", "Manually specify the mul depth (overrides analysis)">,
     Option<"dnum", "dnum", "int",
            /*default=*/"3", "Key-switching decomposition parameter">,
     Option<"r", "r", "int",
