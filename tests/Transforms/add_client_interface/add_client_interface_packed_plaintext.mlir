@@ -13,6 +13,7 @@
 //     S(c1 % 32, -((-c0 - c1 + 1087) % 64) + 63, c0, c1);
 
 // CHECK: func.func @add
+// CHECK-SAME: heir.entry_func = {func_name = "add"}
 
 // CHECK: func.func @add__packed_plaintext__arg1
 // CHECK-SAME: %[[arg0:.*]]: tensor<32x64xi16>

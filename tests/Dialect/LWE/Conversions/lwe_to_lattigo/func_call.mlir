@@ -68,7 +68,7 @@ module @jit_func attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_pa
   // CHECK-SAME: %[[en:[a-z]+]]: [[enType]],
   // CHECK:   call @mnist_preprocessing(%[[param]], %[[en]])
   func.func private @_assign_layout_11979326689855340354(tensor<512x784xf32>) -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "mnist"}}
-  func.func @mnist_preprocessing() -> !pt attributes {client.preprocessing_func = {func_name = "mnist"}} {
+  func.func @mnist_preprocessing() -> !pt attributes {server.preprocessing_func = {func_name = "mnist"}} {
     %cst = arith.constant dense<2.000000e+00> : tensor<512x784xf32>
     %0 = call @_assign_layout_11979326689855340354(%cst) : (tensor<512x784xf32>) -> tensor<512x1024xf32>
     %extracted_slice = tensor.extract_slice %0[0, 0] [1, 1024] [1, 1] : tensor<512x1024xf32> to tensor<1024xf32>

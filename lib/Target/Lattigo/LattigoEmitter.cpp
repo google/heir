@@ -485,7 +485,7 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
   if (!isDebugPort(callee)) {
     calleeName = toExportName(calleeName);
   }
-  if (calleeOp && calleeOp->hasAttr(kClientPackFuncAttrName)) {
+  if (calleeOp && isPreprocessingHelper(calleeOp)) {
     if (funcFilter && !funcFilter(calleeOp)) {
       calleeName = packageName + "_utils." + calleeName;
       extraImportsUsed = true;
@@ -2905,9 +2905,8 @@ void registerToLattigoPreprocessingTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
-              return funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) { return isPreprocessingHelper(funcOp); });
       },
       [](DialectRegistry& registry) {
         registry
@@ -2926,9 +2925,8 @@ void registerToLattigoPreprocessedTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
-              return !funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) { return !isPreprocessingHelper(funcOp); });
       },
       [](DialectRegistry& registry) {
         registry

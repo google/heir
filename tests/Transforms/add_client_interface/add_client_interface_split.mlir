@@ -16,6 +16,8 @@ func.func @add(
   return %0, %0 : !ct_ty, !ct_ty
 }
 
+// CHECK: func.func @add
+// CHECK-SAME: heir.entry_func = {func_name = "add"}
 // CHECK: func.func @add__encrypt__arg0
 // CHECK: func.func @add__encrypt__arg1
 // CHECK: func.func @add__decrypt__result0
