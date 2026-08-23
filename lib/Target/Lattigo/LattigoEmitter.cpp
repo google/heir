@@ -1712,6 +1712,13 @@ LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
 
 LogicalResult LattigoEmitter::printOperation(RLWENegateOp op) {
   if (getName(op.getOutput()) != getName(op.getInput())) {
+    // rlwe.Element.Copy neither grows nor shrinks the receiver: it copies
+    // limb-wise over the *source* degree and leaves the receiver's own level
+    // (and any limbs above the source's) untouched. A reused buffer would keep
+    // reporting its previous level with stale data in the top limbs, so give
+    // it the source's shape first.
+    os << getName(op.getOutput()) << ".Resize(" << getName(op.getInput())
+       << ".Degree(), " << getName(op.getInput()) << ".Level())\n";
     os << getName(op.getOutput()) << ".Copy(" << getName(op.getInput())
        << ")\n";
   }
@@ -1942,6 +1949,12 @@ LogicalResult LattigoEmitter::printOperation(BGVRescaleOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
+  // Same receiver-level guarantee as printEvalInPlaceMethod and CKKSRotateOp;
+  // RotateColumns clamps to min(input level, receiver level).
+  if (getName(op.getInplace()) != getName(op.getInput())) {
+    os << getName(op.getInplace()) << ".Resize(" << getName(op.getInplace())
+       << ".Degree(), " << getName(op.getInput()) << ".Level())\n";
+  }
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".RotateColumns(";
   os << getName(op.getInput()) << ", ";
@@ -2539,6 +2552,32 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
 LogicalResult LattigoEmitter::printEvalInPlaceMethod(
     ::mlir::Value evaluator, ::mlir::ValueRange operands, std::string_view op,
     bool err) {
+  // Lattigo clamps an in-place result to min(operand levels, receiver level)
+  // (rlwe.Evaluator.InitOutput{Binary,Unary}Op), so a receiver sitting below
+  // the operands silently truncates the modulus chain: the value keeps
+  // computing at the shorter chain and a later Rescale fails with "input
+  // Ciphertext level is too low". AllocToInPlace only knows the receiver's
+  // *static* level, which drifts from the runtime one (e.g. the orion-heir
+  // path types bootstrap outputs at max level), so make the guarantee here
+  // instead: give the receiver the first operand's level. Lattigo still clamps
+  // down to the true operand minimum, so this never over-promises.
+  if (operands.size() >= 2) {
+    Value dst = operands.back();
+    Value src = operands.front();
+    // Only reshape a receiver that is a *dead* buffer: lattigo resizes opOut
+    // down to the clamped level before writing it, so growing it first is
+    // harmless there. A receiver that is also an operand must be left alone --
+    // growing it would expose stale limbs of a live value, and lattigo's own
+    // clamp already yields the right level in that case.
+    bool dstIsOperand = llvm::any_of(operands.drop_back(), [&](Value operand) {
+      return getName(operand) == getName(dst);
+    });
+    if (!dstIsOperand && isa<RLWECiphertextType>(dst.getType()) &&
+        isa<RLWECiphertextType>(src.getType())) {
+      os << getName(dst) << ".Resize(" << getName(dst) << ".Degree(), "
+         << getName(src) << ".Level())\n";
+    }
+  }
   std::string errName = getErrName();
   if (err) {
     os << errName << " := ";
