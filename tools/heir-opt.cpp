@@ -409,6 +409,7 @@ int main(int argc, char** argv) {
   rns::registerRNSPasses();
   rotom::registerRotomLayoutAssignmentPasses();
   rotom::registerRotomMaterializePasses();
+  rotom::registerRotomNormalizeContractionsPasses();
   rotom::registerRotomOutlineKernelsPasses();
   rotom::registerRotomSeedPasses();
   secret::registerSecretPasses();
@@ -601,12 +602,14 @@ int main(int argc, char** argv) {
   PassPipelineRegistration<MlirToRotomCiphertextPipelineOptions>(
       "mlir-to-rotom-ciphertext",
       "Assign Rotom layouts and lower to ciphertext-semantic tensors. Chains "
-      "rotom-seed-layout -> rotom-assign-layout -> rotom-outline-kernels -> "
+      "rotom-normalize-contractions -> rotom-seed-layout -> "
+      "rotom-assign-layout -> rotom-outline-kernels -> "
       "rotom-materialize-tensor-ext-layout -> convert-to-ciphertext-semantics "
       "-> inline -> implement-shift-network. Input is high-level tensor IR "
       "(in secret.generic regions).",
       [](OpPassManager& pm,
          const MlirToRotomCiphertextPipelineOptions& options) {
+        pm.addPass(rotom::createNormalizeContractions());
         rotom::SeedLayoutOptions seedOptions;
         seedOptions.n = options.ciphertextSize;
         pm.addPass(rotom::createSeedLayout(seedOptions));

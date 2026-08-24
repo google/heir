@@ -5,8 +5,10 @@
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
@@ -31,6 +33,17 @@ struct MaterializeTensorExtLayout
   using MaterializeTensorExtLayoutBase::MaterializeTensorExtLayoutBase;
 
   void runOnOperation() override {
+    getOperation()->walk([](Operation* op) {
+      op->removeAttr("rotom.seed");
+      if (auto func = dyn_cast<func::FuncOp>(op)) {
+        for (unsigned i = 0; i < func.getNumArguments(); ++i) {
+          func.removeArgAttr(i, "rotom.seed");
+        }
+        for (unsigned i = 0; i < func.getNumResults(); ++i) {
+          func.removeResultAttr(i, "rotom.seed");
+        }
+      }
+    });
     ModuleOp module = getOperation();
     LogicalResult result = success();
 
@@ -64,6 +77,46 @@ struct MaterializeTensorExtLayout
                                  tensor_ext::TensorExtDialect::kLayoutAttrName,
                                  *tensorExtLayout);
       removeAttributeAssociatedWith(value, kRotomLayoutAttrName);
+    });
+
+    // A layouted PUBLIC value produced by cleartext compute -- e.g. a bias
+    // that flows through host-side arithmetic before entering the secret
+    // region -- is an encode-time packing boundary. Producers with no
+    // layouts stay cleartext, so the packing must be stated explicitly as a
+    // tensor_ext.assign_layout for the ciphertext-semantics conversion (which
+    // otherwise has no way to convert the producer chain).
+    StringRef tensorExtLayoutAttrName =
+        tensor_ext::TensorExtDialect::kLayoutAttrName;
+    module.walk([&](Operation* op) {
+      if (isa<tensor_ext::AssignLayoutOp>(op)) return;
+      if (op->getParentOfType<secret::GenericOp>()) return;
+      if (op->getNumResults() != 1) return;
+      Value value = op->getResult(0);
+      if (!isa<RankedTensorType>(value.getType())) return;
+      FailureOr<Attribute> layoutAttr =
+          findAttributeAssociatedWith(value, tensorExtLayoutAttrName);
+      if (failed(layoutAttr)) return;
+      auto layout = dyn_cast<tensor_ext::LayoutAttr>(*layoutAttr);
+      if (!layout) return;
+      // The boundary is where no operand carries a layout: a producer with a
+      // layouted operand converts as a normal layout-carrying op. A
+      // zero-operand producer (arith.constant) is always a boundary.
+      for (Value operand : op->getOperands()) {
+        if (!isa<RankedTensorType>(operand.getType())) continue;
+        if (succeeded(findAttributeAssociatedWith(operand,
+                                                  tensorExtLayoutAttrName))) {
+          return;
+        }
+      }
+
+      OpBuilder builder(op->getContext());
+      builder.setInsertionPointAfter(op);
+      auto assign = tensor_ext::AssignLayoutOp::create(builder, op->getLoc(),
+                                                       value, layout);
+      setAttributeAssociatedWith(assign.getOutput(), tensorExtLayoutAttrName,
+                                 layout);
+      value.replaceAllUsesExcept(assign.getOutput(), assign);
+      removeAttributeAssociatedWith(value, tensorExtLayoutAttrName);
     });
 
     module.walk([&](func::FuncOp func) {

@@ -6,6 +6,7 @@
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Generators.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -33,9 +34,23 @@ LogicalResult generateExpandShape(AssignmentContext& ctx,
       getExpandShapeDimMap(op.getResultType(), op.getReassociationIndices());
   if (!oldToNew) return generatePassThrough(ctx, op);
 
+  // Result axes the dim map does not cover are the unit axes the expansion
+  // creates; add them so the result layouts match the result type's rank
+  // (see addUnitAxisPieces).
+  SmallVector<int64_t> unitAxes;
+  llvm::SmallDenseSet<int64_t> mapped(oldToNew->begin(), oldToNew->end());
+  for (int64_t axis = 0; axis < op.getResultType().getRank(); ++axis) {
+    if (!mapped.contains(axis) && op.getResultType().getDimSize(axis) == 1) {
+      unitAxes.push_back(axis);
+    }
+  }
+
   SmallVector<Candidate> expanded =
       remapCandidates(op.getSrc(), ctx.candidatesForValue(op.getSrc()),
                       *oldToNew, KernelKind::ExpandShape);
+  for (Candidate& candidate : expanded) {
+    candidate.layout = addUnitAxisPieces(candidate.layout, unitAxes);
+  }
   ctx.assignResultsFromCandidates(op, expanded);
   return success();
 }

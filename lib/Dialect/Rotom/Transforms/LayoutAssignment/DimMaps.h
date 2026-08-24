@@ -18,6 +18,10 @@ namespace mlir::heir::rotom {
 // the dim). The dim map is total over the input's dims, so this never fails.
 LayoutAttr remapLayoutDims(LayoutAttr layout, ArrayRef<int64_t> oldToNewDim);
 
+// Adds a extent-1 piece for each axis in `unitAxes`, appended innermost
+// (at the end).
+LayoutAttr addUnitAxisPieces(LayoutAttr layout, ArrayRef<int64_t> unitAxes);
+
 // Per-op dim maps for shape-changing ops. Each returns `oldToNew`, mapping
 // every input dim to its result dim (or -1 to drop it), or nullopt when the op
 // isn't a pure dim relabel and so can't flow a layout through.

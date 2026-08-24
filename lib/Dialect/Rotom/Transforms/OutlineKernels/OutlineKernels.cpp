@@ -119,6 +119,16 @@ struct OutlineKernels : impl::OutlineKernelsBase<OutlineKernels> {
     }
     for (Operation* pre : prologue) builder.clone(*pre, mapping);
     Operation* cloned = builder.clone(*op, mapping);
+    // The IRMapping maps VALUES, so an op whose operand positions alias one
+    // value (x * x) would read a single block argument twice -- and the kernel
+    // key is position-based, so a later call site with distinct operands would
+    // reuse the aliased body and square its second argument.
+    for (auto [index, argValue] : llvm::enumerate(kernelOperands)) {
+      if (index < cloned->getNumOperands() &&
+          op->getOperand(index) == argValue) {
+        cloned->setOperand(index, body->getArgument(index));
+      }
+    }
     func::ReturnOp::create(builder, op->getLoc(), cloned->getResult(0));
     return callee;
   }

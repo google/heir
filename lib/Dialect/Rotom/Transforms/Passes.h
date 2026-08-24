@@ -5,6 +5,7 @@
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h"
 #include "lib/Dialect/Rotom/Transforms/MaterializeTensorExtLayout/MaterializeTensorExtLayout.h"
+#include "lib/Dialect/Rotom/Transforms/NormalizeContractions/NormalizeContractions.h"
 #include "lib/Dialect/Rotom/Transforms/OutlineKernels/OutlineKernels.h"
 #include "lib/Dialect/Rotom/Transforms/SeedLayout/SeedLayout.h"
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
@@ -19,6 +20,9 @@ namespace rotom {
 
 #define GEN_PASS_REGISTRATION
 #include "lib/Dialect/Rotom/Transforms/MaterializeTensorExtLayout/MaterializeTensorExtLayout.h.inc"
+
+#define GEN_PASS_REGISTRATION
+#include "lib/Dialect/Rotom/Transforms/NormalizeContractions/NormalizeContractions.h.inc"
 
 #define GEN_PASS_REGISTRATION
 #include "lib/Dialect/Rotom/Transforms/OutlineKernels/OutlineKernels.h.inc"

@@ -443,6 +443,14 @@ SmallVector<Candidate> LayoutAssignment::chooseElementwiseKernels(
           const bool kernel =
               hasRotomKernel &&
               lowerableTriple(lhsLayout, rhsLayout, computeLayout);
+          // A candidate must have an emission path: the Rotom alignment
+          // kernel, or all three layouts coinciding (pointwise compute at any
+          // layout). A pairing that needs alignment the kernel cannot lower
+          // is dropped, so the selection walks back to producer candidates.
+          if (!kernel &&
+              !(lhsLayout == computeLayout && rhsLayout == computeLayout)) {
+            continue;
+          }
           Candidate candidate;
           candidate.layout = computeLayout;
           candidate.kind = kind;
@@ -700,7 +708,7 @@ Value LayoutAssignment::alignOperand(OpBuilder& builder, Location loc,
   Value current = value;
   for (size_t i = 1; i < chain.size(); ++i) {
     LayoutAttr from = chain[i - 1], to = chain[i];
-    // A step between two spellings of one packing moves nothing: record the
+    // A step between equivalent layouts moves nothing: record the
     // layout and emit no op.
     if (from == to ||
         mergeAdjacentLayoutDims(from) == mergeAdjacentLayoutDims(to)) {

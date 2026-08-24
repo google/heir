@@ -84,6 +84,25 @@ LayoutAttr remapLayoutDims(LayoutAttr layout, ArrayRef<int64_t> oldToNewDim) {
   return LayoutAttr::getCanonical(ctx, dimVec, layout.getN(), newRolls);
 }
 
+LayoutAttr addUnitAxisPieces(LayoutAttr layout, ArrayRef<int64_t> unitAxes) {
+  if (!layout || unitAxes.empty()) return layout;
+  MLIRContext* ctx = layout.getContext();
+  SmallVector<DimAttr> dims;
+  for (Attribute attr : layout.getDims()) dims.push_back(cast<DimAttr>(attr));
+  // A size-1 piece contributes nothing to the address map, so the position is
+  // free; appending innermost (at the end) keeps every existing piece position
+  // stable for the rolls.
+  for (int64_t axis : unitAxes) {
+    dims.push_back(DimAttr::get(ctx, axis, /*size=*/1, /*stride=*/1));
+  }
+  SmallVector<int64_t> rolls;
+  for (const RollSpec& roll : getRollSpecs(layout)) {
+    rolls.push_back(encodeRollArg(roll.from));
+    rolls.push_back(encodeRollArg(roll.by));
+  }
+  return LayoutAttr::getCanonical(ctx, dims, layout.getN(), rolls);
+}
+
 SmallVector<Candidate> remapCandidates(Value operand,
                                        ArrayRef<Candidate> candidates,
                                        ArrayRef<int64_t> oldToNewDim,

@@ -56,11 +56,13 @@ module {
     return %0 : tensor<4xf32>
   }
 
+  // The unit axis the expansion creates is named in the layout ([0:1:1]),
+  // so relations materialized from two layouts of the same type compose.
   // CHECK: func.func @expand_assign
-  // CHECK-SAME: tensor<1x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[G:2:1\], \[1:4:1\]\]}}>}
+  // CHECK-SAME: tensor<1x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[G:2:1\], \[1:4:1\], \[0:1:1\]\]}}>}
   func.func @expand_assign(%arg0: tensor<4xf32> {rotom.seed = #seed_4}) -> tensor<1x4xf32> {
     // CHECK: tensor.expand_shape
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[G:2:1\], \[1:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[G:2:1\], \[1:4:1\], \[0:1:1\]\]}}>
     %0 = tensor.expand_shape %arg0 [[0, 1]] output_shape [1, 4] : tensor<4xf32> into tensor<1x4xf32>
     return %0 : tensor<1x4xf32>
   }

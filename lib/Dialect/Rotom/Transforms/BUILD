@@ -136,6 +136,30 @@ cc_library(
 )
 
 add_heir_transforms(
+    generated_target_name = "normalize_contractions_pass_inc_gen",
+    header_filename = "NormalizeContractions/NormalizeContractions.h.inc",
+    pass_name = "NormalizeContractions",
+    registration_name = "RotomNormalizeContractions",
+    td_file = "NormalizeContractions/NormalizeContractions.td",
+)
+
+cc_library(
+    name = "NormalizeContractions",
+    srcs = ["NormalizeContractions/NormalizeContractions.cpp"],
+    hdrs = ["NormalizeContractions/NormalizeContractions.h"],
+    deps = [
+        ":normalize_contractions_pass_inc_gen",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+add_heir_transforms(
     generated_target_name = "seed_layout_pass_inc_gen",
     header_filename = "SeedLayout/SeedLayout.h.inc",
     pass_name = "SeedLayout",
@@ -173,10 +197,12 @@ cc_library(
     deps = [
         ":LayoutAssignment",
         ":MaterializeTensorExtLayout",
+        ":NormalizeContractions",
         ":OutlineKernels",
         ":SeedLayout",
         ":layout_assignment_pass_inc_gen",
         ":materialize_tensor_ext_layout_pass_inc_gen",
+        ":normalize_contractions_pass_inc_gen",
         ":outline_kernels_pass_inc_gen",
         ":seed_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
