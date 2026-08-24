@@ -70,6 +70,17 @@ build:linux --linkopt="-Wl,-no-pie"
 build:macos --@openfhe//:enable_openmp=False
 build:macos --no@fuzztest//fuzztest:use_riegeli
 
+# Link Go targets without cgo on macOS. The hermetic LLVM toolchain passes the
+# compiler-rt builtins archive to the linker as a bare, configuration-dependent
+# bazel-out file path. rules_go records the toolchain's link flags at compile
+# time and replays them at link time in a different configuration; it rewrites
+# recognized flags (--sysroot=, -L) but cannot rewrite a bare positional path,
+# so that path no longer exists and every go_binary/go_test link on macOS fails
+# with "clang++: error: no such file or directory". HEIR's Go code is pure Go
+# (no cgo), so skipping the external link sidesteps this entirely. Drop this
+# once the toolchain passes the archive via -L/-l upstream.
+build:macos --@rules_go//go/config:pure
+
 # MacOS arm64 config
 build:macos_arm64 --cpu=darwin_arm64
 build:macos_arm64 --macos_minimum_os=11.0
