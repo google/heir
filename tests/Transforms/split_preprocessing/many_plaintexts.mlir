@@ -7,7 +7,7 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> !preprocessing.storage<!pt>
-// CHECK-SAME: server.preprocessing_func = {func_name = "multiple"}
+// CHECK-SAME: server.preprocessing_func = {entry_arg_indices = array<i64: 1>, func_name = "multiple"}
 // CHECK: %[[STORAGE:.*]] = preprocessing.empty
 // CHECK-COUNT-2: lwe.rlwe_encode
 

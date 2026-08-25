@@ -388,6 +388,18 @@ struct SplitPreprocessingPass
     auto storageTy =
         preprocessing::PreprocessingStorageType::get(context, encodeTypes);
 
+    // Record where each preprocessing parameter comes from, so a consumer does
+    // not have to recover it from the call site in the combined entry func.
+    SmallVector<int64_t> entryArgIndices;
+    entryArgIndices.reserve(analysis.inputs.size());
+    for (const auto& input : analysis.inputs) {
+      auto blockArg = dyn_cast<BlockArgument>(input);
+      entryArgIndices.push_back(blockArg && blockArg.getOwner() ==
+                                                &op.getBody().front()
+                                    ? blockArg.getArgNumber()
+                                    : -1);
+    }
+
     // Create the new func and annotate it appropriately
     auto funcType = FunctionType::get(context, newInputs, {storageTy});
     auto funcName = op.getName().str() + "__preprocessing";
@@ -398,6 +410,8 @@ struct SplitPreprocessingPass
         builder.getDictionaryAttr({
             builder.getNamedAttr(kClientHelperFuncName,
                                  builder.getStringAttr(op.getName())),
+            builder.getNamedAttr(kServerPreprocessingEntryArgs,
+                                 builder.getDenseI64ArrayAttr(entryArgIndices)),
         }));
 
     // Set up the operation cloning infra: map the analysis-identified inputs to

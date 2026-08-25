@@ -298,6 +298,9 @@ LogicalResult convertFunc(func::FuncOp op, int64_t minSlotCount,
     LLVM_DEBUG(op->emitWarning("Skipping client interface for external func"));
     return success();
   }
+  // Helpers an earlier pass created (the outlined layout assignment from
+  // convert-to-ciphertext-semantics) are not entry points.
+  if (isClientHelper(op)) return success();
 
   auto module = op->getParentOfType<ModuleOp>();
   ImplicitLocOpBuilder builder =

@@ -4,7 +4,7 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @hoist_one_assign__preprocessing() -> !preprocessing.storage<!pt>
-// CHECK-SAME: server.preprocessing_func = {func_name = "hoist_one_assign"}
+// CHECK-SAME: server.preprocessing_func = {entry_arg_indices = array<i64>, func_name = "hoist_one_assign"}
 
 // CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "hoist_one_assign"}

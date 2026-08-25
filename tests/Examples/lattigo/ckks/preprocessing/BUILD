@@ -5,6 +5,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
     name = "matvec",
+    entry_interface = True,
     go_library_name = "matvec",
     heir_opt_flags = [
         "--annotate-module=scheme=ckks backend=lattigo",

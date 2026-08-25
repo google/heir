@@ -38,6 +38,13 @@ namespace lattigo {
 
 void registerTranslateOptions();
 
+// The Go export name for an MLIR symbol: strip leading underscores, capitalize.
+// Go does not export symbols that are not capitalized.
+std::string toExportName(::llvm::StringRef name);
+
+// The Go type for a Lattigo-dialect (or builtin) MLIR type.
+::mlir::FailureOr<std::string> convertLattigoType(::mlir::Type type);
+
 /// Translates the given operation to Lattigo
 ::mlir::LogicalResult translateToLattigo(
     ::mlir::Operation* op, llvm::raw_ostream& os,

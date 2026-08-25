@@ -22,6 +22,7 @@
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Target/Lattigo/LattigoInterfaceEmitter.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
@@ -67,10 +68,6 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
-namespace {
-// Returns the Go export name for a given MLIR symbol name.
-// This function strips leading underscores and capitalizes the first letter.
-//
 // Note this is required because golang does not export symbols that are not
 // capitalized. This implies that a user that wants to use a HEIR-generated
 // symbol from a different golang module would have to write wrapper code that
@@ -84,7 +81,6 @@ std::string toExportName(llvm::StringRef name) {
   exportName[0] = std::toupper(exportName[0]);
   return exportName;
 }
-}  // namespace
 
 LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
                                  const std::string& packageName,
@@ -2731,7 +2727,7 @@ LogicalResult LattigoEmitter::printEvalNewMethod(::mlir::ValueRange results,
   return success();
 }
 
-FailureOr<std::string> LattigoEmitter::convertType(Type type) {
+FailureOr<std::string> convertLattigoType(Type type) {
   return llvm::TypeSwitch<Type, FailureOr<std::string>>(type)
       // RLWE
       .Case<RLWECiphertextType>(
@@ -2807,7 +2803,7 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         return std::string("int64");
       })
       .Case<RankedTensorType>([&](auto ty) -> FailureOr<std::string> {
-        auto eltTyResult = convertType(ty.getElementType());
+        auto eltTyResult = convertLattigoType(ty.getElementType());
         if (failed(eltTyResult)) {
           return failure();
         }
@@ -2815,7 +2811,7 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         return std::string("[]") + result;
       })
       .Case<MemRefType>([&](auto ty) -> FailureOr<std::string> {
-        auto eltTyResult = convertType(ty.getElementType());
+        auto eltTyResult = convertLattigoType(ty.getElementType());
         if (failed(eltTyResult)) {
           return failure();
         }
@@ -2823,6 +2819,10 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         return std::string("[]") + result;
       })
       .Default([&](Type) -> FailureOr<std::string> { return failure(); });
+}
+
+FailureOr<std::string> LattigoEmitter::convertType(Type type) {
+  return convertLattigoType(type);
 }
 
 LogicalResult LattigoEmitter::emitType(Type type) {
@@ -2868,6 +2868,11 @@ struct TranslateOptions {
       llvm::cl::init("main")};
   llvm::cl::list<std::string> extraImports{
       "extra-imports", llvm::cl::desc("Additional import paths")};
+  llvm::cl::opt<std::string> interfacePrefix{
+      "interface-prefix",
+      llvm::cl::desc("Name to prefix the emitted entry interface's types and "
+                     "functions with (defaults to the entry function's name)"),
+      llvm::cl::init("")};
 };
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
 
@@ -2887,6 +2892,25 @@ void registerToLattigoTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(op, output, translateOptions->packageName,
                                   translateOptions->extraImports);
+      },
+      [](DialectRegistry& registry) {
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
+      });
+}
+
+void registerToLattigoInterfaceTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-lattigo-interface",
+      "emit a Go facade over the generated Lattigo entry interface",
+      [](Operation* op, llvm::raw_ostream& output) {
+        return translateToLattigoInterface(
+            op, output, translateOptions->packageName,
+            translateOptions->extraImports, translateOptions->interfacePrefix);
       },
       [](DialectRegistry& registry) {
         registry

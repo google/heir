@@ -84,6 +84,8 @@ constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
     "client.dec_func";
 constexpr const static ::llvm::StringLiteral kClientPackFuncAttrName =
     "client.pack_func";
+// The zero-encryption helper and the entry argument receiving it carry the
+// same {func_name, index} dictionary, which is what pairs them.
 constexpr const static ::llvm::StringLiteral kClientEncZeroFuncAttrName =
     "client.enc_zero_func";
 constexpr const static ::llvm::StringLiteral kClientEncZeroArgAttrName =
@@ -99,8 +101,16 @@ constexpr const static ::llvm::StringLiteral kEntryResultTypesAttrName =
     "heir.entry_result_types";
 constexpr const static ::llvm::StringLiteral kServerPreprocessingFuncAttrName =
     "server.preprocessing_func";
+// In the server.preprocessing_func dictionary: the entry argument each
+// preprocessing parameter is forwarded from, in parameter order (-1 if none).
+constexpr const static ::llvm::StringLiteral kServerPreprocessingEntryArgs =
+    "entry_arg_indices";
 constexpr const static ::llvm::StringLiteral kServerEvaluateFuncAttrName =
     "server.evaluate_func";
+constexpr const static ::llvm::StringLiteral kClientSetupFuncAttrName =
+    "client.setup_func";
+constexpr const static ::llvm::StringLiteral kClientKeygenFuncAttrName =
+    "client.keygen_func";
 
 // Corresponds to a named attribute client.preprocessed_func whose value is a
 // dictionary {func_name = "foo"} that references the name of the function that
@@ -115,6 +125,8 @@ inline bool isClientHelper(Operation* op) {
          op->hasAttr(kClientDecFuncAttrName) ||
          op->hasAttr(kClientPackFuncAttrName) ||
          op->hasAttr(kServerPreprocessingFuncAttrName) ||
+         op->hasAttr(kClientSetupFuncAttrName) ||
+         op->hasAttr(kClientKeygenFuncAttrName) ||
          op->hasAttr(kClientPreprocessedFuncAttrName) ||
          op->hasAttr(kClientEncZeroFuncAttrName);
 }

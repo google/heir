@@ -8,7 +8,7 @@
 !prepared = !kernel.prepared_linear_transform<level = 0, slots = 512, log_bsgs_ratio = 0>
 
 // CHECK: func.func @prepare__preprocessing() -> !preprocessing.storage<!kernel.prepared_linear_transform<level = 0, slots = 512, log_bsgs_ratio = 0>>
-// CHECK-SAME: server.preprocessing_func = {func_name = "prepare"}
+// CHECK-SAME: server.preprocessing_func = {entry_arg_indices = array<i64>, func_name = "prepare"}
 // CHECK: %[[LT:.*]] = kernel.prepare_linear_transform
 // CHECK: preprocessing.store %[[LT]]
 
