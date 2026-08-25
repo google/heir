@@ -12,9 +12,27 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":InsertLinalgCheckpoints",
         ":ValidateNames",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Debug/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "InsertLinalgCheckpoints",
+    srcs = ["InsertLinalgCheckpoints.cpp"],
+    hdrs = ["InsertLinalgCheckpoints.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Debug/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
     ],
 )
 
