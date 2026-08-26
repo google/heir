@@ -10,7 +10,6 @@ module {
     // CHECK: secret.generic
     // CHECK: %[[v0:.*]] = tensor.empty() : tensor<2x32xf32>
     // CHECK: %[[v3:.*]] = tensor.empty() : tensor<2x32xf32>
-    // CHECK: arith.addf
     // CHECK-COUNT-2: tensor.insert_slice
     // CHECK-COUNT-2: tensor.insert_slice
     // CHECK: arith.addf
@@ -40,7 +39,6 @@ module {
     // CHECK: tensor.empty() : tensor<2x32xf32>
     // CHECK: tensor_ext.remap
     // CHECK: %[[v3:.*]] = tensor.empty() : tensor<2x32xf32>
-    // CHECK: arith.addf
     // CHECK-COUNT-2: tensor.insert_slice
     // CHECK: arith.addf
     // CHECK: return
