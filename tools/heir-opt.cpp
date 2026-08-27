@@ -581,6 +581,13 @@ int main(int argc, char** argv) {
         mlirToPlaintextPipelineBuilder(pm, options);
       });
 
+  PassPipelineRegistration<mlir::heir::RotomPlaintextOptions>(
+      "mlir-to-rotom-plaintext",
+      "Rotom layout assignment and lowering through the plaintext backend.",
+      [](OpPassManager& pm, const mlir::heir::RotomPlaintextOptions& options) {
+        mlir::heir::mlirToRotomPlaintextPipelineBuilder(pm, options);
+      });
+
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-bgv",
       "Convert a func using standard MLIR dialects to FHE using "

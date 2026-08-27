@@ -20,6 +20,7 @@
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
 #include "lib/Dialect/Preprocessing/Transforms/ValidatePreprocessing.h"
+#include "lib/Dialect/Rotom/Transforms/Passes.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
@@ -270,6 +271,58 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   cleanupAfterLowerAssignLayout(pm);
 
   // Convert to standard dialect
+  pm.addPass(tensor_ext::createTensorExtToTensor());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+  polynomialToLLVMPipelineBuilder(pm);
+}
+
+void mlirToRotomPlaintextPipelineBuilder(OpPassManager& pm,
+                                         const RotomPlaintextOptions& options) {
+  pm.addPass(debug::createDebugValidateNames());
+  // The torch/CKKS front end: linalg preprocessing and polynomial
+  // activations, so the program reaching the layout search is the same one
+  // the CKKS pipeline sees.
+  linalgPreprocessingBuilder(pm);
+  pm.addPass(createWrapGeneric());
+  convertToDataObliviousPipelineBuilder(pm);
+  pm.addPass(createSelectRewrite());
+  pm.addPass(createCompareToSignRewrite());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+  hecoSIMDVectorizerPipelineBuilder(pm, /*disableLoopUnroll=*/false);
+  mathToPolynomialApproximationBuilder(pm, /*useCompositeRelu=*/false);
+
+  // Rotom: seed, search, outline, materialize, lower.
+  pm.addPass(rotom::createNormalizeContractions());
+  rotom::SeedLayoutOptions seedOptions;
+  seedOptions.n = options.ciphertextSize;
+  pm.addPass(rotom::createSeedLayout(seedOptions));
+  pm.addPass(rotom::createLayoutAssignment());
+  pm.addPass(rotom::createOutlineKernels());
+  pm.addPass(rotom::createMaterializeTensorExtLayout());
+  ConvertToCiphertextSemanticsOptions convertOptions;
+  convertOptions.minSlotCount = options.ciphertextSize;
+  convertOptions.unrollKernels = true;
+  pm.addPass(createConvertToCiphertextSemantics(convertOptions));
+  pm.addPass(createInlinerPass());
+  pm.addPass(tensor_ext::createImplementShiftNetwork());
+
+  // The client interface packs plaintext arguments and encrypts/decrypts the
+  // secret ones from their logical shapes.
+  AddClientInterfaceOptions clientOptions;
+  clientOptions.minSlotCount = options.ciphertextSize;
+  clientOptions.enableLayoutAssignment = true;
+  pm.addPass(createAddClientInterface(clientOptions));
+  cleanupAfterLowerAssignLayout(pm);
+
+  // The plaintext backend tail.
+  pm.addPass(secret::createSecretDistributeGeneric());
+  pm.addPass(createCanonicalizerPass());
+  mod_arith::SecretToModArithOptions secretToModArithOptions;
+  secretToModArithOptions.plaintextModulus = options.plaintextModulus;
+  pm.addPass(createSecretToModArith(secretToModArithOptions));
+  cleanupAfterLowerAssignLayout(pm);
   pm.addPass(tensor_ext::createTensorExtToTensor());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
