@@ -7,7 +7,7 @@ import (
 )
 
 func TestReluComposite(t *testing.T) {
-	evaluator, params, ecd, enc, dec := Relu_composite__configure()
+	bootstrapEvaluator, evaluator, params, ecd, enc, dec := Relu_composite__configure()
 
 	const n = 16
 	arg0 := make([]float32, n)
@@ -23,7 +23,7 @@ func TestReluComposite(t *testing.T) {
 	ct0 := Relu_composite__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	start := time.Now()
-	resultCt := Relu_composite(evaluator, params, ecd, ct0)
+	resultCt := Relu_composite(bootstrapEvaluator, evaluator, params, ecd, ct0)
 	t.Logf("composite-sign ReLU took %s", time.Since(start))
 
 	result := Relu_composite__decrypt__result0(evaluator, params, ecd, dec, resultCt)

@@ -22,6 +22,7 @@
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Target/Lattigo/LattigoInterfaceEmitter.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
@@ -67,10 +68,6 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
-namespace {
-// Returns the Go export name for a given MLIR symbol name.
-// This function strips leading underscores and capitalizes the first letter.
-//
 // Note this is required because golang does not export symbols that are not
 // capitalized. This implies that a user that wants to use a HEIR-generated
 // symbol from a different golang module would have to write wrapper code that
@@ -84,7 +81,6 @@ std::string toExportName(llvm::StringRef name) {
   exportName[0] = std::toupper(exportName[0]);
   return exportName;
 }
-}  // namespace
 
 LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
                                  const std::string& packageName,
@@ -174,7 +170,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp, CKKSSubOp,
               CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp, CKKSRotateOp,
               CKKSRelinearizeNewOp, CKKSRescaleNewOp, CKKSRotateNewOp,
-              CKKSLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp,
+              CKKSLinearTransformOp, CKKSPrepareLinearTransformOp,
+              CKKSApplyLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp,
               CKKSNewBootstrappingParametersFromLiteralOp,
               CKKSGenEvaluationKeysBootstrappingOp,
               CKKSNewBootstrappingEvaluatorOp>(
@@ -225,15 +222,15 @@ FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
   LogicalResult prepassResult = success();
   moduleOp.walk([&](preprocessing::LoadResourceOp op) {
     hasResources = true;
-    Value result = op.getResult();
+    Value resource = op.getLoadedResource();
     // These globals are emitted once at module scope, so they cannot be named
     // after the SSA value: SelectVariableNames restarts its numbering in each
     // function, and two functions would produce the same global. Index into
     // `resources` instead, which is module-wide.
     std::string globalName = "g_resource" + std::to_string(resources.size());
-    resourceGlobals[result] = globalName;
+    resourceGlobals[resource] = globalName;
 
-    auto type = result.getType();
+    auto type = resource.getType();
     auto typeString = convertType(type);
     if (failed(typeString)) {
       prepassResult = failure();
@@ -484,7 +481,7 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
   if (!isDebugPort(callee)) {
     calleeName = toExportName(calleeName);
   }
-  if (calleeOp && calleeOp->hasAttr(kClientPackFuncAttrName)) {
+  if (calleeOp && isPreprocessingHelper(calleeOp)) {
     if (funcFilter && !funcFilter(calleeOp)) {
       calleeName = packageName + "_utils." + calleeName;
       extraImportsUsed = true;
@@ -1285,6 +1282,8 @@ LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(memref::AllocOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
   MemRefType type = op.getType();
   auto eltTypeStr = convertType(type.getElementType());
   if (failed(eltTypeStr)) return failure();
@@ -2281,7 +2280,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
 
   std::string resultName = getName(op.getResult());
   emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ")");
+                                        getName(op.getInput()) + ".CopyNew())");
   return success();
 }
 
@@ -2302,10 +2301,18 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   }
 
   int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
+  Type elementType = diagonalsType.getElementType();
+  bool isF64 = false;
+  if (auto floatType = dyn_cast<FloatType>(elementType)) {
+    if (floatType.getWidth() == 64) {
+      isF64 = true;
+    }
+  }
 
   // Generate unique variable names
   std::string diagonalsMapName = outputName + "_diags";
   std::string diagonalIndices = outputName + "_diags_idx";
+  std::string sourceRowIndices = outputName + "_source_rows";
   std::string ltParamsName = outputName + "_params";
   std::string ltName = outputName + "_lt";
   std::string ltEvalName = outputName + "_lteval";
@@ -2313,11 +2320,29 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
 
   os << diagonalIndices
      << " := " << printDenseI32ArrayAttr(op.getDiagonalIndicesAttr()) << "\n";
+  std::string sourceRow = "i";
+  if (auto sourceRows = op.getSourceRowIndicesAttr()) {
+    os << sourceRowIndices << " := " << printDenseI32ArrayAttr(sourceRows)
+       << "\n";
+    sourceRow = sourceRowIndices + "[i]";
+  }
   os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
   os << "for i, diagIndex := range " << diagonalIndices << " {\n";
   os.indent();
-  os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "[i*"
-     << slotsPerDiagonal << ":(i+1)*" << slotsPerDiagonal << "]\n";
+  if (isF64) {
+    os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "["
+       << sourceRow << "*" << slotsPerDiagonal << ":(" << sourceRow << "+1)*"
+       << slotsPerDiagonal << "]\n";
+  } else {
+    os << "diag := make([]float64, " << slotsPerDiagonal << ")\n";
+    os << "for j := 0; j < " << slotsPerDiagonal << "; j++ {\n";
+    os.indent();
+    os << "diag[j] = float64(" << diagonalsName << "[" << sourceRow << "*"
+       << slotsPerDiagonal << " + j])\n";
+    os.unindent();
+    os << "}\n";
+    os << diagonalsMapName << "[diagIndex] = diag\n";
+  }
   os.unindent();
   os << "}\n";
 
@@ -2325,10 +2350,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   os.indent();
   os << "DiagonalsIndexList: " << diagonalsMapName
      << ".DiagonalsIndexList(),\n";
-  os << "LevelQ: " << op.getLevelQ().getInt() << ",\n";
+  os << "LevelQ: " << inputName << ".Level(),\n";
   os << "LevelP: " << evaluatorName << ".GetRLWEParameters().MaxLevelP(),\n";
   os << "Scale: rlwe.NewScale(" << evaluatorName << ".GetRLWEParameters().Q()["
-     << op.getLevelQ().getInt() << "]),\n";
+     << inputName << ".Level()]),\n";
   os << "LogDimensions: " << inputName << ".LogDimensions,\n";
   os << "LogBabyStepGiantStepRatio: "
      << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
@@ -2346,6 +2371,115 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   os << outputName << ", " << errName << " := " << ltEvalName
      << ".EvaluateNew(";
   os << inputName << ", " << ltName << ")\n";
+  printErrPanic(errName);
+  if (outputName != "_") {
+    declaredVars.insert(outputName);
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSPrepareLinearTransformOp op) {
+  imports.insert(std::string(kLintransImport));
+  imports.insert(std::string(kRingImport));
+  imports.insert(std::string(kRlweImport));
+
+  auto paramsName = getName(op.getParams());
+  auto encoderName = getName(op.getEncoder());
+  auto diagonalsName = getName(op.getDiagonals());
+  auto ltName = getName(op.getTransformation());
+
+  auto diagonalsType = cast<ShapedType>(op.getDiagonals().getType());
+  if (diagonalsType.getRank() != 2) {
+    return op.emitOpError("Expected 2D tensor for diagonals");
+  }
+  int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
+  Type elementType = diagonalsType.getElementType();
+  bool isF64 = false;
+  if (auto floatType = dyn_cast<FloatType>(elementType)) {
+    if (floatType.getWidth() == 64) {
+      isF64 = true;
+    }
+  }
+
+  int64_t levelQ = op.getLevelQ().getInt();
+  std::string diagonalsMapName = ltName + "_diags";
+  std::string diagonalIndices = ltName + "_diags_idx";
+  std::string sourceRowIndices = ltName + "_source_rows";
+  std::string ltParamsName = ltName + "_params";
+  std::string errName = getErrName();
+
+  os << diagonalIndices
+     << " := " << printDenseI32ArrayAttr(op.getDiagonalIndicesAttr()) << "\n";
+  std::string sourceRow = "i";
+  if (auto sourceRows = op.getSourceRowIndicesAttr()) {
+    os << sourceRowIndices << " := " << printDenseI32ArrayAttr(sourceRows)
+       << "\n";
+    sourceRow = sourceRowIndices + "[i]";
+  }
+  os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
+  os << "for i, diagIndex := range " << diagonalIndices << " {\n";
+  os.indent();
+  if (isF64) {
+    os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "["
+       << sourceRow << "*" << slotsPerDiagonal << ":(" << sourceRow << "+1)*"
+       << slotsPerDiagonal << "]\n";
+  } else {
+    os << "diag := make([]float64, " << slotsPerDiagonal << ")\n";
+    os << "for j := 0; j < " << slotsPerDiagonal << "; j++ {\n";
+    os.indent();
+    os << "diag[j] = float64(" << diagonalsName << "[" << sourceRow << "*"
+       << slotsPerDiagonal << " + j])\n";
+    os.unindent();
+    os << "}\n";
+    os << diagonalsMapName << "[diagIndex] = diag\n";
+  }
+  os.unindent();
+  os << "}\n";
+
+  // Every lintrans.Parameters field is a compile-time constant here (LevelQ
+  // and the scale come from the level the transform was prepared for), so a
+  // level mismatch is caught by the apply verifier instead of silently
+  // mis-encoding against a runtime ciphertext.
+  os << ltParamsName << " := lintrans.Parameters{\n";
+  os.indent();
+  os << "DiagonalsIndexList: " << diagonalsMapName
+     << ".DiagonalsIndexList(),\n";
+  os << "LevelQ: " << levelQ << ",\n";
+  os << "LevelP: " << paramsName << ".GetRLWEParameters().MaxLevelP(),\n";
+  os << "Scale: rlwe.NewScale(" << paramsName << ".GetRLWEParameters().Q()["
+     << levelQ << "]),\n";
+  os << "LogDimensions: ring.Dimensions{Rows: 0, Cols: "
+     << op.getLogSlots().getInt() << "},\n";
+  os << "LogBabyStepGiantStepRatio: "
+     << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
+  os.unindent();
+  os << "}\n";
+
+  os << ltName << " := lintrans.NewTransformation(" << paramsName
+     << ".GetRLWEParameters(), " << ltParamsName << ")\n";
+  os << errName << " := lintrans.Encode[float64](" << encoderName << ", "
+     << diagonalsMapName << ", " << ltName << ")\n";
+  printErrPanic(errName);
+  if (ltName != "_") {
+    declaredVars.insert(ltName);
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSApplyLinearTransformOp op) {
+  imports.insert(std::string(kLintransImport));
+
+  auto evaluatorName = getName(op.getEvaluator());
+  auto inputName = getName(op.getInput());
+  auto outputName = getName(op.getOutput());
+  auto ltName = getName(op.getTransformation());
+
+  std::string ltEvalName = outputName + "_lteval";
+  std::string errName = getErrName();
+
+  os << ltEvalName << " := lintrans.NewEvaluator(" << evaluatorName << ")\n";
+  os << outputName << ", " << errName << " := " << ltEvalName << ".EvaluateNew("
+     << inputName << ", " << ltName << ")\n";
   printErrPanic(errName);
   if (outputName != "_") {
     declaredVars.insert(outputName);
@@ -2595,7 +2729,7 @@ LogicalResult LattigoEmitter::printEvalNewMethod(::mlir::ValueRange results,
   return success();
 }
 
-FailureOr<std::string> LattigoEmitter::convertType(Type type) {
+FailureOr<std::string> convertLattigoType(Type type) {
   return llvm::TypeSwitch<Type, FailureOr<std::string>>(type)
       // RLWE
       .Case<RLWECiphertextType>(
@@ -2636,6 +2770,11 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("*bootstrapping.Evaluator"); })
       .Case<CKKSParameterType>(
           [&](auto ty) { return std::string("ckks.Parameters"); })
+      .Case<CKKSLinearTransformationType>([&](auto ty) {
+        // lintrans.NewTransformation returns (and EvaluateNew takes) the
+        // struct by value.
+        return std::string("lintrans.LinearTransformation");
+      })
       .Case<CKKSBootstrappingParameterType>(
           [&](auto ty) { return std::string("bootstrapping.Parameters"); })
       .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {
@@ -2666,7 +2805,7 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         return std::string("int64");
       })
       .Case<RankedTensorType>([&](auto ty) -> FailureOr<std::string> {
-        auto eltTyResult = convertType(ty.getElementType());
+        auto eltTyResult = convertLattigoType(ty.getElementType());
         if (failed(eltTyResult)) {
           return failure();
         }
@@ -2674,7 +2813,7 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         return std::string("[]") + result;
       })
       .Case<MemRefType>([&](auto ty) -> FailureOr<std::string> {
-        auto eltTyResult = convertType(ty.getElementType());
+        auto eltTyResult = convertLattigoType(ty.getElementType());
         if (failed(eltTyResult)) {
           return failure();
         }
@@ -2682,6 +2821,10 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         return std::string("[]") + result;
       })
       .Default([&](Type) -> FailureOr<std::string> { return failure(); });
+}
+
+FailureOr<std::string> LattigoEmitter::convertType(Type type) {
+  return convertLattigoType(type);
 }
 
 LogicalResult LattigoEmitter::emitType(Type type) {
@@ -2727,6 +2870,11 @@ struct TranslateOptions {
       llvm::cl::init("main")};
   llvm::cl::list<std::string> extraImports{
       "extra-imports", llvm::cl::desc("Additional import paths")};
+  llvm::cl::opt<std::string> interfacePrefix{
+      "interface-prefix",
+      llvm::cl::desc("Name to prefix the emitted entry interface's types and "
+                     "functions with (defaults to the entry function's name)"),
+      llvm::cl::init("")};
 };
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
 
@@ -2757,6 +2905,25 @@ void registerToLattigoTranslation() {
       });
 }
 
+void registerToLattigoInterfaceTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-lattigo-interface",
+      "emit a Go facade over the generated Lattigo entry interface",
+      [](Operation* op, llvm::raw_ostream& output) {
+        return translateToLattigoInterface(
+            op, output, translateOptions->packageName,
+            translateOptions->extraImports, translateOptions->interfacePrefix);
+      },
+      [](DialectRegistry& registry) {
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
+      });
+}
+
 void registerToLattigoPreprocessingTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-lattigo-preprocessing",
@@ -2764,9 +2931,8 @@ void registerToLattigoPreprocessingTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
-              return funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) { return isPreprocessingHelper(funcOp); });
       },
       [](DialectRegistry& registry) {
         registry
@@ -2785,9 +2951,8 @@ void registerToLattigoPreprocessedTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
-              return !funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) { return !isPreprocessingHelper(funcOp); });
       },
       [](DialectRegistry& registry) {
         registry

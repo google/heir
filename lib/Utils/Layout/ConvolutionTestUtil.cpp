@@ -165,8 +165,14 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
           1}},
         /*equality=*/true);
 
+    // Diagonalize against the shape the Halevi-Shoup kernel is sized from. The
+    // interchange relation's own bounds can be tighter: the layout reserves
+    // rows for padding channels that no filter entry reaches.
+    auto expandedType = get2dConvChwFchwFilterExpandedType(
+        filterType, dataType, padding, strides, /*interchangeRows=*/true);
     auto diagonalizedInterchange =
-        diagonalize2dMatrix(rowInterchangeRelation, filterType, minSlotCount);
+        diagonalize2dMatrix(rowInterchangeRelation, filterType, minSlotCount,
+                            expandedType.getShape());
     if (failed(diagonalizedInterchange)) return failure();
 
     expandedFilterRelation.compose(diagonalizedInterchange.value());

@@ -397,7 +397,8 @@ static LoopLikeOpInterface getOutermostLoopForInvariant(Value val,
 static Value bootstrapValue(
     Value val, OpBuilder& builder,
     llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
-    const DominanceInfo& domInfo, Operation* insertionPoint = nullptr) {
+    const DominanceInfo& domInfo, Operation* insertionPoint = nullptr,
+    bool markMulHeadroom = false) {
   if (val.getDefiningOp() && isa<mgmt::BootstrapOp>(val.getDefiningOp())) {
     return val;
   }
@@ -445,6 +446,10 @@ static Value bootstrapValue(
       Location loc = insertionPoint ? insertionPoint->getLoc() : val.getLoc();
       auto bootstrapOp =
           mgmt::BootstrapOp::create(builder, loc, val.getType(), val);
+      if (markMulHeadroom) {
+        bootstrapOp->setDiscardableAttr(mgmt::MgmtDialect::kMulHeadroomAttrName,
+                                        builder.getUnitAttr());
+      }
       newOperand = bootstrapOp.getResult();
       bootstrappedValues[val].push_back(newOperand);
     }
@@ -611,7 +616,8 @@ static void bootstrapMulOperands(
     Operation* mulOp, const SmallVector<Value>& scaleSafeTargets,
     OpBuilder& builder,
     llvm::DenseMap<Value, SmallVector<Value, 2>>& bootstrappedValues,
-    const DominanceInfo& domInfo) {
+    const DominanceInfo& domInfo, bool replaceDominatedUses = false,
+    bool markMulHeadroom = false) {
   for (unsigned i = 0; i < mulOp->getNumOperands(); ++i) {
     Value operand = mulOp->getOperand(i);
     if (llvm::is_contained(scaleSafeTargets, operand)) {
@@ -619,10 +625,62 @@ static void bootstrapMulOperands(
       if (auto loop = getOutermostLoopForInvariant(operand, mulOp)) {
         insertionPoint = loop;
       }
-      Value bootstrappedOperand = bootstrapValue(
-          operand, builder, bootstrappedValues, domInfo, insertionPoint);
-      mulOp->setOperand(i, bootstrappedOperand);
+      Value bootstrappedOperand =
+          bootstrapValue(operand, builder, bootstrappedValues, domInfo,
+                         insertionPoint, markMulHeadroom);
+      if (replaceDominatedUses) {
+        Operation* bootstrapOp = bootstrappedOperand.getDefiningOp();
+        operand.replaceUsesWithIf(bootstrappedOperand, [&](OpOperand& use) {
+          return use.getOwner() != bootstrapOp &&
+                 domInfo.dominates(bootstrapOp, use.getOwner());
+        });
+      } else {
+        mulOp->setOperand(i, bootstrappedOperand);
+      }
     }
+  }
+}
+
+static void insertCKKSMulHeadroomBootstraps(Operation* top,
+                                            int bootstrapWaterline,
+                                            int levelBudget,
+                                            int bootstrapLevelsConsumed) {
+  DataFlowSolver solver;
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget,
+                                          bootstrapLevelsConsumed,
+                                          /*requireMulHeadroom=*/true);
+  if (failed(solver.initializeAndRun(top))) {
+    LDBG() << "Failed to run multiplication headroom analysis!";
+    return;
+  }
+
+  SmallVector<ScaleSafeTargetsResult> targets;
+  top->walk([&](Operation* op) {
+    if (!isa<IncreasesMulDepthOpInterface>(op) || op->getNumResults() != 1) {
+      return;
+    }
+    auto* lattice =
+        solver.lookupState<BootstrapWaterlineLattice>(op->getResult(0));
+    if (!lattice || !lattice->getValue().getNeedsBootstrap()) {
+      return;
+    }
+    ScaleSafeTargetsResult target =
+        getScaleSafeBootstrapTargets(op->getResult(0), &solver);
+    if (!target.targets.empty()) {
+      targets.push_back(std::move(target));
+    }
+  });
+
+  OpBuilder builder(top->getContext());
+  llvm::DenseMap<Value, SmallVector<Value, 2>> bootstrappedValues;
+  DominanceInfo domInfo(top);
+  for (const ScaleSafeTargetsResult& target : targets) {
+    bootstrapMulOperands(target.mulOp, target.targets, builder,
+                         bootstrappedValues, domInfo,
+                         /*replaceDominatedUses=*/true,
+                         /*markMulHeadroom=*/true);
   }
 }
 
@@ -630,6 +688,11 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, int bootstrapLevelsConsumed,
                               bool includeFloats, int* idCounter,
                               bool onlyHoist) {
+  if (!onlyHoist && moduleTargetsCKKS(top)) {
+    insertCKKSMulHeadroomBootstraps(top, bootstrapWaterline, levelBudget,
+                                    bootstrapLevelsConsumed);
+  }
+
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
@@ -648,6 +711,13 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
       return;
     }
     if (isa<secret::SecretType>(value.getType())) {
+      return;
+    }
+    // Only a ciphertext can be bootstrapped. A plaintext has no level state
+    // for the analysis to track, which reads as "needs bootstrap", and
+    // refreshing it would leave a mgmt.bootstrap on a plaintext operand that
+    // no lowering can convert.
+    if (!isSecret(value, &solver)) {
       return;
     }
     if (auto* lattice = solver.lookupState<BootstrapWaterlineLattice>(value)) {

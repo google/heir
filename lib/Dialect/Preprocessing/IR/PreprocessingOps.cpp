@@ -44,15 +44,27 @@ namespace preprocessing {
 }
 
 ::mlir::LogicalResult LoadResourceOp::verify() {
-  // The backends size their reads with ShapedType::getNumElements(), which
-  // asserts on a non-static shape, and the number of bytes to read from the
-  // file is not knowable without one.
-  auto shapedType = cast<ShapedType>(getResult().getType());
+  auto shapedType = cast<ShapedType>(getDestination().getType());
   if (!shapedType.hasStaticShape()) {
-    return emitOpError() << "result type " << shapedType
+    return emitOpError() << "destination type " << shapedType
                          << " must have a static shape";
   }
   return ::mlir::success();
+}
+
+Speculation::Speculatability LoadResourceOp::getSpeculatability() {
+  return isa<TensorType>(getDestination().getType())
+             ? Speculation::Speculatable
+             : Speculation::NotSpeculatable;
+}
+
+LoadResourceOp LoadResourceOp::getForDestination(Value value) {
+  for (Operation* user : value.getUsers()) {
+    auto loadResourceOp = dyn_cast<LoadResourceOp>(user);
+    if (loadResourceOp && loadResourceOp.getDestination() == value)
+      return loadResourceOp;
+  }
+  return {};
 }
 
 }  // namespace preprocessing

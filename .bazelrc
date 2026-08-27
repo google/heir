@@ -85,6 +85,10 @@ build:asan --copt -g
 build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
 
+# Redirect pocketfft's flaky gitlab.mpcdf.mpg.de download to the byte-identical
+# GitHub mirror. See bazel/download_config.cfg.
+common --downloader_config=bazel/download_config.cfg
+
 try-import %workspace%/fuzztest.bazelrc
 
 # Load any settings specific to the current user.

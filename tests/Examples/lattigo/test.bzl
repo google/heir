@@ -20,7 +20,7 @@ def _make_split_preprocessing_libs(utils_name, generated_heir_opt_name, heir_tra
         data = data,
     )
 
-def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], externalize_constants = True, ext_const_output_dir = "", extra_srcs = [], data = [], tags = [], deps = [], split_preprocessing = True, **kwargs):
+def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], externalize_constants = True, ext_const_output_dir = "", extra_srcs = [], data = [], tags = [], deps = [], split_preprocessing = True, entry_interface = False, **kwargs):
     """A rule for generating Lattigo code from an MLIR file.
 
     Args:
@@ -36,6 +36,9 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
       tags: Tags to pass to go_library
       deps: Deps to pass to  and go_library
       split_preprocessing: Whether to split preprocessing into a separate library
+      entry_interface: Whether to also emit the Go facade over the generated
+        ABI. Requires a module carrying the entry roles, i.e. one that went
+        through --add-client-interface.
       **kwargs: Keyword arguments to pass to go_library
     """
     go_package_name = go_library_name or name
@@ -89,9 +92,26 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
         pass_flags = heir_translate_flags,
         generated_filename = generated_go_filename,
     )
+
+    generated_srcs = [":" + generated_go_filename]
+    if entry_interface:
+        # The facade over the generated ABI, in the same package as the library.
+        generated_interface_filename = "%s_interface.go" % go_package_name
+        heir_translate(
+            name = name + ".heir_translate_interface",
+            src = generated_heir_opt_name,
+            pass_flags = [
+                flag
+                for flag in heir_translate_flags
+                if flag not in ("--emit-lattigo", "--emit-lattigo-preprocessed")
+            ] + ["--emit-lattigo-interface"],
+            generated_filename = generated_interface_filename,
+        )
+        generated_srcs.append(":" + generated_interface_filename)
+
     go_library(
         name = go_package_name,
-        srcs = extra_srcs + [":" + generated_go_filename],
+        srcs = extra_srcs + generated_srcs,
         deps = common_deps,
         tags = tags,
         data = heir_opt_data if not split_preprocessing else data,

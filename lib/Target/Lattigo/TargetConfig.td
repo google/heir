@@ -1,6 +1,11 @@
 include "lib/Target/CompilationTarget/HEIRTarget.td"
 
 def Lattigo : CompilationTarget<"lattigo"> {
-  let bootstrapLevelsConsumed = 16;
+  // Lattigo's bootstrapping circuit runs in its own part of the parameter set,
+  // whose ring carries extra primes, so a bootstrap returns the ciphertext at
+  // the top of the standard compute chain and consumes none of it.
+  let bootstrapLevelsConsumed = 0;
   let has_kernel_chebyshev = 1;
+  let has_kernel_linear_transform = 1;
+  let has_prepared_linear_transform = 1;
 }

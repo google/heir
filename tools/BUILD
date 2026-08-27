@@ -33,6 +33,7 @@ cc_binary(
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseAnalysis",  # buildcleaner: keep
+        "@heir//lib/Conversions/MathToEmitC",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect:reduces_level_op_interface_registration",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
@@ -56,6 +57,7 @@ cc_binary(
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
         "@heir//lib/Dialect/JaxiteWord/Transforms",
         "@heir//lib/Dialect/Kernel/IR:Dialect",
+        "@heir//lib/Dialect/Kernel/Transforms",
         "@heir//lib/Dialect/KeyMgmt/IR:Dialect",
         "@heir//lib/Dialect/LWE/Conversions/LWEToJaxiteWord",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",

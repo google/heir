@@ -96,7 +96,7 @@ bool isCallToPackingHelper(Operation* op) {
   if (!callOp) return false;
   auto funcOp = getCalledFunction(callOp);
   if (failed(funcOp)) return false;
-  return funcOp.value()->hasAttr(kClientPackFuncAttrName);
+  return isPreprocessingHelper(funcOp.value());
 }
 
 }  // namespace

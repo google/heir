@@ -699,8 +699,8 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
 
 LogicalResult TfheRustEmitter::printOperation(
     ::mlir::heir::preprocessing::LoadResourceOp op) {
-  auto result = op.getResult();
-  auto type = result.getType();
+  Value resource = op.getLoadedResource();
+  Type type = resource.getType();
 
   Type eltType;
   if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
@@ -721,7 +721,7 @@ LogicalResult TfheRustEmitter::printOperation(
     size = shapedType.getNumElements();
   }
 
-  std::string varName = variableNames->getNameForValue(result);
+  std::string varName = variableNames->getNameForValue(resource);
 
   os << "static DATA_" << varName << ": OnceLock<Vec<" << rustEltType.value()
      << ">> = OnceLock::new();\n";
@@ -733,6 +733,8 @@ LogicalResult TfheRustEmitter::printOperation(
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
   os << "let mut " << variableNames->getNameForValue(op.getMemref())
      << " : HashMap<";
   if (op.getType().getRank() > 1) os << "(";
@@ -823,8 +825,7 @@ LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
 void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
   os << variableNames->getNameForValue(op.getMemref());
   if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp()) ||
-      dyn_cast_or_null<::mlir::heir::preprocessing::LoadResourceOp>(
-          op.getMemRef().getDefiningOp())) {
+      preprocessing::LoadResourceOp::getForDestination(op.getMemRef())) {
     // Global arrays are 1-dimensional, so flatten the index
 
     os << "["

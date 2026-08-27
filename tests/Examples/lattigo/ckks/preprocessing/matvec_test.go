@@ -34,14 +34,41 @@ func TestMatvecSplit(t *testing.T) {
 	ct0 := Matvec__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	// Call preprocessing separately
-	storage := matvec_utils.Matvec__preprocessing(params, ecd, arg0)
+	linearTransforms, storage := matvec_utils.Matvec__preprocessing(params, ecd, arg0)
 
 	startTime := time.Now()
 	// Call preprocessed function separately
-	resultCt := Matvec__preprocessed(evaluator, params, ecd, ct0, arg0, storage)
+	resultCt := Matvec__preprocessed(evaluator, params, ecd, ct0, arg0, linearTransforms, storage)
 	duration := time.Since(startTime)
 	fmt.Printf("Matvec__preprocessed call took: %v\n", duration)
 
 	result := Matvec__decrypt__result0(nil, params, ecd, dec, resultCt)
 	fmt.Printf("Split Result: %v\n", result)
+}
+
+// The same computation through the generated interface. Nothing here names a
+// generated helper, knows how many storage slices preprocessing returns, or
+// which of the entry's arguments it is given.
+func TestMatvecInterface(t *testing.T) {
+	inputs := [][]float64{
+		{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+		{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+	}
+
+	ctx := MatvecSetup()
+	prepared := ctx.Preprocess(inputs)
+	encrypted := ctx.Encrypt(inputs)
+
+	startTime := time.Now()
+	evaluated := ctx.Evaluate(prepared, encrypted)
+	fmt.Printf("Evaluate call took: %v\n", time.Since(startTime))
+
+	results := ctx.Decrypt(evaluated)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if len(results[0]) != len(inputs[0]) {
+		t.Fatalf("expected %d values, got %d", len(inputs[0]), len(results[0]))
+	}
+	fmt.Printf("Interface Result: %v\n", results[0])
 }

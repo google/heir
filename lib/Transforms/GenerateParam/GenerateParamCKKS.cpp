@@ -143,6 +143,11 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       return;
     }
 
+    // The data occupies minSlotCount slots regardless of how large the ring
+    // has to be, so the layouts' packing width is recorded before any bump
+    // below. Widening it would desync the packed layouts from the ciphertexts.
+    int64_t requestedSlotCount = minSlotCount;
+
     // for lattigo, defaults to extended encryption technique
     if (moduleIsLattigo(getOperation())) {
       encryptionTechniqueExtended = true;
@@ -170,7 +175,7 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     auto* context = &getContext();
     OpBuilder builder(context);
     getOperation()->setAttr(kRequestedSlotCountAttrName,
-                            builder.getI64IntegerAttr(minSlotCount));
+                            builder.getI64IntegerAttr(requestedSlotCount));
     getOperation()->setAttr(
         kActualSlotCountAttrName,
         builder.getI64IntegerAttr(schemeParam.getRingDim() / 2));

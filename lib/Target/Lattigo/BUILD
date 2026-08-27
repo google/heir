@@ -10,9 +10,13 @@ package(
 
 cc_library(
     name = "LattigoEmitter",
-    srcs = ["LattigoEmitter.cpp"],
+    srcs = [
+        "LattigoEmitter.cpp",
+        "LattigoInterfaceEmitter.cpp",
+    ],
     hdrs = [
         "LattigoEmitter.h",
+        "LattigoInterfaceEmitter.h",
         "LattigoTemplates.h",
     ],
     deps = [
@@ -23,6 +27,7 @@ cc_library(
         "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:EntryInterfaceUtils",
         "@heir//lib/Utils:TargetUtils",
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",

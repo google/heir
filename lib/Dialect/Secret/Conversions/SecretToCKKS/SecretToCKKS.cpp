@@ -1,7 +1,9 @@
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,6 +19,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/Conversions/Patterns.h"
@@ -37,6 +40,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -100,7 +104,10 @@ class SecretToCKKSTypeConverter
   SecretToCKKSTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing)
       : UniquelyNamedAttributeAwareTypeConverter(
             mgmt::MgmtDialect::kArgMgmtAttrName) {
-    addConversion([](Type type, Attribute attr) { return type; });
+    addConversion([](Type type, Attribute attr) -> std::optional<Type> {
+      if (isa<secret::SecretType>(type)) return std::nullopt;
+      return type;
+    });
     addConversion(
         [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
           // For cases like tensor.empty + mgmt.init, we need to convert this
@@ -244,6 +251,120 @@ class SecretGenericPlaintextDivision
   }
 };
 
+struct LinearTransformOpConversion
+    : public ContextAwareOpConversionPattern<secret::GenericOp> {
+  LinearTransformOpConversion(const ContextAwareTypeConverter& typeConverter,
+                              MLIRContext* context, int64_t encodedSlots,
+                              PatternBenefit benefit = 1)
+      : ContextAwareOpConversionPattern<secret::GenericOp>(typeConverter,
+                                                           context, benefit),
+        encodedSlots(encodedSlots) {}
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    if (op.getBody()->getOperations().size() > 2) {
+      return failure();
+    }
+
+    auto& innerOp = op.getBody()->getOperations().front();
+    auto ltOp = dyn_cast<kernel::LinearTransformOp>(innerOp);
+    if (!ltOp) {
+      return failure();
+    }
+
+    // Convert inputs
+    SmallVector<Value> inputs;
+    for (Value operand : ltOp->getOperands()) {
+      if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
+        inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
+      } else {
+        inputs.push_back(operand);
+      }
+    }
+
+    // Convert result types
+    SmallVector<Type> resultTypes;
+    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                op.getResults(), resultTypes)))
+      return failure();
+
+    // Preserve attributes (similar to SecretGenericOpConversion)
+    SmallVector<NamedAttribute> attrsToPreserve;
+    for (auto& namedAttr : ltOp->getDialectAttrs()) {
+      attrsToPreserve.push_back(namedAttr);
+    }
+    for (auto attrName : ltOp.getAttributeNames()) {
+      if (auto attr = ltOp->getAttr(attrName)) {
+        attrsToPreserve.push_back(rewriter.getNamedAttr(attrName, attr));
+      }
+    }
+
+    // Pad diagonals. They are only paddable here when they are a compile-time
+    // constant; diagonals produced by preprocessing are passed through, which
+    // requires the producer to have packed them at slot width already.
+    DenseElementsAttr diagonalsAttr;
+    bool diagonalsAreConstant =
+        matchPattern(ltOp.getDiagonals(), m_Constant(&diagonalsAttr));
+    auto diagonalsType = cast<RankedTensorType>(ltOp.getDiagonals().getType());
+    auto shape = diagonalsType.getShape();
+    int64_t numDiagonals = shape[0];
+    int64_t numCols = shape[1];
+
+    if (numCols != encodedSlots) {
+      if (numCols > encodedSlots) {
+        return ltOp.emitOpError("diagonals slot size (")
+               << numCols << ") is larger than the encoded slot count ("
+               << encodedSlots << ")";
+      }
+      // A constant is padded here so the emitted diagonals are slot-width.
+      // Non-constant diagonals are left alone: the backend slices each row by
+      // its own stride and its encoder zero-fills the remaining slots.
+      if (diagonalsAreConstant) {
+        SmallVector<Attribute> paddedValues;
+        auto elementValues = diagonalsAttr.getValues<Attribute>();
+        auto elemType = diagonalsType.getElementType();
+        Attribute zeroAttr = rewriter.getZeroAttr(elemType);
+        for (int64_t i = 0; i < numDiagonals; ++i) {
+          for (int64_t j = 0; j < numCols; ++j) {
+            paddedValues.push_back(elementValues[i * numCols + j]);
+          }
+          for (int64_t j = numCols; j < encodedSlots; ++j) {
+            paddedValues.push_back(zeroAttr);
+          }
+        }
+        auto newDiagonalsType =
+            RankedTensorType::get({numDiagonals, encodedSlots}, elemType);
+        // The diagonals are an operand, so the padded values are materialized
+        // as a constant that replaces it.
+        inputs[1] = arith::ConstantOp::create(
+            rewriter, ltOp.getLoc(),
+            DenseElementsAttr::get(newDiagonalsType, paddedValues));
+      }
+    }
+
+    // Handle mgmt attrs
+    convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
+    convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
+    DenseSet<StringRef> seenNames;
+    SmallVector<NamedAttribute> dedupedAttrsToPreserve;
+    for (auto attr : llvm::reverse(attrsToPreserve)) {
+      if (seenNames.insert(attr.getName().getValue()).second) {
+        dedupedAttrsToPreserve.push_back(attr);
+      }
+    }
+    std::reverse(dedupedAttrsToPreserve.begin(), dedupedAttrsToPreserve.end());
+    auto newLtOp = kernel::LinearTransformOp::create(
+        rewriter, ltOp.getLoc(), resultTypes, inputs, dedupedAttrsToPreserve);
+
+    rewriter.replaceOp(op, newLtOp->getResults());
+    return success();
+  }
+
+ private:
+  int64_t encodedSlots;
+};
+
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
@@ -266,7 +387,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     // pass option minSlotCount is actually the number of slots
     // TODO(#1402): use a proper name for CKKS
     auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   minSlotCount);
+                                   1 << schemeParamAttr.getLogN());
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
@@ -309,6 +430,16 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpConversion<kernel::EvalChebyshevOp>,
         SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>>(
         typeConverter, context);
+
+    // CKKS packs ringDim/2 slots, but the module may have asked for a sparser
+    // packing, and that narrower width is the one the backend encodes and reads
+    // back as LogDimensions. Pad the diagonals to it, not to the ring capacity,
+    // so that this width, the slot count prepare-linear-transforms records, and
+    // the runtime ciphertext all agree.
+    int64_t ringDim = 1 << schemeParamAttr.getLogN();
+    int64_t encodedSlots = getEncodedSlotCount(module, ringDim / 2);
+    patterns.add<LinearTransformOpConversion>(typeConverter, context,
+                                              encodedSlots);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());

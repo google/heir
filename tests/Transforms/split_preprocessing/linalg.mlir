@@ -7,7 +7,7 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @linalg__preprocessing() -> !preprocessing.storage<!pt>
-// CHECK-SAME: client.pack_func = {func_name = "linalg"}
+// CHECK-SAME: server.preprocessing_func = {entry_arg_indices = array<i64>, func_name = "linalg"}
 // CHECK: linalg.broadcast
 // CHECK: lwe.rlwe_encode
 

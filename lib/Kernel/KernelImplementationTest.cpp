@@ -850,6 +850,113 @@ TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2) {
   EXPECT_EQ(actualUnpacked, expected);
 }
 
+// Direct 1-D multichannel convolution, as an independent reference for the
+// packed kernel.
+tensor3d reference1dConv(const tensor3d& data, const tensor3d& filter,
+                         int64_t stride) {
+  int64_t outputChannels = filter.size();
+  int64_t inputChannels = filter[0].size();
+  int64_t filterWidth = filter[0][0].size();
+  int64_t dataWidth = data[0][0].size();
+  int64_t outputWidth = (dataWidth - filterWidth) / stride + 1;
+  tensor3d result(1, std::vector<std::vector<int>>(
+                         outputChannels, std::vector<int>(outputWidth, 0)));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t ow = 0; ow < outputWidth; ++ow) {
+      for (int64_t c = 0; c < inputChannels; ++c) {
+        for (int64_t k = 0; k < filterWidth; ++k) {
+          result[0][f][ow] += data[0][c][ow * stride + k] * filter[f][c][k];
+        }
+      }
+    }
+  }
+  return result;
+}
+
+// End-to-end Halevi-Shoup matvec for a strided 1-D multichannel conv whose
+// output channel count is not a multiple of the gap. The shuffle folds `gap`
+// channels into each gap-sized stretch, so the layout reserves whole stretches:
+// the Toeplitz matrix gains zero rows for the channels that are not there.
+void checkGapPaddedConv1dCwFcw(int64_t outputChannels, int64_t inputChannels,
+                               int64_t dataWidth, int64_t filterWidth,
+                               int64_t stride, int numSlots, bool unroll) {
+  SCOPED_TRACE("outputChannels = " + std::to_string(outputChannels) +
+               " inputChannels = " + std::to_string(inputChannels) +
+               " dataWidth = " + std::to_string(dataWidth) +
+               " filterWidth = " + std::to_string(filterWidth) +
+               " stride = " + std::to_string(stride));
+  MLIRContext context;
+  tensor3d data(1, std::vector<std::vector<int>>(
+                       inputChannels, std::vector<int>(dataWidth, 0)));
+  for (int64_t c = 0; c < inputChannels; ++c) {
+    for (int64_t w = 0; w < dataWidth; ++w) {
+      data[0][c][w] = (int)((c * 23 + w * 7) % 13);
+    }
+  }
+  tensor3d filter(outputChannels,
+                  std::vector<std::vector<int>>(
+                      inputChannels, std::vector<int>(filterWidth, 0)));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t c = 0; c < inputChannels; ++c) {
+      for (int64_t k = 0; k < filterWidth; ++k) {
+        filter[f][c][k] = (int)((f * 37 + c * 11 + k * 3) % 17) + 1;
+      }
+    }
+  }
+
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataWidth}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({outputChannels, inputChannels, filterWidth},
+                            mlir::IndexType::get(&context));
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn3D(data));
+
+  auto filterLayout = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, /*padding=*/0, numSlots,
+      /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape = get1dConvCwFcwFilterExpandedType(
+      filterType, dataType, stride, /*padding=*/0, /*interchangeRows=*/true);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  tensor3d expected = reference1dConv(data, filter, stride);
+  int64_t outputWidth = expected[0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, outputChannels, outputWidth}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get1dConvResultRelation(outputType, stride, /*padding=*/0, numSlots,
+                              /*interchangeRows=*/true);
+
+  EXPECT_EQ(unpackLayoutTo3DTensor<int>(resultLayout, {actual},
+                                        {1, outputChannels, outputWidth}),
+            expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv1dCwFcwGapPaddedChannels) {
+  bool unroll = std::get<0>(GetParam());
+  // gap = 2, so the shuffle needs the output channels in pairs. 2 and 4 are the
+  // controls that need no padding at all.
+  for (int64_t outputChannels : {1, 2, 3, 4}) {
+    checkGapPaddedConv1dCwFcw(outputChannels, /*inputChannels=*/2,
+                              /*dataWidth=*/8, /*filterWidth=*/2,
+                              /*stride=*/2, /*numSlots=*/32, unroll);
+  }
+}
+
 // End-to-end Halevi-Shoup matvec for a padded strided 1-D multichannel conv, in
 // the packing production uses when LayoutPropagation folds a zero tensor.pad on
 // the width dim into the conv's own `padding` parameter: the data ciphertext is
@@ -887,8 +994,8 @@ void checkPaddedConv1dCwFcw(int64_t padding, const tensor3d& expected,
   // The matrix shape must be derived the same way the filter was diagonalized,
   // i.e. against the unpadded data type with padding = p: implementHaleviShoup
   // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
-  auto expandedFilterShape =
-      get1dConvCwFcwFilterExpandedType(filterType, dataType, stride, padding);
+  auto expandedFilterShape = get1dConvCwFcwFilterExpandedType(
+      filterType, dataType, stride, padding, interchangeRows);
 
   auto dag = implementHaleviShoup(
       LiteralValue(packedData[0]), LiteralValue(packedFilter),
@@ -1007,6 +1114,99 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwWithPadding) {
   // 256), so a matrix built against the padded operand would be sized wrong.
   checkPaddedConv2dChwFchw(/*stride=*/2, /*filterSize=*/2, /*padding=*/1,
                            /*numSlots=*/64, unroll, std::get<1>(GetParam()));
+}
+
+// End-to-end Halevi-Shoup matvec for a strided 2-D multichannel conv whose
+// output channel count is not a multiple of gap^2. The pixel shuffle folds
+// gap^2 channels into each gap x gap spatial block, so the layout reserves
+// whole blocks: the Toeplitz matrix gains zero rows for the channels that are
+// not there, and the result layout maps nothing into their slots.
+void checkGapPaddedConv2dChwFchw(int64_t outputChannels, int64_t inputChannels,
+                                 int64_t dataSize, int64_t filterSize,
+                                 int64_t stride, int numSlots, bool unroll) {
+  SCOPED_TRACE("outputChannels = " + std::to_string(outputChannels) +
+               " inputChannels = " + std::to_string(inputChannels) +
+               " dataSize = " + std::to_string(dataSize) +
+               " filterSize = " + std::to_string(filterSize) +
+               " stride = " + std::to_string(stride));
+  MLIRContext context;
+  tensor4d data(
+      1, std::vector<std::vector<std::vector<int>>>(
+             inputChannels, std::vector<std::vector<int>>(
+                                dataSize, std::vector<int>(dataSize, 0))));
+  for (int64_t c = 0; c < inputChannels; ++c) {
+    for (int64_t h = 0; h < dataSize; ++h) {
+      for (int64_t w = 0; w < dataSize; ++w) {
+        data[0][c][h][w] = (int)((c * 23 + h * 7 + w * 3) % 13);
+      }
+    }
+  }
+  tensor4d filter = deterministicConvFilter(outputChannels, inputChannels,
+                                            filterSize, filterSize);
+
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataSize, dataSize}, mlir::IndexType::get(&context));
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, filterSize, filterSize},
+      mlir::IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
+
+  auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, /*padding=*/0, numSlots,
+      /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape = get2dConvChwFchwFilterExpandedType(
+      filterType, dataType, /*padding=*/0, strides, /*interchangeRows=*/true);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  tensor4d expected = reference2dConv(data, filter, stride, /*padding=*/0);
+  int64_t outputH = expected[0][0].size();
+  int64_t outputW = expected[0][0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, outputChannels, outputH, outputW}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get2dConvResultRelation(outputType, strides, /*padding=*/0, numSlots,
+                              /*interchangeRows=*/true);
+  resultLayout.compose(
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots));
+
+  EXPECT_EQ(unpackLayoutTo4DTensor<int>(resultLayout, {actual},
+                                        {1, outputChannels, outputH, outputW}),
+            expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv2dNchwFchwGapPaddedChannels) {
+  bool unroll = std::get<0>(GetParam());
+  // gap = 2, so the shuffle needs the output channels in blocks of 4. The
+  // matrix must stay no taller than it is wide, which caps the padded channel
+  // count at 4 for one input channel and 8 for two. 4 and 8 are the controls
+  // that need no padding at all.
+  for (int64_t outputChannels : {1, 2, 3, 4}) {
+    checkGapPaddedConv2dChwFchw(outputChannels, /*inputChannels=*/1,
+                                /*dataSize=*/4, /*filterSize=*/2,
+                                /*stride=*/2, /*numSlots=*/64, unroll);
+  }
+  for (int64_t outputChannels : {2, 3, 5, 6, 7, 8}) {
+    checkGapPaddedConv2dChwFchw(outputChannels, /*inputChannels=*/2,
+                                /*dataSize=*/4, /*filterSize=*/2,
+                                /*stride=*/2, /*numSlots=*/64, unroll);
+  }
 }
 
 TEST_P(KernelImplementationTest,

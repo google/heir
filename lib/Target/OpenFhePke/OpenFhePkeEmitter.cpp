@@ -1381,6 +1381,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
+
   // std::vector<std::vector<CiphertextT>> result(size);
   RankedTensorType resultType = op.getResult().getType();
   if (failed(emitType(resultType, op->getLoc()))) {
@@ -1710,8 +1713,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(
     ::mlir::heir::preprocessing::LoadResourceOp op) {
-  auto result = op.getResult();
-  auto type = result.getType();
+  Value resource = op.getLoadedResource();
+  Type type = resource.getType();
 
   Type eltType;
   if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
@@ -1732,7 +1735,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(
     size = shapedType.getNumElements();
   }
 
-  std::string varName = variableNames->getNameForValue(result);
+  std::string varName = variableNames->getNameForValue(resource);
 
   os << "static const std::vector<" << cppEltType.value() << "> " << varName
      << " = load_resource<" << cppEltType.value() << ">(\"" << op.getPath()
@@ -1742,6 +1745,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(memref::AllocOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
   auto type = cast<MemRefType>(op.getType());
   if (!type.hasStaticShape()) {
     return emitError(op.getLoc(), "Only static shapes are supported");

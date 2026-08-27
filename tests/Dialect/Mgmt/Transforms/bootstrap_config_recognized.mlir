@@ -18,6 +18,6 @@ module attributes {scheme.ckks} {
 // CHECK-OPENFHE: mgmt.bootstrap
 // CHECK-OPENFHE-SAME: {mgmt.mgmt = #mgmt.mgmt<level = 0>{{.*}}}
 
-// CHECK-LATTIGO: func.func @main(%arg0: !secret.secret<tensor<8xi8>> {mgmt.mgmt = #mgmt.mgmt<level = 16>})
+// CHECK-LATTIGO: func.func @main(%arg0: !secret.secret<tensor<8xi8>> {mgmt.mgmt = #mgmt.mgmt<level = 0>})
 // CHECK-LATTIGO: mgmt.bootstrap
 // CHECK-LATTIGO-SAME: {mgmt.mgmt = #mgmt.mgmt<level = 0>{{.*}}}

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "lib/Conversions/MathToEmitC/MathToEmitC.h"
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
 #include "lib/Dialect/Arith/Conversions/ArithToCGGIQuart/ArithToCGGIQuart.h"
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
@@ -26,6 +27,7 @@
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
 #include "lib/Dialect/JaxiteWord/Transforms/Passes.h"
 #include "lib/Dialect/Kernel/IR/KernelDialect.h"
+#include "lib/Dialect/Kernel/Transforms/Passes.h"
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
 #include "lib/Dialect/LWE/Conversions/LWEToJaxiteWord/LWEToJaxiteWord.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
@@ -315,6 +317,7 @@ int main(int argc, char** argv) {
 
   // Converting to EmitC
   mlir::registerConvertArithToEmitCInterface(registry);
+  mlir::heir::registerConvertMathToEmitCInterface(registry);
   mlir::registerConvertFuncToEmitCInterface(registry);
   mlir::registerConvertMemRefToEmitCInterface(registry);
   mlir::registerConvertSCFToEmitCInterface(registry);
@@ -379,6 +382,7 @@ int main(int argc, char** argv) {
   cggi::registerCGGIPasses();
   debug::registerDebugPasses();
   ckks::registerCKKSPasses();
+  kernel::registerKernelPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
