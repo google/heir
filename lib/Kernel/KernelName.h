@@ -39,6 +39,10 @@ enum KernelName : int {
   // plaintext-lhs-secret-rhs cases.
   MatmulBicyclicDiagonal,
 
+  // Ciphertext-plaintext batch matmul by mapping the plaintext into n
+  // generalized diagonals.
+  BatchMatmulTricyclicDiagonal,
+
   // Product and sum of two vectors, using a log2 rotate-and-reduce approach.
   Dot,
 };

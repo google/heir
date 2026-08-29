@@ -177,7 +177,8 @@ FUZZ_TEST(RotateAndReduceFuzzTest, rotateAndReduceWithoutPlaintexts)
             .WithMinSize(1)
             .WithMaxSize(32),
         /*period=*/fuzztest::InRange(1L, 4L),
-        /*steps=*/fuzztest::ElementOf({1L, 2L, 4L, 8L, 16L}),
+        /*steps=*/
+        fuzztest::ElementOf({1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 16L}),
         fuzztest::Arbitrary<bool>());
 
 // Fuzz test for rotate and reduce with plaintexts and zero diagonals

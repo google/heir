@@ -64,8 +64,23 @@ inline llvm::DenseSet<int64_t> rotateAndReduceRotationIndices(
   llvm::DenseSet<int64_t> result;
   if (!hasPlaintexts) {
     // Matches implementRotateAndReduceAccumulation
-    for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
-      result.insert(shiftSize * period);
+    if ((steps & (steps - 1)) == 0) {
+      for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
+        result.insert(shiftSize * period);
+      }
+    } else {
+      int64_t spanLen = 1, offset = 0, remaining = steps;
+      while (remaining > 0) {
+        if (remaining & 1) {
+          if (offset != 0) result.insert(offset * period);
+          offset += spanLen;
+        }
+        remaining >>= 1;
+        if (remaining > 0) {
+          result.insert(spanLen * period);
+          spanLen <<= 1;
+        }
+      }
     }
     return result;
   }

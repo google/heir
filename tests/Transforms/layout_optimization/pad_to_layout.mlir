@@ -4,8 +4,8 @@
 #layout1 = #tensor_ext.layout<"{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and (-48i1 - i2 + slot) mod 512 = 0 and 0 <= i1 <= 9 and 0 <= i2 <= 4095 - 48i1 and i2 <= 47 and 0 <= slot <= 4095 and 4096*floor((-512 + 48i1 + i2)/4096) <= -4096 + 48i1 + i2 }">
 #layout2 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-48i0 - i1 + slot) mod 512 = 0 and 0 <= i0 <= 9 and 0 <= i1 <= 47 and 0 <= slot <= 4095 and 4096*floor((-512 + 48i0 + i1)/4096) <= -4096 + 48i0 + i1 }">
 
-// CHECK: #[[layout:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (1 - 48i0 - i1 + slot) mod 512 = 0 and 0 <= i0 <= 9 and 0 < i1 <= 48 and 0 <= slot <= 1023 and 1024*floor((511 + 48i0 + i1)/1024) < 48i0 + i1 }">
-// CHECK: #[[layout1:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : exists (e0, e1, e2, e3, e4: i0 = 0 and ct = 0 and 512e3 = -i1 + slot + 512e1 and 0 <= i1 <= 1023 and 0 <= slot <= 1023 and -511 + i1 - 1024e0 <= 512e1 <= i1 - 1024e0 and -511 + i1 - 512e1 <= 1024e2 <= i1 - 512e1 and 0 <= e4 <= 9 and -47 + i1 - 512e1 <= 48e4 <= i1 - 512e1) }">
+// CHECK: #[[layout:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (1 - 48i0 - i1 + slot) mod 512 = 0 and 0 <= i0 <= 9 and 0 < i1 <= 48 and 0 <= slot <= 4095 and 4096*floor((-513 + 48i0 + i1)/4096) <= -4097 + 48i0 + i1 }">
+// CHECK: #[[layout1:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : exists (e0, e1, e2, e3, e4: i0 = 0 and ct = 0 and 512e3 = -i1 + slot + 512e1 and 0 <= i1 <= 4095 and 0 <= slot <= 4095 and -4607 + i1 - 4096e0 <= 512e1 <= -4096 + i1 - 4096e0 and -4607 + i1 - 512e1 <= 4096e2 <= -4096 + i1 - 512e1 and 0 <= e4 <= 9 and -47 + i1 - 512e1 <= 48e4 <= i1 - 512e1) }">
 
 module attributes {backend.lattigo, scheme.ckks} {
   // CHECK: func.func @tcresnet8small

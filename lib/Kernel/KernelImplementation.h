@@ -77,13 +77,35 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
 implementRotateAndReduceAccumulation(
     std::shared_ptr<ArithmeticDagNode<T>> vectorDag, int64_t period,
     int64_t steps, DagReducer<T> reduceFunc) {
+  assert(steps >= 1 && "rotate-and-reduce needs at least one step");
   using NodeTy = ArithmeticDagNode<T>;
-  for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
-    auto rotated = NodeTy::leftRotate(vectorDag, shiftSize * period);
-    auto reduced = reduceFunc(vectorDag, rotated);
-    vectorDag = reduced;
+  if ((steps & (steps - 1)) == 0) {
+    for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
+      auto rotated = NodeTy::leftRotate(vectorDag, shiftSize * period);
+      auto reduced = reduceFunc(vectorDag, rotated);
+      vectorDag = reduced;
+    }
+    return vectorDag;
   }
-  return vectorDag;
+  std::shared_ptr<ArithmeticDagNode<T>> acc = nullptr;
+  std::shared_ptr<ArithmeticDagNode<T>> span = vectorDag;
+  int64_t spanLen = 1;
+  int64_t offset = 0;
+  int64_t remaining = steps;
+  while (remaining > 0) {
+    if (remaining & 1) {
+      auto term =
+          offset == 0 ? span : NodeTy::leftRotate(span, offset * period);
+      acc = acc ? reduceFunc(acc, term) : term;
+      offset += spanLen;
+    }
+    remaining >>= 1;
+    if (remaining > 0) {
+      span = reduceFunc(span, NodeTy::leftRotate(span, spanLen * period));
+      spanLen <<= 1;
+    }
+  }
+  return acc;
 }
 
 template <typename T>
@@ -106,6 +128,13 @@ implementRotateAndReduceAccumulationRolled(
   using NodeTy = ArithmeticDagNode<T>;
   using NodePtr = std::shared_ptr<NodeTy>;
 
+  // Non-power-of-two steps fall back to the unrolled binary span-doubling
+  // form because the variable shift and rotation sequence cannot be expressed
+  // as a uniform loop with a single halved shift per iteration.
+  if ((steps & (steps - 1)) != 0) {
+    return implementRotateAndReduceAccumulation<T>(vectorDag, period, steps,
+                                                   reduceFunc);
+  }
   int64_t numIterations = static_cast<int64_t>(std::log2(steps));
   if (numIterations <= 0) return vectorDag;
 

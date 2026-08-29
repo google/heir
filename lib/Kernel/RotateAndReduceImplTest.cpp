@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -8,6 +10,8 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/EvalVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
+#include "lib/Utils/RotationUtils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -310,6 +314,53 @@ TEST(RotateAndReduceImplTest, BroadcastedReduce_Masked_Stride) {
     std::vector<int> actual =
         runBroadcastedReduceImpl(vector, mask, 2, 4, unroll);
     EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+void collectRotations(
+    const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& node,
+    llvm::DenseSet<int64_t>& rotations,
+    std::unordered_set<const ArithmeticDagNode<LiteralValue>*>& visited) {
+  if (!node || !visited.insert(node.get()).second) return;
+  if (auto* rotate =
+          std::get_if<LeftRotateNode<LiteralValue>>(&node->node_variant)) {
+    if (auto* scalar =
+            std::get_if<ConstantScalarNode>(&rotate->shift->node_variant)) {
+      rotations.insert(static_cast<int64_t>(scalar->value));
+    }
+    collectRotations(rotate->operand, rotations, visited);
+    collectRotations(rotate->shift, rotations, visited);
+    return;
+  }
+  if (auto* add = std::get_if<AddNode<LiteralValue>>(&node->node_variant)) {
+    collectRotations(add->left, rotations, visited);
+    collectRotations(add->right, rotations, visited);
+    return;
+  }
+}
+
+TEST(RotateAndReduceImplTest, TestPredictorSync) {
+  std::vector<int> dummyVec = {1};
+  LiteralValue val(dummyVec);
+  auto leaf = ArithmeticDagNode<LiteralValue>::leaf(val);
+  auto addReducer = [](std::shared_ptr<ArithmeticDagNode<LiteralValue>> a,
+                       std::shared_ptr<ArithmeticDagNode<LiteralValue>> b) {
+    return ArithmeticDagNode<LiteralValue>::add(a, b);
+  };
+
+  for (int64_t period : {1, 3, 7}) {
+    for (int64_t steps = 1; steps <= 100; ++steps) {
+      auto dag = implementRotateAndReduceAccumulation<LiteralValue>(
+          leaf, period, steps, addReducer);
+      llvm::DenseSet<int64_t> actualRotations;
+      std::unordered_set<const ArithmeticDagNode<LiteralValue>*> visited;
+      collectRotations(dag, actualRotations, visited);
+
+      llvm::DenseSet<int64_t> predicted = rotateAndReduceRotationIndices(
+          period, steps, /*hasPlaintexts=*/false);
+      EXPECT_EQ(actualRotations, predicted)
+          << "Mismatch for period=" << period << ", steps=" << steps;
+    }
   }
 }
 
