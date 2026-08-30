@@ -1025,9 +1025,9 @@ struct PreserveLinalgMatvecAsLinearTransform
         getTypeConverter()->convertType(outputType, resultLayout.value());
 
     rewriter.setInsertionPointAfter(op);
-    auto linearTransformOp = rewriter.create<kernel::LinearTransformOp>(
-        op.getLoc(), convertedOutputType, adaptor.getInputs()[1], diagonalsAttr,
-        diagonalIndicesAttr, /*bsgs_ratio=*/nullptr);
+    auto linearTransformOp = kernel::LinearTransformOp::create(
+        rewriter, op.getLoc(), convertedOutputType, adaptor.getInputs()[1],
+        diagonalsAttr, diagonalIndicesAttr, /*bsgs_ratio=*/nullptr);
 
     setMaterializedAttr(linearTransformOp);
     linearTransformOp->setAttr(kLayoutAttrName, resultLayout.value());

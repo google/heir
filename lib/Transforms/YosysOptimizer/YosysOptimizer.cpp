@@ -26,6 +26,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FileSystem.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
@@ -445,12 +446,17 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   // unsupported operations.
   LLVM_DEBUG(op.emitRemark() << "Emitting verilog for this op");
 
-  char* filename = std::tmpnam(nullptr);
-  std::error_code ec;
-  llvm::raw_fd_ostream of(filename, ec);
+  int fd;
+  llvm::SmallString<128> tempFilename;
+  if (auto ec = llvm::sys::fs::createTemporaryFile("heir_yosys", "sv", fd,
+                                                   tempFilename)) {
+    op.emitError() << "Failed to create temporary file for verilog: "
+                   << ec.message();
+    return failure();
+  }
+  llvm::raw_fd_ostream of(fd, /*shouldClose=*/true);
   if (failed(translateToVerilog(op, of, moduleName,
-                                /*allowSecretOps=*/true)) ||
-      ec) {
+                                /*allowSecretOps=*/true))) {
     op.emitError() << "Failed to translate to verilog";
     of.close();
     return failure();
@@ -475,15 +481,15 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                               : mode == Mode::LUT4 ? "LUT4 cells"
                                                    : "boolean gates"));
 
-  auto yosysTemplate = llvm::formatv(kYosysLut3Template.data(), filename,
+  auto yosysTemplate = llvm::formatv(kYosysLut3Template.data(), tempFilename,
                                      moduleName, yosysFilesPath, abcPath, "")
                            .str();
   if (mode == Mode::LUT4) {
-    yosysTemplate = llvm::formatv(kYosysLut4Template.data(), filename,
+    yosysTemplate = llvm::formatv(kYosysLut4Template.data(), tempFilename,
                                   moduleName, yosysFilesPath, abcPath, "")
                         .str();
   } else if (mode == Mode::Boolean) {
-    yosysTemplate = llvm::formatv(kYosysBooleanTemplate.data(), filename,
+    yosysTemplate = llvm::formatv(kYosysBooleanTemplate.data(), tempFilename,
                                   moduleName, abcPath, yosysFilesPath, "")
                         .str();
   }
