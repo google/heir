@@ -77,7 +77,6 @@ def GenParamsOp : JaxiteWord_Op<"gen_params"> {
     - batch: Batch size for TPU
     - r, c: Tiling dimensions (r * c = degree)
     - dnum: Key switching decomposition parameter
-    - numEvalMult: Number of evaluation multiplications
   }];
   let arguments = (ins
     // Scheme parameters
@@ -91,7 +90,6 @@ def GenParamsOp : JaxiteWord_Op<"gen_params"> {
     I32Attr:$r,
     I32Attr:$c,
     I32Attr:$dnum,
-    I32Attr:$numEvalMult,
     I32Attr:$compositeDegree
   );
   let results = (outs JaxiteWord_CryptoContext:$cryptoContext);
@@ -129,13 +127,17 @@ def ProgramInitializationOp : JaxiteWord_Op<"program_initialization"> {
   let summary = "Initialize CROSS program context with HEMul/HERot accessors";
   let description = [{
     Calls ctx.program_initialization() which pre-builds level-indexed
-    HEMul and HERot accessors and loads all keys onto the context.
+    HEMul and HERot accessors and loads all keys onto the context. The key
+    operands are attached to the CROSS context before calling
+    program_initialization, matching CROSS's params-dictionary API while keeping
+    gen_params key-independent.
     Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.
   }];
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,
+    JaxiteWord_PublicKey:$publicKey,
     JaxiteWord_PrivateKey:$secretKey,
-    I64Attr:$totalHemulLevels,
+    JaxiteWord_EvalKey:$evaluationKey,
     DenseI64ArrayAttr:$totalRotationIndices,
     I32Attr:$dnum,
     I32Attr:$r,
@@ -184,6 +186,17 @@ def DecryptOp : JaxiteWord_Op<"decrypt", [Pure]> {
 
 def AddOp : JaxiteWord_BinaryOp<"add", [Commutative]> {
   let summary = "Homomorphic addition of two ciphertexts";
+}
+
+def AddPlainOp
+    : JaxiteWord_Op<"add_plain", [Pure, SameOperandsAndResultRings]> {
+  let summary = "Add a plaintext to a ciphertext";
+  let arguments = (ins
+    JaxiteWord_CryptoContext:$cryptoContext,
+    LWECiphertext:$ciphertext,
+    LWEPlaintext:$plaintext
+  );
+  let results = (outs LWECiphertext:$output);
 }
 
 def MulOp : JaxiteWord_Op<"mul", [Pure]> {
@@ -236,10 +249,6 @@ def SubOp : JaxiteWord_BinaryOp<"sub", [SameOperandsAndResultRings]> {
   let summary = "Homomorphic subtraction of two ciphertexts";
 }
 
-def NegateOp : JaxiteWord_UnaryOp<"negate"> {
-  let summary = "Negate a ciphertext";
-}
-
 def SquareOp : JaxiteWord_UnaryOp<"square"> {
   let summary = "Square a ciphertext";
 }
@@ -250,26 +259,6 @@ def AddInPlaceOp : JaxiteWord_BinaryInPlaceOp<"add_inplace"> {
 
 def SubInPlaceOp : JaxiteWord_BinaryInPlaceOp<"sub_inplace"> {
   let summary = "In-place homomorphic subtraction";
-}
-
-def AddPlainOp : JaxiteWord_Op<"add_plain", [Pure, AllCiphertextTypesMatch]> {
-  let summary = "Add plaintext to ciphertext";
-  let arguments = (ins
-    JaxiteWord_CryptoContext:$cryptoContext,
-    LWEPlaintextOrCiphertext:$lhs,
-    LWEPlaintextOrCiphertext:$rhs
-  );
-  let results = (outs LWECiphertext:$output);
-}
-
-def SubPlainOp : JaxiteWord_Op<"sub_plain", [Pure, AllCiphertextTypesMatch]> {
-  let summary = "Subtract plaintext from ciphertext";
-  let arguments = (ins
-    JaxiteWord_CryptoContext:$cryptoContext,
-    LWEPlaintextOrCiphertext:$lhs,
-    LWEPlaintextOrCiphertext:$rhs
-  );
-  let results = (outs LWECiphertext:$output);
 }
 
 def MulPlainOp : JaxiteWord_Op<"mul_plain", [Pure]> {
