@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
@@ -14,6 +15,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
@@ -136,6 +138,70 @@ SmallVector<int64_t> shiftByRemoved(ArrayRef<int64_t> dims,
 
 LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
                                   ArrayRef<int64_t> dimsToReduce) {
+  const presburger::IntegerRelation& rel = inputLayout.getIntegerRelation();
+  unsigned domainOffset = rel.getVarKindOffset(presburger::VarKind::Domain);
+  unsigned rangeOffset = rel.getVarKindOffset(presburger::VarKind::Range);
+  unsigned numDomainVars = rel.getNumDomainVars();
+  MLIRContext* context = inputLayout.getContext();
+
+  // If the input layout has a tricyclic CRT layout (rank 3) and is reduced
+  // along dimension 2:
+  // Directly constructing the bicyclic relation for the remaining dimensions
+  // avoids Fourier-Motzkin projection of the merged CRT modulo constraint,
+  // which loses divisibility information and degenerates into an unconstrained
+  // relation.
+  auto slotUb =
+      rel.getConstantBound64(presburger::BoundType::UB, rangeOffset + 1);
+  if (slotUb.has_value() && numDomainVars == 3 &&
+      dimsToReduce == ArrayRef<int64_t>{2}) {
+    int64_t numSlots = slotUb.value() + 1;
+    SmallVector<int64_t> shape;
+    for (unsigned i = 0; i < 3; ++i) {
+      auto ub =
+          rel.getConstantBound64(presburger::BoundType::UB, domainOffset + i);
+      if (ub.has_value()) {
+        shape.push_back(ub.value() + 1);
+      }
+    }
+    if (shape.size() == 3) {
+      RankedTensorType tensorType =
+          RankedTensorType::get(shape, Float32Type::get(context));
+      if (isRelationTricyclic(tensorType, numSlots, rel)) {
+        RankedTensorType reducedType = RankedTensorType::get(
+            {tensorType.getDimSize(0), tensorType.getDimSize(1)},
+            Float32Type::get(context));
+        return LayoutAttr::getFromIntegerRelation(
+            context, getBicyclicLayoutRelation(reducedType, numSlots));
+      }
+    }
+  }
+
+  // If the input layout has a bicyclic CRT layout (rank 2) and is reduced
+  // along dimension 1:
+  if (slotUb.has_value() && numDomainVars == 2 &&
+      dimsToReduce == ArrayRef<int64_t>{1}) {
+    int64_t numSlots = slotUb.value() + 1;
+    SmallVector<int64_t> shape;
+    for (unsigned i = 0; i < 2; ++i) {
+      auto ub =
+          rel.getConstantBound64(presburger::BoundType::UB, domainOffset + i);
+      if (ub.has_value()) {
+        shape.push_back(ub.value() + 1);
+      }
+    }
+    if (shape.size() == 2) {
+      RankedTensorType matrixType =
+          RankedTensorType::get(shape, Float32Type::get(context));
+      if (isRelationBicyclic(matrixType, numSlots, rel)) {
+        presburger::IntegerRelation bicyclicRel =
+            getBicyclicLayoutRelation(matrixType, numSlots);
+        bicyclicRel.projectOut(1, 1);
+        return LayoutAttr::getFromIntegerRelation(context,
+                                                  std::move(bicyclicRel));
+      }
+    }
+  }
+
   std::unique_ptr<presburger::IntegerRelation> clonedRelation =
       inputLayout.getIntegerRelation().clone();
 
@@ -148,7 +214,6 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
     clonedRelation->projectOut(dimIndex, 1);
   }
 
-  MLIRContext* context = inputLayout.getContext();
   return LayoutAttr::getFromIntegerRelation(context,
                                             std::move(*clonedRelation));
 }

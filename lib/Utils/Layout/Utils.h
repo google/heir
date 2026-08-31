@@ -9,13 +9,11 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 // ISL
 #include "include/isl/ctx.h"  // from @isl
-#include "include/isl/map.h"  // from @isl
 
 namespace mlir {
 namespace heir {
@@ -106,6 +104,15 @@ presburger::IntegerRelation getPeriodicReplicationRelation(
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                                                     int64_t minSlotCount);
+
+// Returns the diagonal packing relation for the rank-3 plaintext operand
+// of the batch ciphertext-plaintext matmul:
+//   BatchDiag'(B, c)_k =
+//       B[k mod h][(k + c*h*ctStride) mod n][k mod paddedFreeDim]
+// contractionDim specifies the contraction axis (1 for ct-pt, 2 for pt-ct).
+presburger::IntegerRelation getTricyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t ctStride,
+    int64_t paddedFreeDim, int64_t numSlots);
 
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
@@ -268,6 +275,12 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
 
+// Returns the relation corresponding to a transpose by permuting its domain
+// variables according to `permutation`: result domain index i corresponds to
+// original domain index `permutation[i]`.
+presburger::IntegerRelation getTransposedRelation(
+    const presburger::IntegerRelation& relation, ArrayRef<int64_t> permutation);
+
 // Tests whether two layout relations describe the same set of points.
 //
 // This check is one-sided: `true` means the relations are provably equal, but
@@ -277,6 +290,16 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
 // return within 120s on layouts isl decides in single-digit milliseconds.
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2);
+
+// Tests whether relation1 is a subset of relation2 (i.e. every point in
+// relation1 is also in relation2).
+bool isRelationSubset(const presburger::IntegerRelation& relation1,
+                      const presburger::IntegerRelation& relation2);
+
+// Returns true if the relation maps no two domain points to the same
+// range point (i.e. an arbitrary value of the domain type is
+// representable). Conservative: unknown/failure returns false.
+bool isRelationInjective(const presburger::IntegerRelation& relation);
 
 // Returns true if the given relation is surjective onto the given tensor type.
 // This tests that the range set of the relation covers all points of the given
