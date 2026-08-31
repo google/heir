@@ -24,8 +24,10 @@
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -59,25 +61,31 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
   // whose edges are conflicts: an edge being present means the two indices
   // cannot participate in the same rotation group.
   graph::UndirectedGraph<CtSlot> conflictGraph;
-  for (const auto& [target, source] : mapping.getTargetToSource()) {
-    conflictGraph.addVertex(source);
-  }
+  bool hasConflicts = false;
   for (const auto& [roundNum, round] : llvm::enumerate(strategy.getRounds())) {
     if (roundNum == 0) continue;
 
-    auto posns = round.positions;
-    for (auto it1 = posns.begin(); it1 != posns.end(); ++it1) {
-      for (auto it2 = std::next(it1); it2 != posns.end(); ++it2) {
-        const SourceShift& ss1 = it1->first;
-        const SourceShift& ss2 = it2->first;
-        if (ss1.source != ss2.source && it1->second == it2->second) {
+    DenseMap<CtSlot, SmallVector<CtSlot, 4>> posToSources;
+    for (const auto& [ss, pos] : round.positions) {
+      auto& sources = posToSources[pos];
+      if (!llvm::is_contained(sources, ss.source)) {
+        sources.push_back(ss.source);
+      }
+    }
+    for (const auto& [pos, sources] : posToSources) {
+      if (sources.size() <= 1) continue;
+      for (size_t i = 0; i < sources.size(); ++i) {
+        for (size_t j = i + 1; j < sources.size(); ++j) {
           LLVM_DEBUG(llvm::dbgs()
                      << "Round " << roundNum << ": collision between " << "{"
-                     << ss1.source.ct << "," << ss1.source.slot << "}"
-                     << " and " << "{" << ss2.source.ct << ","
-                     << ss2.source.slot << "}" << " at " << "{"
-                     << it1->second.ct << "," << it1->second.slot << "}\n");
-          conflictGraph.addEdge(ss1.source, ss2.source);
+                     << sources[i].ct << "," << sources[i].slot << "}"
+                     << " and " << "{" << sources[j].ct << ","
+                     << sources[j].slot << "}" << " at " << "{" << pos.ct << ","
+                     << pos.slot << "}\n");
+          conflictGraph.addVertex(sources[i]);
+          conflictGraph.addVertex(sources[j]);
+          conflictGraph.addEdge(sources[i], sources[j]);
+          hasConflicts = true;
         }
       }
     }
@@ -94,8 +102,16 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
     }
   });
 
-  graph::GreedyGraphColoring<CtSlot> colorer;
-  std::unordered_map<CtSlot, int> coloring = colorer.color(conflictGraph);
+  std::unordered_map<CtSlot, int> coloring;
+  if (hasConflicts) {
+    graph::GreedyGraphColoring<CtSlot> colorer;
+    coloring = colorer.color(conflictGraph);
+  }
+  // Unconflicted vertices have degree 0 in the full conflict graph and can
+  // always safely join rotation group 0 without creating conflicts.
+  for (const auto& [target, source] : mapping.getTargetToSource()) {
+    coloring.try_emplace(source, 0);
+  }
 
   SmallVector<RotationGroup> resultRotationGroups;
   resultRotationGroups.reserve(5);
@@ -269,18 +285,20 @@ LogicalResult convertRemapOp(RemapOp op,
     ciphertexts.push_back(kernel::SSAValue(slice.getResult()));
   }
 
-  using NodeTy = kernel::ArithmeticDagNode<kernel::SSAValue>;
-  SmallVector<std::shared_ptr<NodeTy>> resultNodes;
-
-  const auto targetToSource = mapping.getTargetToSource();
+  const auto& targetToSource = mapping.getTargetToSource();
 
   // Count the rotations the direct path would emit.
   llvm::DenseSet<std::pair<int64_t, int64_t>> uniqueShifts;
   for (const auto& [target, source] : targetToSource) {
     int64_t r = (source.slot - target.slot) % minSlotCount;
     if (r < 0) r += minSlotCount;
-    if (r != 0) uniqueShifts.insert({source.ct, r});
+    if (r != 0 || target.ct != source.ct) {
+      uniqueShifts.insert({source.ct, r});
+    }
   }
+
+  using NodeTy = kernel::ArithmeticDagNode<kernel::SSAValue>;
+  SmallVector<std::shared_ptr<NodeTy>> resultNodes;
 
   // If the number of distinct rotation offsets is <= log2(N_slots), direct
   // depth-1 rotation + plaintext masking uses at most `uniqueShifts` rotations

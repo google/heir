@@ -450,11 +450,12 @@ naiveShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
   for (const auto& [target, source] : targetToSource) {
     int64_t r = (source.slot - target.slot) % minSlotCount;
     if (r < 0) r += minSlotCount;
-    auto& mask = groups
-                     .try_emplace(std::make_tuple(target.ct, source.ct, r),
-                                  std::vector<double>(minSlotCount, 0.0))
-                     .first->second;
-    mask[target.slot] = 1.0;
+    auto key = std::make_tuple(target.ct, source.ct, r);
+    auto it = groups.find(key);
+    if (it == groups.end()) {
+      it = groups.emplace(key, std::vector<double>(minSlotCount, 0.0)).first;
+    }
+    it->second[target.slot] = 1.0;
   }
 
   SmallVector<std::shared_ptr<NodeTy>> cts;

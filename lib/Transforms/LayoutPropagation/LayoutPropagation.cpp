@@ -324,7 +324,6 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
   // Op-specific overrides
   void rectifyIncompatibleOperandLayouts(DotOp op);
-  void rectifyIncompatibleOperandLayouts(ReduceOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertSliceOp op);
 
@@ -1518,7 +1517,11 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
       LayoutAttr diagLayoutAttr =
           LayoutAttr::getFromIntegerRelation(ctx, diagRelation);
       if (weightLayout != diagLayoutAttr) {
-        assignOrUpdateLayout(weightOperand, diagRelation);
+        Value toReplace = assignOrUpdateLayout(weightOperand, diagRelation);
+        if (auto assignOp = toReplace.getDefiningOp<AssignLayoutOp>()) {
+          assignOp.setPtctDiagParamsAttr(builder.getDenseI64ArrayAttr(
+              {hDim, ctStride, secretLhs ? pDim : mDim, contractionDim}));
+        }
       }
 
       LayoutAttr outputLayoutAttr = LayoutAttr::getFromIntegerRelation(
@@ -1670,7 +1673,13 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
     LayoutAttr diagLayoutAttr =
         LayoutAttr::getFromIntegerRelation(ctx, diagRelation);
     if (weightLayout != diagLayoutAttr) {
-      assignOrUpdateLayout(weight, diagRelation);
+      Value toReplace = assignOrUpdateLayout(weight, diagRelation);
+      if (auto assignOp = toReplace.getDefiningOp<AssignLayoutOp>()) {
+        if (inputSecret) {
+          assignOp.setPtctDiagParamsAttr(builder.getDenseI64ArrayAttr(
+              {/*ctBatch=*/1, /*ctRows=*/mDim, /*paddedCols=*/pDim}));
+        }
+      }
     }
 
     RankedTensorType outputType = cast<RankedTensorType>(result.getType());
@@ -1763,8 +1772,49 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
 
     // enforce row-major layout
     RankedTensorType thisType = cast<RankedTensorType>(tensor.getType());
-    if (!isRelationRowMajor(thisType, minSlotCount,
-                            thisLayout.getIntegerRelation())) {
+    LayoutAttr resultLayout;
+
+    // In-layout strided reduce (LKAA25 App. F): a bicyclic/tricyclic layout
+    // reduced along the axis mapping to one cyclic factor sums with a
+    // strided rotate-and-reduce - NO conversion - and the result comes
+    // out replicated along the reduced axis, which is the layout the
+    // following divide/normalize broadcast wants (so that conversion
+    // disappears too).
+    bool fitsOneCt = thisType.getNumElements() <= minSlotCount;
+    bool isCandidateReduce =
+        (thisType.getRank() == 2 &&
+         op.getDimensions() == ArrayRef<int64_t>{1}) ||
+        (thisType.getRank() == 3 && op.getDimensions() == ArrayRef<int64_t>{2});
+    // In-layout strided reduce is currently restricted to floating-point
+    // element types; integer reductions require zero-padding semantics.
+    bool isCyclic = fitsOneCt && isCandidateReduce &&
+                    op.getInputs().size() == 1 &&
+                    isa<FloatType>(thisType.getElementType()) &&
+                    isRelationCyclic(thisType, minSlotCount,
+                                     thisLayout.getIntegerRelation());
+
+    if (!isCyclic && op.getInputs().size() == 1 &&
+        isa<FloatType>(thisType.getElementType()) && fitsOneCt &&
+        isCandidateReduce) {
+      IntegerRelation cyclicRel =
+          getCyclicLayoutRelation(thisType, minSlotCount);
+      if (isRelationCyclic(thisType, minSlotCount, cyclicRel)) {
+        LayoutAttr canonical =
+            LayoutAttr::getFromIntegerRelation(ctx, cyclicRel);
+        if (canonical != thisLayout) {
+          auto [toReplace, newLayoutAttr] =
+              convertToLayout(ctx, builder, op, tensor, thisLayout, cyclicRel);
+          debugAssignLayout(toReplace, newLayoutAttr);
+          assignedLayouts.insert({toReplace, newLayoutAttr});
+          thisLayout = newLayoutAttr;
+        }
+        isCyclic = true;
+      }
+    }
+
+    // enforce row-major layout if not cyclic
+    if (!isCyclic && !isRelationRowMajor(thisType, minSlotCount,
+                                         thisLayout.getIntegerRelation())) {
       LLVM_DEBUG(llvm::dbgs() << "ReduceOp tensor is not row major");
       auto [toReplace, newLayoutAttr] =
           convertToLayout(ctx, builder, op, tensor, thisLayout,
@@ -1774,12 +1824,43 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
       thisLayout = newLayoutAttr;
     }
 
-    // drop dimension on output
-    LayoutAttr resultLayout =
-        convertLayoutForReduce(thisLayout, op.getDimensions());
+    // Both the cyclic and row-major cases: drop the reduced dims from
+    // the input relation. For the canonical congruence this leaves
+    // exactly the kept-moduli replication relation (see
+    // TestBicyclicReduceProjection).
+    resultLayout = convertLayoutForReduce(thisLayout, op.getDimensions());
     assignedLayouts.insert({result, resultLayout});
     debugAssignLayout(result, resultLayout);
   }
+
+  for (const auto& [init, result] : llvm::zip(op.getInits(), op.getResults())) {
+    LayoutAttr initLayout = getComposedLayoutAttr(init);
+    LayoutAttr targetLayout = cast<LayoutAttr>(assignedLayouts.at(result));
+    if (initLayout != targetLayout) {
+      if (auto assignOp = init.getDefiningOp<AssignLayoutOp>();
+          assignOp && assignOp->hasOneUse()) {
+        assignOp.setLayoutAttr(targetLayout);
+        assignedLayouts[init] = targetLayout;
+        setAttributeAssociatedWith(
+            init, tensor_ext::TensorExtDialect::kLayoutAttrName, targetLayout);
+        debugAssignLayout(init, targetLayout);
+      } else {
+        builder.setInsertionPoint(op);
+        AssignLayoutOp newAssignOp =
+            AssignLayoutOp::create(builder, op->getLoc(), init, targetLayout);
+        setAttributeAssociatedWith(
+            newAssignOp.getResult(),
+            tensor_ext::TensorExtDialect::kLayoutAttrName, targetLayout);
+        Value toReplace = newAssignOp.getResult();
+        builder.replaceUsesWithIf(init, toReplace, [&](OpOperand& other) {
+          return other.getOwner() == op;
+        });
+        assignedLayouts.insert({toReplace, targetLayout});
+        debugAssignLayout(toReplace, targetLayout);
+      }
+    }
+  }
+
   setResultLayoutAttr(op);
   return success();
 }
@@ -2072,27 +2153,11 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(DotOp op) {
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     ReduceOp op) {
-  // The arguments of a ReduceOp are the tensor(s) to reduce and the
-  // initializer values for the reduction.
-  for (const auto& [input, init] : llvm::zip(op.getInputs(), op.getInits())) {
+  for (Value input : op.getInputs()) {
     if (!assignedLayouts.contains(input)) {
       return {false, op->emitError("input tensor has no assigned layout")};
     }
-    if (!assignedLayouts.contains(init)) {
-      return {false,
-              op->emitError("initializer tensor has no assigned layout")};
-    }
-
-    LayoutAttr inputLayout = getComposedLayoutAttr(input);
-    LayoutAttr initLayout = getComposedLayoutAttr(init);
-    LayoutAttr reducedInputLayout =
-        convertLayoutForReduce(inputLayout, op.getDimensions());
-
-    if (reducedInputLayout != initLayout) {
-      return {false, std::nullopt};
-    }
   }
-
   return {true, std::nullopt};
 }
 
@@ -2277,9 +2342,9 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
   TypeSwitch<Operation*>(op)
       // These ops shouldn't rectify operand layouts
       .Case<func::FuncOp, func::ReturnOp, secret::GenericOp, secret::YieldOp,
-            ConvertLayoutOp>([&](auto op) { return; })
+            ConvertLayoutOp, ReduceOp>([&](auto op) { return; })
       // Ops with special rules
-      .Case<DotOp, ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
+      .Case<DotOp, tensor::InsertOp, tensor::InsertSliceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
       .Default([&](Operation* op) {
         // Prefer an operand with a secret ciphertext layout over a cleartext
@@ -2403,29 +2468,6 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(DotOp op) {
           op.getOperand(2), convertOp.getResult(),
           [&](OpOperand& operand) { return operand.getOwner() == op; });
       assignedLayouts.insert({convertOp.getResult(), default0D.value()});
-    }
-  }
-}
-
-void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
-  mlir::IRRewriter builder(&getContext());
-  builder.setInsertionPoint(op);
-
-  for (const auto& [input, init] : llvm::zip(op.getInputs(), op.getInits())) {
-    LayoutAttr inputLayout = getComposedLayoutAttr(input);
-    LayoutAttr initLayout = getComposedLayoutAttr(init);
-    LayoutAttr reducedInputLayout =
-        convertLayoutForReduce(inputLayout, op.getDimensions());
-
-    if (reducedInputLayout != initLayout) {
-      ConvertLayoutOp convertOp = ConvertLayoutOp::create(
-          builder, op->getLoc(), init, initLayout, reducedInputLayout);
-      Value toReplace = convertOp.getResult();
-      builder.replaceUsesWithIf(init, toReplace, [&](OpOperand& operand) {
-        return operand.getOwner() == op;
-      });
-      assignedLayouts.insert({toReplace, reducedInputLayout});
-      setResultLayoutAttr(convertOp);
     }
   }
 }
