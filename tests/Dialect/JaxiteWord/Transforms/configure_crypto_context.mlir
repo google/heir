@@ -33,10 +33,15 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 
 // CHECK: @simple_mul
 // CHECK: @simple_mul__generate_crypto_context
+// CHECK-SAME: () -> !jaxiteword.crypto_context
 // CHECK: jaxiteword.gen_params
 // CHECK-SAME: degree = 8192
 // CHECK-SAME: numSlots = 4096
 
 // CHECK: @simple_mul__configure_crypto_context
+// CHECK-SAME: !jaxiteword.crypto_context
+// CHECK-SAME: !jaxiteword.public_key
+// CHECK-SAME: !jaxiteword.private_key
+// CHECK-SAME: !jaxiteword.eval_key
 // CHECK: jaxiteword.program_initialization
 // CHECK-SAME: totalRotationIndices = array<i64: 4, 8>
