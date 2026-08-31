@@ -8,8 +8,14 @@ package(
 
 cc_library(
     name = "ConvertToCiphertextSemantics",
-    srcs = ["ConvertToCiphertextSemantics.cpp"],
-    hdrs = ["ConvertToCiphertextSemantics.h"],
+    srcs = [
+        "ConvertToCiphertextSemantics.cpp",
+        "RotomTensorOpLowering.cpp",
+    ],
+    hdrs = [
+        "ConvertToCiphertextSemantics.h",
+        "RotomTensorOpLowering.h",
+    ],
     deps = [
         ":AssignLayout",
         ":TypeConversion",
@@ -17,6 +23,11 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutAlignment",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutConversion",
+        "@heir//lib/Dialect/Rotom/Utils:RotomLayout",
+        "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

@@ -200,6 +200,9 @@ Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
 Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
                                        Value lhs, Value rhs,
                                        ArrayRef<NamedAttribute> attrs = {});
+Operation* makeAppropriatelyTypedSubOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs = {});
 
 inline std::pair<bool, bool> allZeroAllOne(ArrayRef<double> mask) {
   bool allZero = true;

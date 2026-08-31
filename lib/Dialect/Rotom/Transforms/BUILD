@@ -2,10 +2,81 @@
 
 load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "DimMapsTest",
+    srcs = ["LayoutAssignment/DimMapsTest.cpp"],
+    deps = [
+        ":LayoutAssignment",
+        "@googletest//:gtest_main",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+add_heir_transforms(
+    generated_target_name = "layout_assignment_pass_inc_gen",
+    header_filename = "LayoutAssignment/LayoutAssignment.h.inc",
+    pass_name = "LayoutAssignment",
+    registration_name = "RotomLayoutAssignment",
+    td_file = "LayoutAssignment/LayoutAssignment.td",
+)
+
+cc_library(
+    name = "LayoutAssignment",
+    srcs = [
+        "LayoutAssignment/Candidate.cpp",
+        "LayoutAssignment/CostModel.cpp",
+        "LayoutAssignment/DimMaps.cpp",
+        "LayoutAssignment/LayoutAssignment.cpp",
+        "LayoutAssignment/ValueUtils.cpp",
+        "LayoutAssignment/gen/Binop.cpp",
+        "LayoutAssignment/gen/ReduceTranspose.cpp",
+        "LayoutAssignment/gen/Reshape.cpp",
+        "LayoutAssignment/gen/Structural.cpp",
+    ],
+    hdrs = [
+        "LayoutAssignment/AssignmentContext.h",
+        "LayoutAssignment/Candidate.h",
+        "LayoutAssignment/CostModel.h",
+        "LayoutAssignment/DimMaps.h",
+        "LayoutAssignment/Generators.h",
+        "LayoutAssignment/LayoutAssignment.h",
+        "LayoutAssignment/ValueUtils.h",
+    ],
+    deps = [
+        ":layout_assignment_pass_inc_gen",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutAlignment",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutConversion",
+        "@heir//lib/Dialect/Rotom/Utils:RotomLayout",
+        "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils:MathUtils",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
 )
 
 add_heir_transforms(
@@ -24,10 +95,12 @@ cc_library(
         ":materialize_tensor_ext_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
@@ -63,7 +136,6 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -71,8 +143,10 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":LayoutAssignment",
         ":MaterializeTensorExtLayout",
         ":SeedLayout",
+        ":layout_assignment_pass_inc_gen",
         ":materialize_tensor_ext_layout_pass_inc_gen",
         ":seed_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
