@@ -11,6 +11,7 @@
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Transforms/InliningUtils.h"  // from @llvm-project
 
 // NOLINTBEGIN(misc-include-cleaner): Required to define TensorExt
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -29,6 +30,26 @@ namespace mlir {
 namespace heir {
 namespace tensor_ext {
 
+namespace {
+
+// All tensor_ext ops are pure tensor computations, so they can always be
+// inlined (e.g. when outlined Rotom kernel functions are inlined back after
+// the ciphertext lowering).
+struct TensorExtInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  bool isLegalToInline(Operation* op, Region* dest, bool wouldBeCloned,
+                       IRMapping& valueMapping) const final {
+    return true;
+  }
+  bool isLegalToInline(Region* dest, Region* src, bool wouldBeCloned,
+                       IRMapping& valueMapping) const final {
+    return true;
+  }
+};
+
+}  // namespace
+
 void TensorExtDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
@@ -38,6 +59,7 @@ void TensorExtDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
       >();
+  addInterfaces<TensorExtInlinerInterface>();
 }
 
 }  // namespace tensor_ext

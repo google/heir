@@ -1,0 +1,271 @@
+#include "lib/Transforms/ConvertToCiphertextSemantics/RotomTensorOpLowering.h"
+
+#include <cmath>
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <utility>
+#include <vector>
+
+#include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
+#include "lib/Dialect/Rotom/Utils/LayoutConversion.h"
+#include "lib/Dialect/Rotom/Utils/RotomLayout.h"
+#include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Layout/Utils.h"
+#include "lib/Utils/MathUtils.h"
+#include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+
+#define DEBUG_TYPE "convert-to-ciphertext-semantics"
+
+namespace mlir {
+namespace heir {
+
+using tensor_ext::LayoutAttr;
+
+static auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+static auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
+
+static void setMaterializedAttr(Operation* op) {
+  op->setAttr(kMaterializedAttrName, UnitAttr::get(op->getContext()));
+}
+
+LayoutAttr RotomTensorOpLowering::getLayoutAttr(Value value) const {
+  auto layoutLookup = typeConverter->getContextualAttr(value);
+  if (failed(layoutLookup)) {
+    return nullptr;
+  }
+  return dyn_cast<LayoutAttr>(layoutLookup.value());
+}
+
+// A plaintext 1/0 mask selecting `slots` of a single-ciphertext row.
+static Value buildSlotMask(ImplicitLocOpBuilder& b, RankedTensorType rowType,
+                           ArrayRef<int64_t> slots) {
+  Type elementType = rowType.getElementType();
+  Attribute zero, one;
+  if (isa<FloatType>(elementType)) {
+    zero = FloatAttr::get(elementType, 0.0);
+    one = FloatAttr::get(elementType, 1.0);
+  } else {
+    zero = IntegerAttr::get(elementType, 0);
+    one = IntegerAttr::get(elementType, 1);
+  }
+  SmallVector<Attribute> values(rowType.getNumElements(), zero);
+  for (int64_t slot : slots) values[slot] = one;
+  auto dense = DenseElementsAttr::get(rowType, values);
+  auto mask = arith::ConstantOp::create(b, rowType, dense);
+  setMaterializedAttr(mask);
+  return mask;
+}
+
+Value RotomTensorOpLowering::convertToLayout(ImplicitLocOpBuilder& b,
+                                             Value value,
+                                             rotom::LayoutAttr from,
+                                             rotom::LayoutAttr to) const {
+  if (from == to) return value;
+  auto sourceType = dyn_cast<RankedTensorType>(value.getType());
+  if (!sourceType || sourceType.getRank() != 2) return nullptr;
+  const int64_t numSlots = sourceType.getDimSize(1);
+  if (to.getN() != numSlots) return nullptr;
+
+  // The rest of the pipeline reads tensor_ext layouts: the result is tagged
+  // with `to`'s relation form.
+  FailureOr<std::string> toIsl =
+      rotom::RotomTensorExtLayoutLowering::lowerToTensorExtIsl(to);
+  if (failed(toIsl)) return nullptr;
+  LayoutAttr toLayout = LayoutAttr::get(to.getContext(), *toIsl);
+
+  // Find the target's ciphertext capacity.
+  SmallVector<rotom::DimAttr> toDims = rotom::layoutDims(to);
+  const size_t toCtLen = rotom::inferCtPrefixLen(toDims, to.getN());
+  int64_t numTargetCt = 1;
+  for (size_t p = 0; p < toCtLen; ++p) numTargetCt *= toDims[p].getSize();
+
+  // Plan the explicit rotate/mask/accumulate steps the layout assignment
+  // priced.
+  FailureOr<rotom::ConversionPlan> planned =
+      rotom::planLayoutConversion(from, to);
+  if (failed(planned)) return nullptr;
+  SmallVector<rotom::LayoutConversionStep> steps = std::move(planned->steps);
+  auto rowType =
+      RankedTensorType::get({1, numSlots}, sourceType.getElementType());
+
+  SmallVector<Value> rows(numTargetCt, Value());
+  SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
+                                     b.getIndexAttr(numSlots)};
+  SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
+  // Steps sharing (source ciphertext, shift) share one rotated row.
+  DenseMap<std::pair<int64_t, int64_t>, Value> rotatedRows;
+  for (const rotom::LayoutConversionStep& step : steps) {
+    if (step.targetCt < 0 || step.targetCt >= numTargetCt) return nullptr;
+    Value& row = rotatedRows[{step.sourceCt, step.shift}];
+    if (!row) {
+      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
+                                           b.getIndexAttr(0)};
+      row = tensor::ExtractSliceOp::create(b, rowType, value, offsets, sizes,
+                                           strides);
+      setMaterializedAttr(row.getDefiningOp());
+      if (step.shift != 0) {
+        Value shift = arith::ConstantIndexOp::create(b, step.shift);
+        setMaterializedAttr(shift.getDefiningOp());
+        row = tensor_ext::RotateOp::create(b, row, shift);
+        setMaterializedAttr(row.getDefiningOp());
+      }
+    }
+    // The mask is per step (target slots differ).
+    Value stepRow = row;
+    if (static_cast<int64_t>(step.targetSlots.size()) != numSlots) {
+      Value mask = buildSlotMask(b, rowType, step.targetSlots);
+      Operation* masked =
+          makeAppropriatelyTypedMulOp(b, b.getLoc(), stepRow, mask);
+      setMaterializedAttr(masked);
+      stepRow = masked->getResult(0);
+    }
+    Value& target = rows[step.targetCt];
+    if (!target) {
+      target = stepRow;
+    } else {
+      Operation* add =
+          makeAppropriatelyTypedAddOp(b, b.getLoc(), target, stepRow);
+      setMaterializedAttr(add);
+      target = add->getResult(0);
+    }
+  }
+  for (Value row : rows) {
+    if (!row) return nullptr;
+  }
+
+  // Replication requires log2(extent) rotate-and-add steps.
+  for (const rotom::ReplicationFill& fill : planned->fills) {
+    for (int64_t block = 1; block < fill.extent; block <<= 1) {
+      const int64_t shift =
+          ((numSlots - fill.stride * block) % numSlots + numSlots) % numSlots;
+      if (shift == 0) continue;
+      Value shiftValue = arith::ConstantIndexOp::create(b, shift);
+      setMaterializedAttr(shiftValue.getDefiningOp());
+      for (Value& row : rows) {
+        Value rotated = tensor_ext::RotateOp::create(b, row, shiftValue);
+        setMaterializedAttr(rotated.getDefiningOp());
+        Operation* sum =
+            makeAppropriatelyTypedAddOp(b, b.getLoc(), row, rotated);
+        setMaterializedAttr(sum);
+        row = sum->getResult(0);
+      }
+    }
+  }
+
+  Value result;
+  if (numTargetCt == 1) {
+    result = rows[0];
+  } else {
+    auto concat = tensor::ConcatOp::create(b, /*dim=*/0, rows);
+    setMaterializedAttr(concat);
+    result = concat.getResult();
+  }
+  Operation* def = result.getDefiningOp();
+  def->setAttr(kLayoutAttrName, toLayout);
+  setMaterializedAttr(def);
+  setAttributeAssociatedWith(result, kLayoutAttrName, toLayout);
+  return result;
+}
+
+LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
+    Operation* op, Value originalResult, ValueRange adaptorOperands,
+    ContextAwareConversionPatternRewriter& rewriter) const {
+  LLVM_DEBUG(llvm::dbgs() << "Converting elementwise op with Rotom kernel: "
+                          << *op << "\n");
+
+  if (op->getNumOperands() != 2 || op->getNumResults() != 1 ||
+      adaptorOperands.size() != 2) {
+    return rewriter.notifyMatchFailure(
+        op, "Rotom elementwise lowering requires a binary single-result op");
+  }
+
+  auto resultType = dyn_cast<RankedTensorType>(originalResult.getType());
+  if (!resultType || !resultType.hasStaticShape()) {
+    return rewriter.notifyMatchFailure(
+        op, "Rotom elementwise lowering requires a static tensor result");
+  }
+
+  auto lhsType = dyn_cast<RankedTensorType>(adaptorOperands[0].getType());
+  auto rhsType = dyn_cast<RankedTensorType>(adaptorOperands[1].getType());
+  if (!lhsType || !rhsType) {
+    return rewriter.notifyMatchFailure(
+        op, "Rotom elementwise lowering requires tensor operands");
+  }
+
+  LayoutAttr lhsLayout = getLayoutAttr(adaptorOperands[0]);
+  LayoutAttr rhsLayout = getLayoutAttr(adaptorOperands[1]);
+  auto outputLayout = op->getAttrOfType<LayoutAttr>(kLayoutAttrName);
+  if (!lhsLayout || !rhsLayout || !outputLayout) {
+    return rewriter.notifyMatchFailure(
+        op, "missing tensor_ext.layout attributes for Rotom elementwise op");
+  }
+
+  Type convertedResultType =
+      typeConverter->convertType(resultType, outputLayout);
+  if (!convertedResultType) {
+    return rewriter.notifyMatchFailure(
+        op, "failed to convert Rotom elementwise result type");
+  }
+  // Operand ciphertext counts may differ from the output's ciphertext capacity.
+  auto ciphertextSemanticType = dyn_cast<RankedTensorType>(convertedResultType);
+  if (!ciphertextSemanticType || ciphertextSemanticType.getRank() != 2 ||
+      lhsType.getRank() != 2 || rhsType.getRank() != 2 ||
+      lhsType.getDimSize(1) != ciphertextSemanticType.getDimSize(1) ||
+      rhsType.getDimSize(1) != ciphertextSemanticType.getDimSize(1) ||
+      lhsType.getElementType() != ciphertextSemanticType.getElementType() ||
+      rhsType.getElementType() != ciphertextSemanticType.getElementType()) {
+    return rewriter.notifyMatchFailure(
+        op,
+        "Rotom elementwise lowering requires ciphertext semantic tensors "
+        "with matching slot counts and element types");
+  }
+
+  bool isAdd = isa<arith::AddFOp, arith::AddIOp>(op);
+  bool isSub = isa<arith::SubFOp, arith::SubIOp>(op);
+  bool isMul = isa<arith::MulFOp, arith::MulIOp>(op);
+  if (!isAdd && !isSub && !isMul) {
+    return rewriter.notifyMatchFailure(op,
+                                       "unsupported Rotom elementwise op kind");
+  }
+
+  ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+  rewriter.setInsertionPointAfter(op);
+
+  // The operands arrive aligned.
+  if (lhsLayout != outputLayout || rhsLayout != outputLayout) {
+    return rewriter.notifyMatchFailure(
+        op, "Rotom elementwise operands must arrive at the result layout");
+  }
+  Value lhs = adaptorOperands[0];
+  Value rhs = adaptorOperands[1];
+
+  Operation* result =
+      isAdd   ? makeAppropriatelyTypedAddOp(b, op->getLoc(), lhs, rhs)
+      : isSub ? makeAppropriatelyTypedSubOp(b, op->getLoc(), lhs, rhs)
+              : makeAppropriatelyTypedMulOp(b, op->getLoc(), lhs, rhs);
+  result->setAttr(kLayoutAttrName, outputLayout);
+  setMaterializedAttr(result);
+  setAttributeAssociatedWith(result->getResult(0), kLayoutAttrName,
+                             outputLayout);
+  rewriter.replaceOp(op, result->getResult(0));
+  return success();
+}
+
+}  // namespace heir
+}  // namespace mlir
