@@ -13,7 +13,7 @@ func.func @splat() -> (tensor<4xi32>, tensor<4xi1>, tensor<4xi32>) {
 
   // A non-splat of the same size is still externalized, so the skip above is
   // not disabling the pass wholesale.
-  // CHECK: preprocessing.load_resource "runtime_dir/constant_{{.*}}.bin" : tensor<4xi32>
+  // CHECK: preprocessing.load_resource "runtime_dir/constant_{{.*}}.bin" into {{.*}} : (tensor<4xi32>) -> tensor<4xi32>
   %dense_i32 = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32>
 
   return %splat_i32, %splat_i1, %dense_i32 : tensor<4xi32>, tensor<4xi1>, tensor<4xi32>
