@@ -13,7 +13,7 @@ This pass rewrites activation patterns, such as ReLU implemented as a select and
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
 func.func @relu(%arg0: f32) -> f32 { %cst_0 = arith.constant 0.000000e+00 : f32 %0 = arith.cmpf ugt, %arg0, %cst_0 : f32 %1 = arith.select %0, %arg0, %cst_0 : f32 return %1 : f32 } Output:
-module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="29204"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
+module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="29200"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
 This pass rewrites activation patterns, such as ReLU implemented as a select and compare, to simpler operations like min/max.
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
@@ -1025,7 +1025,7 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
   func.func @loop_body() {
     %c-128_i8 = arith.constant -128 : i8
     %c127_i8 = arith.constant 127 : i8
-    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    %alloc_7 = memref.alloc() alignment = 64 : memref&lt;25x20x8xi8&gt;
     affine.for %arg1 = 0 to 25 {
       affine.for %arg2 = 0 to 20 {
         affine.for %arg3 = 0 to 8 {
@@ -1042,7 +1042,7 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
 }
 </code></pre><p>Output</p><pre tabindex=0><code>module {
   func.func @loop_body() {
-    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    %alloc_7 = memref.alloc() alignment = 64 : memref&lt;25x20x8xi8&gt;
     affine.for %arg1 = 0 to 25 {
       affine.for %arg2 = 0 to 20 {
         affine.for %arg3 = 0 to 8 {

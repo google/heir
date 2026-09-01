@@ -5262,7 +5262,7 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
   func.func @loop_body() {
     %c-128_i8 = arith.constant -128 : i8
     %c127_i8 = arith.constant 127 : i8
-    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    %alloc_7 = memref.alloc() alignment = 64 : memref&lt;25x20x8xi8&gt;
     affine.for %arg1 = 0 to 25 {
       affine.for %arg2 = 0 to 20 {
         affine.for %arg3 = 0 to 8 {
@@ -5279,7 +5279,7 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
 }
 </code></pre><p>Output</p><pre tabindex=0><code>module {
   func.func @loop_body() {
-    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    %alloc_7 = memref.alloc() alignment = 64 : memref&lt;25x20x8xi8&gt;
     affine.for %arg1 = 0 to 25 {
       affine.for %arg2 = 0 to 20 {
         affine.for %arg3 = 0 to 8 {
