@@ -8,10 +8,11 @@
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/DebugLog.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -93,6 +94,56 @@ FailureOr<NodePtr> DagBuilder::visitBlockWithSingleTerminator(Block* block) {
 
   if (!last) return failure();
   return last;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(affine::AffineForOp op) {
+  // affine.for carries its bounds as affine maps rather than SSA values, but
+  // is otherwise the same shape as scf.for. Loops whose trip count is not a
+  // compile-time constant cannot be enumerated, same as for scf.for.
+  if (!op.hasConstantBounds()) {
+    LDBG() << "Loop bounds must be constant for RotationAnalysis";
+    return failure();
+  }
+
+  SmallVector<NodePtr> inits;
+  SmallVector<DagType> initTypes;
+  inits.reserve(op.getInits().size());
+  for (Value init : op.getInits()) {
+    NodePtr var = findNodeOrMakeNewVariable(init);
+    valueToNode[init] = var;
+    inits.push_back(var);
+    initTypes.push_back(mlirTypeToDagType(init.getType()));
+  }
+
+  auto dagNode = Node::loop(
+      inits, initTypes, op.getConstantLowerBound(), op.getConstantUpperBound(),
+      op.getStepAsInt(),
+      [&](NodePtr inductionVar, const std::vector<NodePtr>& iterArgs) {
+        valueToNode[op.getInductionVar()] = inductionVar;
+        for (const auto& [val, node] :
+             llvm::zip(op.getRegionIterArgs(), iterArgs)) {
+          valueToNode[val] = node;
+        }
+
+        FailureOr<NodePtr> bodyRes =
+            visitBlockWithSingleTerminator(op.getBody());
+        assert(succeeded(bodyRes) && "failed to parse body");
+        return *bodyRes;
+      });
+
+  for (OpResult opResult : op->getOpResults()) {
+    valueToNode[opResult] = Node::resultAt(dagNode, opResult.getResultNumber());
+  }
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(affine::AffineYieldOp op) {
+  std::vector<NodePtr> operands;
+  operands.reserve(op->getNumOperands());
+  for (Value operand : op->getOperands()) {
+    operands.push_back(findNodeOrMakeNewVariable(operand));
+  }
+  return Node::yield(operands);
 }
 
 FailureOr<NodePtr> DagBuilder::visit(scf::ForOp op) {
@@ -394,9 +445,10 @@ FailureOr<NodePtr> DagBuilder::build(Operation* op) {
   LDBG() << "Visiting op " << *op;
 
   return llvm::TypeSwitch<Operation*, FailureOr<NodePtr>>(op)
-      .Case<arith::AddFOp, arith::AddIOp, arith::CmpIOp, arith::ConstantOp,
-            arith::DivSIOp, arith::MulFOp, arith::MulIOp, arith::SubFOp,
-            arith::SubIOp, arith::NegFOp, scf::ForOp, scf::IfOp, scf::YieldOp,
+      .Case<affine::AffineForOp, affine::AffineYieldOp, arith::AddFOp,
+            arith::AddIOp, arith::CmpIOp, arith::ConstantOp, arith::DivSIOp,
+            arith::MulFOp, arith::MulIOp, arith::SubFOp, arith::SubIOp,
+            arith::NegFOp, scf::ForOp, scf::IfOp, scf::YieldOp,
             tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertOp,
             tensor::InsertSliceOp, tensor::SplatOp, RotationOpInterface>(
           [&](auto op) { return visit(op); })
