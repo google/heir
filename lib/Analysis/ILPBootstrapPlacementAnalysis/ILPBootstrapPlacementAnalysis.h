@@ -43,6 +43,23 @@ class ILPBootstrapPlacementAnalysis {
  public:
   enum class ScaleMode { kCKKS, kLevelOnly };
 
+  struct Options {
+    int bootstrapWaterline = 0;
+    int scaleWaterline = 0;
+    int scaleFactorBits = 0;
+    int bootstrapLevelLowerBound = 0;
+    // Group structurally equivalent ops so they share ILP variables (Orbit's
+    // compression). Grouped and ungrouped models have
+    // the same optimum restricted to symmetric solutions.
+    bool compress = true;
+    // Minimum number of ops per SISO partition (Orbit's delta). Partitions
+    // are solved independently under enumerated boundary states and stitched
+    // by dynamic programming.
+    int partitionMinSize = 100;
+    OpCostModel costModel;
+    ScaleMode scaleMode = ScaleMode::kCKKS;
+  };
+
   struct NodeManagement {
     Value value;
     int inputLevel;
@@ -62,19 +79,8 @@ class ILPBootstrapPlacementAnalysis {
   };
 
   ILPBootstrapPlacementAnalysis(Operation* op, DataFlowSolver* solver,
-                                int bootstrapWaterline, int scaleWaterline,
-                                int scaleFactorBits,
-                                int bootstrapLevelLowerBound,
-                                const OpCostModel& costModel,
-                                ScaleMode scaleMode)
-      : opToRunOn(op),
-        solver(solver),
-        bootstrapWaterline(bootstrapWaterline),
-        scaleWaterline(scaleWaterline),
-        scaleFactorBits(scaleFactorBits),
-        bootstrapLevelLowerBound(bootstrapLevelLowerBound),
-        costModel(costModel),
-        scaleMode(scaleMode) {}
+                                const Options& options)
+      : opToRunOn(op), solver(solver), options(options) {}
   ~ILPBootstrapPlacementAnalysis() = default;
 
   LogicalResult solve();
@@ -107,12 +113,7 @@ class ILPBootstrapPlacementAnalysis {
  private:
   Operation* opToRunOn;
   DataFlowSolver* solver;
-  int bootstrapWaterline;
-  int scaleWaterline;
-  int scaleFactorBits;
-  int bootstrapLevelLowerBound;
-  OpCostModel costModel;
-  ScaleMode scaleMode;
+  Options options;
   llvm::DenseMap<Operation*, bool> solution;
   llvm::DenseMap<Value, int> solutionLevelBeforeBootstrap;
   llvm::DenseMap<Value, int> solutionLevelAfterBootstrap;
