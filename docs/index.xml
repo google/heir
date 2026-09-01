@@ -8857,34 +8857,36 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-03-26</title><link>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</link><pubDate>Thu, 26 Mar 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-07-16</title><link>https://heir.dev/blog/2026/07/16/heir-meeting-2026-07-16/</link><pubDate>Thu, 16 Jul 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/07/16/heir-meeting-2026-07-16/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1decje8a7Grw0PKll21S-zxE6Na0PTepzxDzoVa5TYBA/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/0CcJsJLAfE0">video recording&lt;/a> from the HEIR meeting on
+2026-07-16.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2026-03-26</title><link>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</link><pubDate>Thu, 26 Mar 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/19nIJWHZR8Cj7TGX0jyl92hBUxpqeRs1H9xczQycyETs/edit?usp=sharing">notes&lt;/a>
 and &lt;a href="https://youtu.be/ZxPxAKdWDiY">video recording&lt;/a> from the HEIR meeting on
 2026-03-26.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2026-01-29</title><link>https://heir.dev/blog/2026/01/29/heir-meeting-2026-01-29/</link><pubDate>Thu, 29 Jan 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/01/29/heir-meeting-2026-01-29/</guid><description>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: FHE.org 2026 conference poster</title><link>https://heir.dev/blog/2026/03/10/fhe.org-2026-conference-poster/</link><pubDate>Tue, 10 Mar 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/03/10/fhe.org-2026-conference-poster/</guid><description>
+&lt;p>Asra Ali presented a poster at the FHE.org 2026 conference in Taipei.&lt;/p>
+&lt;p>A web-friendly adaptation of the poster is available at
+&lt;a href="https://heir.dev/docs/design/ml_with_heir/">ML with HEIR&lt;/a>, while the original poster is
+available below. Tap the image to view the full-resolution PDF.&lt;/p>
+&lt;a href="https://heir.dev/slides/fheorg_poster_2026_03.pdf" style="display: block; overflow: hidden;">
+&lt;img src="https://heir.dev/images/fheorg_poster_2026_03.png" alt="FHE.org 2026 Poster"
+style="width: calc(100% + 5%); margin: -4.5% -4.5%;"> &lt;!-- trim off white border -->
+&lt;/a>
+&lt;p>&lt;a href="https://heir.dev/slides/fheorg_poster_2026_03.pdf">Download Poster (PDF)&lt;/a>&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-10-02</title><link>https://heir.dev/blog/2025/10/02/heir-meeting-2025-10-02/</link><pubDate>Thu, 02 Oct 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/10/02/heir-meeting-2025-10-02/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1zyvgThdgsXrW5Q3Y3SlMHDsoL6-B4PbkalOCezhf-NY/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/2YKdhbEVZz0">video recording&lt;/a> from the HEIR meeting on
-2026-01-29.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-08-08</title><link>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</link><pubDate>Thu, 08 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1N0hlnCM8tQ9uwiTKVhbDoGdkZ0191sSIfhu7PWotBZc/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/uinxBjENAEE">video recording&lt;/a> from the HEIR meeting on
+2025-10-02.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-03-20</title><link>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</link><pubDate>Thu, 20 Mar 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-08.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-11.&lt;/p>
+&lt;a href="https://docs.google.com/document/d/1TMXQBVumA4YmOTH5QgKR27_Sb-60PI7bKyltJ-D3jbE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/ULRFEmhwzZE">video recording&lt;/a> from the HEIR meeting on
+2025-03-20.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
