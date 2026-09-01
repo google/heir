@@ -72,7 +72,7 @@ module {
       // CHECK: %[[V0:.*]] = secret.generic(%[[ARG0]]: !secret.secret<memref<1x80xi8>>)
     %c-128_i8 = arith.constant -128 : i8
     %c0 = arith.constant 0 : index
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x80xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<1x80xi8>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 80 {
             %0 = affine.load %arg0[%arg2, %arg3] : memref<1x80xi8>

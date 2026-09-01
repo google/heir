@@ -12,7 +12,7 @@ module {
     // CHECK: [[MEM:%[a-z0-9_]+]] = memref.alloc
     // CHECK-COUNT-1: affine.store {{.*}}[[CONST]], {{.*}}[[MEM]]
     // CHECK-COUNT-1: affine.load
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<2xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<2xi8>
       affine.for %arg2 = 0 to 3 {
             %t = affine.load %arg0[%arg2] : memref<2xi8>
             affine.store %t, %alloc[%arg2] : memref<2xi8>

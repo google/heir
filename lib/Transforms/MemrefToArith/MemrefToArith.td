@@ -104,7 +104,7 @@ def ExtractLoopBodyPass : Pass<"extract-loop-body", "mlir::ModuleOp"> {
       func.func @loop_body() {
         %c-128_i8 = arith.constant -128 : i8
         %c127_i8 = arith.constant 127 : i8
-        %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+        %alloc_7 = memref.alloc() alignment = 64 : memref<25x20x8xi8>
         affine.for %arg1 = 0 to 25 {
           affine.for %arg2 = 0 to 20 {
             affine.for %arg3 = 0 to 8 {
@@ -126,7 +126,7 @@ def ExtractLoopBodyPass : Pass<"extract-loop-body", "mlir::ModuleOp"> {
     ```
     module {
       func.func @loop_body() {
-        %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+        %alloc_7 = memref.alloc() alignment = 64 : memref<25x20x8xi8>
         affine.for %arg1 = 0 to 25 {
           affine.for %arg2 = 0 to 20 {
             affine.for %arg3 = 0 to 8 {

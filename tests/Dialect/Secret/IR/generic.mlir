@@ -31,7 +31,7 @@ func.func @test_add_secret_and_plaintext_in_enclosing_scope(%value : i32) {
 // CHECK: test_memref_store
 func.func @test_memref_store(%value : i32) -> !secret.secret<memref<1xi32>> {
   %0 = secret.generic() {
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1xi32>
+    %alloc = memref.alloc() alignment = 64 : memref<1xi32>
     secret.yield %alloc : memref<1xi32>
   } -> !secret.secret<memref<1xi32>>
   // CHECK: secret.generic

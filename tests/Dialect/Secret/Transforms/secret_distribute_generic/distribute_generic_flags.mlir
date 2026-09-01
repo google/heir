@@ -136,7 +136,7 @@ func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !
     // CHECK:       secret.generic
     // CHECK-NEXT:    memref.alloc
     // CHECK-NEXT:    secret.yield
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<10xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<10xi8>
 
     // CHECK:       affine.for
     // CHECK:       secret.generic
@@ -164,7 +164,7 @@ func.func @affine_for_hello_world_reproducer(%arg0: !secret.secret<memref<1x80xi
     // CHECK:       secret.generic
     // CHECK-NEXT:    memref.alloc
     // CHECK-NEXT:    secret.yield
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x80xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<1x80xi8>
 
     // CHECK:       affine.for
     // CHECK-NEXT:    affine.for

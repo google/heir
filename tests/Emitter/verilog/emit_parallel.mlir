@@ -4,7 +4,7 @@
 module {
   func.func @main(%arg0 : memref<1x2xi16>) -> memref<1x2xi8> {
     %c0 = arith.constant 0 : index
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x2xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<1x2xi8>
     affine.parallel (%arg1) = (0) to (2) {
       %1 = affine.load %arg0[%c0, %arg1] : memref<1x2xi16>
       %2 = arith.trunci %1 : i16 to i8

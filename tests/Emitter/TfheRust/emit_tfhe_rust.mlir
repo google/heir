@@ -72,7 +72,7 @@ func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   // CHECK: let mut [[v7:.*]] : HashMap<usize, Ciphertext> = HashMap::new();
   // CHECK-NEXT: [[v7]].insert([[v1]] as usize, [[v6]]);
   // CHECK-NEXT: core::array::from_fn(|i0| [[v7]].get
-memref.global constant @__constant_1x1xi1 : memref<1x1xi1> = dense<[[1]]> {alignment = 64 : i64}
+memref.global constant @__constant_1x1xi1 : memref<1x1xi1> = dense<[[1]]> alignment = 64
 func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3>) {
   %c0 = arith.constant 0 : index
   %0 = memref.load %input[%c0] : memref<1x!eui3>

@@ -15,7 +15,7 @@ module {
     %c127_i8 = arith.constant 127 : i8
     %c0 = arith.constant 0 : i8
     // CHECK: [[MEMREF1:%[a-z0-9_]+]] = memref.alloc
-    %alloc_6 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+    %alloc_6 = memref.alloc() alignment = 64 : memref<25x20x8xi8>
     // This loop body should not be extracted, since it does not follow a store
     // and load pattern.
     // CHECK: affine.for
@@ -31,7 +31,7 @@ module {
       }
     }
     // CHECK: [[MEMREF2:%[a-z0-9_]+]] = memref.alloc
-    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+    %alloc_7 = memref.alloc() alignment = 64 : memref<25x20x8xi8>
     // CHECK: affine.for
     affine.for %arg1 = 0 to 25 {
       // CHECK: affine.for
@@ -51,7 +51,7 @@ module {
       }
     }
     // CHECK: [[MEMREF3:%[a-z0-9_]+]] = memref.alloc
-    %alloc_8 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+    %alloc_8 = memref.alloc() alignment = 64 : memref<25x20x8xi8>
     // This loop tests that the statements used to compute the memref.load stay
     // in the for loop body.
     // CHECK: affine.for
@@ -82,7 +82,7 @@ module {
       }
     }
     // CHECK: [[MEMREF3:%[a-z0-9_]+]] = memref.alloc
-    %alloc_9 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+    %alloc_9 = memref.alloc() alignment = 64 : memref<25x20x8xi8>
     // CHECK: affine.for
     affine.for %arg1 = 0 to 25 {
       // CHECK: affine.for

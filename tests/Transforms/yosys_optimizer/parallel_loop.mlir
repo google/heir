@@ -6,8 +6,8 @@
 
 // CHECK: module
 module attributes {tf_saved_model.semantics} {
-  memref.global "private" constant @__constant_16xi32 : memref<16xi8> = dense<[0, 0, -54, -55, -13, -15, -41, -84, 33, 0, 19, -55, 0, -69, 34, -72]> {alignment = 64 : i64}
-  memref.global "private" constant @__constant_16x1xi8 : memref<16x1xi8> = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]> {alignment = 64 : i64}
+  memref.global "private" constant @__constant_16xi32 : memref<16xi8> = dense<[0, 0, -54, -55, -13, -15, -41, -84, 33, 0, 19, -55, 0, -69, 34, -72]> alignment = 64
+  memref.global "private" constant @__constant_16x1xi8 : memref<16x1xi8> = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]> alignment = 64
   // CHECK: main
   func.func @main(%arg0: !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>> {iree.identifier = "serving_default_dense_input:0", tf_saved_model.index_path = ["dense_input"]}) -> (!secret.secret<memref<1x16xi8>> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
     // The global values are optimized away.
@@ -18,7 +18,7 @@ module attributes {tf_saved_model.semantics} {
     // CHECK: secret.generic
     %2 = secret.generic(%arg0 : !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>>) {
     ^bb0(%arg1: memref<1x1xi8, strided<[?, ?], offset: ?>>):
-      %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc = memref.alloc() alignment = 64 : memref<1x16xi8>
       affine.parallel (%arg2) = (0) to (16) {
         %4 = affine.load %0[%arg2, %c0] : memref<16x1xi8>
         %5 = affine.load %1[%arg2] : memref<16xi8>

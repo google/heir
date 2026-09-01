@@ -12,7 +12,7 @@ func.func @mix(%input1 : memref<4x!tfhe_rust.bool>) -> memref<4x!tfhe_rust.bool>
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
   %c3 = arith.constant 3 : index
-  %alloc = memref.alloc() {alignment = 64 : i64} : memref<4x!tfhe_rust.bool>
+  %alloc = memref.alloc() alignment = 64 : memref<4x!tfhe_rust.bool>
   %1 = memref.load %input1[%c0] : memref<4x!tfhe_rust.bool>
   %2 = memref.load %input1[%c1] : memref<4x!tfhe_rust.bool>
   %3 = memref.load %input1[%c2] : memref<4x!tfhe_rust.bool>
