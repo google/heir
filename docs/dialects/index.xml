@@ -17491,17 +17491,33 @@ a memref.&lt;/p>
 &lt;h3 id="preprocessingload_resource-heirpreprocessingloadresourceop">&lt;code>preprocessing.load_resource&lt;/code> (heir::preprocessing::LoadResourceOp)&lt;/h3>
 &lt;p>&lt;em>Load a constant resource from an external binary file&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `preprocessing.load_resource` $path attr-dict `:` type($result)
-&lt;/code>&lt;/pre>&lt;p>Loads raw bytes from the file specified by &lt;code>path&lt;/code> and interprets them
-as a tensor or memref of the result type.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `preprocessing.load_resource` $path `into` $destination attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Loads raw bytes from the file specified by &lt;code>path&lt;/code> into &lt;code>destination&lt;/code>. With
+a tensor destination, the op returns a tensor of the same type that is tied
+to the destination. With a memref destination, the op has no results.&lt;/p>
+&lt;p>Tensor results are treated as read-only during bufferization. A later write
+is placed in separate storage.&lt;/p>
 &lt;p>This op is inserted by the &lt;code>externalize-constants&lt;/code> pass.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>DestinationStyleOpInterface&lt;/code>, &lt;code>MemoryEffectOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>path&lt;/code>&lt;/td>&lt;td>::mlir::StringAttr&lt;/td>&lt;td>string attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>destination&lt;/code>&lt;/td>
+&lt;td>tensor of any non-token type values or memref of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
@@ -17514,7 +17530,7 @@ as a tensor or memref of the result type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
-&lt;td>tensor of any non-token type values or memref of any non-token type values&lt;/td>
+&lt;td>variadic of tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17539,7 +17555,7 @@ memref.&lt;/p>
 &lt;tr>&lt;td>&lt;code>site_id&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>32-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>element_type&lt;/code>&lt;/td>&lt;td>::mlir::TypeAttr&lt;/td>&lt;td>any type attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
