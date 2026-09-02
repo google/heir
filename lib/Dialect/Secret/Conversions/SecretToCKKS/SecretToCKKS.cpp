@@ -1,7 +1,9 @@
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -100,7 +102,10 @@ class SecretToCKKSTypeConverter
   SecretToCKKSTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing)
       : UniquelyNamedAttributeAwareTypeConverter(
             mgmt::MgmtDialect::kArgMgmtAttrName) {
-    addConversion([](Type type, Attribute attr) { return type; });
+    addConversion([](Type type, Attribute attr) -> std::optional<Type> {
+      if (isa<secret::SecretType>(type)) return std::nullopt;
+      return type;
+    });
     addConversion(
         [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
           // For cases like tensor.empty + mgmt.init, we need to convert this
@@ -201,8 +206,9 @@ class SecretGenericPlaintextDivision
     Value cleartextDivisor = inputs[1];
     if (isa<lwe::LWECiphertextType>(cleartextDivisor.getType()) ||
         !isa<lwe::LWECiphertextType>(ciphertextInput.getType())) {
-      return rewriter.notifyMatchFailure(
-          op, "expected plaintext divisor and ciphertext dividend");
+      return op.emitOpError(
+          "ciphertext division is not supported in CKKS; expected plaintext "
+          "divisor and ciphertext dividend");
     }
 
     // Encode 1/cleartext as a plaintext
@@ -244,6 +250,119 @@ class SecretGenericPlaintextDivision
   }
 };
 
+struct LinearTransformOpConversion
+    : public ContextAwareOpConversionPattern<secret::GenericOp> {
+  LinearTransformOpConversion(const ContextAwareTypeConverter& typeConverter_,
+                              MLIRContext* context, int64_t ringDim,
+                              PatternBenefit benefit = 1)
+      : ContextAwareOpConversionPattern<secret::GenericOp>(typeConverter_,
+                                                           context, benefit),
+        ringDim(ringDim) {}
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    if (op.getBody()->getOperations().size() > 2) {
+      return failure();
+    }
+
+    auto& innerOp = op.getBody()->getOperations().front();
+    auto ltOp = dyn_cast<kernel::LinearTransformOp>(innerOp);
+    if (!ltOp) {
+      return failure();
+    }
+
+    // Convert inputs
+    SmallVector<Value> inputs;
+    for (Value operand : ltOp->getOperands()) {
+      if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
+        inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
+      } else {
+        inputs.push_back(operand);
+      }
+    }
+
+    // Convert result types
+    SmallVector<Type> resultTypes;
+    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                op.getResults(), resultTypes)))
+      return op.emitOpError(
+          "failed to convert result types to CKKS ciphertext types");
+
+    // Preserve attributes (similar to SecretGenericOpConversion)
+    SmallVector<NamedAttribute> attrsToPreserve;
+    for (auto& namedAttr : ltOp->getDialectAttrs()) {
+      attrsToPreserve.push_back(namedAttr);
+    }
+    for (auto attrName : ltOp.getAttributeNames()) {
+      if (attrName == "diagonals")
+        continue;  // We will handle diagonals separately
+      if (auto attr = ltOp->getAttr(attrName)) {
+        attrsToPreserve.push_back(rewriter.getNamedAttr(attrName, attr));
+      }
+    }
+
+    // Pad diagonals
+    auto diagonalsAttr = cast<DenseElementsAttr>(ltOp.getDiagonals());
+    auto diagonalsType = cast<RankedTensorType>(diagonalsAttr.getType());
+    auto shape = diagonalsType.getShape();
+    int64_t numDiagonals = shape[0];
+    int64_t numCols = shape[1];
+
+    int64_t actualSlots = ringDim / 2;  // CKKS assumption
+
+    DenseElementsAttr newDiagonalsAttr;
+    if (numCols == actualSlots) {
+      newDiagonalsAttr = diagonalsAttr;
+    } else {
+      if (numCols > actualSlots) {
+        return ltOp.emitOpError("diagonals slot size (")
+               << numCols << ") is larger than actual slots (" << actualSlots
+               << ")";
+      }
+      SmallVector<Attribute> paddedValues;
+      auto elementValues = diagonalsAttr.getValues<Attribute>();
+      auto elemType = diagonalsType.getElementType();
+      Attribute zeroAttr = rewriter.getZeroAttr(elemType);
+
+      for (int64_t i = 0; i < numDiagonals; ++i) {
+        for (int64_t j = 0; j < numCols; ++j) {
+          paddedValues.push_back(elementValues[i * numCols + j]);
+        }
+        for (int64_t j = numCols; j < actualSlots; ++j) {
+          paddedValues.push_back(zeroAttr);
+        }
+      }
+
+      auto newDiagonalsType =
+          RankedTensorType::get({numDiagonals, actualSlots}, elemType);
+      newDiagonalsAttr = DenseElementsAttr::get(newDiagonalsType, paddedValues);
+    }
+    attrsToPreserve.push_back(
+        rewriter.getNamedAttr("diagonals", newDiagonalsAttr));
+
+    // Handle mgmt attrs
+    convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
+    convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
+    DenseSet<StringRef> seenNames;
+    SmallVector<NamedAttribute> dedupedAttrsToPreserve;
+    for (auto attr : llvm::reverse(attrsToPreserve)) {
+      if (seenNames.insert(attr.getName().getValue()).second) {
+        dedupedAttrsToPreserve.push_back(attr);
+      }
+    }
+    std::reverse(dedupedAttrsToPreserve.begin(), dedupedAttrsToPreserve.end());
+    auto newLtOp = kernel::LinearTransformOp::create(
+        rewriter, ltOp.getLoc(), resultTypes, inputs, dedupedAttrsToPreserve);
+
+    rewriter.replaceOp(op, newLtOp->getResults());
+    return success();
+  }
+
+ private:
+  int64_t ringDim;
+};
+
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
@@ -266,7 +385,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     // pass option minSlotCount is actually the number of slots
     // TODO(#1402): use a proper name for CKKS
     auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   minSlotCount);
+                                   1 << schemeParamAttr.getLogN());
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
@@ -309,6 +428,9 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpConversion<kernel::EvalChebyshevOp>,
         SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>>(
         typeConverter, context);
+
+    int64_t ringDim = 1 << schemeParamAttr.getLogN();
+    patterns.add<LinearTransformOpConversion>(typeConverter, context, ringDim);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());
