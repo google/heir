@@ -2283,7 +2283,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
 
   std::string resultName = getName(op.getResult());
   emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ")");
+                                        getName(op.getInput()) + ".CopyNew())");
   return success();
 }
 
