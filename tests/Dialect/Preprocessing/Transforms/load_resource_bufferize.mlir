@@ -1,7 +1,7 @@
 // RUN: heir-opt --one-shot-bufferize="bufferize-function-boundaries" %s | FileCheck %s
 
 // CHECK: func.func @test_load_resource() -> memref<4xi32> {
-// CHECK-NEXT: %[[RES:[^ ]+]] = memref.alloc() {alignment = 64 : i64} : memref<4xi32>
+// CHECK-NEXT: %[[RES:[^ ]+]] = memref.alloc() alignment = 64 : memref<4xi32>
 // CHECK-NEXT: preprocessing.load_resource "some/path.bin" into %[[RES]] : (memref<4xi32>) -> ()
 // CHECK: return %[[RES]] : memref<4xi32>
 func.func @test_load_resource() -> tensor<4xi32> {
@@ -12,9 +12,9 @@ func.func @test_load_resource() -> tensor<4xi32> {
 }
 
 // CHECK: func.func @test_write_after_load
-// CHECK: %[[RESOURCE:[^ ]+]] = memref.alloc() {alignment = 64 : i64} : memref<4xi32>
+// CHECK: %[[RESOURCE:[^ ]+]] = memref.alloc() alignment = 64 : memref<4xi32>
 // CHECK-NEXT: preprocessing.load_resource "some/path.bin" into %[[RESOURCE]] : (memref<4xi32>) -> ()
-// CHECK: %[[COPY:[^ ]+]] = memref.alloc() {alignment = 64 : i64} : memref<4xi32>
+// CHECK: %[[COPY:[^ ]+]] = memref.alloc() alignment = 64 : memref<4xi32>
 // CHECK: memref.copy %[[RESOURCE]], %[[COPY]] : memref<4xi32> to memref<4xi32>
 // CHECK: memref.store %arg0, %[[COPY]]
 // CHECK: return %[[COPY]] : memref<4xi32>
