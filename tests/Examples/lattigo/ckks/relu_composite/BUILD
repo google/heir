@@ -19,7 +19,7 @@ heir_lattigo_lib(
     go_library_name = "relucomposite",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=min-slot-count=1024 use-composite-relu=true greedy-level-budget=14",
+        "--torch-linalg-to-ckks=min-slot-count=1024 use-composite-relu=true greedy-level-budget=30",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:relu_composite.mlir",

@@ -35,13 +35,13 @@ func.func @test_input_not_1d_or_2d(%arg0: tensor<1x2x3xf32>) -> tensor<1x2x3xf32
 
 // -----
 
-func.func @test_slot_size_mismatch(%arg0: tensor<4xf32>) -> tensor<4xf32> {
-  // expected-error@below {{input slot size (4) must match diagonals slot size (3)}}
+func.func @test_slot_size_mismatch(%arg0: tensor<2xf32>) -> tensor<2xf32> {
+  // expected-error@below {{input slot size (2) is smaller than diagonals slot size (3)}}
   %0 = kernel.linear_transform %arg0 {
     diagonals = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf32>,
     diagonal_indices = array<i64: 0, 1>
-  } : tensor<4xf32> -> tensor<4xf32>
-  return %0 : tensor<4xf32>
+  } : tensor<2xf32> -> tensor<2xf32>
+  return %0 : tensor<2xf32>
 }
 
 // -----

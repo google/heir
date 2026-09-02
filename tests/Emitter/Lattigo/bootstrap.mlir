@@ -2,7 +2,9 @@
 
 // CHECK: func Test_bootstrap(
 // CHECK-SAME: [[BOOT_EVAL:[^, ]+]] *bootstrapping.Evaluator, [[EVAL:[^, ]+]] *ckks.Evaluator, [[CT_IN:[^, ]+]] *rlwe.Ciphertext, [[CT_OTHER:[^, ]+]] *rlwe.Ciphertext
-// CHECK:   [[CT_OUT:[^, ]+]], err{{.*}} := [[BOOT_EVAL]].Bootstrap([[CT_IN]])
+// lattigo's Bootstrap mod-ups its argument in place, so the operand is
+// handed a copy to keep it usable afterwards.
+// CHECK:   [[CT_OUT:[^, ]+]], err{{.*}} := [[BOOT_EVAL]].Bootstrap([[CT_IN]].CopyNew())
 // CHECK:   if err{{.*}} != nil {
 // CHECK:     panic(err{{.*}})
 // CHECK:   }

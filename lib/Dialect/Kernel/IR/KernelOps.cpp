@@ -11,6 +11,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
+#include "lib/Utils/MathUtils.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
@@ -117,7 +118,7 @@ int EvalChebyshevOp::getLevelsToDrop() {
   uint32_t degree = coefficients.size() - 1;
   switch (backend) {
     case BackendName::Lattigo:
-      baseDepth = std::bit_width(static_cast<uint64_t>(degree));
+      baseDepth = lattigoChebyshevDepth(degree);
       break;
     case BackendName::OpenFHE:
       if (degree == 0) {
@@ -187,10 +188,12 @@ LogicalResult LinearTransformOp::verify() {
       return emitOpError("input must be 1D or 2D ranked tensor");
     }
 
+    // The diagonals may be narrower than the ciphertext: the transform then
+    // acts on the leading slots and the backend's encoder zero-fills the rest.
     int64_t diagonalSlotSize = diagonalsType.getDimSize(1);
-    if (inputSize != diagonalSlotSize) {
+    if (inputSize < diagonalSlotSize) {
       return emitOpError("input slot size (")
-             << inputSize << ") must match diagonals slot size ("
+             << inputSize << ") is smaller than diagonals slot size ("
              << diagonalSlotSize << ")";
     }
   }
