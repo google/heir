@@ -485,7 +485,17 @@ LogicalResult LayoutPropagation::visitOperation(func::FuncOp op) {
       // assign_layout ops and materialized to plaintexts server-side.
       continue;
     }
-    FailureOr<LayoutAttr> layout = defaultLayoutForType(arg.getType());
+    FailureOr<LayoutAttr> layout = failure();
+    auto existingLayout = findAttributeAssociatedWith(
+        arg, tensor_ext::TensorExtDialect::kLayoutAttrName);
+    if (succeeded(existingLayout)) {
+      if (auto layoutAttr = dyn_cast<LayoutAttr>(*existingLayout)) {
+        layout = layoutAttr;
+      }
+    }
+    if (failed(layout)) {
+      layout = defaultLayoutForType(arg.getType());
+    }
     if (failed(layout)) {
       return op->emitOpError()
              << "Failed to assign default layout to func argument " << arg;
