@@ -9061,7 +9061,7 @@ to level 0) and returns a ciphertext with the max level of
 the Lattigo polynomial evaluator API.&lt;/p>
 &lt;p>The codegen constructs the Lattigo polynomial and, using an existing polynomial
 evaluator, calls the evaluation routine with a given target scale.&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -9246,6 +9246,9 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.linear_transform` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation applies a linear transform on a CKKS ciphertext using
 the provided float diagonals.&lt;/p>
+&lt;p>The transform is built at the input ciphertext&amp;rsquo;s own level, so evaluating
+it technically consumes no level: the result comes back at the input&amp;rsquo;s level
+but with a multiplied scale (requiring a separate rescale afterwards).&lt;/p>
 &lt;p>The linear transform is defined by a set of diagonals, where each diagonal
 represents a specific shift and scaling of the input ciphertext slots.&lt;/p>
 &lt;p>The &lt;code>diagonals&lt;/code> input is a 2D tensor where each row represents one non-zero
