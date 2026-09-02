@@ -8,6 +8,7 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -40,6 +41,11 @@
 // analysis, and mod_reduce/level_reduce causes levels do decrement.
 namespace mlir {
 namespace heir {
+/// Records how many levels a ciphertext function argument has already consumed
+/// on entry. Backend dialects give every ciphertext the same opaque type, so an
+/// analysis running after that lowering cannot recover the argument's level
+/// from the type and would otherwise assume the argument is fresh.
+constexpr StringRef kEntryLevelDepthAttrName = "lwe.entry_level_depth";
 
 constexpr int kDefaultLevelBudget = 40;
 
@@ -202,7 +208,24 @@ class LevelAnalysis
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToEntryState(LevelLattice* lattice) override {
-    propagateIfChanged(lattice, lattice->join(LevelState(0)));
+    // A function argument is not necessarily fresh: a client may hand the
+    // entry point a ciphertext that has already consumed levels. Assuming
+    // depth 0 makes every value derived from such an argument look shallower
+    // than it is, which later reads as "this buffer still has levels left".
+    propagateIfChanged(
+        lattice,
+        lattice->join(LevelState(getEntryLevelDepth(lattice->getAnchor()))));
+  }
+
+  /// Levels already consumed by `value` on entry, from the attribute the
+  /// backend lowering leaves behind. Zero (fresh) when unannotated.
+  static int getEntryLevelDepth(Value value) {
+    auto attr = findAttributeAssociatedWith(value, kEntryLevelDepthAttrName);
+    if (failed(attr)) {
+      return 0;
+    }
+    auto intAttr = dyn_cast<IntegerAttr>(*attr);
+    return intAttr ? static_cast<int>(intAttr.getInt()) : 0;
   }
 
   LogicalResult visitOperation(Operation* op,

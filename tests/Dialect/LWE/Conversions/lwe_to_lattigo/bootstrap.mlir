@@ -35,7 +35,10 @@
 // CHECK: func.func @bootstrap
 // CHECK-SAME: (%[[bEval:.*]]: ![[bEvalType]],
 // CHECK-SAME:  %[[eval:.*]]: ![[evalType]],
-// CHECK-SAME: , %[[ct:[a-z]+]]: ![[ctType]])
+// The bootstrap input sits at level 2 of the fourteen-modulus Q chain while its
+// own chain attribute lists only three of those moduli, so its depth has to be
+// measured against the scheme parameters.
+// CHECK-SAME: , %[[ct:[a-z]+]]: ![[ctType]] {lwe.entry_level_depth = 11 : i64})
 // CHECK: lattigo.ckks.bootstrap %[[bEval]], %[[ct]]
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 17, Q = [1106058412451299513, 1056763241666817029, 957769724367225479, 919081519653443687, 1030837924888066153, 1084354410096143723, 1135846243351935917, 1087115004561311021, 997960547764032911, 892538949448853293, 1002528331340998513, 1100798419621231379, 981696679688787961, 1061922508412786269], P = [1152921504606846976], logDefaultScale = 60>, scheme.ckks} {
