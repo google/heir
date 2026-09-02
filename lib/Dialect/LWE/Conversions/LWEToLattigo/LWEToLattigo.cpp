@@ -1,9 +1,12 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
@@ -765,6 +768,24 @@ struct ConvertKernelEvalChebyshevOp
   }
 };
 
+// The top of the module's ciphertext modulus chain, i.e. the level a fresh
+// ciphertext sits at. Read from the scheme parameters rather than from any one
+// ciphertext type: an LWE type's own `elements` list can be a truncated view of
+// the chain (a fully consumed value shows up as `elements = <1 modulus>,
+// current = 0`), and measuring a level against a truncated list understates it.
+// Nullopt for a module without scheme parameters (hand-written test IR), where
+// the type's own list is the only chain length on offer.
+std::optional<int> getSchemeMaxLevel(Operation* moduleOp) {
+  Attribute schemeParam = getSchemeParamAttr(moduleOp);
+  if (auto ckksParam = dyn_cast<ckks::SchemeParamAttr>(schemeParam)) {
+    return static_cast<int>(ckksParam.getQ().size()) - 1;
+  }
+  if (auto bgvParam = dyn_cast<bgv::SchemeParamAttr>(schemeParam)) {
+    return static_cast<int>(bgvParam.getQ().size()) - 1;
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 // BGV
@@ -903,6 +924,41 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
   void runOnOperation() override {
     // Save the dialect attributes of func::CallOp before conversion.
     saveFuncCallOpDialectAttrs();
+
+    // Every lattigo ciphertext has the same opaque type, so a ciphertext
+    // argument that does not start at the top of the modulus chain is
+    // indistinguishable from one that does afterwards. Record how far down the
+    // chain it starts while the LWE type still says so, so analyses running on
+    // the lowered IR do not assume every argument is at the top.
+    std::optional<int> schemeMaxLevel = getSchemeMaxLevel(getOperation());
+    getOperation()->walk([&](FunctionOpInterface funcOp) {
+      if (funcOp.getFunctionBody().empty()) {
+        return;
+      }
+      for (BlockArgument arg : funcOp.getArguments()) {
+        auto ctTy = dyn_cast<lwe::LWECiphertextType>(
+            getElementTypeOrSelf(arg.getType()));
+        if (!ctTy) {
+          continue;
+        }
+        auto chain = ctTy.getModulusChain();
+        if (!chain) {
+          continue;
+        }
+        // `current` indexes the module's Q chain, so the top of that chain --
+        // not the length of this type's own element list -- is what the level
+        // has to be measured against.
+        int maxLevel = schemeMaxLevel.value_or(
+            static_cast<int>(chain.getElements().size()) - 1);
+        int depth = maxLevel - chain.getCurrent();
+        if (depth <= 0) {
+          continue;
+        }
+        funcOp.setArgAttr(
+            arg.getArgNumber(), kEntryLevelDepthAttrName,
+            IntegerAttr::get(IntegerType::get(&getContext(), 64), depth));
+      }
+    });
 
     MLIRContext* context = &getContext();
     auto* module = getOperation();
