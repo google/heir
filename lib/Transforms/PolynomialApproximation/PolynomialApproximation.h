@@ -8,6 +8,12 @@
 namespace mlir {
 namespace heir {
 
+enum class MathExpMethod {
+  Auto,
+  CF,
+  Taylor,
+};
+
 #define GEN_PASS_DECL
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h.inc"
 

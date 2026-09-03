@@ -441,9 +441,9 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
   double upper;
 };
 
-// Use a Taylor approximation `e^x = (1 + x/2^k)^(2^k)` evaluated via
-// repeated squaring. When the domain is in [-2^k, 1], this is more efficient
-// in level consumption than the default polynomial approximation solver.
+// Approximate `exp` on `[-2^k, 1.0]` using repeated squaring `(1 +
+// x/2^k)^(2^k)` (when using `--math-exp-method=taylor`), which evaluates a
+// degree-2^k polynomial with k multiplicative levels.
 struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
   ExpOpTaylorApproximation(MLIRContext* context, DataFlowSolver* solver,
                            int64_t defaultK = 7)
@@ -472,25 +472,32 @@ struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
     double validLower = -static_cast<double>(1ULL << k);
     double validUpper = 1.0;
 
+    double domainLower = kDefaultDomainLower;
+    double domainUpper = kDefaultDomainUpper;
     if (op->hasAttr("domain_lower")) {
       FloatAttr lowerAttr = dyn_cast<FloatAttr>(op->getAttr("domain_lower"));
       if (!lowerAttr)
         return op.emitOpError(
             "domain_lower must be a floating-point attribute");
-      if (lowerAttr.getValueAsDouble() < validLower) {
-        return rewriter.notifyMatchFailure(
-            op, "domain_lower is less than valid interval bound -2^k");
-      }
+      domainLower = lowerAttr.getValueAsDouble();
     }
     if (op->hasAttr("domain_upper")) {
       FloatAttr upperAttr = dyn_cast<FloatAttr>(op->getAttr("domain_upper"));
       if (!upperAttr)
         return op.emitOpError(
             "domain_upper must be a floating-point attribute");
-      if (upperAttr.getValueAsDouble() > validUpper) {
-        return rewriter.notifyMatchFailure(
-            op, "domain_upper exceeds valid interval bound 1.0");
-      }
+      domainUpper = upperAttr.getValueAsDouble();
+    }
+    if (!(domainLower < domainUpper))
+      return op.emitOpError(
+          "domain_lower must be strictly less than domain_upper");
+    if (domainLower < validLower) {
+      return rewriter.notifyMatchFailure(
+          op, "domain_lower is less than valid interval bound -2^k");
+    }
+    if (domainUpper > validUpper) {
+      return rewriter.notifyMatchFailure(
+          op, "domain_upper exceeds valid interval bound 1.0");
     }
 
     Type elemType =
@@ -688,7 +695,10 @@ struct PolynomialApproximation
     RewritePatternSet patterns(context);
 
     // High priority patterns
-    patterns.add<ExpOpTaylorApproximation>(context, &solver, /*k=*/7);
+    // TODO(#3373): re-enable after identifying the right regime
+    if (mathExpMethod == MathExpMethod::Taylor) {
+      patterns.add<ExpOpTaylorApproximation>(context, &solver, /*k=*/7);
+    }
     patterns.add<SquareAndMultiplyForPowOp>(context);
     if (useCompositeRelu) {
       patterns.add<ReluViaCompositeSign>(context, &solver);

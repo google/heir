@@ -2,13 +2,11 @@
 
 // CHECK: @test_exp
 func.func @test_exp(%x: f32 {secret.secret}) -> f32 {
-  // CHECK: %[[SCALE:.*]] = arith.constant 2.500000e-01 : f32
-  // CHECK: %[[ONE:.*]] = arith.constant 1.000000e+00 : f32
-  // CHECK: %[[SCALED:.*]] = arith.mulf %{{.*}}, %[[SCALE]] : f32
-  // CHECK: %[[V0:.*]] = arith.addf %[[SCALED]], %[[ONE]] : f32
-  // CHECK: %[[V1:.*]] = arith.mulf %[[V0]], %[[V0]] : f32
-  // CHECK: %[[V2:.*]] = arith.mulf %[[V1]], %[[V1]] : f32
-  // CHECK: return %[[V2]] : f32
+  // CHECK: %[[POLY:.*]] = polynomial.eval
+  // CHECK-SAME: domain_lower = -1.000000e+00 : f64
+  // CHECK-SAME: domain_upper = 1.000000e+00 : f64
+  // CHECK-SAME: f32
+  // CHECK: return %[[POLY]] : f32
   %0 = math.exp %x {degree = 3 : i32, domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f32
   return %0 : f32
 }
@@ -17,11 +15,11 @@ func.func @test_exp(%x: f32 {secret.secret}) -> f32 {
 
 // CHECK: @test_exp_tensor
 func.func @test_exp_tensor(%x: tensor<4xf32> {secret.secret}) -> tensor<4xf32> {
-  // CHECK: %[[SCALE:.*]] = arith.constant dense<7.812500e-03> : tensor<4xf32>
-  // CHECK: %[[ONE:.*]] = arith.constant dense<1.000000e+00> : tensor<4xf32>
-  // CHECK: %[[SCALED:.*]] = arith.mulf %{{.*}}, %[[SCALE]] : tensor<4xf32>
-  // CHECK: %[[V0:.*]] = arith.addf %[[SCALED]], %[[ONE]] : tensor<4xf32>
-  // CHECK: %[[V1:.*]] = arith.mulf %[[V0]], %[[V0]] : tensor<4xf32>
+  // CHECK: %[[POLY:.*]] = polynomial.eval
+  // CHECK-SAME: domain_lower = -1.000000e+00 : f64
+  // CHECK-SAME: domain_upper = 1.000000e+00 : f64
+  // CHECK-SAME: tensor<4xf32>
+  // CHECK: return %[[POLY]] : tensor<4xf32>
   %0 = math.exp %x : tensor<4xf32>
   return %0 : tensor<4xf32>
 }

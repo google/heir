@@ -61,9 +61,10 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     These ops are replaced with `polynomial.eval` ops with a static polynomial
     attribute.
 
-    Some distinguished ops have hard-coded approximations in certain intervals,
-    such as `exp` on `[-2^k, 1.0]`, which are proven to have better approximation
-    for the same (or less) homomorphic level usage.
+    Some ops support alternative approximation strategies, such as `exp` on
+    `[-2^k, 1.0]` using repeated squaring `(1 + x/2^k)^(2^k)` (when using
+    `--math-exp-method=taylor`), which evaluates a degree-2^k polynomial with k
+    multiplicative levels.
 
     (* example filepath=tests/Transforms/polynomial_approximation/doctest.mlir *)
   }];
@@ -78,6 +79,17 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
            "B from domain_lower/upper attrs) instead of a single-polynomial "
            "fit of max(x,0). Much more accurate for deep networks but needs "
            "more multiplicative depth / bootstrapping.">,
+    Option<"mathExpMethod", "math-exp-method", "mlir::heir::MathExpMethod",
+           /*default=*/"mlir::heir::MathExpMethod::Auto",
+           "The method used to approximate math.exp",
+           [{::llvm::cl::values(
+                 clEnumValN(mlir::heir::MathExpMethod::Auto,
+                            "auto", "Automatically selected method (currently defaults to CF)"),
+                 clEnumValN(mlir::heir::MathExpMethod::CF,
+                            "cf", "Caratheodory-Fejer minimax approximation"),
+                 clEnumValN(mlir::heir::MathExpMethod::Taylor,
+                            "taylor", "Taylor approximation ((1 + x/2^k)^(2^k)) via repeated squaring")
+           )}]>,
   ];
 }
 

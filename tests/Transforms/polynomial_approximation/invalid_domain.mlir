@@ -1,8 +1,5 @@
 // RUN: heir-opt --split-input-file --verify-diagnostics --polynomial-approximation %s
-
-// NB: these use math.tanh rather than math.exp. ExpOpTaylorApproximation
-// registers at benefit 2 and claims math.exp before ConvertUnaryOp (benefit 1)
-// ever sees it, so math.exp does not exercise this validation.
+// RUN: heir-opt --split-input-file --verify-diagnostics --polynomial-approximation=math-exp-method=taylor %s
 
 // A degenerate domain makes the Chebyshev fit meaningless and is the
 // precondition rescaleToUnitInterval asserts on, so reject it up front rather
@@ -30,6 +27,42 @@ func.func @degenerate_domain_binary(%x: tensor<10xf32> {secret.secret}) -> tenso
   // expected-error@+1 {{domain_lower must be strictly less than domain_upper}}
   %0 = arith.maximumf %x, %c0 {domain_lower = 1.0 : f64, domain_upper = 1.0 : f64} : tensor<10xf32>
   return %0 : tensor<10xf32>
+}
+
+// -----
+
+// Inverted domain on math.exp (tested under both Chebyshev and Taylor methods).
+func.func @inverted_domain_exp(%x: f32 {secret.secret}) -> f32 {
+  // expected-error@+1 {{domain_lower must be strictly less than domain_upper}}
+  %0 = math.exp %x {domain_lower = 0.5 : f64, domain_upper = -0.5 : f64} : f32
+  return %0 : f32
+}
+
+// -----
+
+// Degenerate domain on math.exp.
+func.func @degenerate_domain_exp(%x: f32 {secret.secret}) -> f32 {
+  // expected-error@+1 {{domain_lower must be strictly less than domain_upper}}
+  %0 = math.exp %x {domain_lower = 0.0 : f64, domain_upper = 0.0 : f64} : f32
+  return %0 : f32
+}
+
+// -----
+
+// Inverted interval via domain_lower with default upper (1.0).
+func.func @inverted_domain_default_upper_exp(%x: f32 {secret.secret}) -> f32 {
+  // expected-error@+1 {{domain_lower must be strictly less than domain_upper}}
+  %0 = math.exp %x {domain_lower = 2.0 : f64} : f32
+  return %0 : f32
+}
+
+// -----
+
+// Inverted interval via domain_upper with default lower (-1.0).
+func.func @inverted_domain_default_lower_exp(%x: f32 {secret.secret}) -> f32 {
+  // expected-error@+1 {{domain_lower must be strictly less than domain_upper}}
+  %0 = math.exp %x {domain_upper = -2.0 : f64} : f32
+  return %0 : f32
 }
 
 // -----

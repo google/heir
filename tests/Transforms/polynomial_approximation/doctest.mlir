@@ -2,7 +2,7 @@
 
 // CHECK: @test_exp
 func.func @test_exp(%x: f32 {secret.secret}) -> f32 {
-  // CHECK: arith.mulf
+  // CHECK: polynomial.eval
   %0 = math.exp %x {
       degree = 3 : i32,
       domain_lower = -1.0 : f64,
