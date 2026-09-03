@@ -3,8 +3,10 @@
 
 #include <cassert>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -412,9 +414,9 @@ implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>
-implementShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
-                      const ShiftScheme& scheme, int64_t minSlotCount,
-                      kernel::DagType elementType) {
+vosVosErkinShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
+                        const ShiftScheme& scheme, int64_t minSlotCount,
+                        kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
   SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
@@ -431,6 +433,64 @@ implementShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
   }
 
   return summedResults;
+}
+
+// Naive depth-1 rotation + plaintext masking shift network.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>
+naiveShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
+                  int64_t minSlotCount, kernel::DagType dagElemType) {
+  using NodeTy = ArithmeticDagNode<T>;
+  int64_t numCiphertexts = ciphertexts.size();
+  const auto targetToSource = mapping.getTargetToSource();
+
+  // Build rotation-mask groups.
+  std::map<std::tuple<int64_t, int64_t, int64_t>, std::vector<double>> groups;
+  for (const auto& [target, source] : targetToSource) {
+    int64_t r = (source.slot - target.slot) % minSlotCount;
+    if (r < 0) r += minSlotCount;
+    auto& mask = groups
+                     .try_emplace(std::make_tuple(target.ct, source.ct, r),
+                                  std::vector<double>(minSlotCount, 0.0))
+                     .first->second;
+    mask[target.slot] = 1.0;
+  }
+
+  SmallVector<std::shared_ptr<NodeTy>> cts;
+  cts.reserve(ciphertexts.size());
+  for (const auto& ct : ciphertexts) {
+    cts.push_back(NodeTy::leaf(ct));
+  }
+
+  std::map<std::pair<int64_t, int64_t>, std::shared_ptr<NodeTy>> rotationCache;
+  auto maskType = makeTensorType(dagElemType, {1, minSlotCount});
+  SmallVector<std::shared_ptr<NodeTy>> resultNodes(numCiphertexts, nullptr);
+  for (auto& [key, mask] : groups) {
+    auto [targetCt, sourceCt, r] = key;
+    std::shared_ptr<NodeTy> rotated;
+    if (r == 0) {
+      rotated = cts[sourceCt];
+    } else {
+      auto [it, inserted] = rotationCache.try_emplace({sourceCt, r}, nullptr);
+      if (inserted) {
+        it->second = NodeTy::leftRotate(cts[sourceCt], r);
+      }
+      rotated = it->second;
+    }
+    auto [allZero, allOne] = allZeroAllOne(mask);
+    (void)allZero;
+    std::shared_ptr<NodeTy> term =
+        allOne ? rotated
+               : NodeTy::mul(rotated, NodeTy::constantTensor(mask, maskType));
+    resultNodes[targetCt] =
+        resultNodes[targetCt] ? NodeTy::add(resultNodes[targetCt], term) : term;
+  }
+  std::vector<double> zeros(minSlotCount, 0.0);
+  for (auto& node : resultNodes) {
+    if (!node) node = NodeTy::constantTensor(zeros, maskType);
+  }
+  return resultNodes;
 }
 
 }  // namespace tensor_ext

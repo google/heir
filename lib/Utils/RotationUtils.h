@@ -57,14 +57,20 @@ inline llvm::DenseSet<int64_t> lintransRotationIndices(
 
 /// Returns the ciphertext rotation indices needed by a rotate-and-reduce op.
 ///
-/// Without plaintexts: log-reduction halving shifts.
+/// Without plaintexts: binary span-doubling shifts.
 /// With plaintexts: BSGS, using ceil(sqrt(steps)) as the split.
 inline llvm::DenseSet<int64_t> rotateAndReduceRotationIndices(
     int64_t period, int64_t steps, bool hasPlaintexts) {
   llvm::DenseSet<int64_t> result;
   if (!hasPlaintexts) {
     // Matches implementRotateAndReduceAccumulation
-    for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
+    int64_t offset = 0;
+    for (int64_t shiftSize = 1; shiftSize <= steps; shiftSize *= 2) {
+      if (steps & shiftSize) {
+        if (offset != 0) result.insert(offset * period);
+        offset += shiftSize;
+        if (offset == steps) break;
+      }
       result.insert(shiftSize * period);
     }
     return result;

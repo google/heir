@@ -8,11 +8,11 @@
 // CHECK-NEXT: %[[c1:.*]] = arith.constant 1
 // CHECK-NEXT: %[[c2:.*]] = arith.constant 2
 // CHECK-NEXT: %[[c4:.*]] = arith.constant 4
-// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c1]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
 // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c4]]
 // CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
 // CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
 // CHECK-NEXT: return %[[v6]]
@@ -82,11 +82,11 @@ func.func @simple_sum_two_tensor(%arg0: tensor<4xi32>, %arg1: tensor<4xi32>) -> 
 // CHECK-NEXT: %[[c1:.*]] = arith.constant 1
 // CHECK-NEXT: %[[c2:.*]] = arith.constant 2
 // CHECK-NEXT: %[[c4:.*]] = arith.constant 4
-// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c1]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
 // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c4]]
 // CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
 // CHECK-NEXT: return %[[v5]]
 func.func @simple_sum_mixed_rotation_tensor(%arg0: tensor<8xi32>) -> tensor<8xi32> {
@@ -125,11 +125,11 @@ func.func @simple_sum_mixed_rotation_tensor(%arg0: tensor<8xi32>) -> tensor<8xi3
 // CHECK-NEXT: %[[c1:.*]] = arith.constant 1
 // CHECK-NEXT: %[[c2:.*]] = arith.constant 2
 // CHECK-NEXT: %[[c4:.*]] = arith.constant 4
-// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c1]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
 // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c4]]
 // CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
 // CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
 // CHECK-NEXT: return %[[v6]]
@@ -447,11 +447,11 @@ func.func @not_supported_non_constant_index_access(%arg0: tensor<8xi32>, %arg1: 
 // CHECK-NEXT: %[[c2:.*]] = arith.constant 2
 // CHECK-NEXT: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[c2_i32:.*]] = arith.constant 2
-// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c1]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
 // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c4]]
 // CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
 // CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
 // CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v6]], %[[c2_i32]]
@@ -495,11 +495,11 @@ func.func @simple_sum_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
 // CHECK-NEXT: %[[c1:.*]] = arith.constant 1
 // CHECK-NEXT: %[[c2:.*]] = arith.constant 2
 // CHECK-NEXT: %[[c4:.*]] = arith.constant 4
-// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c1]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
 // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c4]]
 // CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
 // CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
 // CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v6]], %[[c22_i32]]
@@ -556,11 +556,11 @@ func.func @simple_sum_multiple_non_tensor_operands(%arg0: tensor<8xi32>, %arg1: 
 // CHECK-NEXT: %[[c2:.*]] = arith.constant 2
 // CHECK-NEXT: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[a1:.*]] = tensor.extract %[[arg1]][%[[c0]]]
-// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c1]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
 // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c4]]
 // CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
 // CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
 // CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v6]], %[[a1]]

@@ -6,9 +6,9 @@
 // CHECK-DAG: %[[c2:.*]] = arith.constant 2 : index
 // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
 // CHECK-DAG: %[[ASSIGN:.*]] = arith.constant dense<0{{.*}}> : tensor<1x1024xf32>
-// CHECK: tensor_ext.rotate %{{.*}}, %[[c4]]
-// CHECK: tensor_ext.rotate %{{.*}}, %[[c2]]
 // CHECK: tensor_ext.rotate %{{.*}}, %[[c1]]
+// CHECK: tensor_ext.rotate %{{.*}}, %[[c2]]
+// CHECK: tensor_ext.rotate %{{.*}}, %[[c4]]
 // CHECK: arith.addf %{{.*}}, %[[ASSIGN]]
 #layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and (slot) mod 8 = 0 and 0 <= slot <= 1023 }">
 #layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 1023 }">

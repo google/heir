@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <random>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -16,15 +19,15 @@
 #include "lib/Dialect/TensorExt/Transforms/RotationGroupKernel.h"
 #include "lib/Dialect/TensorExt/Transforms/ShiftScheme.h"
 #include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -141,7 +144,7 @@ ShiftScheme VosVosErkinShiftNetworks::findBestShiftScheme(
     // iteration.
     SmallVector<int64_t> shiftOrder = initShiftOrder;
 
-    std::ranges::shuffle(shiftOrder.begin(), shiftOrder.end(), g);
+    std::shuffle(shiftOrder.begin(), shiftOrder.end(), g);
 
     ShiftStrategy strategy = evaluateShiftStrategy(mapping, shiftOrder);
 
@@ -242,12 +245,6 @@ LogicalResult convertRemapOp(RemapOp op,
               "DenseIntElementsAttr";
   }
 
-  ShiftScheme scheme = shiftNetworks.findShiftScheme(mapping);
-  auto rotationGroups = scheme.rotationGroups;
-
-  assert(!rotationGroups.empty() &&
-         "Shift network must have at least one group");
-
   b.setInsertionPointAfter(op);
 
   // Could add a special case here if the numCiphertexts == 1, using
@@ -272,8 +269,39 @@ LogicalResult convertRemapOp(RemapOp op,
     ciphertexts.push_back(kernel::SSAValue(slice.getResult()));
   }
 
-  auto resultNodes = implementShiftNetwork(ciphertexts, mapping, scheme,
-                                           minSlotCount, dagElemType);
+  using NodeTy = kernel::ArithmeticDagNode<kernel::SSAValue>;
+  SmallVector<std::shared_ptr<NodeTy>> resultNodes;
+
+  const auto targetToSource = mapping.getTargetToSource();
+
+  // Count the rotations the direct path would emit.
+  llvm::DenseSet<std::pair<int64_t, int64_t>> uniqueShifts;
+  for (const auto& [target, source] : targetToSource) {
+    int64_t r = (source.slot - target.slot) % minSlotCount;
+    if (r < 0) r += minSlotCount;
+    if (r != 0) uniqueShifts.insert({source.ct, r});
+  }
+
+  // If the number of distinct rotation offsets is <= log2(N_slots), direct
+  // depth-1 rotation + plaintext masking uses at most `uniqueShifts` rotations
+  // at multiplicative depth 1, vs VVE's multi-stage log2(N) rotations and
+  // ~2·log2(N) masks.
+  int64_t maxDirectRotations =
+      static_cast<int64_t>(std::ceil(std::log2(minSlotCount)));
+
+  // Auto-select between naive shift network and Vos-Vos-Erkin shift network.
+  // We may add a pass option to allow explicitly selecting VosVosErkin vs.
+  // naive shift network strategy.
+  if (static_cast<int64_t>(uniqueShifts.size()) <= maxDirectRotations) {
+    resultNodes =
+        naiveShiftNetwork(ciphertexts, mapping, minSlotCount, dagElemType);
+  } else {
+    ShiftScheme scheme = shiftNetworks.findShiftScheme(mapping);
+    assert(!scheme.rotationGroups.empty() &&
+           "Shift network must have at least one group");
+    resultNodes = vosVosErkinShiftNetwork(ciphertexts, mapping, scheme,
+                                          minSlotCount, dagElemType);
+  }
 
   kernel::IRMaterializingVisitor visitor(singleCiphertextType);
   auto resultVectors = visitor.process(resultNodes, b);
