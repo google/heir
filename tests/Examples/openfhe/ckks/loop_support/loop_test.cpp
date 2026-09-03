@@ -26,7 +26,8 @@ CryptoContextT override_crypto_context() {
   params.SetScalingModSize(55);
   params.SetFirstModSize(60);
   params.SetRingDim(2048);
-  params.SetBatchSize(1024);
+  // Set batch size to 8 to match the test data size and optimize bootstrapping.
+  params.SetBatchSize(8);
   params.SetSecurityLevel(HEStd_NotSet);
   CryptoContextT cc = GenCryptoContext(params);
   cc->Enable(PKE);
@@ -39,8 +40,8 @@ CryptoContextT override_crypto_context() {
 CryptoContextT override_configure_crypto_context(CryptoContextT cc,
                                                  PrivateKeyT sk) {
   cc->EvalMultKeyGen(sk);
-  cc->EvalBootstrapSetup({3, 3});
-  cc->EvalBootstrapKeyGen(sk, 1024);
+  cc->EvalBootstrapSetup({3, 3}, {0, 0}, 8);
+  cc->EvalBootstrapKeyGen(sk, 8);
   return cc;
 }
 
