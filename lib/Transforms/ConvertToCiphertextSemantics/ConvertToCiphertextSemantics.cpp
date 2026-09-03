@@ -1464,9 +1464,12 @@ struct ConvertLinalgConv2DNchwFchw
     FailureOr<ConvMatrixOperand> matrixOperand =
         foldedConvMatrixOperand(op, dataType);
     if (failed(matrixOperand)) return failure();
+    auto strides = llvm::to_vector(op.getStrides().getValues<int64_t>());
+    // Rows only interchange for a strided conv; keep this in step with
+    // LayoutPropagation, which sizes the filter layout the same way.
     return get2dConvChwFchwFilterExpandedType(
-        filterType, matrixOperand->dataType, matrixOperand->padding,
-        llvm::to_vector(op.getStrides().getValues<int64_t>()));
+        filterType, matrixOperand->dataType, matrixOperand->padding, strides,
+        /*interchangeRows=*/strides[0] > 1);
   }
 
   LogicalResult haleviShoupKernel(
