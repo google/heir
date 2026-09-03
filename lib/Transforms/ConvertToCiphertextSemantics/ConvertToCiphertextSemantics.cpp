@@ -1332,6 +1332,18 @@ struct ConvertLinalgConv1DNcwFcw
                                             stride, matrixOperand->padding);
   }
 
+  // The shape the filter's diagonal layout was built against: the expanded
+  // Toeplitz shape, except that absorbing the data packing makes the columns
+  // ciphertext slots and widens the layout to the recorded ciphertext size.
+  std::vector<int64_t> layoutMatrixShape(
+      linalg::Conv1DNcwFcwOp op, RankedTensorType expandedMatrixType) const {
+    std::vector<int64_t> shape = expandedMatrixType.getShape().vec();
+    if (int64_t width = getAbsorbedMatrixWidth(op); width != 0) {
+      shape[1] = width;
+    }
+    return shape;
+  }
+
   LogicalResult haleviShoupKernel(
       linalg::Conv1DNcwFcwOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const {
@@ -1367,8 +1379,8 @@ struct ConvertLinalgConv1DNcwFcw
                                              data.getType().getShape().back());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType->getShape(), dagType,
-                             zeroDiagonals,
+                             layoutMatrixShape(op, expandedMatrixType.value()),
+                             dagType, zeroDiagonals,
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);

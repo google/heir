@@ -24,6 +24,14 @@ constexpr StringLiteral kGapFactorKey = "gap_factor";
 // of a `tensor.pad` and into a conv's own `padding` parameter.
 constexpr StringLiteral kConvFoldedPaddingAttrName = "heir.conv_folded_padding";
 
+// The width of the matrix that a conv's diagonalized filter layout was built
+// against, when LayoutPropagation absorbed the data operand's slot packing into
+// the filter's column space. The columns are then ciphertext slots, so the
+// layout is built at the ciphertext size instead of the expanded Toeplitz
+// matrix's own C*W. Absent means the layout uses the Toeplitz width.
+constexpr StringLiteral kAbsorbedMatrixWidthAttrName =
+    "heir.absorbed_matrix_width";
+
 // A conv's data operand as its expanded Toeplitz matrix sees it, paired with
 // the conv `padding` parameter that goes with it.
 struct ConvMatrixOperand {
@@ -39,11 +47,30 @@ struct ConvMatrixOperand {
 std::optional<ConvMatrixOperand> foldConvSpatialPadding(
     RankedTensorType dataType, int64_t padding);
 
-// Reads back the padding folded into `op`'s own padding parameter; 0 if none.
-int64_t getConvFoldedPadding(Operation* op);
+// Reads back an integer conv kernel parameter LayoutPropagation recorded on
+// `op`; 0 when the attribute is absent.
+int64_t getConvKernelParam(Operation* op, StringRef name);
 
-// Records the padding folded into `op`'s own padding parameter.
-void setConvFoldedPadding(Operation* op, int64_t padding);
+// Records an integer conv kernel parameter on `op`. A value of 0 removes the
+// attribute instead of writing it, so an op clone cannot carry a stale one.
+void setConvKernelParam(Operation* op, StringRef name, int64_t value);
+
+// The padding folded into `op`'s own padding parameter; 0 if none.
+inline int64_t getConvFoldedPadding(Operation* op) {
+  return getConvKernelParam(op, kConvFoldedPaddingAttrName);
+}
+inline void setConvFoldedPadding(Operation* op, int64_t padding) {
+  setConvKernelParam(op, kConvFoldedPaddingAttrName, padding);
+}
+
+// The width `op`'s filter layout was diagonalized at; 0 when it absorbed
+// nothing and so uses the expanded Toeplitz width.
+inline int64_t getAbsorbedMatrixWidth(Operation* op) {
+  return getConvKernelParam(op, kAbsorbedMatrixWidthAttrName);
+}
+inline void setAbsorbedMatrixWidth(Operation* op, int64_t width) {
+  setConvKernelParam(op, kAbsorbedMatrixWidthAttrName, width);
+}
 
 struct KernelInfo {
   SmallVector<int64_t> inputShape;

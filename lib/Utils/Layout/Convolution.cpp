@@ -4,12 +4,14 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -462,9 +464,74 @@ FailureOr<presburger::IntegerRelation> getConvFilterDiagonalizedRelation(
   return diagonalize2dMatrix(filterRelation, filterType, minSlotCount);
 }
 
+FailureOr<presburger::IntegerRelation> get1dConvDataColumnPermutation(
+    RankedTensorType matrixDataType,
+    const presburger::IntegerRelation& dataLayout, int64_t padding) {
+  assert(matrixDataType.getRank() == 3 && "expected 3-D data matrix");
+  assert(matrixDataType.getDimSize(0) == 1 && "expected N=1 batch size");
+  if (padding < 0) return failure();
+  int64_t channels = matrixDataType.getDimSize(1);
+  int64_t width = matrixDataType.getDimSize(2);
+
+  // Unflatten [j] -> [n, c, w] with j = c * W + w, matching the expanded
+  // matrix's column coordinate embedCol = c * totalColSize + singleCol. W is
+  // the matrix operand's width, so when a pad folded into the conv's own
+  // padding the column count excludes the padding. The layout still indexes the
+  // padded value, so offset the spatial index by `padding`: column j reads the
+  // slot of padded index (c, w + padding).
+  std::string unflattenStr = llvm::formatv(
+      "{{ [j] -> [n, c, w] : n = 0 and 0 <= c < {0} and {2} <= w < {1} + {2} "
+      "and j = c * {1} + w - {2} }",
+      channels, width, padding);
+  auto unflatten = getIntegerRelationFromIslStr(unflattenStr);
+  if (failed(unflatten)) return failure();
+
+  // [j] -> [n, c, w] -> [ct, slot]
+  presburger::IntegerRelation result(unflatten.value());
+  result.compose(dataLayout);
+
+  // Require a single ciphertext. The ct coordinate is kept so the result stays
+  // in the [j] -> [ct, slot] shape that isOneToOneSingleCiphertextPacking
+  // validates; the consumer drops it before composing.
+  unsigned ctPos = result.getVarKindOffset(presburger::VarKind::Range);
+  auto ctLb = result.getConstantBound64(presburger::BoundType::LB, ctPos);
+  auto ctUb = result.getConstantBound64(presburger::BoundType::UB, ctPos);
+  if (!ctLb.has_value() || !ctUb.has_value() || ctLb.value() != 0 ||
+      ctUb.value() != 0) {
+    return failure();
+  }
+
+  // With a fold every column is an unpadded element, so a missing one means
+  // `padding` does not line the window up with the layout's domain and
+  // composing would drop real data. Count the columns rather than compare their
+  // bounds, so a hole in the middle of the domain fails too. Without a fold the
+  // columns still cover the padded positions, whose zeros are dropped on
+  // purpose, so leave that case to the caller.
+  if (padding > 0 &&
+      static_cast<int64_t>(getMappedConvMatrixColumns(result).size()) !=
+          channels * width) {
+    return failure();
+  }
+  result.removeRedundantConstraints();
+  result.simplify();
+  return result;
+}
+
+llvm::DenseSet<int64_t> getMappedConvMatrixColumns(
+    const presburger::IntegerRelation& columnPermutation) {
+  PointPairCollector collector(/*domainDims=*/1, /*rangeDims=*/2);
+  enumeratePoints(columnPermutation, collector);
+  llvm::DenseSet<int64_t> columns;
+  for (const auto& [domain, range] : collector.points) {
+    columns.insert(domain[0]);
+  }
+  return columns;
+}
+
 FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t stride,
-    int64_t padding, int64_t minSlotCount, bool interchangeRows) {
+    int64_t padding, int64_t minSlotCount, bool interchangeRows,
+    const presburger::IntegerRelation* dataSlotPermutation) {
   auto expandedFilterRelation =
       get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
   // Permutate the rows of the matrix to minimize the number of non-zero
@@ -489,7 +556,26 @@ FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
         /*equality=*/true);
     expandedFilterRelation.compose(rowInterchangeRelation);
   }
-  return diagonalize2dMatrix(expandedFilterRelation, filterType, minSlotCount);
+
+  // Absorb the data's actual slot packing into the matrix's column space:
+  // lift [j] -> [slot] to [row, j] -> [row, slot] with a row passthrough, then
+  // compose so that logical column j lands where the diagonal kernel reads the
+  // slot the data element really occupies.
+  if (dataSlotPermutation) {
+    expandedFilterRelation.compose(
+        liftVectorPermutationToMatrixColumns(*dataSlotPermutation));
+    expandedFilterRelation.removeRedundantConstraints();
+    expandedFilterRelation.simplify();
+  }
+
+  // Absorbing re-indexes the columns by ciphertext slot, so the matrix spans
+  // the whole ciphertext and the diagonal layout wraps columns modulo the same
+  // size the kernel rotates modulo. Otherwise the Toeplitz width applies, which
+  // diagonalize2dMatrix reads off the relation's own column bound.
+  std::optional<int64_t> numColumns;
+  if (dataSlotPermutation) numColumns = minSlotCount;
+  return diagonalize2dMatrix(expandedFilterRelation, filterType, minSlotCount,
+                             numColumns);
 }
 
 FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(

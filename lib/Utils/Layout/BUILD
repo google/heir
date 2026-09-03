@@ -123,6 +123,7 @@ cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
     deps = [
+        ":ConvolutionTestUtil",
         ":Evaluate",
         ":IslConversion",
         ":Utils",
@@ -144,6 +145,7 @@ cc_test(
         ":Convolution",
         ":ConvolutionTestUtil",
         ":Evaluate",
+        ":IslConversion",
         ":Utils",
         "@googletest//:gtest_main",
         "@heir//lib/Utils:MathUtils",

@@ -1,6 +1,7 @@
 #include "lib/Utils/Layout/ConvolutionTestUtil.h"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "lib/Utils/Layout/Convolution.h"
@@ -16,6 +17,18 @@ namespace heir {
 int64_t convOutputExtent(int64_t dataExtent, int64_t filterExtent,
                          int64_t stride, int64_t padding) {
   return (dataExtent + 2 * padding - filterExtent) / stride + 1;
+}
+
+std::vector<std::pair<int64_t, int64_t>> collectSlots(
+    const presburger::IntegerRelation& relation) {
+  PointPairCollector collector(/*domainDims=*/1, /*rangeDims=*/2);
+  enumeratePoints(relation, collector);
+  std::vector<std::pair<int64_t, int64_t>> result;
+  for (const auto& [domain, range] : collector.points) {
+    result.push_back({domain[0], range[1]});
+  }
+  llvm::sort(result);
+  return result;
 }
 
 ConvTensor4D deterministicConvFilter(int64_t outputChannels,
