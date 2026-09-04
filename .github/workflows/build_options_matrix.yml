@@ -25,6 +25,9 @@ jobs:
     env:
       BUILDBUDDY_API_KEY: ${{ github.repository == 'google/heir' && secrets.BUILDBUDDY_API_KEY || 'SEVzwPt2S7PHhY1OxD3u' }}
       BAZEL_CONFIG_FLAG: ${{ github.repository == 'google/heir' && '--config=ci --config=remote' || '--config=ci' }}
+      # Conditionally apply filters unless compilation_mode is 'opt'
+      BUILD_TAG_FILTER: ${{ matrix.compilation_mode != 'opt' && '--build_tag_filters=-nofastbuild' || '' }}
+      TEST_TAG_FILTER: ${{ matrix.compilation_mode != 'opt' && '--test_tag_filters=-nofastbuild' || '' }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -32,7 +35,7 @@ jobs:
       - name: "Run `bazel build`"
         run: |
           read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
-          bazel build --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \
+          bazel build --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} $BUILD_TAG_FILTER \
             --//:enable_openmp=${{ matrix.enable_openmp }} \
             "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
@@ -41,7 +44,7 @@ jobs:
       - name: "Run `bazel test`"
         run: |
           read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
-          bazel test --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \
+          bazel test --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} $BUILD_TAG_FILTER $TEST_TAG_FILTER \
             --//:enable_openmp=${{ matrix.enable_openmp }} \
             "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \

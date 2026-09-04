@@ -11,5 +11,6 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:bicyclic_matmul.mlir",
+    tags = ["nofastbuild"],
     test_src = "bicyclic_matmul_test.cpp",
 )
