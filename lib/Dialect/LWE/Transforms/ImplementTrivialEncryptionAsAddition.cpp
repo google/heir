@@ -53,9 +53,16 @@ namespace lwe {
 
 using func::FuncOp;
 
-using EncryptKey = std::pair<Type, Attribute>;
+using EncryptKey = std::tuple<Type, Attribute, DenseI64ArrayAttr>;
 using IndexMap = DenseMap<EncryptKey, int>;
 using FuncToIndexMap = DenseMap<func::FuncOp, IndexMap>;
+
+static DenseI64ArrayAttr getShapeAttr(MLIRContext* context, Type type) {
+  if (auto shapedTy = dyn_cast<ShapedType>(type)) {
+    return DenseI64ArrayAttr::get(context, shapedTy.getShape());
+  }
+  return DenseI64ArrayAttr::get(context, {});
+}
 
 bool detectPublicKeyFromClientHelpers(ModuleOp module) {
   auto result = module.walk([&](func::FuncOp func) {
@@ -116,7 +123,14 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
       FunctionType::get(builder.getContext(), {keyTy}, {ciphertextType});
   auto encFuncOp = func::FuncOp::create(builder, encFuncName, encFuncType);
 
-  encFuncOp->setAttr(kClientEncZeroFuncAttrName, builder.getUnitAttr());
+  encFuncOp->setAttr(
+      kClientEncZeroFuncAttrName,
+      builder.getDictionaryAttr({
+          builder.getNamedAttr(kClientHelperFuncName,
+                               builder.getStringAttr(parentFunc.getSymName())),
+          builder.getNamedAttr(kClientHelperIndex,
+                               builder.getI64IntegerAttr(index)),
+      }));
   Block* entryBlock = encFuncOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
 
@@ -174,13 +188,19 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
 }
 
 // Creates a new function arg containing a ciphertext encrypting zero
-// with the attribute client.enc_zero_arg
+// with the attribute client.enc_zero_arg = {index = K : i64}
 Value getOrCreateNewFuncArg(func::FuncOp func, LWECiphertextType type,
-                            PatternRewriter& rewriter) {
+                            int index, PatternRewriter& rewriter) {
   for (unsigned i = 0; i < func.getNumArguments(); ++i) {
-    if (func.getArgument(i).getType() == type &&
-        func.getArgAttr(i, kClientEncZeroArgAttrName)) {
-      return func.getArgument(i);
+    if (auto dictAttr = func.getArgAttrOfType<DictionaryAttr>(
+            i, kClientEncZeroArgAttrName)) {
+      if (auto idxAttr = dictAttr.getAs<IntegerAttr>(kClientHelperIndex)) {
+        if (idxAttr.getInt() == index) {
+          assert(func.getArgument(i).getType() == type &&
+                 "zero arg type mismatch");
+          return func.getArgument(i);
+        }
+      }
     }
   }
   auto context = func.getContext();
@@ -193,7 +213,8 @@ Value getOrCreateNewFuncArg(func::FuncOp func, LWECiphertextType type,
 
   auto newArg = func.getBody().addArgument(type, func.getLoc());
   func.setArgAttr(newArg.getArgNumber(), kClientEncZeroArgAttrName,
-                  rewriter.getUnitAttr());
+                  rewriter.getDictionaryAttr({rewriter.getNamedAttr(
+                      kClientHelperIndex, rewriter.getI64IntegerAttr(index))}));
   return newArg;
 }
 
@@ -214,7 +235,9 @@ struct TrivialEncryptionRewritePattern
     LWECiphertextType ctTy =
         cast<LWECiphertextType>(getElementTypeOrSelf(resultType));
     Attribute mgmtAttr = op->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-    EncryptKey key = {ctTy, mgmtAttr};
+    DenseI64ArrayAttr shapeAttr =
+        getShapeAttr(rewriter.getContext(), resultType);
+    EncryptKey key = {ctTy, mgmtAttr, shapeAttr};
 
     auto funcIt = funcToIndexMap.find(func);
     assert(funcIt != funcToIndexMap.end() && "parent func not found in map");
@@ -223,7 +246,7 @@ struct TrivialEncryptionRewritePattern
     int index = indexIt->second;
 
     getOrCreateEncryptionOfZerosFunc(func, op, module, index);
-    Value newFuncArg = getOrCreateNewFuncArg(func, ctTy, rewriter);
+    Value newFuncArg = getOrCreateNewFuncArg(func, ctTy, index, rewriter);
 
     // The newFuncArg is a single ciphertext, so we may need to splat it
     // into a tensor of the appropriate shape
@@ -256,10 +279,12 @@ struct ImplementTrivialEncryptionAsAddition
     module.walk([&](TrivialEncryptOp op) {
       auto func = op->getParentOfType<FuncOp>();
       assert(func && "TrivialEncryptOp must be nested within a FuncOp");
-      LWECiphertextType ctTy = cast<LWECiphertextType>(
-          getElementTypeOrSelf(op.getResult().getType()));
+      Type resultType = op.getResult().getType();
+      LWECiphertextType ctTy =
+          cast<LWECiphertextType>(getElementTypeOrSelf(resultType));
       Attribute mgmtAttr = op->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-      EncryptKey key = {ctTy, mgmtAttr};
+      DenseI64ArrayAttr shapeAttr = getShapeAttr(context, resultType);
+      EncryptKey key = {ctTy, mgmtAttr, shapeAttr};
 
       auto& indexMap = funcToIndexMap[func];
       indexMap.insert({key, (int)indexMap.size()});

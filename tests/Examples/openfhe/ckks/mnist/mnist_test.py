@@ -97,12 +97,7 @@ class MNISTTest(absl.testing.absltest.TestCase):
     )
 
     # Find all encrypt zero functions dynamically
-    zero_encrypt_func_names = sorted([
-        name for name in dir(mnist) if name.startswith("mnist__encrypt__zero__")
-    ])
-    zero_encrypt_funcs = [
-        getattr(mnist, name) for name in zero_encrypt_func_names
-    ]
+    zero_encrypt_func = getattr(mnist, "mnist__encrypt__zeros")
 
     # 4. Evaluation Loop
     total = 4
@@ -132,13 +127,17 @@ class MNISTTest(absl.testing.absltest.TestCase):
           crypto_context, input_vector, public_key
       )
 
-      ct_zeros = [
-          func(crypto_context, public_key) for func in zero_encrypt_funcs
-      ]
+      input_enc_arg = (
+          input_encrypted[0]
+          if isinstance(input_encrypted, list)
+          else input_encrypted
+      )
+
+      ct_zeros = zero_encrypt_func(crypto_context, public_key)
 
       start_time = time.time()
       output_encrypted = mnist.mnist(
-          crypto_context, *weights[0:4], input_encrypted, *ct_zeros
+          crypto_context, *weights[0:4], input_enc_arg, ct_zeros
       )
       end_time = time.time()
 

@@ -13,7 +13,7 @@
 // CHECK: return
 
 // CHECK: func.func @region__preprocessed(
-// CHECK-SAME: %[[arg0:.*]]: tensor<1x![[ct_L2]]>,
+// CHECK-SAME: %[[arg0:.*]]: tensor<1x![[ct_L2]]>{{.*}},
 // CHECK-SAME: %[[STORAGE:.*]]: !preprocessing.storage<!pt>)
 
 !Z35184371138561_i64 = !mod_arith.int<35184371138561 : i64>
