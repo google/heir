@@ -9,13 +9,11 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 // ISL
 #include "include/isl/ctx.h"  // from @isl
-#include "include/isl/map.h"  // from @isl
 
 namespace mlir {
 namespace heir {
@@ -75,6 +73,12 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
     int64_t minSlotCount, ArrayRef<int64_t> matrixShape = {});
+
+// Returns an IntegerRelation that represents a canonical cyclic (CRT) layout
+// for a tensor of rank >= 1. The range is (ct, slot) where ct = 0 and
+// for each dimension d: (-i_d + slot) mod dimSize(d) == 0.
+presburger::IntegerRelation getCyclicLayoutRelation(RankedTensorType type,
+                                                    int64_t numSlots);
 
 // Returns an IntegerRelation that represents a bicyclic layout for a matrix.
 // See https://eprint.iacr.org/2024/1762 for details.
@@ -141,6 +145,12 @@ presburger::IntegerRelation foldVectorPermutationIntoMatrixLayout(
 // for the given matrix type and ciphertext semantic shape.
 bool isRelationPerRow(RankedTensorType matrixType, int64_t minSlotCount,
                       presburger::IntegerRelation relation);
+
+// Returns true if the relation corresponds to the canonical cyclic (CRT) layout
+// for the tensor type and ciphertext slot count. Requires rank >= 1 and all
+// dimensions > 1.
+bool isRelationCyclic(RankedTensorType type, int64_t numSlots,
+                      const presburger::IntegerRelation& relation);
 
 // Returns true if the given relation is a bicyclic layout for the given
 // matrix type and ciphertext semantic shape.

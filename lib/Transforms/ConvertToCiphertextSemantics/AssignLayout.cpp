@@ -253,7 +253,7 @@ static FailureOr<Type> getIntermediateTargetType(
   return RankedTensorType::get(targetShape, elementType);
 }
 
-static FailureOr<Value> implementCrtAssignLayoutStep(
+static FailureOr<Value> implementCyclicAssignLayoutStep(
     Value input, RankedTensorType inputType, RankedTensorType targetType,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
@@ -352,17 +352,6 @@ static FailureOr<Value> implementAssignLayoutStep(
         targetType.getElementType());
     createdOpCallback(emptyCiphertextOp);
     return emptyCiphertextOp.getResult();
-  }
-
-  // If the input has a bicyclic or tricyclic CRT layout, we directly compute
-  // logical coordinates via modular remainder operations (arith.remsi) to
-  // avoid ISL codegen overhead.
-  int64_t numSlots = targetType.getShape().back();
-  if (dataSemanticType &&
-      (isRelationBicyclic(dataSemanticType, numSlots, rel) ||
-       isRelationTricyclic(dataSemanticType, numSlots, rel))) {
-    return implementCrtAssignLayoutStep(input, dataSemanticType, targetType,
-                                        builder, createdOpCallback);
   }
 
   // The result can be simplified if the layout is dense in the ciphertext type,
@@ -545,6 +534,18 @@ static FailureOr<Value> implementAssignLayoutStep(
     if (succeeded(folded)) {
       return folded.value();
     }
+  }
+
+  // If the input has a (multi-dimensional) cyclic CRT layout, we directly
+  // compute logical coordinates via modular remainder operations (arith.remsi)
+  // to avoid ISL codegen overhead.
+  // We require at least 2 dimensions to avoid interrupting `elementwise_layout`
+  // test.
+  int64_t numSlots = targetType.getShape().back();
+  if (dataSemanticType && dataSemanticType.getRank() >= 2 &&
+      isRelationCyclic(dataSemanticType, numSlots, rel)) {
+    return implementCyclicAssignLayoutStep(input, dataSemanticType, targetType,
+                                           builder, createdOpCallback);
   }
 
   auto zeroOp = arith::ConstantOp::create(builder, targetType,

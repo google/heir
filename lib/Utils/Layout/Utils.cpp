@@ -15,12 +15,14 @@
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"       // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
@@ -258,62 +260,54 @@ FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
   return relation;
 }
 
-presburger::IntegerRelation getBicyclicLayoutRelation(
-    RankedTensorType matrixType, int64_t numSlots) {
-  unsigned int rows = matrixType.getDimSize(0);
-  unsigned int cols = matrixType.getDimSize(1);
-
-  assert(std::gcd(rows, cols) == 1 &&
-         "bicyclic layout requires coprime dimensions");
-
+presburger::IntegerRelation getCyclicLayoutRelation(RankedTensorType type,
+                                                    int64_t numSlots) {
+  assert(type && type.getRank() >= 1 &&
+         "cyclic layout expects a tensor of rank >= 1");
+  // Cyclic layout maps tensor coordinates (i_0, ..., i_{rank-1})
+  // to ciphertext slot indices via modular projection:
+  //   i_d = (ct * numSlots + slot) % dimSize(d)
+  // When dimensions are pairwise coprime, this defines an injective packing.
+  int64_t rank = type.getRank();
   IntegerRelation result(PresburgerSpace::getRelationSpace(
-      matrixType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
-      /*numLocals=*/0));
+      rank, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
 
-  // Add bounds for the data matrix dimensions.
   int domainOffset = result.getVarKindOffset(VarKind::Domain);
   int rangeOffset = result.getVarKindOffset(VarKind::Range);
-  int rowVarIndex = domainOffset;
-  int colVarIndex = domainOffset + 1;
   int ctVarIndex = rangeOffset;
   int slotVarIndex = rangeOffset + 1;
 
-  addBounds(result, rowVarIndex, 0, rows - 1);
-  addBounds(result, colVarIndex, 0, cols - 1);
+  // Add coordinate and slot bounds:
+  //   0 <= i_d < dimSize(d)
+  //   0 <= slot < numSlots
+  for (int64_t i = 0; i < rank; ++i) {
+    addBounds(result, domainOffset + i, 0, type.getDimSize(i) - 1);
+  }
   addBounds(result, ctVarIndex, 0,
-            std::ceil((float)matrixType.getNumElements() / numSlots) - 1);
+            std::ceil((float)type.getNumElements() / numSlots) - 1);
   addBounds(result, slotVarIndex, 0, numSlots - 1);
 
-  // Let k = ct * numSlots + slot.
-  // We need to add constraints for:
-  // row = k % rows
-  // col = k % cols
+  // Enforce i_d == (ct * numSlots + slot) % dimSize(d) for each dimension.
+  for (int64_t i = 0; i < rank; ++i) {
+    int64_t dim = type.getDimSize(i);
+    SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
+    kCoeffs[ctVarIndex] = numSlots;
+    kCoeffs[slotVarIndex] = 1;
+    auto kModDim = addModConstraint(result, kCoeffs, dim);
 
-  // k_mod_rows = (ct * numSlots + slot) % rows
-  SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModRows = addModConstraint(result, kCoeffs, rows);
-
-  // row = k_mod_rows
-  SmallVector<int64_t> rowEquality(result.getNumCols(), 0);
-  rowEquality[rowVarIndex] = 1;
-  rowEquality[kModRows] = -1;
-  result.addEquality(rowEquality);
-
-  // k_mod_cols = (ct * numSlots + slot) % cols
-  kCoeffs.resize(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModCols = addModConstraint(result, kCoeffs, cols);
-
-  // col = k_mod_cols
-  SmallVector<int64_t> colEquality(result.getNumCols(), 0);
-  colEquality[colVarIndex] = 1;
-  colEquality[kModCols] = -1;
-  result.addEquality(colEquality);
+    SmallVector<int64_t> dimEquality(result.getNumCols(), 0);
+    dimEquality[domainOffset + i] = 1;
+    dimEquality[kModDim] = -1;
+    result.addEquality(dimEquality);
+  }
 
   return result;
+}
+
+presburger::IntegerRelation getBicyclicLayoutRelation(
+    RankedTensorType matrixType, int64_t numSlots) {
+  assert(matrixType.getRank() == 2 && "bicyclic layout expects a 2-D tensor");
+  return getCyclicLayoutRelation(matrixType, numSlots);
 }
 
 presburger::IntegerRelation getBicyclicDiagonalRelation(
@@ -401,75 +395,7 @@ presburger::IntegerRelation getBicyclicDiagonalRelation(
 presburger::IntegerRelation getTricyclicLayoutRelation(
     RankedTensorType tensorType, int64_t numSlots) {
   assert(tensorType.getRank() == 3 && "tricyclic layout expects a 3-D tensor");
-
-  int64_t h = tensorType.getDimSize(0);
-  int64_t m = tensorType.getDimSize(1);
-  int64_t n = tensorType.getDimSize(2);
-
-  IntegerRelation result(PresburgerSpace::getRelationSpace(
-      tensorType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
-      /*numLocals=*/0));
-
-  // Setup var indices
-  int domainOffset = result.getVarKindOffset(VarKind::Domain);
-  int rangeOffset = result.getVarKindOffset(VarKind::Range);
-  int hVarIndex = domainOffset;
-  int mVarIndex = domainOffset + 1;
-  int nVarIndex = domainOffset + 2;
-  int ctVarIndex = rangeOffset;
-  int slotVarIndex = rangeOffset + 1;
-
-  // Add bounds for domain and range variables.
-  addBounds(result, hVarIndex, 0, h - 1);
-  addBounds(result, mVarIndex, 0, m - 1);
-  addBounds(result, nVarIndex, 0, n - 1);
-  addBounds(result, ctVarIndex, 0,
-            std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
-  addBounds(result, slotVarIndex, 0, numSlots - 1);
-
-  // Let k = ct * numSlots + slot.
-  // We need constraints:
-  //   h_idx = k % h
-  //   m_idx = k % m
-  //   n_idx = k % n
-
-  // k_mod_h = (ct * numSlots + slot) % h
-  SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModH = addModConstraint(result, kCoeffs, h);
-
-  // h_idx = k_mod_h
-  SmallVector<int64_t> hEquality(result.getNumCols(), 0);
-  hEquality[hVarIndex] = 1;
-  hEquality[kModH] = -1;
-  result.addEquality(hEquality);
-
-  // k_mod_m = (ct * numSlots + slot) % m
-  kCoeffs.assign(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModM = addModConstraint(result, kCoeffs, m);
-
-  // m_idx = k_mod_m
-  SmallVector<int64_t> mEquality(result.getNumCols(), 0);
-  mEquality[mVarIndex] = 1;
-  mEquality[kModM] = -1;
-  result.addEquality(mEquality);
-
-  // k_mod_n = (ct * numSlots + slot) % n
-  kCoeffs.assign(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModN = addModConstraint(result, kCoeffs, n);
-
-  // n_idx = k_mod_n
-  SmallVector<int64_t> nEquality(result.getNumCols(), 0);
-  nEquality[nVarIndex] = 1;
-  nEquality[kModN] = -1;
-  result.addEquality(nEquality);
-
-  return result;
+  return getCyclicLayoutRelation(tensorType, numSlots);
 }
 
 presburger::IntegerRelation getPeriodicReplicationRelation(
@@ -638,37 +564,42 @@ bool isRelationPerRow(RankedTensorType matrixType, int64_t minSlotCount,
   return isRelationEqual(relation, perRowRelation);
 }
 
+bool isRelationCyclic(RankedTensorType type, int64_t numSlots,
+                      const presburger::IntegerRelation& relation) {
+  if (!type || type.getRank() < 1) return false;
+  if (relation.getNumDomainVars() != type.getRank()) return false;
+
+  int64_t totalElements = 1;
+  int64_t rank = type.getRank();
+  for (int64_t i = 0; i < rank; ++i) {
+    int64_t dim = type.getDimSize(i);
+    // Reject degenerate dimensions.
+    if (dim <= 1) return false;
+    if (totalElements > numSlots / dim) return false;
+    totalElements *= dim;
+  }
+  for (int64_t i = 0; i < rank; ++i) {
+    for (int64_t j = i + 1; j < rank; ++j) {
+      if (std::gcd(type.getDimSize(i), type.getDimSize(j)) != 1) {
+        return false;
+      }
+    }
+  }
+
+  IntegerRelation cyclicRelation = getCyclicLayoutRelation(type, numSlots);
+  return isRelationEqual(relation, cyclicRelation);
+}
+
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
                         const presburger::IntegerRelation& relation) {
-  // Reject non-co-prime dimensions.
   if (matrixType.getRank() != 2) return false;
-  unsigned int rows = matrixType.getDimSize(0);
-  unsigned int cols = matrixType.getDimSize(1);
-  // A unit dim makes the CRT decomposition degenerate, and gcd(1, n) == 1 slips
-  // past the coprimality filter below.
-  if (rows == 1 || cols == 1) return false;
-  if (std::gcd(rows, cols) != 1) return false;
-  IntegerRelation bicyclicRelation =
-      getBicyclicLayoutRelation(matrixType, numSlots);
-  return isRelationEqual(relation, bicyclicRelation);
+  return isRelationCyclic(matrixType, numSlots, relation);
 }
 
 bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
                          const presburger::IntegerRelation& relation) {
-  // Reject non-co-prime dimensions.
   if (tensorType.getRank() != 3) return false;
-  int64_t h = tensorType.getDimSize(0);
-  int64_t m = tensorType.getDimSize(1);
-  int64_t n = tensorType.getDimSize(2);
-  // A 1xMxN tensor is really rank-2, and gcd(1, n) == 1 slips past the
-  // coprimality filter below, so every batch-of-1 conv feature map reached
-  // here.
-  if (h == 1 || m == 1 || n == 1) return false;
-  if (std::gcd(h, m) != 1 || std::gcd(m, n) != 1 || std::gcd(h, n) != 1)
-    return false;
-  IntegerRelation tricyclicRelation =
-      getTricyclicLayoutRelation(tensorType, numSlots);
-  return isRelationEqual(relation, tricyclicRelation);
+  return isRelationCyclic(tensorType, numSlots, relation);
 }
 
 presburger::IntegerRelation collapseDimensions(

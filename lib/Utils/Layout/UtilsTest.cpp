@@ -476,6 +476,93 @@ TEST(UtilsTest, IsRelationBicyclicRejectsUnitDim) {
       matrixType, numSlots, getBicyclicLayoutRelation(matrixType, numSlots)));
 }
 
+TEST(UtilsTest, GetCyclicLayoutRelationMatchesBicyclicAndTricyclic) {
+  MLIRContext context;
+  int64_t numSlots = 1024;
+
+  RankedTensorType matType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(isRelationEqual(getCyclicLayoutRelation(matType, numSlots),
+                              getBicyclicLayoutRelation(matType, numSlots)));
+
+  RankedTensorType tensorType =
+      RankedTensorType::get({2, 3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationEqual(getCyclicLayoutRelation(tensorType, numSlots),
+                      getTricyclicLayoutRelation(tensorType, numSlots)));
+}
+
+TEST(UtilsTest, IsRelationCyclicAcceptsValidRanksAndRejectsDegenerate) {
+  MLIRContext context;
+  int64_t numSlots = 1024;
+
+  // 1D valid (rank >= 1 cyclic modulo projection)
+  RankedTensorType t1 = RankedTensorType::get({5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t1, numSlots, getCyclicLayoutRelation(t1, numSlots)));
+  EXPECT_FALSE(
+      isRelationCyclic(t1, numSlots, getRowMajorLayoutRelation(t1, numSlots)));
+
+  // 2D bicyclic valid
+  RankedTensorType t2 = RankedTensorType::get({3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t2, numSlots, getCyclicLayoutRelation(t2, numSlots)));
+
+  // 3D tricyclic valid
+  RankedTensorType t3 =
+      RankedTensorType::get({2, 3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t3, numSlots, getCyclicLayoutRelation(t3, numSlots)));
+
+  // 4D valid (rank-generic cyclic)
+  RankedTensorType t4 =
+      RankedTensorType::get({2, 3, 5, 7}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t4, numSlots, getCyclicLayoutRelation(t4, numSlots)));
+
+  // Rejects unit dimensions (degenerate CRT cycle)
+  RankedTensorType tUnit1d =
+      RankedTensorType::get({1}, IndexType::get(&context));
+  EXPECT_FALSE(isRelationCyclic(tUnit1d, numSlots,
+                                getRowMajorLayoutRelation(tUnit1d, numSlots)));
+
+  RankedTensorType tUnit2d =
+      RankedTensorType::get({1, 5}, IndexType::get(&context));
+  EXPECT_FALSE(isRelationCyclic(tUnit2d, numSlots,
+                                getCyclicLayoutRelation(tUnit2d, numSlots)));
+
+  RankedTensorType tUnit3d =
+      RankedTensorType::get({2, 1, 5}, IndexType::get(&context));
+  EXPECT_FALSE(isRelationCyclic(tUnit3d, numSlots,
+                                getCyclicLayoutRelation(tUnit3d, numSlots)));
+
+  // Rejects 0D (rank < 1)
+  RankedTensorType t0d = RankedTensorType::get({}, IndexType::get(&context));
+  IntegerRelation rel0d(presburger::PresburgerSpace::getRelationSpace(
+      /*numDomain=*/0, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
+  EXPECT_FALSE(isRelationCyclic(t0d, numSlots, rel0d));
+
+  // Rejects non-coprime dimensions
+  RankedTensorType tNonCoprime2d =
+      RankedTensorType::get({2, 4}, IndexType::get(&context));
+  EXPECT_FALSE(
+      isRelationCyclic(tNonCoprime2d, numSlots,
+                       getCyclicLayoutRelation(tNonCoprime2d, numSlots)));
+
+  RankedTensorType tNonCoprime3d =
+      RankedTensorType::get({2, 3, 4}, IndexType::get(&context));
+  EXPECT_FALSE(
+      isRelationCyclic(tNonCoprime3d, numSlots,
+                       getCyclicLayoutRelation(tNonCoprime3d, numSlots)));
+
+  // Rejects capacity exceeded
+  RankedTensorType tCapacity =
+      RankedTensorType::get({10, 11}, IndexType::get(&context));
+  EXPECT_FALSE(
+      isRelationCyclic(tCapacity, /*numSlots=*/64,
+                       getCyclicLayoutRelation(tCapacity, /*numSlots=*/64)));
+}
+
 // The pair from TCResNet8's first tensor.collapse_shape (1x40x101 -> 40x101 at
 // logN=13), equal but differing in representation so isObviouslyEqual cannot
 // settle it. Also covered as the CollapseEqual pair in
