@@ -40,14 +40,14 @@ func TestConvPoolFusion(t *testing.T) {
 	}
 
 	ct0 := Conv_pool__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	zeroCt := Conv_pool__encrypt__zero__0(evaluator, params, ecd, enc)
+	ctZeros := Conv_pool__encrypt__zeros(evaluator, params, ecd, enc)
 
 	startPre := time.Now()
 	filterPlains := conv_pool_fusion_utils.Conv_pool__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := Conv_pool__preprocessed(evaluator, params, ecd, ct0, zeroCt, filterPlains)
+	resultCt := Conv_pool__preprocessed(evaluator, params, ecd, ct0, ctZeros, filterPlains)
 	t.Logf("ConvPool (preprocessed) took %s", time.Since(start))
 
 	result := Conv_pool__decrypt__result0(evaluator, params, ecd, dec, resultCt)

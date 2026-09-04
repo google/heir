@@ -140,6 +140,7 @@ cc_binary(
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
+        "@heir//lib/Transforms/GatherZeroEncryptions",
         "@heir//lib/Transforms/GenerateParam",
         "@heir//lib/Transforms/Halo:Transforms",
         "@heir//lib/Transforms/ILPBootstrapPlacement",
