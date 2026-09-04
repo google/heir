@@ -176,11 +176,15 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
     if (arg.use_empty()) {
       LLVM_DEBUG(llvm::dbgs() << arg << " has no uses; removing\n");
       hasUnusedOps = true;
+      // Read the operand attrs BEFORE erasing the operand: the accessor
+      // treats a size-mismatched (stale) array as absent, so reading after
+      // the erase would both skip the rebuild and leave the stale array on
+      // the op.
+      auto attrs = op.getAllOperandAttrsAttr();
       rewriter.modifyOpInPlace(op, [&]() {
         body->eraseArgument(i);
         op.getOperation()->eraseOperand(i);
       });
-      auto attrs = op.getAllOperandAttrsAttr();
       if (attrs) {
         SmallVector<Attribute> attrList;
         for (auto [j, attr] : llvm::enumerate(attrs)) {
@@ -188,7 +192,12 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
             attrList.push_back(attr);
           }
         }
-        op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
+        // An empty array is not "no attrs"; remove it outright so later
+        // operand appends don't see a stale array.
+        if (attrList.empty())
+          op.removeAllOperandAttrsAttr();
+        else
+          op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
       }
 
       // Ensure the next iteration uses the right arg number
@@ -263,11 +272,13 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
       BlockArgument correspondingArg = body->getArgument(i);
 
       rewriter.replaceAllUsesWith(correspondingArg, op->getOperand(i));
+      // Read the operand attrs BEFORE erasing the operand; see
+      // RemoveUnusedGenericArgs.
+      auto attrs = op.getAllOperandAttrsAttr();
       rewriter.modifyOpInPlace(op, [&]() {
         body->eraseArgument(i);
         op.getOperation()->eraseOperand(i);
       });
-      auto attrs = op.getAllOperandAttrsAttr();
       if (attrs) {
         SmallVector<Attribute> attrList;
         for (auto [j, attr] : llvm::enumerate(attrs)) {
@@ -275,7 +286,10 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
             attrList.push_back(attr);
           }
         }
-        op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
+        if (attrList.empty())
+          op.removeAllOperandAttrsAttr();
+        else
+          op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
       }
       i--;
     }
