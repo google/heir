@@ -2930,17 +2930,16 @@ struct ConvertLinalgMatmul
                << op << "\n");
 
     // Determine if the lhs or rhs is the secret operand.
+    // Plaintext operands are packed via tensor_ext.assign_layout.
+    auto isCleartext = [](Value v) {
+      return isa_and_present<tensor_ext::AssignLayoutOp>(v.getDefiningOp());
+    };
     bool secretLhs = false;
-    auto genericOp = op->getParentOfType<secret::GenericOp>();
-    if (genericOp) {
-      if (auto blockArg = dyn_cast<BlockArgument>(op.getInputs()[0])) {
-        if (blockArg.getArgNumber() < genericOp.getNumOperands()) {
-          auto opArg = genericOp.getOperand(blockArg.getArgNumber());
-          if (isa<secret::SecretType>(opArg.getType())) {
-            secretLhs = true;
-          }
-        }
-      }
+    if (isCleartext(op.getInputs()[1]) && !isCleartext(op.getInputs()[0])) {
+      secretLhs = true;
+    } else if (!isCleartext(op.getInputs()[1]) &&
+               isCleartext(op.getInputs()[0])) {
+      secretLhs = false;
     }
 
     TypedValue<RankedTensorType> ct = cast<TypedValue<RankedTensorType>>(
@@ -3132,8 +3131,9 @@ struct ConvertLinalgBatchMatmul
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        lhs.getType(), [&](Operation* createdOp) { setMaterializedAttr(op); });
+    IRMaterializingVisitor visitor(lhs.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
     Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
@@ -3170,9 +3170,107 @@ struct ConvertLinalgBatchMatmul
     rewriter.replaceOp(op, replicated);
   }
 
+  bool supportsTricyclicDiagonal(linalg::BatchMatmulOp op) const {
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    return kernelAttr &&
+           kernelAttr.getName() == KernelName::BatchMatmulTricyclicDiagonal;
+  }
+
+  // Ciphertext-plaintext batch matmul using tricyclic diagonal
+  // rotate-and-reduce.
+  void tricyclicDiagonalBatchKernel(
+      linalg::BatchMatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Converting linalg.batch_matmul with tricyclic diagonal "
+                  "kernel: "
+               << op << "\n");
+
+    // Determine if the lhs or rhs is the secret operand.
+    // Plaintext operands are packed via tensor_ext.assign_layout.
+    auto isCleartext = [](Value v) {
+      return isa_and_present<tensor_ext::AssignLayoutOp>(v.getDefiningOp());
+    };
+    bool secretLhs = false;
+    if (isCleartext(op.getInputs()[1]) && !isCleartext(op.getInputs()[0])) {
+      secretLhs = true;
+    } else if (!isCleartext(op.getInputs()[1]) &&
+               isCleartext(op.getInputs()[0])) {
+      secretLhs = false;
+    }
+
+    TypedValue<RankedTensorType> ct = cast<TypedValue<RankedTensorType>>(
+        adaptor.getInputs()[secretLhs ? 0 : 1]);
+    SSAValue ctLeaf(ct);
+    TypedValue<RankedTensorType> pt = cast<TypedValue<RankedTensorType>>(
+        adaptor.getInputs()[secretLhs ? 1 : 0]);
+    SSAValue ptLeaf(pt);
+
+    auto lhsType = cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
+    assert(lhsType.getDimSize(0) == rhsType.getDimSize(0) &&
+           "batch matrix multiplication inputs must share the same batch "
+           "dimension");
+    auto secretType = ct.getType();
+
+    auto dagType = kernel::mlirTypeToDagType(secretType);
+    int64_t period = secretLhs ? lhsType.getDimSize(0) * lhsType.getDimSize(1)
+                               : rhsType.getDimSize(0) * rhsType.getDimSize(2);
+    int64_t steps = secretLhs ? lhsType.getDimSize(2) : rhsType.getDimSize(1);
+    std::string reduceOp = isa<FloatType>(secretType.getElementType())
+                               ? "arith.addf"
+                               : "arith.addi";
+
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementRotateAndReduce(ctLeaf, std::optional<SSAValue>(ptLeaf),
+                                 period, steps, dagType, /*zeroDiagonals=*/{},
+                                 reduceOp);
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(ct.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial accumulator value.
+    Value result = adaptor.getOutputs()[0];
+
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+
+    // Rebuild the full periodic output layout from the widest valid
+    // period-aligned window.
+    auto dataSemanticResultType =
+        cast<RankedTensorType>(op->getResult(0).getType());
+    int64_t reach = period * (steps - 1);
+    auto ctSemanticResultType =
+        cast<RankedTensorType>(addBias->getResult(0).getType());
+    int64_t validPrefix = ctSemanticResultType.getDimSize(1) - reach;
+    LLVM_DEBUG(llvm::dbgs() << "Tricyclic diagonal matmul valid prefix: "
+                            << validPrefix << "\n");
+    Operation* replicated = replicateValidPrefixOfResult(
+        b, addBias->getResult(0), layoutAttr,
+        dataSemanticResultType.getNumElements(), validPrefix);
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
+  }
+
   LogicalResult matchAndRewrite(
       linalg::BatchMatmulOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (supportsTricyclicDiagonal(op)) {
+      tricyclicDiagonalBatchKernel(op, adaptor, rewriter);
+      return success();
+    }
     if (supportsTricyclic(op, adaptor)) {
       tricyclicKernel(op, adaptor, rewriter);
       return success();

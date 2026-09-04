@@ -449,10 +449,22 @@ static FailureOr<Value> implementAssignLayoutStep(
       std::vector<char> rawBuffer(
           static_cast<size_t>(numTargetElements) * byteWidth, 0);
 
+      std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
       for (const auto& [domainPoint, rangePoint] : collector.points) {
         int64_t dstFlat = flatten(rangePoint, dstStrides);
         if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
         int64_t srcFlat = srcIsSplat ? 0 : flatten(domainPoint, srcStrides);
+        if (!srcIsSplat && written[dstFlat] &&
+            std::memcmp(
+                rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
+                srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
+                byteWidth) != 0) {
+          return builder.emitError()
+                 << "layout maps two distinct data values to the same slot "
+                 << dstFlat << "; a non-replicated value cannot be packed "
+                 << "into this (non-injective) layout";
+        }
+        if (!srcIsSplat) written[dstFlat] = true;
         std::memcpy(rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
                     srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
                     byteWidth);
@@ -486,13 +498,21 @@ static FailureOr<Value> implementAssignLayoutStep(
     Attribute splatValue =
         srcIsSplat ? constantAttr.getSplatValue<Attribute>() : Attribute();
     auto srcValues = constantAttr.getValues<Attribute>();
+    std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
     for (const auto& [domainPoint, rangePoint] : collector.points) {
       int64_t dstFlat = flatten(rangePoint, dstStrides);
       if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
-      packedValues[dstFlat] = srcIsSplat
-                                  ? splatValue
-                                  : srcValues[static_cast<size_t>(
-                                        flatten(domainPoint, srcStrides))];
+      Attribute val = srcIsSplat ? splatValue
+                                 : srcValues[static_cast<size_t>(
+                                       flatten(domainPoint, srcStrides))];
+      if (!srcIsSplat && written[dstFlat] && packedValues[dstFlat] != val) {
+        return builder.emitError()
+               << "layout maps two distinct data values to the same slot "
+               << dstFlat << "; a non-replicated value cannot be packed "
+               << "into this (non-injective) layout";
+      }
+      if (!srcIsSplat) written[dstFlat] = true;
+      packedValues[dstFlat] = val;
     }
 
     auto packedConstantAttr =
@@ -534,6 +554,7 @@ static FailureOr<Value> implementAssignLayoutStep(
     if (succeeded(folded)) {
       return folded.value();
     }
+    return failure();
   }
 
   // If the input has a (multi-dimensional) cyclic CRT layout, we directly

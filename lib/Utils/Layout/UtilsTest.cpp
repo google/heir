@@ -1143,6 +1143,21 @@ TEST(UtilsTest, TestGetPaddingRelation) {
   EXPECT_FALSE(rel.containsPointNoLocal({1, -1}).has_value());
 }
 
+TEST(UtilsTest, TricyclicCtPtDiagonal2x5x7) {
+  MLIRContext context;
+  int64_t numSlots = 105;
+  int64_t ctStride = 3;
+  int64_t contractionDim = 1;
+  RankedTensorType weightType =
+      RankedTensorType::get({2, 5, 7}, IndexType::get(&context));
+  IntegerRelation relation = getTricyclicDiagonalRelation(
+      weightType, contractionDim, ctStride, numSlots);
+
+  EXPECT_TRUE(relation.containsPointNoLocal({0, 0, 0, 0, 0}).has_value());
+  EXPECT_TRUE(relation.containsPointNoLocal({1, 1, 1, 0, 1}).has_value());
+  EXPECT_FALSE(relation.containsPointNoLocal({0, 0, 0, 0, 1}).has_value());
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

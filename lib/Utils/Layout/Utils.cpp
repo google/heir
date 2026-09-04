@@ -474,6 +474,58 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   return result;
 }
 
+presburger::IntegerRelation getTricyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t ctStride,
+    int64_t numSlots) {
+  int64_t rank = weightType.getRank();
+  assert(rank == 3 && "tricyclic diagonal relation requires a rank-3 weight");
+  assert(
+      (contractionDim == 1 || contractionDim == 2) &&
+      "contractionDim must be 1 (ct-pt, RHS weight) or 2 (pt-ct, LHS weight)");
+  int64_t h = weightType.getDimSize(0);
+  int64_t freeDim = (contractionDim == 1) ? 2 : 1;
+  int64_t n = weightType.getDimSize(contractionDim);
+  int64_t p = weightType.getDimSize(freeDim);
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      rank, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
+
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int contractionVarIndex = domainOffset + contractionDim;
+  int freeVarIndex = domainOffset + freeDim;
+  int diagVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  addBounds(result, domainOffset, 0, h - 1);
+  addBounds(result, contractionVarIndex, 0, n - 1);
+  addBounds(result, freeVarIndex, 0, p - 1);
+  addBounds(result, diagVarIndex, 0, n - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  // contractionIdx = (slot + diag * h * ctStride) mod n
+  SmallVector<int64_t> nCoeffs(result.getNumCols(), 0);
+  nCoeffs[slotVarIndex] = 1;
+  nCoeffs[diagVarIndex] = h * ctStride;
+  auto nMod = addModConstraint(result, nCoeffs, n);
+  addConstraint(result, {{nMod, 1}, {contractionVarIndex, -1}},
+                /*equality=*/true);
+
+  // freeIdx = slot mod p
+  SmallVector<int64_t> pCoeffs(result.getNumCols(), 0);
+  pCoeffs[slotVarIndex] = 1;
+  auto pMod = addModConstraint(result, pCoeffs, p);
+  addConstraint(result, {{pMod, 1}, {freeVarIndex, -1}}, /*equality=*/true);
+
+  // hIdx = slot mod h
+  SmallVector<int64_t> hCoeffs(result.getNumCols(), 0);
+  hCoeffs[slotVarIndex] = 1;
+  auto hMod = addModConstraint(result, hCoeffs, h);
+  addConstraint(result, {{hMod, 1}, {domainOffset, -1}}, /*equality=*/true);
+
+  return result;
+}
+
 bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,
                              const presburger::IntegerRelation& relation) {
   IntegerRelation diagonalRelation =
@@ -1239,6 +1291,7 @@ static std::optional<bool> tryIslEqual(
     const presburger::IntegerRelation& relation1,
     const presburger::IntegerRelation& relation2) {
   isl_ctx* ctx = isl_ctx_alloc();
+  isl_ctx_set_max_operations(ctx, 100000);
   isl_map* map1 =
       isl_map_from_basic_map(convertRelationToBasicMap(relation1, ctx));
   isl_map* map2 =

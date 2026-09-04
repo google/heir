@@ -117,6 +117,15 @@ presburger::IntegerRelation getPeriodicReplicationRelation(
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                                                     int64_t minSlotCount);
 
+// Returns the diagonal packing relation for the rank-3 plaintext operand
+// of the batch ciphertext-plaintext matmul:
+//   BatchDiag'(B, c)_k =
+//       B[k mod h][(k + c*h*ctStride) mod n][k mod p]
+// contractionDim specifies the contraction axis (1 for ct-pt, 2 for pt-ct).
+presburger::IntegerRelation getTricyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t ctStride,
+    int64_t numSlots);
+
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,

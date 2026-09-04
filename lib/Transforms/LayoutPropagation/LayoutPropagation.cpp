@@ -41,6 +41,7 @@
 #include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
@@ -315,6 +316,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatmulOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(BatchMatmulOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(tensor::InsertSliceOp op);
 
   // Insert conversion ops to rectify incompatible operand layouts
@@ -376,7 +378,18 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
 FailureOr<AssignLayoutOp> LayoutPropagation::assignDefaultLayoutForOpOperand(
     Operation* op, Value operand, IRRewriter& builder) {
-  FailureOr<LayoutAttr> layout = defaultLayoutForType(operand.getType());
+  FailureOr<LayoutAttr> layout = failure();
+  auto existingLayout = findAttributeAssociatedWith(
+      operand, tensor_ext::TensorExtDialect::kLayoutAttrName);
+  if (succeeded(existingLayout)) {
+    if (auto layoutAttr = dyn_cast<LayoutAttr>(*existingLayout)) {
+      layout = layoutAttr;
+    }
+  }
+
+  if (failed(layout)) {
+    layout = defaultLayoutForType(operand.getType());
+  }
   if (failed(layout)) {
     return failure();
   }
@@ -1359,39 +1372,31 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
   auto rhsType = cast<RankedTensorType>(rhs.getType());
   auto result = op->getResult(0);
 
-  bool inputSecret = isSecret(lhs, solver);
-  bool filterSecret = isSecret(rhs, solver);
+  bool secretLhs = isSecret(lhs, solver);
+  bool secretRhs = isSecret(rhs, solver);
+
+  int64_t hDim = lhsType.getDimSize(0);
+  int64_t mDim = lhsType.getDimSize(1);
+  int64_t nDim = lhsType.getDimSize(2);
+  int64_t pDim = rhsType.getDimSize(2);
+  bool batchEqual = (hDim == rhsType.getDimSize(0));
+
+  bool lhsCoprime = std::gcd(hDim, mDim) == 1 && std::gcd(hDim, nDim) == 1 &&
+                    std::gcd(mDim, nDim) == 1;
+  bool rhsCoprime = std::gcd(hDim, nDim) == 1 && std::gcd(hDim, pDim) == 1 &&
+                    std::gcd(nDim, pDim) == 1;
+  bool outputCoprime = std::gcd(hDim, mDim) == 1 && std::gcd(hDim, pDim) == 1 &&
+                       std::gcd(mDim, pDim) == 1;
 
   LLVM_DEBUG(llvm::dbgs() << "lhs=" << lhs << ";\nrhs=" << rhs << "\n");
 
-  // TODO(#3173): support layout propagation for pt-ct / ct-pt batch matrix
-  // multiplication.
-  if (!inputSecret) {
+  if (!batchEqual || !outputCoprime) {
     return builder.notifyMatchFailure(
-        op, "pt-ct batch matrix multiplication is not supported");
+        op, "batch matmul shape requirements for tricyclic layout are not met");
   }
-  if (!filterSecret) {
-    return builder.notifyMatchFailure(
-        op, "ct-pt batch matrix multiplication is not supported");
-  }
-
-  int64_t hLhs = lhsType.getDimSize(0);
-  int64_t mDim = lhsType.getDimSize(1);
-  int64_t nDim = lhsType.getDimSize(2);
-  int64_t hRhs = rhsType.getDimSize(0);
-  int64_t pDim = rhsType.getDimSize(2);
-
-  bool batchEqual = (hLhs == hRhs);
-  bool lhsCoprime = std::gcd(hLhs, mDim) == 1 && std::gcd(hLhs, nDim) == 1 &&
-                    std::gcd(mDim, nDim) == 1;
-  bool rhsCoprime = std::gcd(hRhs, nDim) == 1 && std::gcd(hRhs, pDim) == 1 &&
-                    std::gcd(nDim, pDim) == 1;
-  bool outputCoprime = std::gcd(hLhs, mDim) == 1 && std::gcd(hLhs, pDim) == 1 &&
-                       std::gcd(mDim, pDim) == 1;
 
   // Tricyclic ct-ct batch matmul.
-  if (inputSecret && filterSecret && batchEqual && lhsCoprime && rhsCoprime &&
-      outputCoprime) {
+  if (secretLhs && secretRhs && lhsCoprime && rhsCoprime) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
     if (!isRelationTricyclic(lhsType, minSlotCount,
                              lhsLayout.getIntegerRelation())) {
@@ -1426,6 +1431,116 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
         ctx, KernelName::BatchMatmulTricyclic, /*force=*/false);
     op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
     return success();
+  }
+
+  // Tricyclic ct-pt / pt-ct batch matmul with generalized-diagonal-layout
+  // plaintext: the secret operand keeps its tricyclic packing, the weight
+  // packs as encode-time diagonals, and the BSGS reach is period * (steps - 1).
+  if (secretLhs != secretRhs) {
+    Value secretOperand;
+    Value weightOperand;
+    RankedTensorType secretType;
+    RankedTensorType weightType;
+    int64_t ctStride;
+    int64_t contractionDim;
+    bool secretCoprime;
+
+    if (secretLhs) {
+      // ct-pt: LHS is ciphertext (h x m x n), RHS is weight (h x n x p).
+      secretOperand = lhs;
+      weightOperand = rhs;
+      secretType = lhsType;
+      weightType = rhsType;
+      ctStride = mDim;
+      contractionDim = 1;
+      secretCoprime = lhsCoprime;
+    } else {
+      // pt-ct: LHS is weight (h x m x n), RHS is ciphertext (h x n x p).
+      secretOperand = rhs;
+      weightOperand = lhs;
+      secretType = rhsType;
+      weightType = lhsType;
+      ctStride = pDim;
+      contractionDim = 2;
+      secretCoprime = rhsCoprime;
+    }
+
+    if (secretCoprime) {
+      RankedTensorType bmmOutputType = cast<RankedTensorType>(result.getType());
+      int64_t period = hDim * ctStride;
+      int64_t reach = period * (nDim - 1);
+      if (reach + bmmOutputType.getNumElements() > minSlotCount) {
+        return builder.notifyMatchFailure(
+            op, "slot count budget exceeded for batch matmul diagonal reach");
+      }
+
+      LayoutAttr secretLayout = getComposedLayoutAttr(secretOperand);
+      IntegerRelation secretTricyclic =
+          getTricyclicLayoutRelation(secretType, minSlotCount);
+      if (!isRelationTricyclic(secretType, minSlotCount,
+                               secretLayout.getIntegerRelation())) {
+        auto [toReplace, newSecretLayoutAttr] = convertToLayout(
+            ctx, builder, op, secretOperand, secretLayout, secretTricyclic);
+        debugAssignLayout(toReplace, newSecretLayoutAttr);
+        assignedLayouts.insert({toReplace, newSecretLayoutAttr});
+      }
+
+      auto assignOrUpdateLayout = [&](Value val, const IntegerRelation& rel) {
+        LayoutAttr layout = LayoutAttr::getFromIntegerRelation(ctx, rel);
+        if (auto assignOp = val.getDefiningOp<AssignLayoutOp>();
+            assignOp && assignOp->hasOneUse()) {
+          assignOp.setLayoutAttr(layout);
+          assignedLayouts[val] = layout;
+          setAttributeAssociatedWith(
+              val, tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
+          debugAssignLayout(val, layout);
+          return val;
+        }
+        builder.setInsertionPoint(op);
+        AssignLayoutOp assignOp =
+            AssignLayoutOp::create(builder, op->getLoc(), val, layout);
+        setAttributeAssociatedWith(
+            assignOp.getResult(), tensor_ext::TensorExtDialect::kLayoutAttrName,
+            layout);
+        Value toReplace = assignOp.getResult();
+        builder.replaceUsesWithIf(val, toReplace, [&](OpOperand& other) {
+          return other.getOwner() == op;
+        });
+        assignedLayouts.insert({toReplace, layout});
+        debugAssignLayout(toReplace, layout);
+        return toReplace;
+      };
+
+      // Pack plaintext weight into diagonals walking the contraction dimension.
+      IntegerRelation diagRelation = getTricyclicDiagonalRelation(
+          weightType, contractionDim, ctStride, minSlotCount);
+      LayoutAttr weightLayout = getComposedLayoutAttr(weightOperand);
+      LayoutAttr diagLayoutAttr =
+          LayoutAttr::getFromIntegerRelation(ctx, diagRelation);
+      if (weightLayout != diagLayoutAttr) {
+        assignOrUpdateLayout(weightOperand, diagRelation);
+      }
+
+      LayoutAttr outputLayoutAttr = LayoutAttr::getFromIntegerRelation(
+          ctx, getTricyclicLayoutRelation(bmmOutputType, minSlotCount));
+      assignedLayouts.insert({result, outputLayoutAttr});
+      debugAssignLayout(result, outputLayoutAttr);
+
+      // The kernel adds the accumulator (init) directly to the output via SIMD
+      // addition. Align the init layout with the result layout at compile time
+      // so cleartext constants (zeros/bias) re-pack freely without conversions.
+      Value init = op.getOutputs()[0];
+      LayoutAttr initLayout = getComposedLayoutAttr(init);
+      if (initLayout != outputLayoutAttr) {
+        assignOrUpdateLayout(init, outputLayoutAttr.getIntegerRelation());
+      }
+
+      setResultLayoutAttr(op);
+      auto kernelAttr = secret::KernelAttr::get(
+          ctx, KernelName::BatchMatmulTricyclicDiagonal, /*force=*/false);
+      op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+      return success();
+    }
   }
 
   return builder.notifyMatchFailure(
@@ -1494,7 +1609,10 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
     return success();
   }
 
-  // Bicyclic ct-pt matmul with generalized-diagonal-layout plaintext.
+  // Bicyclic ct-pt / pt-ct matmul with generalized-diagonal-layout
+  // plaintext: the secret operand keeps its bicyclic packing, the weight
+  // packs as encode-time diagonals, and the BSGS reach is period * (steps - 1)
+  // with period the secret operand's packed row (or column) count.
   if (outputCoprime && ((inputSecret && !filterSecret && lhsCoprime) ||
                         (!inputSecret && filterSecret && rhsCoprime))) {
     Value secretOperand = inputSecret ? lhs : rhs;
@@ -1512,34 +1630,68 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
       assignedLayouts.insert({toReplace, newSecretLayoutAttr});
     }
 
-    // Assign a generalized-diagonal layout to the plaintext matrix.
+    // The weight packs as the generalized-diagonal matrix; a conversion
+    // on a constant folds into its assign_layout.
     IntegerRelation diagRelation =
         inputSecret
-            ? getBicyclicDiagonalRelation(weightType, /*contractionDim=*/0,
+            ? getBicyclicDiagonalRelation(weightType,
+                                          /*contractionDim=*/0,
                                           /*stride=*/mDim, minSlotCount)
-            : getBicyclicDiagonalRelation(weightType, /*contractionDim=*/1,
+            : getBicyclicDiagonalRelation(weightType,
+                                          /*contractionDim=*/1,
                                           /*stride=*/pDim, minSlotCount);
+    auto assignOrUpdateLayout = [&](Value val, const IntegerRelation& rel) {
+      LayoutAttr layout = LayoutAttr::getFromIntegerRelation(ctx, rel);
+      if (auto assignOp = val.getDefiningOp<AssignLayoutOp>();
+          assignOp && assignOp->hasOneUse()) {
+        assignOp.setLayoutAttr(layout);
+        assignedLayouts[val] = layout;
+        setAttributeAssociatedWith(
+            val, tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
+        debugAssignLayout(val, layout);
+        return val;
+      }
+      builder.setInsertionPoint(op);
+      AssignLayoutOp assignOp =
+          AssignLayoutOp::create(builder, op->getLoc(), val, layout);
+      setAttributeAssociatedWith(assignOp.getResult(),
+                                 tensor_ext::TensorExtDialect::kLayoutAttrName,
+                                 layout);
+      Value toReplace = assignOp.getResult();
+      builder.replaceUsesWithIf(val, toReplace, [&](OpOperand& other) {
+        return other.getOwner() == op;
+      });
+      assignedLayouts.insert({toReplace, layout});
+      debugAssignLayout(toReplace, layout);
+      return toReplace;
+    };
+
     LayoutAttr weightLayout = getComposedLayoutAttr(weight);
     LayoutAttr diagLayoutAttr =
         LayoutAttr::getFromIntegerRelation(ctx, diagRelation);
     if (weightLayout != diagLayoutAttr) {
-      auto [toReplace, newWeightLayoutAttr] =
-          convertToLayout(ctx, builder, op, weight, weightLayout, diagRelation);
-      debugAssignLayout(toReplace, newWeightLayoutAttr);
-      assignedLayouts.insert({toReplace, newWeightLayoutAttr});
+      assignOrUpdateLayout(weight, diagRelation);
     }
 
     RankedTensorType outputType = cast<RankedTensorType>(result.getType());
-    IntegerRelation outputLayoutResult =
-        getBicyclicLayoutRelation(outputType, minSlotCount);
-    LayoutAttr outputLayoutAttr =
-        LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+    LayoutAttr outputLayoutAttr = LayoutAttr::getFromIntegerRelation(
+        ctx, getBicyclicLayoutRelation(outputType, minSlotCount));
     auto kernelInfoAttr =
         cloneKernelInfoWithResultShape(secretOperand, outputType.getShape());
 
     assignedLayouts.insert({result, outputLayoutAttr});
-    setResultLayoutAttr(op, kernelInfoAttr);
     debugAssignLayout(result, outputLayoutAttr);
+
+    // The kernel adds the accumulator (init) directly to the output via SIMD
+    // addition. Align the init layout with the result layout at compile time
+    // so cleartext constants (zeros/bias) re-pack freely without conversions.
+    Value init = op.getOutputs()[0];
+    LayoutAttr initLayout = getComposedLayoutAttr(init);
+    if (initLayout != outputLayoutAttr) {
+      assignOrUpdateLayout(init, outputLayoutAttr.getIntegerRelation());
+    }
+
+    setResultLayoutAttr(op, kernelInfoAttr);
 
     auto kernelAttr = secret::KernelAttr::get(
         ctx, KernelName::MatmulBicyclicDiagonal, /*force=*/false);
@@ -1864,8 +2016,9 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp, ConvertLayoutOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, MatmulOp, Conv1DOp,
-            Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, MatmulOp, BatchMatmulOp,
+            Conv1DOp, Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp,
+            tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -1997,6 +2150,21 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 }
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    BatchMatmulOp op) {
+  Value lhs = op.getOperand(0);
+  Value rhs = op.getOperand(1);
+
+  if (!assignedLayouts.contains(lhs)) {
+    return {false, op->emitError("LHS operand has no assigned layout")};
+  }
+  if (!assignedLayouts.contains(rhs)) {
+    return {false, op->emitError("RHS operand has no assigned layout")};
+  }
+
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Conv1DOp op) {
   // Currently only support secret data and plaintext filters.
   Value data = op.getInputs().front();
@@ -2114,20 +2282,64 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
       .Case<DotOp, ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
       .Default([&](Operation* op) {
-        // Default target layout is chosen arbitrarily as the first operand's
-        // layout for now. A different pass is responsible for optimizing the
-        // placement and mechanics of the layout conversion ops.
+        // Prefer an operand with a secret ciphertext layout over a cleartext
+        // constant: converting a cleartext operand is free because
+        // FoldConvertLayoutIntoAssignLayout folds the conversion into its
+        // assign_layout at compile time, whereas converting a secret ciphertext
+        // incurs expensive homomorphic rotations and shift networks.
         mlir::IRRewriter builder(&getContext());
-        const auto it = llvm::find_if(op->getOperands(), [this](Value pair) {
-          return assignedLayouts.contains(pair);
-        });
-        LayoutAttr targetLayout = getComposedLayoutAttr(*it);
+        auto isSecretOperand = [&](Value v) {
+          return assignedLayouts.contains(v) && isSecret(v, solver);
+        };
+        auto it = llvm::find_if(op->getOperands(), isSecretOperand);
+        if (it == op->getOperands().end()) {
+          it = llvm::find_if(op->getOperands(), [this](Value v) {
+            return assignedLayouts.contains(v);
+          });
+        }
+        LayoutAttr targetLayout;
+        if (it != op->getOperands().end()) {
+          targetLayout = getComposedLayoutAttr(*it);
+        } else if (op->getNumOperands() > 0) {
+          FailureOr<LayoutAttr> defaultLayout =
+              defaultLayoutForType(op->getOperand(0).getType());
+          if (failed(defaultLayout)) return;
+          targetLayout = *defaultLayout;
+        } else {
+          return;
+        }
 
         for (auto& opOperand : op->getOpOperands()) {
           if (!assignedLayouts.contains(opOperand.get())) continue;
           LayoutAttr sourceLayout = getComposedLayoutAttr(opOperand.get());
 
           if (sourceLayout != targetLayout) {
+            if (auto assignOp = opOperand.get().getDefiningOp<AssignLayoutOp>();
+                assignOp && assignOp->hasOneUse()) {
+              assignOp.setLayoutAttr(targetLayout);
+              assignedLayouts[opOperand.get()] = targetLayout;
+              setAttributeAssociatedWith(
+                  opOperand.get(),
+                  tensor_ext::TensorExtDialect::kLayoutAttrName, targetLayout);
+              debugAssignLayout(opOperand.get(), targetLayout);
+              continue;
+            }
+            // If the relations are provably equal, re-annotate in place without
+            // emitting a redundant conversion op.
+            if (opOperand.get().hasOneUse() &&
+                targetLayout.getIntegerRelation().getSpace().isCompatible(
+                    sourceLayout.getIntegerRelation().getSpace())) {
+              if (isRelationEqual(targetLayout.getIntegerRelation(),
+                                  sourceLayout.getIntegerRelation())) {
+                assignedLayouts[opOperand.get()] = targetLayout;
+                setAttributeAssociatedWith(
+                    opOperand.get(),
+                    tensor_ext::TensorExtDialect::kLayoutAttrName,
+                    targetLayout);
+                debugAssignLayout(opOperand.get(), targetLayout);
+                continue;
+              }
+            }
             builder.setInsertionPoint(op);
             ConvertLayoutOp convertOp =
                 ConvertLayoutOp::create(builder, op->getLoc(), opOperand.get(),
