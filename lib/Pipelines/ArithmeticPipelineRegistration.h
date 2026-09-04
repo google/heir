@@ -244,6 +244,26 @@ void mlirToSecretArithmeticPipelineBuilder(
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
                                     const PlaintextBackendOptions& options);
 
+// Options for the Rotom plaintext pipeline: the same front end as the CKKS
+// torch pipeline (linalg preprocessing, polynomial activations), Rotom layout
+// assignment and ciphertext lowering in place of layout propagation, then the
+// plaintext backend tail down to LLVM so the program runs in cleartext.
+struct RotomPlaintextOptions
+    : public PassPipelineOptions<RotomPlaintextOptions> {
+  PassOptions::Option<int> ciphertextSize{
+      *this, "ciphertext-size",
+      llvm::cl::desc("Power-of-two ciphertext slot count; drives the Rotom "
+                     "layout seed search and the ciphertext materialization."),
+      llvm::cl::init(4096)};
+  PassOptions::Option<int64_t> plaintextModulus{
+      *this, "plaintext-modulus",
+      llvm::cl::desc("Plaintext modulus for integer programs (ignored for "
+                     "floating point)."),
+      llvm::cl::init(65537)};
+};
+void mlirToRotomPlaintextPipelineBuilder(OpPassManager& pm,
+                                         const RotomPlaintextOptions& options);
+
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 
 BackendPipelineBuilder toOpenFhePipelineBuilder();
