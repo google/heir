@@ -3,6 +3,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
@@ -76,6 +77,16 @@ struct InsertSliceLayoutRequirement
   }
 };
 
+template <typename OpTy>
+struct OnlyInputNeedsLayout
+    : public OperandLayoutRequirementOpInterface::ExternalModel<
+          OnlyInputNeedsLayout<OpTy>, OpTy> {
+  bool operandRequiresLayout(Operation* op, unsigned operandIndex,
+                             bool isSecret) const {
+    return operandIndex == 0;
+  }
+};
+
 }  // namespace
 
 void registerOperandLayoutRequirementOpInterface(DialectRegistry& registry) {
@@ -89,6 +100,12 @@ void registerOperandLayoutRequirementOpInterface(DialectRegistry& registry) {
     tensor::ExtractOp::attachInterface<OnlyExtractionSourceNeedsLayout>(*ctx);
     tensor::PadOp::attachInterface<PadLayoutRequirement>(*ctx);
     tensor::InsertSliceOp::attachInterface<InsertSliceLayoutRequirement>(*ctx);
+  });
+  registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {
+    linalg::BroadcastOp::attachInterface<
+        OnlyInputNeedsLayout<linalg::BroadcastOp>>(*ctx);
+    linalg::TransposeOp::attachInterface<
+        OnlyInputNeedsLayout<linalg::TransposeOp>>(*ctx);
   });
 }
 

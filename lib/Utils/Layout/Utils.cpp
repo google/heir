@@ -1255,6 +1255,36 @@ static std::optional<bool> tryIslEqual(
   return equal == isl_bool_true;
 }
 
+presburger::IntegerRelation getTransposedRelation(
+    const presburger::IntegerRelation& relation,
+    ArrayRef<int64_t> permutation) {
+  assert(permutation.size() == relation.getNumDomainVars() &&
+         "permutation size must match relation domain rank");
+  presburger::IntegerRelation result = relation;
+  unsigned domainOffset = result.getVarKindOffset(presburger::VarKind::Domain);
+  unsigned numDomain = permutation.size();
+
+  SmallVector<int64_t> posToElem(numDomain);
+  SmallVector<int64_t> elemToPos(numDomain);
+  for (unsigned i = 0; i < numDomain; ++i) {
+    posToElem[i] = i;
+    elemToPos[i] = i;
+  }
+  for (unsigned targetIdx = 0; targetIdx < numDomain; ++targetIdx) {
+    int64_t targetElem = permutation[targetIdx];
+    int64_t curPos = elemToPos[targetElem];
+    if (curPos != static_cast<int64_t>(targetIdx)) {
+      result.swapVar(domainOffset + targetIdx, domainOffset + curPos);
+      int64_t elemAtTarget = posToElem[targetIdx];
+      posToElem[targetIdx] = targetElem;
+      posToElem[curPos] = elemAtTarget;
+      elemToPos[targetElem] = targetIdx;
+      elemToPos[elemAtTarget] = curPos;
+    }
+  }
+  return result;
+}
+
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2) {
   // Structural equality, in a few nanoseconds.
