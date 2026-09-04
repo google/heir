@@ -535,6 +535,12 @@ struct SplitPreprocessingPass
                                  builder.getStringAttr(op.getName())),
         }));
 
+    for (unsigned i = 0; i < op.getNumArguments(); ++i) {
+      if (auto argAttrs = op.getArgAttrDict(i)) {
+        funcOp.setArgAttrs(i, argAttrs);
+      }
+    }
+
     IRMapping map;
     Block* entryBlock = funcOp.addEntryBlock();
     for (auto [idx, arg] : llvm::enumerate(op.getArguments())) {

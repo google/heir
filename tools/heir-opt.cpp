@@ -111,6 +111,7 @@
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/GatherZeroEncryptions/GatherZeroEncryptions.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/Halo/Passes.h"
 #include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
@@ -418,6 +419,7 @@ int main(int argc, char** argv) {
   registerForwardInsertSliceToExtractSlicePasses();
   registerForwardInsertToExtractPasses();
   registerForwardStoreToLoadPasses();
+  registerGatherZeroEncryptionsPasses();
   registerGenerateParamPasses();
   registerHaloPasses();
   registerOperationBalancerPasses();

@@ -42,8 +42,8 @@ func TestConv1dChannelPadding(t *testing.T) {
 	expected := conv1dNcwFcw(arg0, filter, 2, 8, 3, 2, 2)
 
 	ct0 := Conv1d_channel_pad__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ctZero := Conv1d_channel_pad__encrypt__zero__0(evaluator, params, ecd, enc)
-	resultCt := Conv1d_channel_pad(evaluator, params, ecd, ct0, ctZero)
+	ctZeros := Conv1d_channel_pad__encrypt__zeros(evaluator, params, ecd, enc)
+	resultCt := Conv1d_channel_pad(evaluator, params, ecd, ct0, ctZeros)
 	result := Conv1d_channel_pad__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.01)
