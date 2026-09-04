@@ -226,6 +226,16 @@ struct BackendOptions : public PassPipelineOptions<BackendOptions> {
   PassOptions::Option<bool> insecure{
       *this, "insecure", llvm::cl::desc("Whether to use insecure parameter"),
       llvm::cl::init(false)};
+  PassOptions::Option<bool> allocToInPlace{
+      *this, "alloc-to-in-place",
+      llvm::cl::desc(
+          "Convert allocating scheme ops to in-place forms (lattigo). "
+          "Disable on circuits with shift-network fan-out patterns: the "
+          "in-place storage pool can reuse buffers whose aliased results "
+          "are still live, producing wrong values and runtime level "
+          "exhaustion; the *New allocation forms are correct at the cost "
+          "of extra allocations."),
+      llvm::cl::init(true)};
 };
 
 using RLWEPipelineBuilder =

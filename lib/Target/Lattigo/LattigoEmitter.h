@@ -2,6 +2,7 @@
 #define LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 
 #include <functional>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -43,14 +44,16 @@ void registerTranslateOptions();
     ::mlir::Operation* op, llvm::raw_ostream& os,
     const std::string& packageName,
     const std::vector<std::string>& extraImports = {},
-    std::function<bool(func::FuncOp)> funcFilter = nullptr);
+    std::function<bool(func::FuncOp)> funcFilter = nullptr,
+    int bootstrapDeclaredScaleLog2 = 0);
 
 class LattigoEmitter {
  public:
   LattigoEmitter(raw_ostream& os, SelectVariableNames* variableNames,
                  const std::string& packageName,
                  const std::vector<std::string>& extraImports = {},
-                 std::function<bool(func::FuncOp)> funcFilter = nullptr);
+                 std::function<bool(func::FuncOp)> funcFilter = nullptr,
+                 int bootstrapDeclaredScaleLog2 = 0);
 
   LogicalResult translate(::mlir::Operation& operation);
 
@@ -83,11 +86,30 @@ class LattigoEmitter {
   std::function<bool(func::FuncOp)> funcFilter;
   bool extraImportsUsed = false;
 
+  // If positive, every emitted bootstrap is wrapped in a "declared-scale
+  // bundle": the input's scale metadata is declared as Delta*2^s before the
+  // Bootstrap call (so Lattigo's ScaleDown treats the message as m/2^s,
+  // in-window for the Mod1 approximation when |m| <= 2^s), and the true
+  // message is restored afterwards with an exact integer scalar multiply by
+  // 2^s (no rescale, no level consumed). Requires the first modulus to have
+  // at least logDefaultScale + LogMessageRatio + s bits.
+  int bootstrapDeclaredScaleLog2 = 0;
+
+  // Cached parameter metadata for bootstrap declared-scale validation.
+  std::optional<int> cachedLogQ0;
+  std::optional<int> cachedLogDefaultScale;
+
   // go treats unused imports as compile-time errors, so any extra imports that
   // are unused for some programs need to be dynamically added at the end.
   std::string prelude;
   std::set<std::string> imports;
   std::set<std::string> declaredVars;
+
+  // Results of non-contiguous memref.subview ops. Their emitted Go variables
+  // alias the entire (flattened) source buffer, so consuming ops must resolve
+  // the strided layout with explicit index arithmetic; memref.copy is the
+  // only op that supports this.
+  DenseSet<Value> stridedSubViewAliases;
 
   void emitAssignment(std::string_view name, std::string_view valueExpr);
   void emitAssignmentWithErr(std::string_view name, std::string_view valueExpr);

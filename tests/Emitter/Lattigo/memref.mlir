@@ -40,6 +40,28 @@ func.func @test_memref(%arg0: memref<1024xf32>) -> (memref<1024xf32>, index) {
   return %alloc, %dim : memref<1024xf32>, index
 }
 
+// The bufferization of tensor.pad copies the unpadded data into a
+// non-contiguous subview of the padded buffer. The subview is emitted as an
+// alias of the whole padded buffer, and the copy as nested loops with
+// explicit strided index arithmetic.
+// CHECK: func Test_pad_copy([[SRC:v[0-9]+]] []float32) ([]float32) {
+func.func @test_pad_copy(%arg0: memref<128x128xf32>) -> memref<131x131xf32> {
+  // CHECK: [[PADDED:v[0-9]+]] := make([]float32, 17161)
+  %alloc = memref.alloc() : memref<131x131xf32>
+
+  // CHECK: [[SUBVIEW:v[0-9]+]] := [[PADDED]]
+  %subview = memref.subview %alloc[0, 0] [128, 128] [1, 1] : memref<131x131xf32> to memref<128x128xf32, strided<[131, 1]>>
+
+  // CHECK:      for i0 := 0; i0 < 128; i0++ {
+  // CHECK-NEXT:   for i1 := 0; i1 < 128; i1++ {
+  // CHECK-NEXT:     [[SUBVIEW]][0 + i0 * 131 + i1 * 1] = [[SRC]][0 + i0 * 128 + i1 * 1]
+  // CHECK-NEXT:   }
+  // CHECK-NEXT: }
+  memref.copy %arg0, %subview : memref<128x128xf32> to memref<128x128xf32, strided<[131, 1]>>
+
+  return %alloc : memref<131x131xf32>
+}
+
 // CHECK: func Test_shape(v{{.*}} []float32) ([]float32) {
 func.func @test_shape(%arg0: memref<1024xf32>) -> memref<1024xf32> {
   // CHECK: v{{.*}} := v{{.*}}

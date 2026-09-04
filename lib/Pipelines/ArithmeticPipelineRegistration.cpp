@@ -676,7 +676,9 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(preprocessing::createPreprocessingToLattigo());
 
     // Convert Alloc Ops to InPlace Ops
-    pm.addPass(lattigo::createAllocToInPlace());
+    if (options.allocToInPlace) {
+      pm.addPass(lattigo::createAllocToInPlace());
+    }
 
     // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());
