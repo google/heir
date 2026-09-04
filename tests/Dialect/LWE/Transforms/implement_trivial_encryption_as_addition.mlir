@@ -18,7 +18,7 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
   // CHECK: func @doctest
   // CHECK-SAME: ([[arg0:%[^ :]*]]: [[ct_ty:![^,]*]],
   // CHECK-SAME: [[cond:%[^ :]*]]: i1
-  // CHECK-SAME: [[new_arg:%[^ :]*]]: [[ct_ty]] {client.enc_zero_arg}
+  // CHECK-SAME: [[new_arg:%[^ :]*]]: [[ct_ty]] {client.enc_zero_arg = {index = 0 : i64}}
   // CHECK: [[cst:%[^ ]*]] = arith.constant dense<4>
   // CHECK: scf.if
   // CHECK:   lwe.radd
