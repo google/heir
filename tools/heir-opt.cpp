@@ -122,12 +122,15 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LinalgFuseLinearOps/LinalgFuseLinearOps.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
+#include "lib/Transforms/LowerRecip/LowerRecip.h"
 #include "lib/Transforms/LowerUnpack/LowerUnpack.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
+#include "lib/Transforms/PrepareForLayoutPropagation/PrepareForLayoutPropagation.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/PropagatePadding/PropagatePadding.h"
 #include "lib/Transforms/ReductionCanonicalizations/ReductionCanonicalizations.h"
 #include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
 #include "lib/Transforms/RotationAnalysis/Passes.h"
@@ -137,7 +140,9 @@
 #include "lib/Transforms/ShapeInference/ShapeInference.h"
 #include "lib/Transforms/SoftmaxCanonicalizations/SoftmaxCanonicalizations.h"
 #include "lib/Transforms/SoftmaxToCgfSoftmax/SoftmaxToCgfSoftmax.h"
+#include "lib/Transforms/SoftmaxToNsSoftmax/SoftmaxToNsSoftmax.h"
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
+#include "lib/Transforms/StampApproximationDomains/StampApproximationDomains.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
@@ -440,11 +445,16 @@ int main(int argc, char** argv) {
   registerSoftmaxCanonicalizationsPass();
   registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
+  registerLowerRecipPasses();
   registerLowerUnpackPasses();
   registerTensorToScalarsPasses();
   registerTensorLinalgToAffineLoops();
   registerShapeInferencePasses();
   registerSoftmaxToCgfSoftmaxPasses();
+  registerSoftmaxToNsSoftmaxPasses();
+  registerPrepareForLayoutPropagationPasses();
+  registerStampApproximationDomainsPasses();
+  registerPropagatePaddingPasses();
   registerInlineActivationsPass();
   registerSplitPreprocessingPass();
   // Register the Yosys optimizer pipeline.
@@ -517,6 +527,7 @@ int main(int argc, char** argv) {
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);
   registerOperandLayoutRequirementOpInterface(registry);
+  registerPaddingSemanticsInterfaces(registry);
   registerPlaintextOperandInterface(registry);
   registerReducesLevelOpInterfaceExternalModels(registry);
 
