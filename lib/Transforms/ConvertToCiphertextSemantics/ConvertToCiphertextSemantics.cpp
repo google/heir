@@ -9,12 +9,19 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/IR/RotomDialect.h"
+#include "lib/Dialect/Rotom/IR/RotomOps.h"
+#include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
+#include "lib/Dialect/Rotom/Utils/LayoutConversion.h"
+#include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -30,6 +37,7 @@
 #include "lib/Kernel/Utils.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/RotomTensorOpLowering.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/LayoutPropagation/Utils.h"
@@ -2754,6 +2762,52 @@ struct DropRotateAndReduceUnitDims
   }
 };
 
+template <typename OpTy>
+struct ConvertRotomElementwiseBinary
+    : public ContextAwareOpConversionPattern<OpTy> {
+ public:
+  using ContextAwareOpConversionPattern<OpTy>::ContextAwareOpConversionPattern;
+
+  ConvertRotomElementwiseBinary(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context)
+      : ContextAwareOpConversionPattern<OpTy>(contextAwareTypeConverter,
+                                              context, /*benefit=*/10) {}
+
+  bool supportsRotomElementwise(OpTy op) const {
+    return op->hasAttr(rotom::kRotomElementwiseAttrName);
+  }
+
+  LogicalResult matchAndRewrite(
+      OpTy op, typename OpTy::Adaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (!supportsRotomElementwise(op)) return failure();
+    return RotomTensorOpLowering(this->getTypeConverter())
+        .lowerElementwiseBinary(op.getOperation(), op.getResult(),
+                                adaptor.getOperands(), rewriter);
+  }
+};
+
+template <typename OpTy>
+class ConvertRotomLayoutMove : public ContextAwareOpConversionPattern<OpTy> {
+ public:
+  using ContextAwareOpConversionPattern<OpTy>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      OpTy op, typename OpTy::Adaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value converted =
+        RotomTensorOpLowering(this->getTypeConverter())
+            .convertToLayout(b, adaptor.getInput(), op.getFrom(), op.getTo());
+    if (!converted) {
+      return op.emitOpError("could not lower the layout conversion");
+    }
+    rewriter.replaceOp(op, converted);
+    return success();
+  }
+};
+
 struct ConvertLinalgMatmul
     : public ContextAwareOpConversionPattern<linalg::MatmulOp> {
  public:
@@ -3069,6 +3123,260 @@ struct ConvertBootstrap : public ConversionBase<mgmt::BootstrapOp> {
   }
 };
 
+// Rotom matmul: the operands arrive aligned.
+// - multiply elementwise once at the `compute` placement of the (i, j, k)
+// iteration space, then sum k from its position there
+// - slot-region k pieces by a log-tree rotate-and-reduce, ciphertext-region
+// ones by block adds.
+template <typename OpTy>
+class RotomMatmulConversion : public ConversionBase<OpTy> {
+ public:
+  using ConversionBase<OpTy>::ConversionBase;
+
+ protected:
+  LogicalResult reduceAndReplace(
+      ContextAwareConversionPatternRewriter& rewriter, OpTy op, Value acc,
+      ArrayRef<rotom::DimAttr> computeDims, size_t ctPrefixLen,
+      LayoutAttr outputLayout, bool reduceCtBlocks) const {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    SmallVector<std::pair<int64_t, int64_t>> slotReductions;  // (period, steps)
+    int64_t suffix = 1;
+    for (size_t p = computeDims.size(); p > ctPrefixLen;) {
+      --p;
+      if (computeDims[p].isContraction()) {
+        slotReductions.push_back({suffix, computeDims[p].getSize()});
+      }
+      suffix *= computeDims[p].getSize();
+    }
+    int64_t kCtExtent = 1;
+    for (size_t p = 0; p < ctPrefixLen; ++p) {
+      if (computeDims[p].isContraction()) {
+        kCtExtent *= computeDims[p].getSize();
+      }
+    }
+
+    Type elementType = getElementTypeOrSelf(op.getResult().getType());
+    std::string addOpName =
+        isa<FloatType>(elementType) ? "arith.addf" : "arith.addi";
+    kernel::DagType dagType = kernel::mlirTypeToDagType(acc.getType());
+    for (auto [period, steps] : slotReductions) {
+      SSAValue accLeaf(acc);
+      auto dag = implementRotateAndReduce(accLeaf, {}, period, steps, dagType,
+                                          {}, addOpName);
+      acc = this->materializeKernel(rewriter, op.getLoc(), dag, acc.getType(),
+                                    outputLayout);
+    }
+
+    if (kCtExtent > 1 && reduceCtBlocks) {
+      // Remove the contraction axis from the product.
+      auto accType = cast<RankedTensorType>(acc.getType());
+      const int64_t numCt = accType.getDimSize(0);
+      const int64_t numSlots = accType.getDimSize(1);
+      SmallVector<int64_t> radices;
+      SmallVector<bool> isK;
+      for (size_t p = 0; p < ctPrefixLen; ++p) {
+        if (computeDims[p].isGap()) continue;
+        radices.push_back(computeDims[p].getSize());
+        isK.push_back(computeDims[p].isContraction());
+      }
+      SmallVector<SmallVector<int64_t>> rowsByResult(numCt / kCtExtent);
+      for (int64_t c = 0; c < numCt; ++c) {
+        int64_t rem = c;
+        int64_t resultIndex = 0;
+        for (size_t d = 0; d < radices.size(); ++d) {
+          int64_t offset = 1;
+          for (size_t e = d + 1; e < radices.size(); ++e) offset *= radices[e];
+          int64_t pieceIndex = (rem / offset) % radices[d];
+          rem %= offset;
+          if (!isK[d]) resultIndex = resultIndex * radices[d] + pieceIndex;
+        }
+        rowsByResult[resultIndex].push_back(c);
+      }
+
+      SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
+                                         b.getIndexAttr(numSlots)};
+      SmallVector<OpFoldResult> strides = {b.getIndexAttr(1),
+                                           b.getIndexAttr(1)};
+      SmallVector<Value> resultRows;
+      for (const SmallVector<int64_t>& rows : rowsByResult) {
+        Value sum;
+        for (int64_t row : rows) {
+          SmallVector<OpFoldResult> offsets = {b.getIndexAttr(row),
+                                               b.getIndexAttr(0)};
+          Value block =
+              tensor::ExtractSliceOp::create(b, acc, offsets, sizes, strides);
+          setMaterializedAttr(block.getDefiningOp());
+          if (!sum) {
+            sum = block;
+            continue;
+          }
+          Operation* add =
+              makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, block);
+          setMaterializedAttr(add);
+          sum = add->getResult(0);
+        }
+        resultRows.push_back(sum);
+      }
+      if (resultRows.size() == 1) {
+        acc = resultRows[0];
+      } else {
+        auto concat = tensor::ConcatOp::create(b, /*dim=*/0, resultRows);
+        setMaterializedAttr(concat);
+        acc = concat.getResult();
+      }
+    }
+
+    Type convertedResultType = this->getTypeConverter()->convertType(
+        op.getResult().getType(), outputLayout);
+    if (acc.getType() != convertedResultType) {
+      return rewriter.notifyMatchFailure(
+          op, "rotom matmul lowering produced a mismatched ciphertext shape");
+    }
+    Operation* resultOp = acc.getDefiningOp();
+    resultOp->setAttr(kLayoutAttrName, outputLayout);
+    setMaterializedAttr(resultOp);
+    rewriter.replaceOp(op, acc);
+    return success();
+  }
+};
+
+class ConvertRotomMatmul : public RotomMatmulConversion<rotom::MatmulOp> {
+ public:
+  using RotomMatmulConversion<rotom::MatmulOp>::RotomMatmulConversion;
+
+  LogicalResult matchAndRewrite(
+      rotom::MatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto outputLayout = op->getAttrOfType<LayoutAttr>(kLayoutAttrName);
+    if (!outputLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing tensor_ext.layout on rotom matmul");
+    }
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Value lhs = adaptor.getLhs();
+    Value rhs = adaptor.getRhs();
+    if (lhs.getType() != rhs.getType()) {
+      return rewriter.notifyMatchFailure(
+          op, "aligned rotom matmul operands disagree on ciphertext shape");
+    }
+
+    Operation* product = makeAppropriatelyTypedMulOp(b, op.getLoc(), lhs, rhs);
+    setMaterializedAttr(product);
+
+    SmallVector<rotom::DimAttr> computeDims;
+    for (Attribute attr : op.getCompute().getDims()) {
+      computeDims.push_back(cast<rotom::DimAttr>(attr));
+    }
+    return reduceAndReplace(
+        rewriter, op, product->getResult(0), computeDims,
+        rotom::inferCtPrefixLen(computeDims, op.getCompute().getN()),
+        outputLayout, /*reduceCtBlocks=*/true);
+  }
+};
+
+class ConvertRotomBsgsMatmul
+    : public RotomMatmulConversion<rotom::BsgsMatmulOp> {
+ public:
+  using RotomMatmulConversion<rotom::BsgsMatmulOp>::RotomMatmulConversion;
+
+  LogicalResult matchAndRewrite(
+      rotom::BsgsMatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto outputLayout = op->getAttrOfType<LayoutAttr>(kLayoutAttrName);
+    if (!outputLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing tensor_ext.layout on rotom bsgs matmul");
+    }
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Value lhs = adaptor.getLhs();
+    Value rhs = adaptor.getRhs();
+    Value acc;
+    const bool rhsPending = op.getRollOperand() == 1;
+    Value ct = rhsPending ? rhs : lhs;
+    Value pt = rhsPending ? lhs : rhs;
+    rotom::LayoutAttr rolled = op.getRolled();
+    const int64_t n = rolled.getN();
+    const int64_t targets = op.getRollTargets();
+    const int64_t baby = op.getBaby();
+    const int64_t giants = (targets + baby - 1) / baby;
+    auto ptType = cast<RankedTensorType>(pt.getType());
+    if (ptType.getDimSize(0) != targets || ptType.getDimSize(1) != n) {
+      return op.emitOpError(
+          "bsgs plaintext operand does not hold one row per target");
+    }
+    auto shiftOf = [&](int64_t k) {
+      const int64_t v = ((op.getRollStride() * k) % n + n) % n;
+      return op.getRollNegative() ? (n - v) % n : v;
+    };
+    auto rowType = RankedTensorType::get({1, n}, ptType.getElementType());
+    SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1), b.getIndexAttr(n)};
+    SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
+    auto row = [&](Value tensor, int64_t r) {
+      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(r),
+                                           b.getIndexAttr(0)};
+      Value out = tensor::ExtractSliceOp::create(b, rowType, tensor, offsets,
+                                                 sizes, strides);
+      setMaterializedAttr(out.getDefiningOp());
+      return out;
+    };
+    auto rotate = [&](Value v, int64_t shift) {
+      if (shift == 0) return v;
+      Value amount = arith::ConstantIndexOp::create(b, shift);
+      setMaterializedAttr(amount.getDefiningOp());
+      Value out = tensor_ext::RotateOp::create(b, v, amount);
+      setMaterializedAttr(out.getDefiningOp());
+      return out;
+    };
+    // Every row of a ciphertext-side replication is the same ciphertext.
+    Value x = row(ct, 0);
+    SmallVector<Value> babyRows;
+    for (int64_t bb = 0; bb < baby; ++bb) {
+      babyRows.push_back(rotate(x, shiftOf(bb)));
+    }
+    for (int64_t g = 0; g < giants; ++g) {
+      Value group;
+      for (int64_t bb = 0; bb < baby; ++bb) {
+        const int64_t c = g * baby + bb;
+        if (c >= targets) break;
+        Value w = rotate(row(pt, c), (n - shiftOf(g * baby)) % n);
+        Operation* prod =
+            makeAppropriatelyTypedMulOp(b, op.getLoc(), babyRows[bb], w);
+        setMaterializedAttr(prod);
+        if (!group) {
+          group = prod->getResult(0);
+        } else {
+          Operation* add = makeAppropriatelyTypedAddOp(b, op.getLoc(), group,
+                                                       prod->getResult(0));
+          setMaterializedAttr(add);
+          group = add->getResult(0);
+        }
+      }
+      Value shifted = rotate(group, shiftOf(g * baby));
+      if (!acc) {
+        acc = shifted;
+      } else {
+        Operation* add =
+            makeAppropriatelyTypedAddOp(b, op.getLoc(), acc, shifted);
+        setMaterializedAttr(add);
+        acc = add->getResult(0);
+      }
+    }
+
+    SmallVector<rotom::DimAttr> computeDims;
+    for (Attribute attr : op.getCompute().getDims()) {
+      computeDims.push_back(cast<rotom::DimAttr>(attr));
+    }
+    return reduceAndReplace(
+        rewriter, op, acc, computeDims,
+        rotom::inferCtPrefixLen(computeDims, op.getCompute().getN()),
+        outputLayout, /*reduceCtBlocks=*/false);
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -3091,11 +3399,18 @@ struct ConvertToCiphertextSemantics
         ConvertAnyAddingMaterializedAttr, ConvertBootstrap,
         ConvertConvertLayout, ConvertFunc, ConvertLinalgMatmul,
         ConvertLinalgBatchMatmul, ConvertLinalgReduce, ConvertLinalgDot,
-        ConvertSecretGeneric, ConvertTensorCollapseShape,
-        ConvertTensorExpandShape, ConvertTensorExtractLayout,
-        ConvertTensorExtractSlice, ConvertTensorPad, ConvertTensorInsertLayout,
-        ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform>(
-        typeConverter, context);
+        ConvertRotomLayoutMove<rotom::ConvertLayoutOp>,
+        ConvertRotomLayoutMove<rotom::ApplyRollOp>, ConvertRotomMatmul,
+        ConvertRotomBsgsMatmul, ConvertRotomElementwiseBinary<arith::AddFOp>,
+        ConvertRotomElementwiseBinary<arith::AddIOp>,
+        ConvertRotomElementwiseBinary<arith::SubFOp>,
+        ConvertRotomElementwiseBinary<arith::SubIOp>,
+        ConvertRotomElementwiseBinary<arith::MulFOp>,
+        ConvertRotomElementwiseBinary<arith::MulIOp>, ConvertSecretGeneric,
+        ConvertTensorCollapseShape, ConvertTensorExpandShape,
+        ConvertTensorExtractLayout, ConvertTensorExtractSlice, ConvertTensorPad,
+        ConvertTensorInsertLayout, ConvertTensorInsertSlice,
+        PreserveLinalgMatvecAsLinearTransform>(typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,

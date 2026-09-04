@@ -3,7 +3,9 @@
 
 // IWYU pragma: begin_keep
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h"
 #include "lib/Dialect/Rotom/Transforms/MaterializeTensorExtLayout/MaterializeTensorExtLayout.h"
+#include "lib/Dialect/Rotom/Transforms/OutlineKernels/OutlineKernels.h"
 #include "lib/Dialect/Rotom/Transforms/SeedLayout/SeedLayout.h"
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 // IWYU pragma: end_keep
@@ -13,7 +15,13 @@ namespace heir {
 namespace rotom {
 
 #define GEN_PASS_REGISTRATION
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h.inc"
+
+#define GEN_PASS_REGISTRATION
 #include "lib/Dialect/Rotom/Transforms/MaterializeTensorExtLayout/MaterializeTensorExtLayout.h.inc"
+
+#define GEN_PASS_REGISTRATION
+#include "lib/Dialect/Rotom/Transforms/OutlineKernels/OutlineKernels.h.inc"
 
 #define GEN_PASS_REGISTRATION
 #include "lib/Dialect/Rotom/Transforms/SeedLayout/SeedLayout.h.inc"
