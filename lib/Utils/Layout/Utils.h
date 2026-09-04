@@ -284,6 +284,12 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
 
+// Returns the relation corresponding to a transpose by permuting its domain
+// variables according to `permutation`: result domain index i corresponds to
+// original domain index `permutation[i]`.
+presburger::IntegerRelation getTransposedRelation(
+    const presburger::IntegerRelation& relation, ArrayRef<int64_t> permutation);
+
 // Tests whether two layout relations describe the same set of points.
 //
 // This check is one-sided: `true` means the relations are provably equal, but

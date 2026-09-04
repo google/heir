@@ -52,6 +52,7 @@ cc_library(
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],

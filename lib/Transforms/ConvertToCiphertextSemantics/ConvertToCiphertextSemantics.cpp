@@ -829,6 +829,141 @@ struct ConvertLinalgDot : public ConversionBase<linalg::DotOp> {
   }
 };
 
+// Lowers linalg.broadcast under bicyclic or tricyclic packing where the
+// broadcast acts as a zero-cost view without moving ciphertext data.
+class ConvertLinalgBroadcast
+    : public ContextAwareOpConversionPattern<linalg::BroadcastOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::BroadcastOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      linalg::BroadcastOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto resultLayout =
+        dyn_cast_or_null<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    if (!resultLayout) {
+      return rewriter.notifyMatchFailure(op,
+                                         "op has no assigned layout attribute");
+    }
+
+    auto layoutLookup =
+        getTypeConverter()->getContextualAttr(adaptor.getInput());
+    if (failed(layoutLookup)) {
+      return rewriter.notifyMatchFailure(
+          op, "input layout not found in contextual type converter");
+    }
+    auto inputLayout = dyn_cast<LayoutAttr>(layoutLookup.value());
+    if (!inputLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "input contextual attribute is not a LayoutAttr");
+    }
+
+    auto inputType = cast<RankedTensorType>(op.getInput().getType());
+    auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
+    auto inputCtType = cast<RankedTensorType>(adaptor.getInput().getType());
+    int64_t numSlots = inputCtType.getShape().back();
+
+    Type convertedResultType = getTypeConverter()->convertType(
+        op->getResult(0).getType(), resultLayout);
+    if (!convertedResultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert result type with result layout");
+    }
+
+    // If both input and result layouts are cyclic layouts, the ciphertext
+    // already holds the broadcast data in the correct slots.
+    if (isRelationCyclic(inputType, numSlots,
+                         inputLayout.getIntegerRelation()) &&
+        isRelationCyclic(resultType, numSlots,
+                         resultLayout.getIntegerRelation())) {
+      if (convertedResultType != adaptor.getInput().getType()) {
+        return rewriter.notifyMatchFailure(
+            op, "converted result ciphertext type does not match input type");
+      }
+      auto castOp = UnrealizedConversionCastOp::create(
+          rewriter, op.getLoc(), convertedResultType, adaptor.getInput());
+      setMaterializedAttr(castOp);
+      setAttributeAssociatedWith(castOp.getResult(0), kLayoutAttrName,
+                                 resultLayout);
+      rewriter.replaceOp(op, castOp);
+      return success();
+    }
+
+    // Lowering of non-cyclic broadcasts is postponed to a dedicated broadcast
+    // kernel (e.g. https://github.com/google/heir/pull/3163)
+    return rewriter.notifyMatchFailure(
+        op, "non-cyclic broadcasts are not supported yet");
+  }
+};
+
+// A linalg.transpose whose result layout was derived by layout propagation
+// (the input relation with permuted domain variables) packs to the exact
+// same ciphertext contents as its input; at ciphertext semantics the op is
+// a no-op forward, like the broadcast above.
+class ConvertLinalgTranspose
+    : public ContextAwareOpConversionPattern<linalg::TransposeOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::TransposeOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      linalg::TransposeOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto resultLayout =
+        dyn_cast_or_null<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    if (!resultLayout) {
+      return rewriter.notifyMatchFailure(op,
+                                         "op has no assigned layout attribute");
+    }
+
+    auto layoutLookup =
+        getTypeConverter()->getContextualAttr(adaptor.getInput());
+    if (failed(layoutLookup)) {
+      return rewriter.notifyMatchFailure(
+          op, "input layout not found in contextual type converter");
+    }
+    auto inputLayout = dyn_cast<LayoutAttr>(layoutLookup.value());
+    if (!inputLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "input contextual attribute is not a LayoutAttr");
+    }
+
+    // Verify the transpose relation proof: the result relation must be equal
+    // to the expected permuted input relation.
+    IntegerRelation expectedRel = getTransposedRelation(
+        inputLayout.getIntegerRelation(), op.getPermutation());
+    if (!isRelationEqual(resultLayout.getIntegerRelation(), expectedRel)) {
+      return rewriter.notifyMatchFailure(
+          op,
+          "result layout relation is not equal to the expected transpose "
+          "relation");
+    }
+
+    Type convertedResultType = getTypeConverter()->convertType(
+        op->getResult(0).getType(), resultLayout);
+    if (!convertedResultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert result type with result layout");
+    }
+    if (convertedResultType != adaptor.getInput().getType()) {
+      return rewriter.notifyMatchFailure(
+          op, "converted result ciphertext type does not match input type");
+    }
+    // Persist the result layout on a no-op cast so it can create a new
+    // SSA value that can be annotated with a new layout attribute. A bare
+    // forward leaves downstream consumers looking up the INPUT's contextual
+    // layout, whose domain order predates the transpose.
+    auto castOp = UnrealizedConversionCastOp::create(
+        rewriter, op.getLoc(), convertedResultType, adaptor.getInput());
+    setMaterializedAttr(castOp);
+    setAttributeAssociatedWith(castOp.getResult(0), kLayoutAttrName,
+                               resultLayout);
+    rewriter.replaceOp(op, castOp);
+    return success();
+  }
+};
+
 struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
  public:
   using ConversionBase<linalg::MatvecOp>::ConversionBase;
@@ -3089,13 +3224,13 @@ struct ConvertToCiphertextSemantics
 
     patterns.add<
         ConvertAnyAddingMaterializedAttr, ConvertBootstrap,
-        ConvertConvertLayout, ConvertFunc, ConvertLinalgMatmul,
-        ConvertLinalgBatchMatmul, ConvertLinalgReduce, ConvertLinalgDot,
-        ConvertSecretGeneric, ConvertTensorCollapseShape,
-        ConvertTensorExpandShape, ConvertTensorExtractLayout,
-        ConvertTensorExtractSlice, ConvertTensorPad, ConvertTensorInsertLayout,
-        ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform>(
-        typeConverter, context);
+        ConvertConvertLayout, ConvertFunc, ConvertLinalgBroadcast,
+        ConvertLinalgMatmul, ConvertLinalgTranspose, ConvertLinalgBatchMatmul,
+        ConvertLinalgReduce, ConvertLinalgDot, ConvertSecretGeneric,
+        ConvertTensorCollapseShape, ConvertTensorExpandShape,
+        ConvertTensorExtractLayout, ConvertTensorExtractSlice, ConvertTensorPad,
+        ConvertTensorInsertLayout, ConvertTensorInsertSlice,
+        PreserveLinalgMatvecAsLinearTransform>(typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
