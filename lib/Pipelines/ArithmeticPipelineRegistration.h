@@ -27,10 +27,40 @@ struct LoopOptions : public PassPipelineOptions<LoopOptions> {
       llvm::cl::init(false)};
 };
 
+struct CommonPipelineOptions : public LoopOptions {
+  PassOptions::Option<bool> skipLayoutOptimization{
+      *this, "skip-layout-optimization",
+      llvm::cl::desc(
+          "Skip the layout-optimization pass. Its VVE cost model evaluates "
+          "every candidate hoist at the full ciphertext size (an hour-scale "
+          "cost at 32768 slots on a transformer layer), while CRT-closed "
+          "layout policies leave it almost nothing to optimize."),
+      llvm::cl::init(false)};
+  PassOptions::Option<unsigned> layoutOptimizationVveTries{
+      *this, "layout-optimization-vve-tries",
+      llvm::cl::desc(
+          "Number of random tries per candidate conversion in layout "
+          "optimization's Vos-Vos-Erkin cost model. Each try costs an "
+          "evaluation over the full ciphertext size, so large circuits at "
+          "large degrees may want a small value (e.g. 4)."),
+      llvm::cl::init(100)};
+  PassOptions::Option<CodegenStrategy> codegenStrategy{
+      *this, "codegen-strategy",
+      llvm::cl::desc("Codegen strategy for assign_layout."),
+      llvm::cl::values(
+          clEnumValN(CodegenStrategy::AUTO, "auto",
+                     "Automatically choose folding based on size"),
+          clEnumValN(CodegenStrategy::NEVER_FOLD, "never-fold",
+                     "Never fold constants"),
+          clEnumValN(CodegenStrategy::FOLD_WHEN_POSSIBLE, "fold-when-possible",
+                     "Fold constants when possible")),
+      llvm::cl::init(CodegenStrategy::AUTO)};
+};
+
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll);
 
-struct MlirToRLWEPipelineOptions : public LoopOptions {
+struct MlirToRLWEPipelineOptions : public CommonPipelineOptions {
   PassOptions::Option<bool> enableArithmetization{
       *this, "enable-arithmetization",
       llvm::cl::desc(
@@ -98,17 +128,6 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       llvm::cl::desc(
           "Split server-side plaintext preprocessing into a separate function"),
       llvm::cl::init(true)};
-  PassOptions::Option<CodegenStrategy> codegenStrategy{
-      *this, "codegen-strategy",
-      llvm::cl::desc("Codegen strategy for assign_layout."),
-      llvm::cl::values(
-          clEnumValN(CodegenStrategy::AUTO, "auto",
-                     "Automatically choose folding based on size"),
-          clEnumValN(CodegenStrategy::NEVER_FOLD, "never-fold",
-                     "Never fold constants"),
-          clEnumValN(CodegenStrategy::FOLD_WHEN_POSSIBLE, "fold-when-possible",
-                     "Fold constants when possible")),
-      llvm::cl::init(CodegenStrategy::AUTO)};
 
   // Ciphertext management options
   PassOptions::Option<CiphertextManagementStyle> ciphertextManagementStyle{
@@ -174,8 +193,7 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       llvm::cl::init(40988)};
 };
 
-struct PlaintextBackendOptions
-    : public PassPipelineOptions<PlaintextBackendOptions> {
+struct PlaintextBackendOptions : public CommonPipelineOptions {
   PassOptions::Option<int64_t> plaintextModulus{
       *this, "plaintext-modulus",
       llvm::cl::desc("Plaintext modulus for BGV/BFV scheme (if not specified, "

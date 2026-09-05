@@ -526,6 +526,74 @@ presburger::IntegerRelation getTricyclicDiagonalRelation(
   return result;
 }
 
+std::vector<float> packBicyclicDiagonalClosedForm(
+    ArrayRef<int64_t> wShape, ArrayRef<float> flat, int64_t stride,
+    int64_t paddedCols, int64_t numDiags, int64_t numSlots) {
+  assert(wShape.size() == 2 &&
+         "expected rank-2 weight shape for bicyclic diagonal packing");
+  int64_t n = wShape[0];
+  int64_t pDim = wShape[1];
+  assert(pDim <= paddedCols &&
+         "paddedCols must cover the weight's true column dimension");
+  std::vector<float> packed(numDiags * numSlots, 0.0f);
+  for (int64_t c = 0; c < numDiags; ++c) {
+    for (int64_t k = 0; k < numSlots; ++k) {
+      int64_t pIdx = k % paddedCols;
+      if (pIdx >= pDim) continue;
+      int64_t nIdx = (k + c * stride) % n;
+      packed[c * numSlots + k] = flat[nIdx * pDim + pIdx];
+    }
+  }
+  return packed;
+}
+
+std::vector<float> packTricyclicDiagonalClosedForm(
+    ArrayRef<int64_t> wShape, ArrayRef<float> flat, int64_t ctBatch,
+    int64_t ctStride, int64_t freeDimPaddedSize, int64_t numDiags,
+    int64_t numSlots, int64_t contractionDim) {
+  assert(wShape.size() == 3 &&
+         "expected rank-3 weight shape for tricyclic diagonal packing");
+  assert((contractionDim == 1 || contractionDim == 2) &&
+         "contractionDim must be 1 or 2");
+  int64_t h = wShape[0];
+  int64_t n = (contractionDim == 1) ? wShape[1] : wShape[2];
+  int64_t pDim = (contractionDim == 1) ? wShape[2] : wShape[1];
+  assert(pDim <= freeDimPaddedSize &&
+         "freeDimPaddedSize must be greater than or equal to the free "
+         "dimension size of the weight");
+  int64_t stride = h * ctStride;
+  std::vector<float> packed(numDiags * numSlots, 0.0f);
+  for (int64_t c = 0; c < numDiags; ++c) {
+    for (int64_t k = 0; k < numSlots; ++k) {
+      int64_t pIdx = k % freeDimPaddedSize;
+      if (pIdx >= pDim) continue;
+      int64_t nIdx = (k + c * stride) % n;
+      int64_t hIdx = k % h;
+      if (contractionDim == 1) {
+        packed[c * numSlots + k] = flat[hIdx * n * pDim + nIdx * pDim + pIdx];
+      } else {
+        packed[c * numSlots + k] = flat[hIdx * pDim * n + pIdx * n + nIdx];
+      }
+    }
+  }
+  return packed;
+}
+
+std::vector<float> packDiagonalWeightClosedForm(
+    ArrayRef<int64_t> wShape, ArrayRef<float> flat, int64_t ctBatch,
+    int64_t ctStride, int64_t paddedCols, int64_t numDiags, int64_t numSlots,
+    int64_t contractionDim) {
+  if (wShape.size() == 2) {
+    return packBicyclicDiagonalClosedForm(wShape, flat, ctBatch * ctStride,
+                                          paddedCols, numDiags, numSlots);
+  }
+  if (wShape.size() == 3) {
+    return packTricyclicDiagonalClosedForm(wShape, flat, ctBatch, ctStride,
+                                           paddedCols, numDiags, numSlots,
+                                           contractionDim);
+  }
+  llvm_unreachable("unsupported weight rank for diagonal closed-form packing");
+}
 bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,
                              const presburger::IntegerRelation& relation) {
   IntegerRelation diagonalRelation =
