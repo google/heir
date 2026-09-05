@@ -25,7 +25,7 @@ llvm.configure(
 )
 use_repo(llvm, hermetic_llvm = "llvm-project")
 
-bazel_dep(name = "apple_support", version = "2.8.1")
+bazel_dep(name = "apple_support", version = "1.24.2", repo_name = "build_bazel_apple_support")
 
 # Gazelle puglin for BUILD file autogeneration
 bazel_dep(name = "gazelle", version = "0.51.3")
@@ -38,15 +38,16 @@ bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cuda", version = "0.3.0")
 bazel_dep(name = "rules_go", version = "0.62.0")
-bazel_dep(name = "rules_python", version = "1.8.0")
-bazel_dep(name = "googletest", version = "1.17.0")
-bazel_dep(name = "fuzztest", version = "20250805.0")
-bazel_dep(name = "google_benchmark", version = "1.9.1")
-bazel_dep(name = "abseil-cpp", version = "20250512.1", repo_name = "com_google_absl")
+bazel_dep(name = "rules_python", version = "2.0.3")
+bazel_dep(name = "googletest", version = "1.18.0.bcr.1")
+bazel_dep(name = "fuzztest", version = "20260629.0")
+bazel_dep(name = "google_benchmark", version = "1.9.5")
+bazel_dep(name = "abseil-cpp", version = "20260526.0", repo_name = "com_google_absl")
 bazel_dep(name = "abseil-py", version = "2.1.0")
-bazel_dep(name = "pybind11_bazel", version = "2.13.6")
+bazel_dep(name = "pybind11_bazel", version = "3.0.1")
 bazel_dep(name = "rules_shell", version = "0.8.0")
-bazel_dep(name = "re2", version = "2025-08-12")
+bazel_dep(name = "re2", version = "2025-11-05.bcr.1")
+bazel_dep(name = "highwayhash", version = "0.0.0-20240305-5ad3bf8.bcr.1")
 bazel_dep(name = "isl", version = "0.27")
 bazel_dep(name = "pocketfft", version = "0.0.2.bcr.1")
 bazel_dep(name = "abc", version = "0.65-yosyshq")
@@ -61,8 +62,13 @@ single_version_override(
     ],
 )
 
+# fuzztest deps needing manual bumps
+bazel_dep(name = "riegeli", version = "0.0.0-20250822-9f2744d")
+bazel_dep(name = "brotli", version = "1.2.0.bcr.3")
+bazel_dep(name = "snappy", version = "1.2.2.bcr.3")
+
 # yosys deps needing newer versions for bazel compatibility
-bazel_dep(name = "fmt", version = "12.1.0")
+bazel_dep(name = "fmt", version = "12.2.0")
 bazel_dep(name = "m4", version = "1.4.21.bcr.1")
 bazel_dep(name = "libffi", version = "3.4.7.bcr.4")
 bazel_dep(name = "bison", version = "3.8.2.bcr.5")
@@ -72,6 +78,11 @@ single_version_override(
     patches = ["//patches:bison.patch"],
     version = "3.8.2.bcr.5",
 )
+
+# Bazel 9 compatibility
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+bazel_dep(name = "aspect_rules_esbuild", version = "0.26.0")
+bazel_dep(name = "bzip2", version = "1.0.8.bcr.4")
 
 # Clang 21 compatibility
 # Cf. https://github.com/bazelbuild/bazel-central-registry/pull/7989
@@ -133,8 +144,9 @@ llvm_configure(
 # eigen 4.0.0-20241125.bcr.1 has issues with gitlab changing the checksum
 # Cf. https://github.com/google/heir/issues/1840
 bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
-bazel_dep(name = "soplex", version = "7.1.4.bcr.1")
-bazel_dep(name = "or-tools", version = "9.12", repo_name = "com_google_ortools")
+bazel_dep(name = "soplex", version = "8.0.3")
+bazel_dep(name = "scip", version = "10.0.3")
+bazel_dep(name = "or-tools", version = "9.15", repo_name = "com_google_ortools")
 
 # openfhe deps that are needed for bundling openfhe with the python frontend
 bazel_dep(name = "cereal", version = "1.3.2.bcr.3")
