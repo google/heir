@@ -126,6 +126,28 @@ presburger::IntegerRelation getTricyclicDiagonalRelation(
     RankedTensorType weightType, int64_t contractionDim, int64_t ctStride,
     int64_t numSlots);
 
+// Closed-form diagonal packing for a 2-D cleartext matrix weight
+// (contraction on row 0, stride, paddedCols).
+// Formula: packed[c][k] = B[(k + c * stride) % n][k % paddedCols]
+std::vector<float> packBicyclicDiagonalClosedForm(
+    ArrayRef<int64_t> wShape, ArrayRef<float> flat, int64_t stride,
+    int64_t paddedCols, int64_t numDiags, int64_t numSlots);
+
+// Closed-form diagonal packing for a 3-D batched cleartext weight
+// (batch on dim 0, contraction on row 1, free on col 2).
+// Formula: packed[c][k] =
+//     B[k % h][(k + c * ctBatch * ctStride) % n][k % freeDimPaddedSize]
+std::vector<float> packTricyclicDiagonalClosedForm(
+    ArrayRef<int64_t> wShape, ArrayRef<float> flat, int64_t ctBatch,
+    int64_t ctStride, int64_t freeDimPaddedSize, int64_t numDiags,
+    int64_t numSlots, int64_t contractionDim = 1);
+
+// General dispatcher for closed-form diagonal weight packing (rank-2 and
+// rank-3).
+std::vector<float> packDiagonalWeightClosedForm(
+    ArrayRef<int64_t> wShape, ArrayRef<float> flat, int64_t ctBatch,
+    int64_t ctStride, int64_t paddedCols, int64_t numDiags, int64_t numSlots,
+    int64_t contractionDim = 1);
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,

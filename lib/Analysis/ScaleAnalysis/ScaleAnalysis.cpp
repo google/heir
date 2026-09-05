@@ -281,7 +281,7 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
       .template Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
         auto mgmtAttr =
             mgmt::findMgmtAttrAssociatedWith(adjustScaleOp.getResult());
-        if (mgmtAttr && mgmtAttr.getScale() != -1) {
+        if (mgmtAttr && mgmtAttr.getScale() != -1 && mgmtAttr.getScale() != 0) {
           propagate(adjustScaleOp.getResult(),
                     ScaleState<ScaleModelT>(mgmtAttr.getScale()));
         }
@@ -419,7 +419,10 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
     }
 
     for (auto* operand : secretOperands) {
-      auto operandState = this->getLatticeElement(operand->get())->getValue();
+      ScaleLattice<ScaleModelT>* operandLattice =
+          this->getLatticeElement(operand->get());
+      this->addDependency(operandLattice, this->getProgramPointAfter(op));
+      auto operandState = operandLattice->getValue();
       if (!operandState.isInitialized()) {
         LLVM_DEBUG(llvm::dbgs()
                    << "o" << operand->getOperandNumber() << "(uninit), ");
@@ -472,9 +475,10 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
                                     operandScales))) {
           return;
         }
-        // there must be at least one secret operand that has scale
         if (operandScales.empty()) {
-          mulOp->emitError("No secret operand has scale");
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Backward mul visit with no operand scale (yet): "
+                     << *mulOp << "\n");
           return;
         }
         // two operands have scale, succeed.

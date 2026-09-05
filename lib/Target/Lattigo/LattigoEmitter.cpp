@@ -33,6 +33,7 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/ManagedStatic.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -89,13 +90,14 @@ std::string toExportName(llvm::StringRef name) {
 LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
                                  const std::string& packageName,
                                  const std::vector<std::string>& extraImports,
-                                 std::function<bool(func::FuncOp)> funcFilter) {
+                                 std::function<bool(func::FuncOp)> funcFilter,
+                                 int bootstrapDeclaredScaleLog2) {
   SelectVariableNames variableNames(op);
   std::string bufferedStr;
   llvm::raw_string_ostream strOs(bufferedStr);
   raw_indented_ostream bufferedOs(strOs);
   LattigoEmitter emitter(bufferedOs, &variableNames, packageName, extraImports,
-                         funcFilter);
+                         funcFilter, bootstrapDeclaredScaleLog2);
   LogicalResult result = emitter.translate(*op);
 
   // Now write the materialized prelude and body to the outstream.
@@ -1331,8 +1333,69 @@ LogicalResult LattigoEmitter::printOperation(memref::StoreOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(memref::CopyOp op) {
-  os << "copy(" << getName(op.getTarget()) << ", " << getName(op.getSource())
-     << ")\n";
+  bool sourceAliased = stridedSubViewAliases.contains(op.getSource());
+  bool targetAliased = stridedSubViewAliases.contains(op.getTarget());
+  if (!sourceAliased && !targetAliased) {
+    os << "copy(" << getName(op.getTarget()) << ", " << getName(op.getSource())
+       << ")\n";
+    return success();
+  }
+
+  // At least one operand is a non-contiguous subview whose emitted variable
+  // aliases its whole source buffer (see printOperation(memref::SubViewOp)).
+  // A flat copy() would touch the wrong elements, so emit nested loops that
+  // resolve each operand's layout with explicit index arithmetic.
+  auto targetType = cast<MemRefType>(op.getTarget().getType());
+  auto sourceType = cast<MemRefType>(op.getSource().getType());
+  if (!targetType.hasStaticShape() || !sourceType.hasStaticShape()) {
+    return op.emitOpError()
+           << "strided copies with dynamic shapes are not supported yet";
+  }
+  ArrayRef<int64_t> shape = targetType.getShape();
+
+  SmallVector<std::string> indexNames;
+  indexNames.reserve(shape.size());
+  for (size_t dim = 0; dim < shape.size(); ++dim) {
+    indexNames.push_back("i" + std::to_string(dim));
+  }
+
+  // Emits "offset + i0 * stride0 + i1 * stride1 + ..." into the operand's
+  // flattened Go slice. Aliased operands index the whole source buffer with
+  // their layout's offset and strides; all other operands are contiguous
+  // from index 0 with row-major strides.
+  auto flatIndexExpression = [&](Value operand, bool aliased) -> std::string {
+    SmallVector<int64_t> strides;
+    int64_t offset = 0;
+    if (aliased) {
+      std::tie(strides, offset) =
+          cast<MemRefType>(operand.getType()).getStridesAndOffset();
+    } else {
+      strides.assign(shape.size(), 1);
+      for (int64_t dim = static_cast<int64_t>(shape.size()) - 2; dim >= 0;
+           --dim) {
+        strides[dim] = strides[dim + 1] * shape[dim + 1];
+      }
+    }
+    std::string accum = std::to_string(offset);
+    for (const auto& [indexName, stride] :
+         llvm::zip_equal(indexNames, strides)) {
+      accum = llvm::formatv("{0} + {1} * {2}", accum, indexName, stride);
+    }
+    return accum;
+  };
+
+  for (const auto& [indexName, size] : llvm::zip_equal(indexNames, shape)) {
+    os << llvm::formatv("for {0} := 0; {0} < {1}; {0}++ {{\n", indexName, size);
+    os.indent();
+  }
+  os << getName(op.getTarget()) << "["
+     << flatIndexExpression(op.getTarget(), targetAliased)
+     << "] = " << getName(op.getSource()) << "["
+     << flatIndexExpression(op.getSource(), sourceAliased) << "]\n";
+  for (size_t dim = 0; dim < shape.size(); ++dim) {
+    os.unindent();
+    os << "}\n";
+  }
   return success();
 }
 
@@ -1508,9 +1571,28 @@ LogicalResult LattigoEmitter::printOperation(memref::SubViewOp op) {
     }
   }
 
+  // Non-contiguous case: the subview cannot be expressed as a Go sub-slice
+  // of the flattened source buffer. Instead, emit the result as an alias of
+  // the whole source buffer (Go slices share their backing array, matching
+  // memref view semantics) and record it so that consuming ops resolve the
+  // strided layout with explicit index arithmetic. Only memref.copy resolves
+  // such layouts; any other consumer would index the alias incorrectly.
+  auto [layoutStrides, layoutOffset] = resultType.getStridesAndOffset();
+  bool staticLayout = !ShapedType::isDynamic(layoutOffset) &&
+                      llvm::none_of(layoutStrides, ShapedType::isDynamic);
+  if (srcType.getLayout().isIdentity() && resultType.hasStaticShape() &&
+      staticLayout && llvm::all_of(op->getUsers(), [](Operation* user) {
+        return isa<memref::CopyOp>(user);
+      })) {
+    emitAssignment(resultName, sourceName);
+    stridedSubViewAliases.insert(op.getResult());
+    return success();
+  }
+
   return op.emitOpError()
          << "assumes contiguousness, but the slice is not contiguous. "
-            "Non-contiguous subviews are not supported yet.";
+            "Non-contiguous subviews are only supported for static layouts "
+            "whose uses are all memref.copy ops.";
 }
 
 LogicalResult LattigoEmitter::printOperation(
@@ -2282,8 +2364,79 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
   imports.insert(std::string(kBootstrappingImport));
 
   std::string resultName = getName(op.getResult());
-  emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ".CopyNew())");
+  std::string evaluatorName = getName(op.getEvaluator());
+  std::string inputName = getName(op.getInput());
+
+  int s = bootstrapDeclaredScaleLog2;
+  if (s <= 0) {
+    emitAssignmentWithErr(
+        resultName, evaluatorName + ".Bootstrap(" + inputName + ".CopyNew())");
+    return success();
+  }
+
+  // Declared-scale bootstrap bundle:
+  //
+  // 1. Declare the input ciphertext scale as Delta * 2^s before calling
+  //    Bootstrap. Lattigo's ScaleDown step computes
+  //    ct.Value / (ct.Scale / (Delta / MessageRatio)), which scales down by
+  //    an extra 2^s factor and lands the message in [-1/2, 1/2] as long as the
+  //    true input message satisfies |m| <= 2^(s - 1).
+  //
+  // 2. Perform the normal Bootstrap.
+  //
+  // 3. Restore the true message amplitude with an exact scalar multiplication
+  //    by 2^s (using big.Int, so Lattigo performs exact integer ring arithmetic
+  //    without rescaling or consuming a level).
+  //
+  // 4. Force ct.Scale back to DefaultScale() because big.Int scalar multiply
+  //    does not modify the scale metadata.
+
+  constexpr int kLogMessageRatio = 8;
+  if (!cachedLogQ0.has_value()) {
+    cachedLogQ0 = -1;
+    cachedLogDefaultScale = -1;
+    op->getParentOfType<ModuleOp>()->walk(
+        [&](lattigo::CKKSNewParametersFromLiteralOp paramsOp) {
+          cachedLogDefaultScale =
+              paramsOp.getParamsLiteral().getLogDefaultScale();
+          if (auto Q = paramsOp.getParamsLiteral().getQ()) {
+            uint64_t q0 = static_cast<uint64_t>(Q.asArrayRef().front());
+            cachedLogQ0 = q0 ? llvm::Log2_64(q0) + 1 : 0;
+          } else if (auto logQ = paramsOp.getParamsLiteral().getLogQ()) {
+            cachedLogQ0 = logQ.asArrayRef().front();
+          }
+          return WalkResult::interrupt();
+        });
+  }
+  int logQ0 = *cachedLogQ0;
+  int logDefaultScale = *cachedLogDefaultScale;
+  if (logQ0 >= 0 && logDefaultScale >= 0 &&
+      s > logQ0 - logDefaultScale - kLogMessageRatio) {
+    return op.emitError()
+           << "lattigo-bootstrap-declared-scale-log2=" << s
+           << " exceeds the first modulus headroom: require s <= logQ0("
+           << logQ0 << ") - logDefaultScale(" << logDefaultScale
+           << ") - LogMessageRatio(" << kLogMessageRatio
+           << ") = " << (logQ0 - logDefaultScale - kLogMessageRatio)
+           << "; regenerate parameters with a larger first-mod-bits";
+  }
+
+  imports.insert(std::string(kRlweImport));
+  imports.insert(std::string(kMathBigImport));
+
+  int64_t scaleFactor = int64_t{1} << s;
+  std::string wideName = resultName + "_wide";
+  os << wideName << " := " << inputName << ".CopyNew()\n";
+  os << wideName << ".Scale = " << wideName
+     << ".Scale.Mul(rlwe.NewScale(uint64(" << scaleFactor << ")))\n";
+  emitAssignmentWithErr(resultName,
+                        evaluatorName + ".Bootstrap(" + wideName + ")");
+  std::string errName = getErrName();
+  os << errName << " := " << evaluatorName << ".Evaluator.Mul(" << resultName
+     << ", big.NewInt(" << scaleFactor << "), " << resultName << ")\n";
+  printErrPanic(errName);
+  os << resultName << ".Scale = " << evaluatorName
+     << ".ResidualParameters.DefaultScale()\n";
   return success();
 }
 
@@ -2733,12 +2886,14 @@ LattigoEmitter::LattigoEmitter(raw_ostream& os,
                                SelectVariableNames* variableNames,
                                const std::string& packageName,
                                const std::vector<std::string>& extraImports,
-                               std::function<bool(func::FuncOp)> funcFilter)
+                               std::function<bool(func::FuncOp)> funcFilter,
+                               int bootstrapDeclaredScaleLog2)
     : os(os),
       variableNames(variableNames),
       packageName(packageName),
       extraImports(extraImports),
-      funcFilter(funcFilter) {}
+      funcFilter(funcFilter),
+      bootstrapDeclaredScaleLog2(bootstrapDeclaredScaleLog2) {}
 
 struct TranslateOptions {
   llvm::cl::opt<std::string> packageName{
@@ -2750,6 +2905,19 @@ struct TranslateOptions {
       llvm::cl::init("main")};
   llvm::cl::list<std::string> extraImports{
       "extra-imports", llvm::cl::desc("Additional import paths")};
+  llvm::cl::opt<int> bootstrapDeclaredScaleLog2{
+      "lattigo-bootstrap-declared-scale-log2",
+      llvm::cl::desc(
+          "If positive (call it s), wrap every emitted bootstrap in a "
+          "declared-scale bundle: declare the input ciphertext scale as "
+          "Delta*2^s before the Bootstrap call so Lattigo's ScaleDown treats "
+          "the message as m/2^s (in-window for the Mod1 approximation when "
+          "|m| <= 2^s), then restore the true message with an exact integer "
+          "scalar multiply by 2^s (no rescale, no level consumed). Requires "
+          "the first modulus to have at least logDefaultScale + "
+          "LogMessageRatio(8) + s bits (c.f. --generate-param-ckks "
+          "first-mod-bits)."),
+      llvm::cl::init(0)};
 };
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
 
@@ -2768,7 +2936,9 @@ void registerToLattigoTranslation() {
       "translate the lattigo dialect to GO code against the Lattigo API",
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(op, output, translateOptions->packageName,
-                                  translateOptions->extraImports);
+                                  translateOptions->extraImports,
+                                  /*funcFilter=*/nullptr,
+                                  translateOptions->bootstrapDeclaredScaleLog2);
       },
       [](DialectRegistry& registry) {
         registry
@@ -2787,9 +2957,11 @@ void registerToLattigoPreprocessingTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) {
               return funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            },
+            translateOptions->bootstrapDeclaredScaleLog2);
       },
       [](DialectRegistry& registry) {
         registry
@@ -2808,9 +2980,11 @@ void registerToLattigoPreprocessedTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) {
               return !funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            },
+            translateOptions->bootstrapDeclaredScaleLog2);
       },
       [](DialectRegistry& registry) {
         registry

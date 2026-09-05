@@ -20,6 +20,8 @@
 #include "lib/Transforms/Halo/Patterns.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"                // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"                // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallPtrSet.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"             // from @llvm-project
@@ -28,17 +30,18 @@
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"         // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                   // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/CallInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"  // from @llvm-project
 #include "mlir/include/mlir/Rewrite/FrozenRewritePatternSet.h"  // from @llvm-project
@@ -142,10 +145,20 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   // 1. Hoist invariant bootstraps first
   if (options.bootstrapWaterline.has_value()) {
     LDBG(2) << "Running insertBootstrapWaterLine (only hoist) first";
-    int absoluteWaterline = budget - options.bootstrapWaterline.value();
-    insertBootstrapWaterLine(top, absoluteWaterline, budget,
+    int absoluteWaterline = options.levelBudget == -1
+                                ? (options.bootstrapWaterline.value() > 0
+                                       ? options.bootstrapWaterline.value()
+                                       : budget)
+                                : (budget - options.bootstrapWaterline.value());
+    int btpBudget = options.levelBudget == -1
+                        ? (options.bootstrapWaterline.value() > 0
+                               ? options.bootstrapWaterline.value()
+                               : budget)
+                        : budget;
+    insertBootstrapWaterLine(top, absoluteWaterline, btpBudget,
                              bootstrapLevelsConsumed, options.includeFloats,
-                             &idCounter, /*onlyHoist=*/true);
+                             &idCounter, /*onlyHoist=*/true,
+                             options.modReduceAfterMul);
   }
 
   // 2. Re-solve levels to propagate hoisted levels
@@ -185,10 +198,20 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   // 8. Run full waterline bootstrap insertion
   if (options.bootstrapWaterline.has_value()) {
     LDBG(2) << "Running insertBootstrapWaterLine (full) after unrolling";
-    int absoluteWaterline = budget - options.bootstrapWaterline.value();
-    insertBootstrapWaterLine(top, absoluteWaterline, budget,
+    int absoluteWaterline = options.levelBudget == -1
+                                ? (options.bootstrapWaterline.value() > 0
+                                       ? options.bootstrapWaterline.value()
+                                       : budget)
+                                : (budget - options.bootstrapWaterline.value());
+    int btpBudget = options.levelBudget == -1
+                        ? (options.bootstrapWaterline.value() > 0
+                               ? options.bootstrapWaterline.value()
+                               : budget)
+                        : budget;
+    insertBootstrapWaterLine(top, absoluteWaterline, btpBudget,
                              bootstrapLevelsConsumed, options.includeFloats,
-                             &idCounter, /*onlyHoist=*/false);
+                             &idCounter, /*onlyHoist=*/false,
+                             options.modReduceAfterMul);
   }
 
   // An if statement must have each branch producing the same level as a result,
@@ -626,13 +649,124 @@ static void bootstrapMulOperands(
   }
 }
 
+// Returns true when every path from start to a terminator fits within
+// levelBudget without any additional bootstraps, meaning the budget itself
+// accommodates the remaining consumption, and refreshing an end-of-life value
+// wastes a bootstrap.
+bool remainingConeFitsBudget(
+    Value start, int64_t startLevel, int64_t levelBudget,
+    const llvm::SmallPtrSetImpl<Value>& plannedBootstraps,
+    DataFlowSolver* solver) {
+  if (levelBudget <= 0 || startLevel > levelBudget) return false;
+  constexpr int kMaxConeSize = 1024;
+  llvm::DenseMap<Value, int64_t> bestLevel;
+  SmallVector<Value> worklist;
+  bestLevel[start] = startLevel;
+  worklist.push_back(start);
+  int iterations = 0;
+  while (!worklist.empty()) {
+    if (++iterations > 8 * kMaxConeSize) return false;
+    Value value = worklist.pop_back_val();
+    int64_t level = bestLevel[value];
+    if (level > levelBudget) return false;
+    for (OpOperand& use : value.getUses()) {
+      Operation* user = use.getOwner();
+      if (isa<mgmt::BootstrapOp>(user)) continue;
+      if (user->hasTrait<OpTrait::IsTerminator>()) {
+        if (auto yieldOp = dyn_cast<secret::YieldOp>(user)) {
+          auto genericOp = dyn_cast<secret::GenericOp>(yieldOp->getParentOp());
+          if (!genericOp) return false;
+          Value result = genericOp->getResult(use.getOperandNumber());
+          for (Operation* resultUser : result.getUsers()) {
+            if (!isa<func::ReturnOp>(resultUser)) return false;
+          }
+          continue;
+        }
+        return false;
+      }
+      if (user->getNumRegions() > 0 || isa<CallOpInterface>(user)) return false;
+      if (isa<ReducesAllLevelsOpInterface>(user)) return false;
+
+      int64_t inLevel = level;
+      for (Value operand : user->getOperands()) {
+        if (operand == value) continue;
+        auto* lattice = solver->lookupState<BootstrapWaterlineLattice>(operand);
+        if (!lattice) continue;
+        LevelState state = lattice->getValue().getLevelState();
+        if (state.isInt()) {
+          inLevel = std::max(inLevel, state.getInt());
+        } else if (state.isInitialized()) {
+          return false;
+        }
+      }
+
+      int64_t outLevel = inLevel;
+      if (auto reduceUser = dyn_cast<ReducesLevelOpInterface>(user)) {
+        auto operands = reduceUser.getOperandsToReduce(solver);
+        if (!operands.empty() && operands[0]->get() == value)
+          outLevel += reduceUser.getLevelsToDrop();
+      }
+      if (outLevel > levelBudget) return false;
+
+      for (Value result : user->getResults()) {
+        if (!isSecret(result, solver)) continue;
+        if (plannedBootstraps.contains(result)) return false;
+        auto it = bestLevel.find(result);
+        if (it == bestLevel.end() || outLevel > it->second) {
+          bestLevel[result] = outLevel;
+          worklist.push_back(result);
+        }
+      }
+    }
+  }
+  return true;
+}
+
+struct CrossingChain {
+  ReducesLevelOpInterface reduceOp;
+  Value root;
+  OpOperand* boundaryUse;
+  bool hasRotation = false;
+  int64_t unrefreshedLevel = 0;
+};
+
+static CrossingChain traceCrossingChain(
+    ReducesLevelOpInterface reduceOp,
+    const llvm::SmallPtrSetImpl<Value>& plannedCrossings,
+    int64_t unrefreshedLevel = 0) {
+  auto operands = reduceOp.getOperandsToReduce(/*solver=*/nullptr);
+  if (operands.empty()) {
+    return CrossingChain{reduceOp, nullptr, nullptr, false, unrefreshedLevel};
+  }
+  Value curr = operands[0]->get();
+  OpOperand* boundaryUse = operands[0];
+  bool hasRotation = false;
+  while (auto rotateOp = curr.getDefiningOp<tensor_ext::RotateOp>()) {
+    Value input = rotateOp.getTensor();
+    bool allSiblingsCross = llvm::all_of(curr.getUsers(), [&](Operation* u) {
+      if (u == reduceOp.getOperation()) return true;
+      for (Value res : u->getResults()) {
+        if (plannedCrossings.contains(res)) return true;
+      }
+      return false;
+    });
+    if (!allSiblingsCross) break;
+    boundaryUse = &rotateOp.getTensorMutable();
+    curr = input;
+    hasRotation = true;
+  }
+  return CrossingChain{reduceOp, curr, boundaryUse, hasRotation,
+                       unrefreshedLevel};
+}
+
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
                               int levelBudget, int bootstrapLevelsConsumed,
                               bool includeFloats, int* idCounter,
-                              bool onlyHoist) {
+                              bool onlyHoist, bool modReduceAfterMul) {
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
+  solver.load<LevelAnalysis>(levelBudget <= 0 ? 100 : levelBudget);
   solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget,
                                           bootstrapLevelsConsumed);
   if (failed(solver.initializeAndRun(top))) {
@@ -787,86 +921,170 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
   }
 
   // Phase 3: Insert remaining (non-hoisted) bootstraps
+  SmallVector<std::pair<ReducesLevelOpInterface, int64_t>> crossingOps;
+  llvm::SmallPtrSet<Value, 16> plannedCrossings;
+  llvm::SmallPtrSet<Value, 16> targetSet(targets.begin(), targets.end());
+  SmallVector<Value> inPlaceTargets;
+
   for (Value needsBootstrap : targets) {
     Operation* defOp = needsBootstrap.getDefiningOp();
+    if (!defOp || !isa<ReducesLevelOpInterface>(defOp)) {
+      inPlaceTargets.push_back(needsBootstrap);
+      continue;
+    }
+    auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
+    auto operands = reduceOp.getOperandsToReduce(&solver);
+    if (operands.empty()) {
+      inPlaceTargets.push_back(needsBootstrap);
+      continue;
+    }
+    Value input = operands[0]->get();
+    auto* inputLattice = solver.lookupState<BootstrapWaterlineLattice>(input);
+    int64_t unrefreshedLevel = levelBudget + 1;
+    if (inputLattice && inputLattice->getValue().getLevelState().isInt()) {
+      unrefreshedLevel = inputLattice->getValue().getLevelState().getInt() +
+                         reduceOp.getLevelsToDrop();
+    }
+    if (levelBudget > 0 && unrefreshedLevel <= levelBudget &&
+        remainingConeFitsBudget(needsBootstrap, unrefreshedLevel, levelBudget,
+                                targetSet, &solver)) {
+      LDBG(2) << "Skipping terminal refresh of " << needsBootstrap
+              << " (remaining cone fits budget " << levelBudget << ")";
+      continue;
+    }
+    crossingOps.push_back({reduceOp, unrefreshedLevel});
+    plannedCrossings.insert(needsBootstrap);
+  }
 
-    if (defOp && isa<ReducesLevelOpInterface>(defOp)) {
-      auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
-      auto operandsToReduce = reduceOp.getOperandsToReduce(&solver);
+  SmallVector<CrossingChain> crossings;
+  crossings.reserve(crossingOps.size());
+  for (auto [reduceOp, unrefreshedLevel] : crossingOps)
+    crossings.push_back(
+        traceCrossingChain(reduceOp, plannedCrossings, unrefreshedLevel));
 
-      for (OpOperand* operand : operandsToReduce) {
-        Value operandToReduce = operand->get();
-        auto* lattice =
-            solver.lookupState<BootstrapWaterlineLattice>(operandToReduce);
-        if (!lattice) continue;
-        LevelState level = lattice->getValue().getLevelState();
-        int levelVal = 0;
-        if (level.isInt()) {
-          levelVal = level.getInt();
-        } else if (level.isMaxLevel()) {
-          levelVal = levelBudget;
-        } else {
-          continue;
-        }
-        if (!(levelVal + reduceOp.getLevelsToDrop() > bootstrapWaterline)) {
-          continue;
-        }
+  llvm::DenseMap<Value, SmallVector<CrossingChain*>> rootGroups;
+  for (CrossingChain& crossing : crossings)
+    rootGroups[crossing.root].push_back(&crossing);
 
-        if (moduleTargetsCKKS(top)) {
-          ScaleSafeTargetsResult scaleSafeResult =
-              getScaleSafeBootstrapTargets(operandToReduce, &solver);
-          if (!scaleSafeResult.targets.empty()) {
-            assert(scaleSafeResult.mulOp &&
-                   "mulOp should not be null if scaleSafeTargets is not empty");
-            SmallVector<Value> remainingTargets;
-            for (Value target : scaleSafeResult.targets) {
-              if (!tryHoistBootstrap(target, builder, hoistedTensors,
-                                     domInfo)) {
-                remainingTargets.push_back(target);
-              }
-            }
-            if (!remainingTargets.empty()) {
-              bootstrapMulOperands(scaleSafeResult.mulOp, remainingTargets,
-                                   builder, bootstrappedValues, domInfo);
-            }
-            continue;
+  llvm::DenseSet<Value> hoistRoots;
+  for (auto& [root, group] : rootGroups) {
+    bool anyRotate = llvm::any_of(
+        group, [](CrossingChain* crossing) { return crossing->hasRotation; });
+    if (group.size() >= 2 && anyRotate) {
+      LDBG(2) << "Sharing one refresh among " << group.size()
+              << " sibling bootstraps of source " << root;
+      hoistRoots.insert(root);
+    }
+  }
+
+  auto createScaledRefresh = [&](Location loc, Value source) -> Value {
+    auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+        builder, loc, source, builder.getI64IntegerAttr((*idCounter)++));
+    auto modReduceOp =
+        mgmt::ModReduceOp::create(builder, loc, adjustScaleOp.getResult());
+    auto bootstrapOp = mgmt::BootstrapOp::create(builder, loc, source.getType(),
+                                                 modReduceOp.getResult());
+    return bootstrapOp.getResult();
+  };
+
+  llvm::DenseMap<Value, Value> hoistedBootstraps;
+  for (CrossingChain& crossing : crossings) {
+    ReducesLevelOpInterface reduceOp = crossing.reduceOp;
+    Operation* defOp = reduceOp.getOperation();
+    if (hoistRoots.contains(crossing.root)) {
+      Value& hoisted = hoistedBootstraps[crossing.root];
+      if (!hoisted) {
+        builder.setInsertionPointAfterValue(crossing.root);
+        hoisted =
+            includeFloats
+                ? createScaledRefresh(crossing.root.getLoc(), crossing.root)
+                : mgmt::BootstrapOp::create(builder, crossing.root.getLoc(),
+                                            crossing.root.getType(),
+                                            crossing.root)
+                      .getResult();
+      }
+      crossing.boundaryUse->set(hoisted);
+      if (includeFloats && isa<mgmt::ModReduceOp>(defOp)) {
+        builder.setInsertionPoint(defOp);
+        auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+            builder, defOp->getLoc(),
+            reduceOp.getOperandsToReduce(&solver)[0]->get(),
+            builder.getI64IntegerAttr((*idCounter)++));
+        reduceOp.getOperandsToReduce(&solver)[0]->set(
+            adjustScaleOp.getResult());
+      }
+      continue;
+    }
+
+    Value operandToReduce = reduceOp.getOperandsToReduce(&solver)[0]->get();
+
+    if (tryHoistBootstrap(operandToReduce, builder, hoistedTensors, domInfo)) {
+      continue;
+    }
+
+    if (moduleTargetsCKKS(top)) {
+      ScaleSafeTargetsResult scaleSafeResult =
+          getScaleSafeBootstrapTargets(operandToReduce, &solver);
+      if (!scaleSafeResult.targets.empty()) {
+        assert(scaleSafeResult.mulOp &&
+               "mulOp should not be null if scaleSafeTargets is not empty");
+        SmallVector<Value> remainingTargets;
+        for (Value target : scaleSafeResult.targets) {
+          if (!tryHoistBootstrap(target, builder, hoistedTensors, domInfo)) {
+            remainingTargets.push_back(target);
           }
         }
-
-        if (tryHoistBootstrap(operandToReduce, builder, hoistedTensors,
-                              domInfo)) {
-          continue;
+        if (!remainingTargets.empty()) {
+          bootstrapMulOperands(scaleSafeResult.mulOp, remainingTargets, builder,
+                               bootstrappedValues, domInfo);
         }
-
-        Operation* insertionPoint = defOp;
-        if (auto loop = getOutermostLoopForInvariant(operandToReduce, defOp)) {
-          insertionPoint = loop;
-        }
-
-        Value newOperand =
-            bootstrapValue(operandToReduce, builder, bootstrappedValues,
-                           domInfo, insertionPoint);
-
-        if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
-            !moduleTargetsCKKS(top)) {
-          OpBuilder::InsertionGuard guard(builder);
-          builder.setInsertionPoint(insertionPoint);
-          auto adjustScaleOp = mgmt::AdjustScaleOp::create(
-              builder, defOp->getLoc(), newOperand,
-              builder.getI64IntegerAttr((*idCounter)++));
-          newOperand = adjustScaleOp.getResult();
-        }
-        operand->set(newOperand);
-      }
-    } else {
-      if (tryHoistBootstrap(needsBootstrap, builder, hoistedTensors, domInfo)) {
         continue;
       }
-      Value newOperand =
-          bootstrapValue(needsBootstrap, builder, bootstrappedValues, domInfo);
-      needsBootstrap.replaceAllUsesExcept(newOperand,
-                                          newOperand.getDefiningOp());
     }
+
+    if (!modReduceAfterMul && bootstrapWaterline < levelBudget &&
+        includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
+        crossing.unrefreshedLevel <= levelBudget) {
+      builder.setInsertionPoint(defOp);
+      auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+          builder, defOp->getLoc(), operandToReduce,
+          builder.getI64IntegerAttr((*idCounter)++));
+      reduceOp.getOperandsToReduce(&solver)[0]->set(adjustScaleOp.getResult());
+      Value reduced = defOp->getResult(0);
+      builder.setInsertionPointAfter(defOp);
+      auto bootstrapOp = mgmt::BootstrapOp::create(builder, defOp->getLoc(),
+                                                   reduced.getType(), reduced);
+      reduced.replaceAllUsesExcept(bootstrapOp.getResult(), bootstrapOp);
+      continue;
+    }
+
+    Operation* insertionPoint = defOp;
+    if (auto loop = getOutermostLoopForInvariant(operandToReduce, defOp)) {
+      insertionPoint = loop;
+    }
+
+    Value newOperand = bootstrapValue(
+        operandToReduce, builder, bootstrappedValues, domInfo, insertionPoint);
+
+    if (includeFloats && isa<mgmt::ModReduceOp>(defOp) &&
+        !moduleTargetsCKKS(top)) {
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPoint(insertionPoint);
+      auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+          builder, defOp->getLoc(), newOperand,
+          builder.getI64IntegerAttr((*idCounter)++));
+      newOperand = adjustScaleOp.getResult();
+    }
+    reduceOp.getOperandsToReduce(&solver)[0]->set(newOperand);
+  }
+
+  for (Value needsBootstrap : inPlaceTargets) {
+    if (tryHoistBootstrap(needsBootstrap, builder, hoistedTensors, domInfo)) {
+      continue;
+    }
+    Value newOperand =
+        bootstrapValue(needsBootstrap, builder, bootstrappedValues, domInfo);
+    needsBootstrap.replaceAllUsesExcept(newOperand, newOperand.getDefiningOp());
   }
 }
 

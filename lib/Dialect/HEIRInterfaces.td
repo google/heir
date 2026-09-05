@@ -604,6 +604,27 @@ def LimbwiseAttrInterface : AttrInterface<"LimbwiseAttrInterface"> {
   ];
 }
 
+def PaddingSemanticsOpInterface : OpInterface<"PaddingSemanticsOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    Implemented by ops that can transfer logical-vs-padded shape information
+    (`#tensor_ext.padding`) from operands to results, used by the
+    propagate-padding pass. An implementation receives one attribute per
+    operand — a `tensor_ext::PaddingAttr` when something is known about that
+    operand, null otherwise — and returns the padding attribute of the op's
+    single result, or null when nothing can be soundly claimed. Returning a
+    non-null attribute asserts BOTH that the result's entries outside the
+    logical region are semantically padding AND, if the attribute's
+    zero_padded flag is set, that those entries are exactly zero.
+  }];
+  let methods = [
+    InterfaceMethod<
+      "Infer the result padding attribute from operand padding attributes.",
+      "::mlir::Attribute", "inferResultPadding",
+      (ins "::llvm::ArrayRef<::mlir::Attribute>":$operandPaddings)>
+  ];
+}
+
 def LimbwiseMappableOpInterface : OpInterface<"LimbwiseMappableOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
