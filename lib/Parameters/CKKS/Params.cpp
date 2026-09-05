@@ -9,12 +9,80 @@
 
 #include "lib/Parameters/RLWEParams.h"
 #include "lib/Parameters/RLWESecurityParams.h"
+#include "llvm/include/llvm/Support/MathExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "src/core/include/openfhecore.h"           // from @openfhe
 
 namespace mlir {
 namespace heir {
 namespace ckks {
+namespace {
+
+// Deterministic Miller-Rabin primality test for 64-bit integers, using the
+// 12-base certificate valid for all n < 2^64.
+constexpr uint64_t kMillerRabinBases[] = {2ULL,  3ULL,  5ULL,  7ULL,
+                                          11ULL, 13ULL, 17ULL, 19ULL,
+                                          23ULL, 29ULL, 31ULL, 37ULL};
+
+bool isPrime64(uint64_t n) {
+  if (n < 2) return false;
+  for (uint64_t p : kMillerRabinBases) {
+    if (n % p == 0) return n == p;
+  }
+  auto mulmod = [](uint64_t a, uint64_t b, uint64_t m) -> uint64_t {
+    return static_cast<uint64_t>(static_cast<unsigned __int128>(a) * b % m);
+  };
+  auto powmod = [&](uint64_t a, uint64_t e, uint64_t m) -> uint64_t {
+    uint64_t r = 1;
+    for (; e; e >>= 1, a = mulmod(a, a, m)) {
+      if (e & 1) r = mulmod(r, a, m);
+    }
+    return r;
+  };
+  uint64_t d = n - 1;
+  int r = llvm::countr_zero(d);
+  d >>= r;
+  for (uint64_t a : kMillerRabinBases) {
+    uint64_t x = powmod(a, d, n);
+    if (x == 1 || x == n - 1) continue;
+    bool composite = true;
+    for (int i = 1; i < r; ++i) {
+      x = mulmod(x, x, n);
+      if (x == n - 1) {
+        composite = false;
+        break;
+      }
+    }
+    if (composite) return false;
+  }
+  return true;
+}
+
+// Largest prime with the given bit size that is congruent to 1 mod cyclOrder.
+// OpenFHE's native-integer prime utilities (LastPrime & co.) are capped at
+// MAX_MODULUS_SIZE (60) bits, but backends like Lattigo accept moduli up to
+// 61 bits; for sizes above OpenFHE's cap we run our own downward search.
+// The generated primes are only handed to the backend as parameter values --
+// OpenFHE arithmetic never runs on them.
+int64_t lastPrimeCapAware(int nBits, uint64_t cyclOrder) {
+  if (nBits <= MAX_MODULUS_SIZE) {
+    return lbcrypto::LastPrime<lbcrypto::NativeInteger>(nBits, cyclOrder)
+        .ConvertToInt();
+  }
+  assert(nBits < 63 && "first modulus bit size too large");
+  uint64_t hi = uint64_t{1} << nBits;
+  uint64_t lo = uint64_t{1} << (nBits - 1);
+  // Largest q < hi with q == 1 (mod cyclOrder); cyclOrder is a power of two
+  // here, so hi - 1 is never divisible by it and q stays below hi.
+  uint64_t q = hi - ((hi - 1) % cyclOrder);
+  for (; q > lo; q -= cyclOrder) {
+    if (isPrime64(q)) return static_cast<int64_t>(q);
+  }
+  assert(false && "failed to find a prime for the first modulus");
+  return 0;
+}
+
+}  // namespace
 
 /// By original we mean the method in RNS-CKKS implementation
 /// Corresponds to FIXED* in OpenFHE
@@ -54,8 +122,7 @@ static std::vector<int64_t> moduliQGenerationOpenFHEFixed(int logFirstMod,
     moduliQ[0] =
         lbcrypto::NextPrime<NativeInteger>(maxPrime, cyclOrder).ConvertToInt();
   } else {
-    moduliQ[0] = lbcrypto::LastPrime<NativeInteger>(logFirstMod, cyclOrder)
-                     .ConvertToInt();
+    moduliQ[0] = lastPrimeCapAware(logFirstMod, cyclOrder);
 
     // find if the value of moduliQ[0] is already in the vector starting with
     // moduliQ[1] and if there is, then get another prime for moduliQ[0]
@@ -142,9 +209,7 @@ static std::vector<int64_t> moduliQGenerationReducedError(int logFirstMod,
         lbcrypto::NextPrime<lbcrypto::NativeInteger>(maxPrime, cyclOrder)
             .ConvertToInt();
   } else {
-    moduliQ[0] =
-        lbcrypto::LastPrime<lbcrypto::NativeInteger>(logFirstMod, cyclOrder)
-            .ConvertToInt();
+    moduliQ[0] = lastPrimeCapAware(logFirstMod, cyclOrder);
 
     // find if the value of moduliQ[0] is already in the vector starting with
     // moduliQ[1] and if there is, then get another prime for moduliQ[0]
