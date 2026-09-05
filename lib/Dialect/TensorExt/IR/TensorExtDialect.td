@@ -22,6 +22,8 @@ def TensorExt_Dialect : Dialect {
         kLayoutAttrName = "tensor_ext.layout";
     constexpr const static ::llvm::StringLiteral
         kOriginalTypeAttrName = "tensor_ext.original_type";
+    constexpr const static ::llvm::StringLiteral
+        kPtCtDiagParamsAttrName = "tensor_ext.ptct_diag_params";
   }];
 
 

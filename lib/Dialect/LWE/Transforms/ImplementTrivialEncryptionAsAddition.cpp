@@ -120,14 +120,21 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
   Block* entryBlock = encFuncOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
 
-  int numSlots;
-  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      module->getAttr(kRequestedSlotCountAttrName));
+  int numSlots = 0;
+  // Size the encryption of zero by the physical slot count of the chosen ring
+  // (scheme.actual_slot_count: ringDim/2 for CKKS, ringDim for BGV/BFV), not
+  // the logical scheme.requested_slot_count. Parameter generation may grow the
+  // ring past the requested count for security, and runtime encodes fill all
+  // physical slots (the Lattigo emitter reads actual_slot_count for the same
+  // reason), so sizing this constant by the requested count would produce a
+  // sparse zero on a full ring.
+  auto numSlotsAttr =
+      dyn_cast_or_null<IntegerAttr>(module->getAttr(kActualSlotCountAttrName));
   if (numSlotsAttr) {
     numSlots = numSlotsAttr.getInt();
   } else {
     module->emitWarning()
-        << "Encountered module op with no requested_slots "
+        << "Encountered module op with no actual_slot_count "
            "attribute; defaulting to using polynomial modulus ring\n";
     numSlots = plaintextType.getPlaintextSpace()
                    .getRing()

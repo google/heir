@@ -106,7 +106,9 @@ class Mapping {
     }
   }
 
-  DenseMap<CtSlot, CtSlot> getTargetToSource() const { return targetToSource; }
+  const DenseMap<CtSlot, CtSlot>& getTargetToSource() const {
+    return targetToSource;
+  }
 
   int64_t getCiphertextSize() const { return minSlotCount; }
   int64_t getNumCiphertexts() const { return numCiphertexts; }
@@ -249,19 +251,7 @@ struct DenseMapInfo<mlir::heir::tensor_ext::Mapping> {
         L.getNumCiphertexts() != R.getNumCiphertexts()) {
       return false;
     }
-    if (L.size() != R.size()) {
-      return false;
-    }
-
-    const auto& lMap = L.getTargetToSource();
-    const auto& rMap = R.getTargetToSource();
-    for (auto itL = lMap.begin(), itR = rMap.begin();
-         itL != lMap.end() && itR != rMap.end(); ++itL, ++itR) {
-      if (itL->second != itR->second || itL->first != itR->first) {
-        return false;
-      }
-    }
-    return true;
+    return L.getTargetToSource() == R.getTargetToSource();
   }
 };
 }  // namespace llvm

@@ -235,6 +235,9 @@ void annotateSecretness(Operation* top, DataFlowSolver* solver, bool verbose) {
 }
 
 bool isSecret(Value value, const DataFlowSolver* solver) {
+  if (!solver) {
+    return isa<secret::SecretType>(value.getType());
+  }
   auto* lattice = solver->lookupState<SecretnessLattice>(value);
   return isSecret(lattice);
 }
