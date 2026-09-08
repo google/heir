@@ -78,17 +78,17 @@ module attributes {scheme.bgv} {
   // CHECK-SAME: (%[[CC:.*]]: !emitc.opaque<"CryptoContextT">, %[[SK:.*]]: !emitc.opaque<"PrivateKeyT">)
   func.func @test_setup(%cc: !cc, %sk: !sk) {
     // CHECK: %[[PARAMS:.*]] = call_opaque "CCParamsT"()
-    // CHECK: member_call_opaque %[[PARAMS]] "SetMultiplicativeDepth"() <{args = [1]}>
-    // CHECK: member_call_opaque %[[PARAMS]] "SetPlaintextModulus"() <{args = [2]}>
-    // CHECK: member_call_opaque %[[PARAMS]] "SetKeySwitchTechnique"() <{args = ["HYBRID"]}>
+    // CHECK: member_call_opaque %[[PARAMS]] "SetMultiplicativeDepth"() <args = [1]>
+    // CHECK: member_call_opaque %[[PARAMS]] "SetPlaintextModulus"() <args = [2]>
+    // CHECK: member_call_opaque %[[PARAMS]] "SetKeySwitchTechnique"() <args = ["HYBRID"]>
     %params = openfhe.gen_params { mulDepth = 1 : i64, plainMod = 2 : i64 } : () -> !params
 
     // CHECK: %[[NEW_CC:.*]] = call_opaque "GenCryptoContext"(%[[PARAMS]])
-    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <{args = [#emitc.opaque<"PKE">]}>
-    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <{args = [#emitc.opaque<"KEYSWITCH">]}>
-    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <{args = [#emitc.opaque<"LEVELEDSHE">]}>
-    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <{args = [#emitc.opaque<"ADVANCEDSHE">]}>
-    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <{args = [#emitc.opaque<"FHE">]}>
+    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"PKE">]>
+    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"KEYSWITCH">]>
+    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"LEVELEDSHE">]>
+    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"ADVANCEDSHE">]>
+    // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"FHE">]>
     %new_cc = openfhe.gen_context %params { supportFHE = true } : (!params) -> !cc
 
     // CHECK: member_call_opaque %[[CC]] "EvalMultKeyGen"(%[[SK]])
