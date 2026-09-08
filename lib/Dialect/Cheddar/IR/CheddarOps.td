@@ -22,21 +22,24 @@ class Cheddar_Op<string mnemonic, list<Trait> traits = []> :
 // as a destination-passing-style (DPS) op on builtin tensors: a scalar payload
 // is a rank-0 `tensor<!cheddar.X>`, the trailing `$output` operand is the
 // destination (init), and the result is tied 1:1 to it. The op is valid both
-// in tensor form (one result, pre-bufferization) and in buffer form (operands
-// are `memref<!cheddar.X>`, zero results, post one-shot-bufferize). The shared
+// in tensor form (one or more results, pre-bufferization) and in buffer form
+// (operands are `memref<!cheddar.X>`, zero results, post one-shot-bufferize).
 // `getDpsInitsMutable` points at the init operand named by `initName` (the
 // `$output` of most ops; `decode` writes `$value`, `mad_unsafe` its
 // `$accumulator` for a true in-place update).
 class Cheddar_DpsOp<string mnemonic, list<Trait> traits = [],
-                    string initName = "Output"> :
+                    string initName = "Output", int initCount = 1,
+                    bit readsInit = 0> :
         Cheddar_Op<mnemonic, traits # [DestinationStyleOpInterface,
             DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> {
   let extraClassDeclaration = [{
-    // The single init operand as a (length-1) MutableOperandRange.
     ::mlir::MutableOperandRange getDpsInitsMutable() {
       return ::mlir::MutableOperandRange(
-          getOperation(), get}] # initName # [{Mutable().getOperandNumber(), 1);
+          getOperation(), get}] # initName # [{Mutable().getOperandNumber(),
+          }] # !cast<string>(initCount) # [{);
     }
+    static constexpr bool readsDpsInit() { return }] #
+        !if(readsInit, "true", "false") # [{; }
   }];
   // Operand-aware memory effects (linalg-style): only memref operands carry
   // effects, so the tensor form stays value-semantics/side-effect-free (and
@@ -52,16 +55,23 @@ class Cheddar_DpsOp<string mnemonic, list<Trait> traits = [],
       for (::mlir::OpOperand &operand : getOperation()->getOpOperands()) {
         if (!::llvm::isa<::mlir::MemRefType>(operand.get().getType()))
           continue;
-        if (isDpsInit(&operand))
-          effects.emplace_back(::mlir::MemoryEffects::Write::get(), &operand,
-                               ::mlir::SideEffects::DefaultResource::get());
-        else
+        bool isInit = isDpsInit(&operand);
+        if (!isInit || readsDpsInit())
           effects.emplace_back(::mlir::MemoryEffects::Read::get(), &operand,
+                               ::mlir::SideEffects::DefaultResource::get());
+        if (isInit)
+          effects.emplace_back(::mlir::MemoryEffects::Write::get(), &operand,
                                ::mlir::SideEffects::DefaultResource::get());
       }
     }
   }];
 }
+
+class Cheddar_ReadWriteDpsOp<string mnemonic, list<Trait> traits = [],
+                             string initName = "Output",
+                             int initCount = 1> :
+    Cheddar_DpsOp<mnemonic, traits, initName, initCount,
+                  /*readsInit=*/1>;
 
 // Payload operands and results are constrained by their cheddar element type.
 // `*Like` accepts a tensor or memref (valid pre- and post-bufferization);
@@ -80,9 +90,9 @@ def Cheddar_ConstResult : Variadic<RankedTensorOf<[Cheddar_Constant]>>;
 // destination-passing like the payload ops: in tensor form they produce an SSA
 // result (the owning context / user_interface, consumed downstream) and carry a
 // trailing `$output` init operand that is the bufferization destination hint.
-// After one-shot-bufferize + buffer-results-to-out-params the result becomes a
-// `memref<!cheddar.{context,user_interface}>` out-param, which
-// `cheddar-emitc-boundary` re-types to the owning C++ smart-pointer references
+// After bufferization the result is a `memref<!cheddar.{context,user_interface}>`
+// out-param, which `cheddar-emitc-boundary` re-types to the owning C++
+// smart-pointer references
 // (`std::shared_ptr<Context<word>>&` / `std::unique_ptr<UserInterface<word>>&`),
 // distinguishing them from the borrowed raw-pointer handles the
 // compute/encrypt/decrypt funcs take.
@@ -161,12 +171,14 @@ def Cheddar_CreateBootContextOp : Cheddar_DpsOp<"create_boot_context"> {
   let results = (outs Cheddar_BootContextResult:$result);
 }
 
-def Cheddar_PrepareBootstrapOp : Cheddar_DpsOp<"prepare_bootstrap", [], "Ui"> {
+def Cheddar_PrepareBootstrapOp : Cheddar_ReadWriteDpsOp<
+    "prepare_bootstrap", [SameVariadicResultSize], "Ctx", 2> {
   let summary = "Run the one-time bootstrap precompute and rotation-key setup";
   let description = [{
     Performs the one-time bootstrapping preparation on a `!cheddar.boot_context`
-    and threads the resulting rotation keys into the UserInterface (DPS on
-    `$ui`). Emits the canonical CHEDDAR sequence:
+    and threads the resulting rotation keys into the UserInterface. Both
+    `$ctx` and `$ui` are read-write DPS destinations. Emits the canonical
+    CHEDDAR sequence:
       ctx->PrepareEvalMod();
       ctx->PrepareEvalSpecialFFT(numSlots);
       EvkRequest req; ctx->AddRequiredRotations(req, numSlots);
@@ -181,7 +193,10 @@ def Cheddar_PrepareBootstrapOp : Cheddar_DpsOp<"prepare_bootstrap", [], "Ui"> {
     Cheddar_UserInterfaceLike:$ui,
     Builtin_IntegerAttr:$numSlots
   );
-  let results = (outs Cheddar_UserInterfaceResult:$result);
+  let results = (outs
+    Cheddar_BootContextResult:$ctxResult,
+    Cheddar_UserInterfaceResult:$uiResult
+  );
 }
 
 def Cheddar_GetEncoderOp : Cheddar_Op<"get_encoder", [Pure]> {
@@ -212,7 +227,8 @@ def Cheddar_GetMultKeyOp : Cheddar_Op<"get_mult_key", [Pure]> {
   let results = (outs Cheddar_EvalKey:$key);
 }
 
-def Cheddar_PrepareRotKeyOp : Cheddar_DpsOp<"prepare_rot_key", [], "Ui"> {
+def Cheddar_PrepareRotKeyOp : Cheddar_ReadWriteDpsOp<
+    "prepare_rot_key", [], "Ui"> {
   let summary = "Generate a rotation key for a given distance";
   let description = [{
     Calls `ui->PrepareRotationKey(distance, maxLevel)` to generate a rotation
@@ -270,15 +286,15 @@ def Cheddar_EncodeOp : Cheddar_DpsOp<"encode", [PlaintextEncodeOpInterface]> {
   let summary = "Encode a message vector into a CHEDDAR plaintext";
   let description = [{
     Calls encoder.Encode(pt, level, scale, message). The message is a vector
-    of complex numbers (or reals). `scale` is the C++ `double` value used by
-    CHEDDAR's Encoder. `$output` is the destination plaintext.
+    of complex numbers (or reals). `logScale` preserves HEIR's logarithmic
+    scale metadata for future use. `$output` is the destination plaintext.
   }];
   let arguments = (ins
     Cheddar_Encoder:$encoder,
     Cheddar_FloatLike:$message,
     Cheddar_PtLike:$output,
     Builtin_IntegerAttr:$level,
-    F64Attr:$scale
+    OptionalAttr<Builtin_IntegerAttr>:$logScale
   );
   let results = (outs Cheddar_PtResult:$result);
 }
@@ -286,17 +302,17 @@ def Cheddar_EncodeOp : Cheddar_DpsOp<"encode", [PlaintextEncodeOpInterface]> {
 def Cheddar_EncodeConstantOp : Cheddar_DpsOp<"encode_constant"> {
   let summary = "Encode a scalar double into a CHEDDAR constant";
   let description = [{
-    Calls encoder.EncodeConstant(constant, level, scale, number).
+    Calls encoder.EncodeConstant(constant, level, encoder.GetScale(level),
+    number).
     The result is in RNS form for efficient ciphertext-scalar ops.
-    `scale` is the C++ `double` value used by CHEDDAR's Encoder. `$output` is
-    the destination constant.
+    CHEDDAR derives the exact RNS scale from the target level. `$output` is the
+    destination constant.
   }];
   let arguments = (ins
     Cheddar_Encoder:$encoder,
     AnyFloat:$value,
     Cheddar_ConstLike:$output,
-    Builtin_IntegerAttr:$level,
-    F64Attr:$scale
+    Builtin_IntegerAttr:$level
   );
   let results = (outs Cheddar_ConstResult:$result);
 }
@@ -604,7 +620,8 @@ def Cheddar_HConjAddOp : Cheddar_DpsOp<"hconj_add"> {
   let results = (outs Cheddar_CtResult:$result);
 }
 
-def Cheddar_MadUnsafeOp : Cheddar_DpsOp<"mad_unsafe", [], "Accumulator"> {
+def Cheddar_MadUnsafeOp : Cheddar_ReadWriteDpsOp<
+    "mad_unsafe", [], "Accumulator"> {
   let summary = "Fused multiply-accumulate with constant (no rescale)";
   let description = [{
     Computes res += a * constant (in-place accumulation).
