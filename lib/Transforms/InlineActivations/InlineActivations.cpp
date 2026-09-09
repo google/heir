@@ -73,10 +73,9 @@ struct InlineActivations : impl::InlineActivationsBase<InlineActivations> {
 
       for (Operation& op : funcOp.getBody().getOps()) {
         for (auto& attr : caller->getAttrs()) {
-          if (attr.getName() == SymbolTable::getSymbolAttrName() ||
-              attr.getName() ==
-                  SymbolOpInterface::getDefaultVisibilityAttrName() ||
-              attr.getName() == "callee") {
+          if (attr.getName() == funcOp.getSymNameAttrName() ||
+              attr.getName() == funcOp.getSymVisibilityAttrName() ||
+              attr.getName() == caller.getCalleeAttrName()) {
             continue;
           }
           op.setAttr(attr.getName(), attr.getValue());
