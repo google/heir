@@ -227,10 +227,16 @@ struct ILPBootstrapPlacement
       effectiveCostModel = *loadedCostModel;
     }
 
-    ILPBootstrapPlacementAnalysis analysis(
-        genericOp, solver, bootstrapWaterline, scaleConfig.scaleWaterline,
-        scaleConfig.scaleFactorBits, bootstrapLevelLowerBound,
-        effectiveCostModel, scaleConfig.analysisScaleMode());
+    ILPBootstrapPlacementAnalysis::Options analysisOptions;
+    analysisOptions.bootstrapWaterline = bootstrapWaterline;
+    analysisOptions.scaleWaterline = scaleConfig.scaleWaterline;
+    analysisOptions.scaleFactorBits = scaleConfig.scaleFactorBits;
+    analysisOptions.bootstrapLevelLowerBound = bootstrapLevelLowerBound;
+    analysisOptions.compress = compress;
+    analysisOptions.partitionMinSize = partitionMinSize;
+    analysisOptions.costModel = effectiveCostModel;
+    analysisOptions.scaleMode = scaleConfig.analysisScaleMode();
+    ILPBootstrapPlacementAnalysis analysis(genericOp, solver, analysisOptions);
     if (failed(analysis.solve())) {
       genericOp->emitError(
           "Failed to solve the bootstrap placement optimization problem");
@@ -463,7 +469,9 @@ struct ILPBootstrapPlacement
         b, op, current, placement.inputLevel, placement.inputScale,
         placement.outputLevel, placement.outputScale, scaleConfig);
     if (failed(managed)) return failure();
-    op->setOperand(placement.operandNumber, *managed);
+    // Point every operand slot consuming this producer at the single managed
+    // value, so a repeated operand (e.g. squaring x*x) is rescaled once.
+    op->replaceUsesOfWith(current, *managed);
     return success();
   }
 
