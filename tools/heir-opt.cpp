@@ -18,6 +18,8 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
+#include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Cheddar/Transforms/CheddarBufferize.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Debug/Transforms/Passes.h"
@@ -186,6 +188,7 @@
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/AllocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
@@ -323,6 +326,7 @@ int main(int argc, char** argv) {
   registerTransformsPasses();      // canonicalize, cse, etc.
   affine::registerAffinePasses();  // loop unrolling
   registerLinalgPasses();          // linalg to loops
+  memref::registerMemRefPasses();  // fold-memref-alias-ops, etc.
 
   // These are only needed by two tests that build a pass pipeline
   // from the CLI. Those tests can probably eventually be removed.
@@ -360,6 +364,7 @@ int main(int argc, char** argv) {
       registry);
   cf::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
   registry.addExtension(+[](MLIRContext* ctx, LLVM::LLVMDialect* dialect) {
@@ -379,6 +384,10 @@ int main(int argc, char** argv) {
   cggi::registerCGGIPasses();
   debug::registerDebugPasses();
   ckks::registerCKKSPasses();
+  PassPipelineRegistration<>(
+      "cheddar-bufferize",
+      "Bufferize cheddar programs into out-params with One-Shot Bufferize",
+      cheddar::buildCheddarBufferizationPipeline);
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
@@ -512,6 +521,7 @@ int main(int argc, char** argv) {
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
+  cheddar::registerBufferizableOpInterfaceExternalModels(registry);
   preprocessing::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);

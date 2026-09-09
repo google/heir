@@ -67,8 +67,7 @@ func.func @test_encode(
     %out: tensor<!cheddar.plaintext>) -> tensor<!cheddar.plaintext> {
   // CHECK: cheddar.encode
   // CHECK-SAME: level = 5
-  // CHECK-SAME: scale = 0x42C0000000000000
-  %pt = cheddar.encode %enc, %msg, %out {level = 5 : i64, scale = 35184372088832.0 : f64} : (!cheddar.encoder, tensor<4xf64>, tensor<!cheddar.plaintext>) -> tensor<!cheddar.plaintext>
+  %pt = cheddar.encode %enc, %msg, %out {level = 5 : i64, logScale = 37 : i64} : (!cheddar.encoder, tensor<4xf64>, tensor<!cheddar.plaintext>) -> tensor<!cheddar.plaintext>
   return %pt : tensor<!cheddar.plaintext>
 }
 
@@ -79,8 +78,7 @@ func.func @test_encode_constant(
     %out: tensor<!cheddar.constant>) -> tensor<!cheddar.constant> {
   // CHECK: cheddar.encode_constant
   // CHECK-SAME: level = 3
-  // CHECK-SAME: scale = 0x42C0000000000000
-  %c = cheddar.encode_constant %enc, %val, %out {level = 3 : i64, scale = 35184372088832.0 : f64} : (!cheddar.encoder, f64, tensor<!cheddar.constant>) -> tensor<!cheddar.constant>
+  %c = cheddar.encode_constant %enc, %val, %out {level = 3 : i64} : (!cheddar.encoder, f64, tensor<!cheddar.constant>) -> tensor<!cheddar.constant>
   return %c : tensor<!cheddar.constant>
 }
 
