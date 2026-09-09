@@ -2565,14 +2565,14 @@ plaintext.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cheddar.encode` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Calls encoder.Encode(pt, level, scale, message). The message is a vector
-of complex numbers (or reals). &lt;code>scale&lt;/code> is the C++ &lt;code>double&lt;/code> value used by
-CHEDDAR&amp;rsquo;s Encoder. &lt;code>$output&lt;/code> is the destination plaintext.&lt;/p>
+of complex numbers (or reals). &lt;code>logScale&lt;/code> preserves HEIR&amp;rsquo;s logarithmic
+scale metadata for future use. &lt;code>$output&lt;/code> is the destination plaintext.&lt;/p>
 &lt;p>Interfaces: &lt;code>DestinationStyleOpInterface&lt;/code>, &lt;code>MemoryEffectOpInterface&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>scale&lt;/code>&lt;/td>&lt;td>::mlir::FloatAttr&lt;/td>&lt;td>64-bit float attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>logScale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
@@ -2616,16 +2616,16 @@ CHEDDAR&amp;rsquo;s Encoder. &lt;code>$output&lt;/code> is the destination plain
 &lt;p>&lt;em>Encode a scalar double into a CHEDDAR constant&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cheddar.encode_constant` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Calls encoder.EncodeConstant(constant, level, scale, number).
+&lt;/code>&lt;/pre>&lt;p>Calls encoder.EncodeConstant(constant, level, encoder.GetScale(level),
+number).
 The result is in RNS form for efficient ciphertext-scalar ops.
-&lt;code>scale&lt;/code> is the C++ &lt;code>double&lt;/code> value used by CHEDDAR&amp;rsquo;s Encoder. &lt;code>$output&lt;/code> is
-the destination constant.&lt;/p>
+CHEDDAR derives the exact RNS scale from the target level. &lt;code>$output&lt;/code> is the
+destination constant.&lt;/p>
 &lt;p>Interfaces: &lt;code>DestinationStyleOpInterface&lt;/code>, &lt;code>MemoryEffectOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>scale&lt;/code>&lt;/td>&lt;td>::mlir::FloatAttr&lt;/td>&lt;td>64-bit float attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
@@ -3568,8 +3568,9 @@ Does NOT include relinearization or rescaling.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cheddar.prepare_bootstrap` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Performs the one-time bootstrapping preparation on a &lt;code>!cheddar.boot_context&lt;/code>
-and threads the resulting rotation keys into the UserInterface (DPS on
-&lt;code>$ui&lt;/code>). Emits the canonical CHEDDAR sequence:
+and threads the resulting rotation keys into the UserInterface. Both
+&lt;code>$ctx&lt;/code> and &lt;code>$ui&lt;/code> are read-write DPS destinations. Emits the canonical
+CHEDDAR sequence:
 ctx-&amp;gt;PrepareEvalMod();
 ctx-&amp;gt;PrepareEvalSpecialFFT(numSlots);
 EvkRequest req; ctx-&amp;gt;AddRequiredRotations(req, numSlots);
@@ -3578,6 +3579,7 @@ ui-&amp;gt;PrepareRotationKey(req);
 uses the context&amp;rsquo;s slot count). Must run after the boot context + user
 interface are created and (for programs that also rotate outside boot) after
 the program&amp;rsquo;s own &lt;code>prepare_rot_key&lt;/code>s, so all keys land in one EvkMap.&lt;/p>
+&lt;p>Traits: &lt;code>SameVariadicResultSize&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>DestinationStyleOpInterface&lt;/code>, &lt;code>MemoryEffectOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
@@ -3613,7 +3615,11 @@ the program&amp;rsquo;s own &lt;code>prepare_rot_key&lt;/code>s, so all keys lan
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>ctxResult&lt;/code>&lt;/td>
+&lt;td>variadic of ranked tensor of values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>uiResult&lt;/code>&lt;/td>
 &lt;td>variadic of ranked tensor of values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
