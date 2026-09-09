@@ -14,16 +14,21 @@ cc_library(
     srcs = [
         "RotomAttributes.cpp",
         "RotomDialect.cpp",
+        "RotomOps.cpp",
     ],
     hdrs = [
         "RotomAttributes.h",
         "RotomDialect.h",
+        "RotomOps.h",
     ],
     deps = [
         ":attributes_inc_gen",
         ":dialect_inc_gen",
+        ":ops_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -33,10 +38,12 @@ td_library(
     srcs = [
         "RotomAttributes.td",
         "RotomDialect.td",
+        "RotomOps.td",
     ],
     includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
     ],
 )
 
@@ -57,6 +64,17 @@ add_heir_dialect_library(
     dialect_doc_name = "rotom",
     kind = "attribute",
     td_file = "RotomAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "ops_inc_gen",
+    dialect = "Rotom",
+    dialect_doc_name = "rotom",
+    kind = "op",
+    td_file = "RotomOps.td",
     deps = [
         ":td_files",
     ],
