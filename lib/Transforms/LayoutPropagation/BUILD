@@ -64,6 +64,7 @@ cc_library(
     hdrs = ["Utils.h"],
     deps = [
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",

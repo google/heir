@@ -26,6 +26,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
@@ -257,14 +258,45 @@ static FailureOr<Value> implementCyclicAssignLayoutStep(
     Value input, RankedTensorType inputType, RankedTensorType targetType,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
+  int64_t numSlots = targetType.getShape().back();
+  int64_t numCts = (targetType.getRank() == 2) ? targetType.getDimSize(0) : 1;
+  int64_t totalSlots = numCts * numSlots;
+
+  DenseElementsAttr denseAttr;
+  if (matchPattern(input, m_Constant(&denseAttr))) {
+    if (denseAttr.isSplat()) {
+      auto splatAttr = denseAttr.getSplatValue<Attribute>();
+      auto foldedAttr = DenseElementsAttr::get(targetType, splatAttr);
+      auto foldedOp =
+          arith::ConstantOp::create(builder, targetType, foldedAttr);
+      createdOpCallback(foldedOp);
+      return foldedOp.getResult();
+    }
+    if (inputType.getElementType().isF32()) {
+      SmallVector<float> packed(totalSlots, 0.0f);
+      auto values = denseAttr.getValues<float>();
+      SmallVector<int64_t> shape(inputType.getShape());
+      int64_t rank = inputType.getRank();
+      for (int64_t k = 0; k < totalSlots; ++k) {
+        int64_t flatIdx = 0;
+        for (int64_t d = 0; d < rank; ++d) {
+          flatIdx = flatIdx * shape[d] + (k % shape[d]);
+        }
+        packed[k] = values[flatIdx];
+      }
+      auto foldedAttr =
+          DenseElementsAttr::get(targetType, ArrayRef<float>(packed));
+      auto foldedOp =
+          arith::ConstantOp::create(builder, targetType, foldedAttr);
+      createdOpCallback(foldedOp);
+      return foldedOp.getResult();
+    }
+  }
+
   auto zeroOp = arith::ConstantOp::create(builder, targetType,
                                           builder.getZeroAttr(targetType));
   createdOpCallback(zeroOp);
   Value targetTensor = zeroOp.getResult();
-
-  int64_t numSlots = targetType.getShape().back();
-  int64_t numCts = (targetType.getRank() == 2) ? targetType.getDimSize(0) : 1;
-  int64_t totalSlots = numCts * numSlots;
 
   Value c0 = arith::ConstantIndexOp::create(builder, 0);
   Value c1 = arith::ConstantIndexOp::create(builder, 1);
@@ -335,9 +367,16 @@ static FailureOr<Value> implementAssignLayoutStep(
                           << input.getType() << " with layout: " << layout
                           << " targetType: " << targetType << "\n");
 
-  // If the input is a constant zero, then the output will be a constant zero
-  // since we zero-fill slots.
-  if (matchPattern(input, m_AnyZeroFloat()) || matchPattern(input, m_Zero())) {
+  // If the input is a constant zero (or a linalg.fill of zero, the form a
+  // decomposed tensor.pad's destination takes), then the output will be a
+  // constant zero since we zero-fill slots.
+  auto isZeroFill = [&]() {
+    auto fill = input.getDefiningOp<linalg::FillOp>();
+    return fill && (matchPattern(fill.getInputs()[0], m_AnyZeroFloat()) ||
+                    matchPattern(fill.getInputs()[0], m_Zero()));
+  };
+  if (matchPattern(input, m_AnyZeroFloat()) || matchPattern(input, m_Zero()) ||
+      isZeroFill()) {
     auto zeroOp = arith::ConstantOp::create(builder, targetType,
                                             builder.getZeroAttr(targetType));
     createdOpCallback(zeroOp);
@@ -537,13 +576,13 @@ static FailureOr<Value> implementAssignLayoutStep(
         shouldFold = true;
       } else {
         int64_t relSize = relationSize(rel);
-        if (relSize >= 0 && relSize <= 16384) {
+        int64_t foldThreshold = 65536;
+        if (relSize >= 0 && relSize <= foldThreshold) {
           shouldFold = true;
         } else {
-          LLVM_DEBUG(
-              llvm::dbgs()
-              << "Relation size " << relSize
-              << " exceeds threshold 16384, skipping constant folding\n");
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Relation size " << relSize << " exceeds threshold "
+                     << foldThreshold << ", skipping constant folding\n");
         }
       }
     }

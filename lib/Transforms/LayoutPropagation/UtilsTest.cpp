@@ -153,6 +153,30 @@ TEST(UtilsTest, TestReduceLayoutManyReductions) {
   EXPECT_TRUE(isRelationEqual(reducedRelation, expectedRelation));
 }
 
+TEST(UtilsTest, TestReduceTricyclicLayout) {
+  MLIRContext context;
+  context.loadDialect<tensor_ext::TensorExtDialect>();
+
+  // Tricyclic layout for 2x33x37 tensor in 32768 slots.
+  RankedTensorType tensorType =
+      RankedTensorType::get({2, 33, 37}, Float32Type::get(&context));
+  presburger::IntegerRelation relation =
+      getTricyclicLayoutRelation(tensorType, 32768);
+  LayoutAttr layout = LayoutAttr::getFromIntegerRelation(&context, relation);
+
+  SmallVector<int64_t> dimsToReduce = {2};
+  LayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
+  presburger::IntegerRelation reducedRelation =
+      reducedLayout.getIntegerRelation();
+
+  EXPECT_EQ(reducedRelation.getNumDomainVars(), 2);
+  EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
+
+  RankedTensorType reducedType =
+      RankedTensorType::get({2, 33}, Float32Type::get(&context));
+  EXPECT_TRUE(isRelationBicyclic(reducedType, 32768, reducedRelation));
+}
+
 TEST(UtilsTest, TestFoldConvSpatialPadding) {
   MLIRContext context;
   Type elementType = IndexType::get(&context);

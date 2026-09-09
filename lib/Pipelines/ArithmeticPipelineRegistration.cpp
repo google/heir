@@ -208,9 +208,13 @@ void mlirToSecretArithmeticPipelineBuilder(
   LayoutPropagationOptions layoutPropagationOptions;
   layoutPropagationOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
-  LayoutOptimizationOptions layoutOptimizationOptions;
-  layoutOptimizationOptions.minSlotCount = options.minSlotCount;
-  pm.addPass(createLayoutOptimization(layoutOptimizationOptions));
+  if (!options.skipLayoutOptimization) {
+    LayoutOptimizationOptions layoutOptimizationOptions;
+    layoutOptimizationOptions.minSlotCount = options.minSlotCount;
+    layoutOptimizationOptions.vveRandomTries =
+        options.layoutOptimizationVveTries;
+    pm.addPass(createLayoutOptimization(layoutOptimizationOptions));
+  }
   // Layout conversions may be repeated, so run CSE
   pm.addPass(createCSEPass());
 
@@ -254,6 +258,12 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
   mlirToRLWEPipelineOptions.minSlotCount = options.plaintextSize;
+  mlirToRLWEPipelineOptions.skipLayoutOptimization =
+      options.skipLayoutOptimization;
+  mlirToRLWEPipelineOptions.experimentalDisableLoopUnroll =
+      options.experimentalDisableLoopUnroll;
+  mlirToRLWEPipelineOptions.layoutOptimizationVveTries =
+      options.layoutOptimizationVveTries;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
   // Insert debug handler calls and/or lower debug.validate
@@ -733,6 +743,8 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.enableSplitPreprocessing = options.enableSplitPreprocessing;
   suboptions.experimentalDisableLoopUnroll =
       options.experimentalDisableLoopUnroll;
+  suboptions.skipLayoutOptimization = options.skipLayoutOptimization;
+  suboptions.layoutOptimizationVveTries = options.layoutOptimizationVveTries;
   suboptions.usePublicKey = options.usePublicKey;
   suboptions.encryptionTechniqueExtended = options.encryptionTechniqueExtended;
   suboptions.greedyModulusSwitchAfterMul = options.greedyModulusSwitchAfterMul;

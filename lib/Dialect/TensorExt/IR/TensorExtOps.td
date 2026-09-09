@@ -161,9 +161,17 @@ def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatc
       AnyType:$value,
       LayoutLike:$layout,
       // TODO(#2973): Remove domainSchedule.
-      DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule
+      DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule,
+      OptionalAttr<DenseI64ArrayAttr>:$ptctDiagParams
   );
   let results = (outs AnyType:$output);
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$value, "::mlir::Attribute":$layout,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$domainSchedule,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$ptctDiagParams), [{
+      build($_builder, $_state, value.getType(), value, layout, domainSchedule, ptctDiagParams);
+    }]>
+  ];
   let hasVerifier = 1;
 }
 
