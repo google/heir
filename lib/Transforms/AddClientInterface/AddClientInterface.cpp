@@ -59,6 +59,20 @@ Type stripSecretType(Type type) {
     return secretType.getValueType();
   return type;
 }
+
+Type getOriginalArgType(func::FuncOp op, unsigned index) {
+  auto originalTypeAttr =
+      op.getArgAttrOfType<OriginalTypeAttr>(index, kOriginalTypeAttrName);
+  return originalTypeAttr ? originalTypeAttr.getOriginalType()
+                          : stripSecretType(op.getArgumentTypes()[index]);
+}
+
+Type getOriginalResultType(func::FuncOp op, unsigned index) {
+  auto originalTypeAttr =
+      op.getResultAttrOfType<OriginalTypeAttr>(index, kOriginalTypeAttrName);
+  return originalTypeAttr ? originalTypeAttr.getOriginalType()
+                          : stripSecretType(op.getResultTypes()[index]);
+}
 }  // namespace
 
 /// Generates an encryption func for one types.
@@ -275,8 +289,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
 /// "entry" func for the IR being compiled, but there may be multiple.
 LogicalResult convertFunc(func::FuncOp op, int64_t minSlotCount,
                           bool enableLayoutAssignment) {
-  if (op.isDeclaration()) {
-    LLVM_DEBUG(op->emitWarning("Skipping client interface for external func"));
+  if (op.isDeclaration() || isClientHelper(op)) {
     return success();
   }
 
@@ -284,6 +297,21 @@ LogicalResult convertFunc(func::FuncOp op, int64_t minSlotCount,
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
   builder.setInsertionPointAfter(op);
+
+  auto role = builder.getDictionaryAttr({builder.getNamedAttr(
+      kClientHelperFuncName, builder.getStringAttr(op.getSymName()))});
+  op->setAttr(kEntryFuncAttrName, role);
+  op->setAttr(kServerEvaluateFuncAttrName, role);
+  SmallVector<Attribute> logicalInputTypes;
+  for (unsigned i = 0; i < op.getNumArguments(); ++i)
+    logicalInputTypes.push_back(TypeAttr::get(getOriginalArgType(op, i)));
+  op->setAttr(kEntryInputTypesAttrName,
+              builder.getArrayAttr(logicalInputTypes));
+  SmallVector<Attribute> logicalResultTypes;
+  for (unsigned i = 0; i < op.getNumResults(); ++i)
+    logicalResultTypes.push_back(TypeAttr::get(getOriginalResultType(op, i)));
+  op->setAttr(kEntryResultTypesAttrName,
+              builder.getArrayAttr(logicalResultTypes));
 
   // We need one encryption function per argument and one decryption
   // function per return value. This is mainly to avoid complicated C++ codegen

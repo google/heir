@@ -15,9 +15,11 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect:ModuleAttributes",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
     ],
 )

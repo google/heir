@@ -1,10 +1,11 @@
 #include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
 
 #include "lib/Dialect/ModuleAttributes.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"           // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -18,19 +19,15 @@ struct RemoveUnusedPureCall
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
-    DenseSet<StringAttr> pureFunctions;
-
-    module.walk([&](func::FuncOp func) {
-      if (isClientHelper(func.getOperation())) {
-        pureFunctions.insert(func.getSymNameAttr());
-      }
-    });
-
+    SymbolTableCollection symbolTables;
     module.walk([&](func::CallOp call) {
-      if (call.use_empty() &&
-          pureFunctions.contains(call.getCalleeAttr().getAttr())) {
+      if (!call.use_empty()) return;
+      auto callee = symbolTables.lookupNearestSymbolFrom<func::FuncOp>(
+          call, call.getCalleeAttr());
+      if (!callee || callee.isDeclaration() || !isClientHelper(callee)) return;
+      if (llvm::all_of(callee.getBody().getOps(),
+                       [](Operation& op) { return isMemoryEffectFree(&op); }))
         call.erase();
-      }
     });
   }
 };

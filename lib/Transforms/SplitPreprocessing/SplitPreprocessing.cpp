@@ -393,12 +393,12 @@ struct SplitPreprocessingPass
     auto funcName = op.getName().str() + "__preprocessing";
     auto funcOp = FuncOp::create(op.getLoc(), funcName, funcType);
     funcOp.setVisibility(op.getVisibility());
-    funcOp->setAttr(
-        kClientPackFuncAttrName,
-        builder.getDictionaryAttr({
-            builder.getNamedAttr(kClientHelperFuncName,
-                                 builder.getStringAttr(op.getName())),
-        }));
+    auto role = op->getAttrOfType<DictionaryAttr>(kServerEvaluateFuncAttrName);
+    if (!role) role = op->getAttrOfType<DictionaryAttr>(kEntryFuncAttrName);
+    if (!role)
+      role = builder.getDictionaryAttr({builder.getNamedAttr(
+          kClientHelperFuncName, builder.getStringAttr(op.getName()))});
+    funcOp->setAttr(kServerPreprocessingFuncAttrName, role);
 
     // Set up the operation cloning infra: map the analysis-identified inputs to
     // the new func's block arguments
@@ -534,6 +534,10 @@ struct SplitPreprocessingPass
             builder.getNamedAttr(kClientHelperFuncName,
                                  builder.getStringAttr(op.getName())),
         }));
+    funcOp->setAttr(
+        kServerEvaluateFuncAttrName,
+        preprocessingFuncOp->getAttr(kServerPreprocessingFuncAttrName));
+    op->removeAttr(kServerEvaluateFuncAttrName);
 
     IRMapping map;
     Block* entryBlock = funcOp.addEntryBlock();

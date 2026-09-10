@@ -1,6 +1,10 @@
 // RUN: heir-opt --add-client-interface=min-slot-count=1024 %s | FileCheck %s
 
-// CHECK: func.func @simple_add(%[[ARG0:.*]]: !secret.secret<tensor<1x1024xi16>> {{.*}}, %[[ARG1:.*]]: !secret.secret<tensor<1x1024xi16>> {{.*}}) -> (!secret.secret<tensor<1x1024xi16>> {{.*}}) {
+// CHECK: func.func @simple_add(%[[ARG0:.*]]: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type}, %[[ARG1:.*]]: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type})
+// CHECK-SAME: heir.entry_func = {func_name = "simple_add"}
+// CHECK-SAME: heir.entry_input_types = [tensor<32xi16>, tensor<32xi16>]
+// CHECK-SAME: heir.entry_result_types = [tensor<32xi16>]
+// CHECK-SAME: server.evaluate_func = {func_name = "simple_add"}
 // CHECK:   %[[GENERIC:.*]] = secret.generic(%[[ARG0]]: !secret.secret<tensor<1x1024xi16>>, %[[ARG1]]: !secret.secret<tensor<1x1024xi16>>) {
 // CHECK:   ^body(%[[PT_ARG0:.*]]: tensor<1x1024xi16>, %[[PT_ARG1:.*]]: tensor<1x1024xi16>):
 // CHECK:     %[[ADD:.*]] = arith.addi %[[PT_ARG0]], %[[PT_ARG1]] : tensor<1x1024xi16>
