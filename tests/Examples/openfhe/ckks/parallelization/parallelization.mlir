@@ -38,7 +38,7 @@ module attributes {backend.openfhe, scheme.ckks} {
     %res = tensor.from_elements %ct1, %ct2, %ct3, %ct4, %ct5, %ct6, %ct7, %ct8, %ct9, %ct10, %ct11, %ct12, %ct13, %ct14, %ct15, %ct16, %ct17, %ct18, %ct19, %ct20, %ct21, %ct22, %ct23, %ct24, %ct25 : tensor<25x!ct>
     return %res : tensor<25x!ct>
   }
-  func.func @rotations__encrypt__arg0(%cc: !cc, %arg0: tensor<1024xi16>, %pk: !pk) -> tensor<1x!ct> attributes {client.enc_func = {func_name = "rotations", index = 0 : i64}} {
+  func.func @rotations__encrypt__arg0(%cc: !cc, %arg0: tensor<1024xi16>, %pk: !pk) -> tensor<1x!ct> attributes {heir.interface = {func_name = "rotations", index = 0 : i64, roles = ["client.encrypt"]}} {
     %c0 = arith.constant 0 : index
     %cst = arith.constant dense<0> : tensor<1x1024xi16>
     %c0_i32 = arith.constant 0 : i32
@@ -57,7 +57,7 @@ module attributes {backend.openfhe, scheme.ckks} {
     %from_elements = tensor.from_elements %ct : tensor<1x!ct>
     return %from_elements : tensor<1x!ct>
   }
-  func.func @rotations__decrypt__result0(%cc: !cc, %arg0: tensor<1x!ct>, %sk: !sk) -> tensor<1024xi16> attributes {client.dec_func = {func_name = "rotations", index = 0 : i64}} {
+  func.func @rotations__decrypt__result0(%cc: !cc, %arg0: tensor<1x!ct>, %sk: !sk) -> tensor<1024xi16> attributes {heir.interface = {func_name = "rotations", index = 0 : i64, roles = ["client.decrypt"]}} {
     %c0 = arith.constant 0 : index
     %c1024_i32 = arith.constant 1024 : i32
     %c1_i32 = arith.constant 1 : i32

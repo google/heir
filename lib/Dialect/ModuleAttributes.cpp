@@ -1,5 +1,7 @@
 #include "lib/Dialect/ModuleAttributes.h"
 
+#include <algorithm>
+
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
@@ -9,6 +11,58 @@
 
 namespace mlir {
 namespace heir {
+
+DictionaryAttr getInterfaceAttr(Operation* op, StringRef role) {
+  auto metadata = op->getAttrOfType<DictionaryAttr>(kInterfaceAttrName);
+  if (!metadata || role.empty()) return metadata;
+  auto roles = metadata.getAs<ArrayAttr>(kInterfaceRoles);
+  if (roles) {
+    for (Attribute value : roles)
+      if (value == StringAttr::get(op->getContext(), role)) return metadata;
+  }
+  return {};
+}
+
+bool hasInterfaceRole(Operation* op, StringRef role) {
+  return static_cast<bool>(getInterfaceAttr(op, role));
+}
+
+void setInterfaceRole(Operation* op, StringRef role, DictionaryAttr metadata) {
+  NamedAttrList attributes(getInterfaceAttr(op));
+  SmallVector<Attribute> roles;
+  if (auto current =
+          dyn_cast_or_null<ArrayAttr>(attributes.get(kInterfaceRoles)))
+    roles.append(current.begin(), current.end());
+  auto value = StringAttr::get(op->getContext(), role);
+  if (std::find(roles.begin(), roles.end(), value) == roles.end())
+    roles.push_back(value);
+  for (NamedAttribute attr : metadata)
+    if (attr.getName().getValue() != kInterfaceRoles)
+      attributes.set(attr.getName(), attr.getValue());
+  attributes.set(kInterfaceRoles, ArrayAttr::get(op->getContext(), roles));
+  op->setAttr(kInterfaceAttrName, attributes.getDictionary(op->getContext()));
+}
+
+void removeInterfaceRole(Operation* op, StringRef role) {
+  if (!hasInterfaceRole(op, role)) return;
+  NamedAttrList attributes(getInterfaceAttr(op));
+  auto current = cast<ArrayAttr>(attributes.get(kInterfaceRoles));
+  SmallVector<Attribute> roles(current.begin(), current.end());
+  auto value = StringAttr::get(op->getContext(), role);
+  roles.erase(std::remove(roles.begin(), roles.end(), value), roles.end());
+  if (roles.empty()) {
+    op->removeAttr(kInterfaceAttrName);
+    return;
+  }
+  attributes.set(kInterfaceRoles, ArrayAttr::get(op->getContext(), roles));
+  op->setAttr(kInterfaceAttrName, attributes.getDictionary(op->getContext()));
+}
+
+void setInterfaceField(Operation* op, StringRef name, Attribute value) {
+  NamedAttrList attributes(getInterfaceAttr(op));
+  attributes.set(name, value);
+  op->setAttr(kInterfaceAttrName, attributes.getDictionary(op->getContext()));
+}
 
 /*===----------------------------------------------------------------------===*/
 // Module Attributes for Scheme

@@ -1,10 +1,7 @@
 // RUN: heir-opt --add-client-interface=min-slot-count=1024 %s | FileCheck %s
 
 // CHECK: func.func @simple_add(%[[ARG0:.*]]: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type}, %[[ARG1:.*]]: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type})
-// CHECK-SAME: heir.entry_func = {func_name = "simple_add"}
-// CHECK-SAME: heir.entry_input_types = [tensor<32xi16>, tensor<32xi16>]
-// CHECK-SAME: heir.entry_result_types = [tensor<32xi16>]
-// CHECK-SAME: server.evaluate_func = {func_name = "simple_add"}
+// CHECK-SAME: heir.interface = {func_name = "simple_add", input_types = [tensor<32xi16>, tensor<32xi16>], result_types = [tensor<32xi16>], roles = ["entry", "server.evaluate"]}
 // CHECK:   %[[GENERIC:.*]] = secret.generic(%[[ARG0]]: !secret.secret<tensor<1x1024xi16>>, %[[ARG1]]: !secret.secret<tensor<1x1024xi16>>) {
 // CHECK:   ^body(%[[PT_ARG0:.*]]: tensor<1x1024xi16>, %[[PT_ARG1:.*]]: tensor<1x1024xi16>):
 // CHECK:     %[[ADD:.*]] = arith.addi %[[PT_ARG0]], %[[PT_ARG1]] : tensor<1x1024xi16>
@@ -13,11 +10,11 @@
 
 // CHECK: func.func @simple_add__encrypt__arg0(%[[CLEAR_ARG0:.*]]: tensor<32xi16>)
 // CHECK-SAME: -> !secret.secret<tensor<1x1024xi16>>
-// CHECK-SAME: attributes {client.enc_func = {func_name = "simple_add", index = 0 : i64}}
+// CHECK-SAME: attributes {heir.interface = {func_name = "simple_add", index = 0 : i64, roles = ["client.encrypt"]}}
 
 // CHECK: func.func @simple_add__encrypt__arg1(%[[CLEAR_ARG1:.*]]: tensor<32xi16>)
 // CHECK-SAME: -> !secret.secret<tensor<1x1024xi16>>
-// CHECK-SAME: attributes {client.enc_func = {func_name = "simple_add", index = 1 : i64}}
+// CHECK-SAME: attributes {heir.interface = {func_name = "simple_add", index = 1 : i64, roles = ["client.encrypt"]}}
 
 // CHECK: func.func @simple_add__decrypt__result0(%[[SECRET_RESULT:.*]]: !secret.secret<tensor<1x1024xi16>>)
 

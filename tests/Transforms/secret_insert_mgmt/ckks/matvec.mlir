@@ -5,7 +5,7 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 512 = 0 and 0 <= i0 <= 511 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<512xf32>, layout = #layout>
 module attributes {backend.lattigo, scheme.ckks} {
-  func.func private @_assign_layout_8634348465628479189() -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_8634348465628479189() -> tensor<512x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %cst = arith.constant 1.000000e+00 : f32
     %c512_i32 = arith.constant 512 : i32
     %c1_i32 = arith.constant 1 : i32

@@ -11,7 +11,7 @@
 // so we override the bootstrapLevelsConsumed backend config here to match the intended level trajectory.
 module attributes {backend.lattigo, scheme.ckks,
                    backend.config_override = {bootstrapLevelsConsumed = 16 : i32}} {
-  func.func private @_assign_layout_16889166383960922983() -> tensor<64x4096xf32> attributes {client.pack_func = {func_name = "tcresnet8small"}} {
+  func.func private @_assign_layout_16889166383960922983() -> tensor<64x4096xf32> attributes {heir.interface = {func_name = "tcresnet8small", roles = ["client.pack"]}} {
     %cst = arith.constant dense_resource<__elided__> : tensor<48x48x6xf32>
     %c48_i32 = arith.constant 48 : i32
     %c1_i32 = arith.constant 1 : i32

@@ -12,8 +12,8 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
   // CHECK: func.func @mnist__preprocessed
   // CHECK-SAME: %[[ARG0:.*]]: tensor<512x1024xf32> {
   // CHECK-SAME: %[[ARG1:.*]]: tensor<1x![[ct_L1]]>
-  func.func private @_assign_layout_1368187199173970310(tensor<512x784xf32>) -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "mnist"}}
-  func.func @mnist__preprocessed(%arg0: tensor<512x1024xf32> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<512x784xf32>, layout = #layout1>}, %arg1: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1>, tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x784xf32>, layout = #layout2>}) -> (!secret.secret<tensor<1x1024xf32>> {jax.result_info = "result[0]", mgmt.mgmt = #mgmt.mgmt<level = 1>, tensor_ext.original_type = #original_type}) attributes {client.preprocessed_func = {func_name = "mnist"}} {
+  func.func private @_assign_layout_1368187199173970310(tensor<512x784xf32>) -> tensor<512x1024xf32> attributes {heir.interface = {func_name = "mnist", roles = ["client.pack"]}}
+  func.func @mnist__preprocessed(%arg0: tensor<512x1024xf32> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<512x784xf32>, layout = #layout1>}, %arg1: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1>, tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x784xf32>, layout = #layout2>}) -> (!secret.secret<tensor<1x1024xf32>> {jax.result_info = "result[0]", mgmt.mgmt = #mgmt.mgmt<level = 1>, tensor_ext.original_type = #original_type}) attributes {heir.interface = {func_name = "mnist", roles = ["client.preprocessed"]}} {
     %extracted_slice = tensor.extract_slice %arg0[0, 0] [1, 1024] [1, 1] : tensor<512x1024xf32> to tensor<1x1024xf32>
     %0 = mgmt.init %extracted_slice {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
     %1 = secret.generic(%arg1: !secret.secret<tensor<1x1024xf32>>) {

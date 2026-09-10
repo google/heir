@@ -1,7 +1,7 @@
 // RUN: heir-opt --remove-unused-pure-call %s | FileCheck %s
 
 module {
-  func.func @pure_func(%arg0: i32) -> i32 attributes {client.pack_func} {
+  func.func @pure_func(%arg0: i32) -> i32 attributes {heir.interface = {roles = ["client.pack"]}} {
     return %arg0 : i32
   }
 

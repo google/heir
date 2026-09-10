@@ -7,12 +7,12 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> !preprocessing.storage<!pt>
-// CHECK-SAME: server.preprocessing_func = {func_name = "multiple"}
+// CHECK-SAME: heir.interface = {entry_arg_indices = array<i64: 1>, func_name = "multiple", roles = ["server.preprocessing"]}
 // CHECK: %[[STORAGE:.*]] = preprocessing.empty
 // CHECK-COUNT-2: lwe.rlwe_encode
 
 // CHECK: func.func @multiple__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<2x1024xf32>, %[[STORAGE:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
-// CHECK-SAME: client.preprocessed_func = {func_name = "multiple"}
+// CHECK-SAME: heir.interface = {func_name = "multiple", roles = ["client.preprocessed", "server.evaluate"]}
 
 // CHECK: func.func @multiple
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]],

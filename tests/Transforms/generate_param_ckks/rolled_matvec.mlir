@@ -17,10 +17,10 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 512 = 0 and 0 <= i0 <= 511 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<512xf32>, layout = #layout>
 module attributes {backend.lattigo, scheme.ckks} {
-  func.func private @_assign_layout_17652308363902746083() attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_17652308363902746083() attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     return
   }
-  func.func private @_assign_layout_1962505283396340287() -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_1962505283396340287() -> tensor<512x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %cst = arith.constant 1.000000e+00 : f32
     %c512_i32 = arith.constant 512 : i32
     %c1_i32 = arith.constant 1 : i32
@@ -171,7 +171,7 @@ module attributes {backend.lattigo, scheme.ckks} {
     } -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 0>})
     return %5 : !secret.secret<tensor<1x1024xf32>>
   }
-  func.func @matvec__encrypt__arg0(%arg0: tensor<784xf32>) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) attributes {client.enc_func = {func_name = "matvec", index = 0 : i64}} {
+  func.func @matvec__encrypt__arg0(%arg0: tensor<784xf32>) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) attributes {heir.interface = {func_name = "matvec", index = 0 : i64, roles = ["client.encrypt"]}} {
     %c784_i32 = arith.constant 784 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
@@ -186,7 +186,7 @@ module attributes {backend.lattigo, scheme.ckks} {
     %1 = secret.conceal %0 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32> -> !secret.secret<tensor<1x1024xf32>>
     return %1 : !secret.secret<tensor<1x1024xf32>>
   }
-  func.func @matvec__decrypt__result0(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) -> tensor<512xf32> attributes {client.dec_func = {func_name = "matvec", index = 0 : i64}} {
+  func.func @matvec__decrypt__result0(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) -> tensor<512xf32> attributes {heir.interface = {func_name = "matvec", index = 0 : i64, roles = ["client.decrypt"]}} {
     %cst = arith.constant dense<0.000000e+00> : tensor<512xf32>
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32

@@ -21,7 +21,7 @@
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = mix>
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797018652673, 35184372121601], P = [1152921504606994433], logDefaultScale = 45>, scheme.ckks} {
-  func.func private @_assign_layout_6046580691004308546(%arg0: tensor<16xf32>) -> tensor<1x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_6046580691004308546(%arg0: tensor<16xf32>) -> tensor<1x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %c0 = arith.constant 0 : index
     %c16_i32 = arith.constant 16 : i32
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
@@ -38,7 +38,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     }
     return %0 : tensor<1x1024xf32>
   }
-  func.func private @_assign_layout_82497239515497017(%arg0: tensor<16x16xf32>) -> tensor<16x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_82497239515497017(%arg0: tensor<16x16xf32>) -> tensor<16x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %c1024_i32 = arith.constant 1024 : i32
     %cst = arith.constant dense<0.000000e+00> : tensor<16x1024xf32>
     %c0_i32 = arith.constant 0 : i32

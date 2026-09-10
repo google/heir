@@ -9,7 +9,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
     return %arg0: !secret.secret<tensor<1x1024xi16>>
   }
 
-  func.func @hamming__encrypt__arg0(%arg0: tensor<1024xi16>) -> (!secret.secret<tensor<1x1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 5, scale = 1>}) attributes {client.enc_func = {func_name = "hamming", index = 0 : i64}} {
+  func.func @hamming__encrypt__arg0(%arg0: tensor<1024xi16>) -> (!secret.secret<tensor<1x1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 5, scale = 1>}) attributes {heir.interface = {func_name = "hamming", index = 0 : i64, roles = ["client.encrypt"]}} {
     %cst = arith.constant dense<0> : tensor<1x1024xi16>
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index
