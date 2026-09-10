@@ -68,23 +68,27 @@ NTTSolver::RepVars& NTTSolver::getOrCreateVars(const Value& v) {
   if (it != vars.end()) {
     return it->second;
   }
-  int convCost = getConversionCost(v);
+  int64_t convCost = getConversionCost(v);
+  auto multiplierIt = conversionCostMultipliers.find(v);
+  if (multiplierIt != conversionCostMultipliers.end()) {
+    convCost *= multiplierIt->second;
+  }
   RepVars repVars{/*c=*/model.NewBoolVar(),
                   /*e=*/model.NewBoolVar(),
                   /*conv=*/model.NewBoolVar(),
                   /*mode=*/BoolVar()};
 
-  objective += repVars.conv;
-  // add a new conversion variable equal to the "representative" conversion cost
-  // and force equality between them. We never need references to these other
-  // variables though; we just use repVars.conv as their proxy.
-  for (int i = 1; i < convCost; i++) {
-    BoolVar b = model.NewBoolVar();
-    model.AddEquality(repVars.conv, b);
-    objective += b;
-  }
+  objective += LinearExpr::Term(repVars.conv, convCost);
   vars[v] = repVars;
   return vars[v];
+}
+
+void NTTSolver::setConversionCostMultiplier(const Value& v,
+                                            int64_t multiplier) {
+  assert(multiplier >= 1 && "conversion cost multiplier must be positive");
+  assert(!vars.contains(v) &&
+         "conversion cost multiplier must be set before value is modeled");
+  conversionCostMultipliers[v] = multiplier;
 }
 
 const BoolVar& NTTSolver::RepVars::getVarForm(Form form) const {
@@ -112,10 +116,26 @@ void NTTSolver::prohibitBothForms(const Value& v) {
       {vs.getVarForm(Form::COEFF).Not(), vs.getVarForm(Form::EVAL).Not()});
 }
 
+void NTTSolver::equateNativeForm(const Value& a, const Value& b) {
+  RepVars& as = getOrCreateVars(a);
+  RepVars& bs = getOrCreateVars(b);
+  model.AddEquality(as.c, bs.c);
+}
+
 void NTTSolver::implyUse(const Value& out, const Value& in, Form form) {
   RepVars& outs = getOrCreateVars(out);
   RepVars& ins = getOrCreateVars(in);
   model.AddImplication(outs.getVarForm(form), ins.getVarForm(form));
+}
+
+void NTTSolver::requireSourceMatchesNativeForm(const Value& target,
+                                               const Value& source) {
+  RepVars& ts = getOrCreateVars(target);
+  RepVars& ss = getOrCreateVars(source);
+  // native(target) == COEFF (target.c) => source must supply COEFF.
+  model.AddImplication(ts.c, ss.c);
+  // native(target) == EVAL (i.e. !target.c) => source must supply EVAL.
+  model.AddBoolOr({ts.c, ss.e});
 }
 
 void NTTSolver::implyMode(const Value& out, const Value& in) {
