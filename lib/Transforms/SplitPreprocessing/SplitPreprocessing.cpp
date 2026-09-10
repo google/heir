@@ -269,6 +269,7 @@ struct SplitPreprocessingPass
 
     updateOriginalFunc(funcOp, preprocessingFuncOp, preprocessedFuncOp,
                        analysis);
+    funcOp->removeAttr(kServerEvaluateFuncAttrName);
 
     // Remove dead values to clean up the created/updated functions
     OpPassManager pipeline("func.func");
@@ -537,7 +538,6 @@ struct SplitPreprocessingPass
     funcOp->setAttr(
         kServerEvaluateFuncAttrName,
         preprocessingFuncOp->getAttr(kServerPreprocessingFuncAttrName));
-    op->removeAttr(kServerEvaluateFuncAttrName);
 
     IRMapping map;
     Block* entryBlock = funcOp.addEntryBlock();
