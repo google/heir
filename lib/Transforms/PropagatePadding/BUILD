@@ -7,26 +7,28 @@ package(
 )
 
 cc_library(
-    name = "TensorExtToTensor",
-    srcs = ["TensorExtToTensor.cpp"],
-    hdrs = ["TensorExtToTensor.h"],
+    name = "PropagatePadding",
+    srcs = ["PropagatePadding.cpp"],
+    hdrs = ["PropagatePadding.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:MathDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
-        "@llvm-project//mlir:TransformUtils",
     ],
 )
 
 add_heir_transforms(
-    header_filename = "TensorExtToTensor.h.inc",
-    pass_name = "TensorExtToTensor",
-    td_file = "TensorExtToTensor.td",
+    generated_target_name = "pass_inc_gen",
+    pass_name = "PropagatePadding",
+    td_file = "PropagatePadding.td",
 )

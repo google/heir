@@ -209,6 +209,23 @@ struct RaiseTorchSoftmaxPattern : public OpRewritePattern<arith::DivFOp> {
         math_ext::SoftmaxOp::create(rewriter, op.getLoc(), scoresType, scores);
     softmax->setAttr("dimension",
                      rewriter.getI64IntegerAttr(scoresType.getRank() - 1));
+    for (auto attr : op->getAttrs()) {
+      if (attr.getName() == "degree") {
+        softmax->setAttr("exp_degree", attr.getValue());
+      } else if (attr.getName() != "fastmath" &&
+                 attr.getName() != "dimension") {
+        softmax->setAttr(attr.getName(), attr.getValue());
+      }
+    }
+    if (!softmax->hasAttr("exp_degree") && expOp->hasAttr("degree")) {
+      softmax->setAttr("exp_degree", expOp->getAttr("degree"));
+    }
+    if (!softmax->hasAttr("domain_lower") && expOp->hasAttr("domain_lower")) {
+      softmax->setAttr("domain_lower", expOp->getAttr("domain_lower"));
+    }
+    if (!softmax->hasAttr("domain_upper") && expOp->hasAttr("domain_upper")) {
+      softmax->setAttr("domain_upper", expOp->getAttr("domain_upper"));
+    }
     rewriter.replaceOp(op, softmax.getResult());
     return success();
   }

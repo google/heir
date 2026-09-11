@@ -62,3 +62,14 @@ func.func @test_exp_taylor_fallback_out_of_bounds(%x: f32 {secret.secret}) -> f3
   %0 = math.exp %x {degree = 3 : i32, domain_lower = -1.0 : f64, domain_upper = 2.0 : f64} : f32
   return %0 : f32
 }
+
+// -----
+
+// CHECK-TAYLOR: @test_exp_pinned_chebyshev
+// CHECK-TAYLOR: %[[POLY:.*]] = polynomial.eval
+// CHECK-TAYLOR-SAME: f32
+// CHECK-TAYLOR: return %[[POLY]] : f32
+func.func @test_exp_pinned_chebyshev(%x: f32 {secret.secret}) -> f32 {
+  %0 = math.exp %x {approximation_method = "chebyshev", degree = 3 : i32, domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f32
+  return %0 : f32
+}

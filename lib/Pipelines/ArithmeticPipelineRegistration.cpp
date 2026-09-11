@@ -55,17 +55,22 @@
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LinalgFuseLinearOps/LinalgFuseLinearOps.h"
+#include "lib/Transforms/LowerRecip/LowerRecip.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
+#include "lib/Transforms/PrepareForLayoutPropagation/PrepareForLayoutPropagation.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/PropagatePadding/PropagatePadding.h"
 #include "lib/Transforms/ReductionCanonicalizations/ReductionCanonicalizations.h"
 #include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
 #include "lib/Transforms/SoftmaxCanonicalizations/SoftmaxCanonicalizations.h"
+#include "lib/Transforms/SoftmaxToNsSoftmax/SoftmaxToNsSoftmax.h"
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
+#include "lib/Transforms/StampApproximationDomains/StampApproximationDomains.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
@@ -202,6 +207,17 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
   hecoSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
+
+  // Softmax lowering: propagate padding semantics immediately before the
+  // lowering that consumes them (discardable attrs do not survive
+  // op-recreating rewrites, so no canonicalization may run in between),
+  // then decompose math_ext.softmax via normalize-and-square. Runs before
+  // lower-recip (which implements the emitted math_ext.recip as a
+  // Goldschmidt iteration) and polynomial approximation (which consumes
+  // the emitted exp).
+  pm.addPass(createPropagatePadding());
+  pm.addPass(createSoftmaxToNsSoftmax());
+  pm.addPass(createLowerRecip());
   mathToPolynomialApproximationBuilder(pm, options.useCompositeRelu);
 
   // Layout assignment and optimization
@@ -714,6 +730,13 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createSCCPPass());
   manager.addPass(createCSEPass());
   manager.addPass(createLinalgCanonicalizations());
+  // After general canonicalization (whose avg-pool patterns must see
+  // divisions first) and before softmax canonicalization (whose
+  // matcher consumes the normalized forms).
+  manager.addPass(createPrepareForLayoutPropagation());
+  // Calibration policy, separate from structural canonicalization:
+  // bare rsqrt/erf get calibrated approximation domains.
+  manager.addPass(createStampApproximationDomains());
   manager.addPass(createReductionCanonicalizations());
   manager.addPass(createSoftmaxCanonicalizations());
 }
