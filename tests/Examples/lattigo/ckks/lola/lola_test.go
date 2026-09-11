@@ -61,6 +61,9 @@ func TestLoLA(t *testing.T) {
 	}
 
 	ct0 := Lola__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ctZero0 := Lola__encrypt__zero__0(evaluator, params, ecd, enc)
+	ctZero1 := Lola__encrypt__zero__1(evaluator, params, ecd, enc)
+	ctZero2 := Lola__encrypt__zero__2(evaluator, params, ecd, enc)
 
 	// The embedded constant weights are encoded into plaintexts once, up front.
 	startPre := time.Now()
@@ -68,7 +71,7 @@ func TestLoLA(t *testing.T) {
 	t.Logf("Lola__preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := Lola__preprocessed(evaluator, params, ecd, ct0, weightPlains)
+	resultCt := Lola__preprocessed(evaluator, params, ecd, ct0, ctZero0, ctZero1, ctZero2, weightPlains)
 	t.Logf("Lola__preprocessed took %s", time.Since(start))
 
 	result := Lola__decrypt__result0(evaluator, params, ecd, dec, resultCt)

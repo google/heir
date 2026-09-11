@@ -1,4 +1,6 @@
-// RUN: heir-opt --mlir-to-ckks='min-slot-count=8' --scheme-to-openfhe='entry-function=dot_product' %s | FileCheck %s
+// TODO(#2257): Loop unrolling is required because convert-to-ciphertext-semantics
+// does not support dynamic extraction indices from ciphertexts.
+// RUN: heir-opt --mlir-to-ckks='min-slot-count=8 experimental-disable-loop-unroll=false' --scheme-to-openfhe='entry-function=dot_product' %s | FileCheck %s
 
 // CHECK: @dot_product
 // CHECK-COUNT-3: openfhe.rot

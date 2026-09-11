@@ -1,4 +1,6 @@
-// RUN: heir-opt %s --mlir-to-ckks=greedy-level-budget=16 | FileCheck %s
+// TODO: This test currently fails with loop unrolling disabled due to scale management issues.
+// Re-enable loop unrolling until the underlying issue is resolved.
+// RUN: heir-opt --annotate-module="backend=lattigo scheme=ckks" %s --mlir-to-ckks='greedy-level-budget=16 experimental-disable-loop-unroll=false' | FileCheck %s
 // TODO (#1929): Improve test with better CHECKs
 
 // CHECK: func.func @float_secret_loop_index_step

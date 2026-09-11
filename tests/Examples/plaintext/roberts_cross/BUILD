@@ -2,11 +2,13 @@ load("@heir//tests/llvm_runner:llvm_runner.bzl", "llvm_runner_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
+# TODO(#2257): Loop unrolling is required because the plaintext backend
+# does not support dynamic extraction indices from ciphertexts.
 # Secret arithmetic plaintext backend with original integer type semantic
 llvm_runner_test(
     name = "roberts_cross",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-size=4096",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 experimental-disable-loop-unroll=false",
     ],
     main_c_src = "roberts_cross_test.cpp",
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
@@ -16,7 +18,7 @@ llvm_runner_test(
 llvm_runner_test(
     name = "roberts_cross_mod_786433",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433 experimental-disable-loop-unroll=false",
     ],
     main_c_src = "roberts_cross_mod_test.cpp",
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
@@ -27,7 +29,7 @@ llvm_runner_test(
     name = "roberts_cross_mod_65537",
     defines = ["EXPECT_FAILURE"],
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=65537",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=65537 experimental-disable-loop-unroll=false",
     ],
     main_c_src = "roberts_cross_mod_test.cpp",
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",

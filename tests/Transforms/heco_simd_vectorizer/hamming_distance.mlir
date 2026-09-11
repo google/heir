@@ -1,5 +1,5 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heco-simd-vectorizer %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer='experimental-disable-loop-unroll=false' %s | FileCheck %s
 
 // CHECK: @hamming
 // CHECK: secret.generic
