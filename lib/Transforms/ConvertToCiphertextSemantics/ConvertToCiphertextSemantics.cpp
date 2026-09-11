@@ -510,10 +510,10 @@ class ConvertAssignLayout
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
     auto func = func::FuncOp::create(rewriter, loc, funcName, funcType);
-    func->setAttr(kClientPackFuncAttrName,
-                  rewriter.getDictionaryAttr({rewriter.getNamedAttr(
-                      kClientHelperFuncName,
-                      rewriter.getStringAttr(originalFunc.getSymName()))}));
+    setInterfaceRole(func, kClientPackRole,
+                     rewriter.getDictionaryAttr({rewriter.getNamedAttr(
+                         kClientHelperFuncName,
+                         rewriter.getStringAttr(originalFunc.getSymName()))}));
     func.setPrivate();
 
     Block* funcBlock = func.addEntryBlock();

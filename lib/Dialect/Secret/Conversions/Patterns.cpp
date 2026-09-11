@@ -211,9 +211,10 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
     secret::RevealOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc || !parentFunc->hasAttr(kClientDecFuncAttrName)) {
-    return op->emitError() << "expected to be inside a function with attribute "
-                           << kClientDecFuncAttrName;
+  if (!parentFunc || !hasInterfaceRole(parentFunc, kClientDecRole)) {
+    return op->emitError()
+           << "expected to be inside a function with interface role "
+           << kClientDecRole;
   }
 
   // The decryption func decrypts a single value, so it must have a single

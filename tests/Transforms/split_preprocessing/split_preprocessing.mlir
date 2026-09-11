@@ -4,10 +4,10 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @hoist_one_assign__preprocessing() -> !preprocessing.storage<!pt>
-// CHECK-SAME: client.pack_func = {func_name = "hoist_one_assign"}
+// CHECK-SAME: heir.interface = {entry_arg_indices = array<i64>, func_name = "hoist_one_assign", roles = ["server.preprocessing"]}
 
 // CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
-// CHECK-SAME: client.preprocessed_func = {func_name = "hoist_one_assign"}
+// CHECK-SAME: heir.interface = {func_name = "hoist_one_assign", roles = ["client.preprocessed", "server.evaluate"]}
 // CHECK: %[[LOAD:.*]] = preprocessing.load %[[arg0]][] site 0
 // CHECK: %[[CT_0:.*]] = ckks.add_plain %ct, %[[LOAD]]
 // CHECK: return %[[CT_0]] : ![[ct_L1]]
@@ -36,6 +36,22 @@
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
 func.func @hoist_one_assign(%ct: !ct_L1) -> (!ct_L1) {
+  %c1 = arith.constant dense<1.0> : tensor<1024xf32>
+  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
+  return %0 : !ct_L1
+}
+
+// Splitting preserves the logical signature and identity across symbol renames.
+// CHECK: func.func @renamed__preprocessing
+// CHECK-SAME: heir.interface = {entry_arg_indices = array<i64>, func_name = "logical_entry", roles = ["server.preprocessing"]}
+// CHECK: func.func @renamed__preprocessed
+// CHECK-SAME: heir.interface = {func_name = "logical_entry", roles = ["client.preprocessed", "server.evaluate"]}
+// CHECK: func.func @renamed(
+// CHECK-SAME: heir.interface = {extra = "keep", func_name = "logical_entry", input_types = [tensor<16xf32>], result_types = [tensor<16xf32>], roles = ["entry"]}
+// CHECK-NOT: "server.evaluate"
+// CHECK: return
+func.func @renamed(%ct: !ct_L1) -> !ct_L1 attributes {heir.interface = {extra = "keep", func_name = "logical_entry", input_types = [tensor<16xf32>], result_types = [tensor<16xf32>], roles = ["entry", "server.evaluate"]}} {
   %c1 = arith.constant dense<1.0> : tensor<1024xf32>
   %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1

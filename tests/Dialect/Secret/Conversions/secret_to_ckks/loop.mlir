@@ -5,7 +5,7 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 7 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<8xf32>, layout = #layout>
 module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [1152921504606748673, 36028797019488257, 36028797017456641, 36028797019389953], P = [1152921504607338497, 1152921504608747521], logDefaultScale = 55>, scheme.ckks} {
-  func.func private @_assign_layout_13348573087261549848(%arg0: tensor<8xf32>) -> tensor<1x8xf32> attributes {client.pack_func = {func_name = "loop"}} {
+  func.func private @_assign_layout_13348573087261549848(%arg0: tensor<8xf32>) -> tensor<1x8xf32> attributes {heir.interface = {func_name = "loop", roles = ["client.pack"]}} {
     %c0 = arith.constant 0 : index
     %cst = arith.constant dense<0.000000e+00> : tensor<1x8xf32>
     %c0_i32 = arith.constant 0 : i32

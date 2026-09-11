@@ -38,7 +38,7 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
     return %4, %5 : !ty, !ty
   }
 
-  func.func @enc_helper(%arg0: tensor<32xf32>, %pk: !pkey) attributes {client.enc_func = {func_name = "doctest", index = 0 : i64}} {
+  func.func @enc_helper(%arg0: tensor<32xf32>, %pk: !pkey) attributes {heir.interface = {func_name = "doctest", index = 0 : i64, roles = ["client.encrypt"]}} {
     return
   }
   // CHECK: func @multiple_conceal__encrypt__zero__0(

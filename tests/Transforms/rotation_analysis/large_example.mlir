@@ -20,7 +20,7 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 512 = 0 and 0 <= i0 <= 511 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<512xf32>, layout = #layout>
 module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797017456641, 35184372121601], P = [1152921504607338497], logDefaultScale = 45, encryptionTechnique = extended>, scheme.actual_slot_count = 8192 : i64, scheme.ckks, scheme.requested_slot_count = 8192 : i64} {
-  func.func private @_assign_layout_4710750956904016321() -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_4710750956904016321() -> tensor<512x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %c512_i32 = arith.constant 512 : i32
     %c1024_i32 = arith.constant 1024 : i32
     %c240_i32 = arith.constant 240 : i32
@@ -221,14 +221,14 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     %inserted_13 = tensor.insert %ct_12 into %1[%c0] : tensor<1x!ct>
     return %inserted_13 : tensor<1x!ct>
   }
-  func.func @matvec__encrypt__zero__0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk) -> !ct attributes {client.enc_zero_func} {
+  func.func @matvec__encrypt__zero__0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk) -> !ct attributes {heir.interface = {roles = ["client.encrypt_zero"]}} {
     %cst = arith.constant dense<0.000000e+00> : tensor<8192xf64>
     %pt = lattigo.ckks.new_plaintext %param : (!param) -> !pt
     %pt_0 = lattigo.ckks.encode %encoder, %cst, %pt {scale = 45 : i64} : (!encoder, tensor<8192xf64>, !pt) -> !pt
     %ct = lattigo.rlwe.encrypt %encryptor, %pt_0 : (!encryptor_pk, !pt) -> !ct
     return %ct : !ct
   }
-  func.func @matvec__encrypt__arg0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk, %arg0: tensor<784xf32>) -> tensor<1x!ct> attributes {client.enc_func = {func_name = "matvec", index = 0 : i64}} {
+  func.func @matvec__encrypt__arg0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk, %arg0: tensor<784xf32>) -> tensor<1x!ct> attributes {heir.interface = {func_name = "matvec", index = 0 : i64, roles = ["client.encrypt"]}} {
     %c0 = arith.constant 0 : index
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
     %c0_i32 = arith.constant 0 : i32
@@ -247,7 +247,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     %from_elements = tensor.from_elements %ct : tensor<1x!ct>
     return %from_elements : tensor<1x!ct>
   }
-  func.func @matvec__decrypt__result0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %decryptor: !decryptor, %arg0: tensor<1x!ct>) -> tensor<512xf32> attributes {client.dec_func = {func_name = "matvec", index = 0 : i64}} {
+  func.func @matvec__decrypt__result0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %decryptor: !decryptor, %arg0: tensor<1x!ct>) -> tensor<512xf32> attributes {heir.interface = {func_name = "matvec", index = 0 : i64, roles = ["client.decrypt"]}} {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
     %c0 = arith.constant 0 : index
     %c1024_i32 = arith.constant 1024 : i32

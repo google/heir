@@ -71,11 +71,20 @@ bool detectPublicKeyFromClientHelpers(ModuleOp module) {
   return result.wasInterrupted();
 }
 
-// Creates a function that returns a single ciphertext encrypting zero. A new
-// function is created for each ciphertext type returned by originalOp and each
+// Link each zero-encryption helper to the entry argument it supplies.
+DictionaryAttr encZeroRoleAttr(OpBuilder& builder, func::FuncOp parentFunc,
+                               int index) {
+  return builder.getDictionaryAttr(
+      {builder.getNamedAttr(kClientHelperFuncName,
+                            builder.getStringAttr(parentFunc.getSymName())),
+       builder.getNamedAttr(kClientHelperIndex,
+                            builder.getI64IntegerAttr(index))});
+}
+
+// Creates a zero-encryption helper for each ciphertext type and each
 // mgmt attribute attached to the originalOp, and otherwise duplicate functions
 // are looked up by symbol name. Created functions are tagged with
-// client.enc_zero_func.
+// client.encrypt_zero.
 func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
                                               TrivialEncryptOp originalOp,
                                               ModuleOp module, int index) {
@@ -91,8 +100,8 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
   std::string encFuncName = std::string(sanitizeIdentifier(buffer, buffer2));
 
   if (auto existingFunc = module.lookupSymbol<func::FuncOp>(encFuncName)) {
-    assert(existingFunc->hasAttr(kClientEncZeroFuncAttrName) &&
-           "existing function does not have client.enc_zero_func attribute");
+    assert(hasInterfaceRole(existingFunc, kClientEncZeroRole) &&
+           "existing function does not have client.encrypt_zero role");
     return existingFunc;
   }
 
@@ -116,7 +125,8 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
       FunctionType::get(builder.getContext(), {keyTy}, {ciphertextType});
   auto encFuncOp = func::FuncOp::create(builder, encFuncName, encFuncType);
 
-  encFuncOp->setAttr(kClientEncZeroFuncAttrName, builder.getUnitAttr());
+  setInterfaceRole(encFuncOp, kClientEncZeroRole,
+                   encZeroRoleAttr(builder, parentFunc, index));
   Block* entryBlock = encFuncOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
 
@@ -173,10 +183,10 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
   return encFuncOp;
 }
 
-// Creates a new function arg containing a ciphertext encrypting zero
-// with the attribute client.enc_zero_arg
+// Creates a new function arg containing a ciphertext encrypting zero, carrying
+// the same client.enc_zero_arg role as its __encrypt__zero__<index> helper
 Value getOrCreateNewFuncArg(func::FuncOp func, LWECiphertextType type,
-                            PatternRewriter& rewriter) {
+                            int index, PatternRewriter& rewriter) {
   for (unsigned i = 0; i < func.getNumArguments(); ++i) {
     if (func.getArgument(i).getType() == type &&
         func.getArgAttr(i, kClientEncZeroArgAttrName)) {
@@ -193,7 +203,7 @@ Value getOrCreateNewFuncArg(func::FuncOp func, LWECiphertextType type,
 
   auto newArg = func.getBody().addArgument(type, func.getLoc());
   func.setArgAttr(newArg.getArgNumber(), kClientEncZeroArgAttrName,
-                  rewriter.getUnitAttr());
+                  encZeroRoleAttr(rewriter, func, index));
   return newArg;
 }
 
@@ -223,7 +233,7 @@ struct TrivialEncryptionRewritePattern
     int index = indexIt->second;
 
     getOrCreateEncryptionOfZerosFunc(func, op, module, index);
-    Value newFuncArg = getOrCreateNewFuncArg(func, ctTy, rewriter);
+    Value newFuncArg = getOrCreateNewFuncArg(func, ctTy, index, rewriter);
 
     // The newFuncArg is a single ciphertext, so we may need to splat it
     // into a tensor of the appropriate shape

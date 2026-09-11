@@ -11,7 +11,7 @@ module @jit_func attributes {ckks.schemeParam = #ckks.scheme_param<logN = 15, Q 
   // CHECK: lwe.rlwe_decrypt
   // CHECK: lwe.rlwe_decode
   // CHECK: tensor.concat
-  func.func @main__decrypt__result0(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 7, scale = 45>}) -> tensor<1x10xf32> attributes {client.dec_func = {func_name = "main", index = 0 : i64}} {
+  func.func @main__decrypt__result0(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 7, scale = 45>}) -> tensor<1x10xf32> attributes {heir.interface = {func_name = "main", index = 0 : i64, roles = ["client.decrypt"]}} {
     %c1024 = arith.constant 1024 : index
     %c16 = arith.constant 16 : index
     %c6 = arith.constant 6 : index

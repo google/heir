@@ -2,7 +2,7 @@
 
 // CHECK: module
 module {
-  func.func @pure_func(%arg0: i32) -> i32 attributes {client.pack_func} {
+  func.func @pure_func(%arg0: i32) -> i32 attributes {heir.interface = {roles = ["client.pack"]}} {
     return %arg0 : i32
   }
 
@@ -10,7 +10,7 @@ module {
     return %arg0 : i32
   }
 
-  func.func @pure_multi_res(%arg0: i32) -> (i32, i32) attributes {client.pack_func} {
+  func.func @pure_multi_res(%arg0: i32) -> (i32, i32) attributes {heir.interface = {roles = ["client.pack"]}} {
     return %arg0, %arg0 : i32, i32
   }
 
@@ -55,4 +55,42 @@ module {
     %0 = func.call @not_pure_func(%arg0) : (i32) -> i32
     return
   }
+}
+
+// Role metadata does not make writes, including nested writes, removable.
+func.func @setup(%out: memref<1xi32>) attributes {heir.interface = {func_name = "read_initialized", roles = ["client.setup"]}} {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : i32
+  memref.store %c1, %out[%c0] : memref<1xi32>
+  return
+}
+
+func.func @pack(%out: memref<1xi32>, %condition: i1) attributes {heir.interface = {roles = ["client.pack"]}} {
+  scf.if %condition {
+    %c0 = arith.constant 0 : index
+    %c2 = arith.constant 2 : i32
+    memref.store %c2, %out[%c0] : memref<1xi32>
+  }
+  return
+}
+
+// CHECK: func.func @read_initialized
+// CHECK: call @setup
+// CHECK: call @pack
+// CHECK: memref.load
+func.func @read_initialized(%out: memref<1xi32>, %condition: i1) -> i32 {
+  func.call @setup(%out) : (memref<1xi32>) -> ()
+  func.call @pack(%out, %condition) : (memref<1xi32>, i1) -> ()
+  %c0 = arith.constant 0 : index
+  %value = memref.load %out[%c0] : memref<1xi32>
+  return %value : i32
+}
+
+func.func private @external_helper(i32) -> i32 attributes {heir.interface = {roles = ["client.pack"]}}
+
+// CHECK: func.func @keep_unknown_effects
+// CHECK: call @external_helper
+func.func @keep_unknown_effects(%x: i32) {
+  %unused = func.call @external_helper(%x) : (i32) -> i32
+  return
 }

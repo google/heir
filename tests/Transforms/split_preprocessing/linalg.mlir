@@ -7,12 +7,12 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @linalg__preprocessing() -> !preprocessing.storage<!pt>
-// CHECK-SAME: client.pack_func = {func_name = "linalg"}
+// CHECK-SAME: heir.interface = {entry_arg_indices = array<i64>, func_name = "linalg", roles = ["server.preprocessing"]}
 // CHECK: linalg.broadcast
 // CHECK: lwe.rlwe_encode
 
 // CHECK: func.func @linalg__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[STORAGE:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
-// CHECK-SAME: client.preprocessed_func = {func_name = "linalg"}
+// CHECK-SAME: heir.interface = {func_name = "linalg", roles = ["client.preprocessed", "server.evaluate"]}
 
 // CHECK: func.func @linalg
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]])
