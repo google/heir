@@ -120,6 +120,14 @@ struct MergeAdjustScaleIntoInit : public OpRewritePattern<mgmt::AdjustScaleOp> {
   }
 };
 
+static std::optional<int64_t> getScaleOrNull(Value value,
+                                             DataFlowSolver* solver) {
+  if (!isBlockLive(value.getParentBlock(), solver)) return std::nullopt;
+  auto* lattice = solver->lookupState<ScaleLattice<CKKSScaleModel>>(value);
+  if (!lattice || !lattice->getValue().isInitialized()) return std::nullopt;
+  return lattice->getValue().getScale();
+}
+
 struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
   using PopulateScaleCKKSBase::PopulateScaleCKKSBase;
 
@@ -168,15 +176,19 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
           }
         }
         if (secretOrInittedOperands.size() > 1) {
-          int64_t maxScale = getScale<CKKSScaleModel>(
-              secretOrInittedOperands[0]->get(), &solver);
-          for (size_t i = 1; i < secretOrInittedOperands.size(); ++i) {
-            maxScale = std::max(
-                maxScale, getScale<CKKSScaleModel>(
-                              secretOrInittedOperands[i]->get(), &solver));
-          }
+          bool anyUninit = false;
+          int64_t maxScale = -1;
           for (auto* operand : secretOrInittedOperands) {
-            int64_t scale = getScale<CKKSScaleModel>(operand->get(), &solver);
+            auto s = getScaleOrNull(operand->get(), &solver);
+            if (!s) {
+              anyUninit = true;
+              break;
+            }
+            maxScale = std::max(maxScale, *s);
+          }
+          if (anyUninit) return;
+          for (auto* operand : secretOrInittedOperands) {
+            int64_t scale = *getScaleOrNull(operand->get(), &solver);
             if (scale < maxScale) {
               OpBuilder builder(op);
               auto adjustOp = mgmt::AdjustScaleOp::create(
@@ -202,8 +214,11 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
         Value lhs = mulOp.getLhs();
         Value rhs = mulOp.getRhs();
         if (isSecret(lhs, &solver) || isSecret(rhs, &solver)) {
-          int64_t scaleLhs = getScale<CKKSScaleModel>(lhs, &solver);
-          int64_t scaleRhs = getScale<CKKSScaleModel>(rhs, &solver);
+          auto sLhs = getScaleOrNull(lhs, &solver);
+          auto sRhs = getScaleOrNull(rhs, &solver);
+          if (!sLhs || !sRhs) return;
+          int64_t scaleLhs = *sLhs;
+          int64_t scaleRhs = *sRhs;
 
           auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(mulOp.getResult());
           assert(mgmtAttr && "mul result must have MgmtAttr");
@@ -248,7 +263,9 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
       if (auto modReduceOp = dyn_cast<mgmt::ModReduceOp>(op)) {
         Value input = modReduceOp.getInput();
         if (isSecret(input, &solver)) {
-          int64_t scale = getScale<CKKSScaleModel>(input, &solver);
+          auto sInput = getScaleOrNull(input, &solver);
+          if (!sInput) return;
+          int64_t scale = *sInput;
           auto inputMgmtAttr = mgmt::findMgmtAttrAssociatedWith(input);
           assert(inputMgmtAttr && "input must have MgmtAttr");
           auto level = inputMgmtAttr.getLevel();
@@ -288,16 +305,20 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
               inverseMapping.lookup(result);
           if (yieldingOperands.empty()) continue;
 
-          int64_t maxScale =
-              getScale<CKKSScaleModel>(yieldingOperands[0]->get(), &solver);
-          for (size_t i = 1; i < yieldingOperands.size(); ++i) {
-            maxScale = std::max(
-                maxScale,
-                getScale<CKKSScaleModel>(yieldingOperands[i]->get(), &solver));
+          bool anyUninit = false;
+          int64_t maxScale = -1;
+          for (auto* operand : yieldingOperands) {
+            auto s = getScaleOrNull(operand->get(), &solver);
+            if (!s) {
+              anyUninit = true;
+              break;
+            }
+            maxScale = std::max(maxScale, *s);
           }
+          if (anyUninit) continue;
 
           for (OpOperand* operand : yieldingOperands) {
-            int64_t scale = getScale<CKKSScaleModel>(operand->get(), &solver);
+            int64_t scale = *getScaleOrNull(operand->get(), &solver);
             if (scale < maxScale) {
               Operation* terminator = operand->getOwner();
               OpBuilder builder(terminator);
@@ -328,16 +349,20 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
                 inverseMapping.lookup(blockArg);
             if (yieldingOperands.empty()) continue;
 
-            int64_t maxScale =
-                getScale<CKKSScaleModel>(yieldingOperands[0]->get(), &solver);
-            for (size_t i = 1; i < yieldingOperands.size(); ++i) {
-              int64_t yopScale =
-                  getScale<CKKSScaleModel>(yieldingOperands[i]->get(), &solver);
-              maxScale = std::max(maxScale, yopScale);
+            bool anyUninit = false;
+            int64_t maxScale = -1;
+            for (auto* operand : yieldingOperands) {
+              auto s = getScaleOrNull(operand->get(), &solver);
+              if (!s) {
+                anyUninit = true;
+                break;
+              }
+              maxScale = std::max(maxScale, *s);
             }
+            if (anyUninit) continue;
 
             for (OpOperand* operand : yieldingOperands) {
-              int64_t scale = getScale<CKKSScaleModel>(operand->get(), &solver);
+              int64_t scale = *getScaleOrNull(operand->get(), &solver);
               if (scale < maxScale) {
                 Operation* owner = operand->getOwner();
                 OpBuilder builder(owner);
@@ -373,8 +398,11 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
             if (!isSecret(forwardedVal, &solver)) continue;
 
             BlockArgument blockArg = successor->getArgument(i);
-            int64_t targetScale = getScale<CKKSScaleModel>(blockArg, &solver);
-            int64_t scale = getScale<CKKSScaleModel>(forwardedVal, &solver);
+            auto sTarget = getScaleOrNull(blockArg, &solver);
+            auto sScale = getScaleOrNull(forwardedVal, &solver);
+            if (!sTarget || !sScale) continue;
+            int64_t targetScale = *sTarget;
+            int64_t scale = *sScale;
             if (scale < targetScale) {
               OpBuilder builder(op);
               auto adjustOp = mgmt::AdjustScaleOp::create(
@@ -395,6 +423,52 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
         }
       }
     });
+
+    // An adjust_scale neither pass could determine is underdetermined by
+    // design (it exists so the compiler may choose): this happens when a
+    // join's operands BOTH arrive through adjust_scale chains, blocking
+    // forward propagation on both sides with no downstream anchor to seed
+    // the backward pass before the next bootstrap. Resolve it to its
+    // canonical target — the scale that makes its paired modreduce output
+    // the default scale (logDefaultScale + logq at that level), or the
+    // default scale itself when unpaired — by pinning the scale on its
+    // mgmt attribute; the forward analysis honors pinned adjust_scale
+    // scales, so the solver2 re-run below flows through consistently and
+    // ConvertAdjustScaleToMulPlain materializes the deltas.
+    SmallVector<mgmt::AdjustScaleOp> unpopulatedAdjustScales;
+    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
+      if (!isBlockLive(op->getBlock(), &solver)) {
+        return;
+      }
+      auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(op.getResult());
+      if (!mgmtAttr || mgmtAttr.getScale() == -1) {
+        unpopulatedAdjustScales.push_back(op);
+      }
+    });
+    if (!unpopulatedAdjustScales.empty()) {
+      auto schemeParam = ckks::getSchemeParamFromAttr(ckksSchemeParamAttr);
+      const auto& logqi = schemeParam.getLogqi();
+      for (mgmt::AdjustScaleOp op : unpopulatedAdjustScales) {
+        auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(op.getResult());
+        if (!mgmtAttr) {
+          op.emitOpError() << "unresolved adjust_scale without mgmt attr";
+          signalPassFailure();
+          return;
+        }
+        int64_t target = logDefaultScale;
+        if (op->hasOneUse() &&
+            isa<mgmt::ModReduceOp>(*op.getResult().getUsers().begin())) {
+          int64_t level = mgmtAttr.getLevel();
+          int64_t logQ =
+              (level >= 0 && level < static_cast<int64_t>(logqi.size()))
+                  ? static_cast<int64_t>(std::llround(logqi[level]))
+                  : logDefaultScale;
+          target = logDefaultScale + logQ;
+        }
+        mgmt::setMgmtAttrAssociatedWith(
+            op.getResult(), mgmt::getMgmtAttrWithNewScale(mgmtAttr, target));
+      }
+    }
 
     // Step 3: Optimize Plaintext Scales
     RewritePatternSet optPatterns(&getContext());

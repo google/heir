@@ -61,8 +61,9 @@ LogicalResult BootstrapWaterlineAnalysis::visitOperation(
     // But since that operand has already been processed by the analysis, we
     // mark the op result and then patch it up by the pass that uses this
     // analysis.
+    bool forceBootstrap = op->hasAttr("mgmt.force_bootstrap");
     bool exceedsWaterline =
-        prospectiveLevel.isInvalid() ||
+        forceBootstrap || prospectiveLevel.isInvalid() ||
         (prospectiveLevel.isInt() && prospectiveLevel.getInt() > waterline);
 
     resultNeedsBootstrap = exceedsWaterline;

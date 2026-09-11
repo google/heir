@@ -1,6 +1,6 @@
 // RUN: heir-opt --annotate-module="backend=lattigo" --apply-config-override="config=bootstrapLevelsConsumed=0" --ilp-bootstrap-placement=bootstrap-waterline=3 %s | FileCheck %s --check-prefix=CHECK-ILP
 // RUN: heir-opt --annotate-module="backend=lattigo" --apply-config-override="config=bootstrapLevelsConsumed=0" --ilp-bootstrap-placement="bootstrap-waterline=3 orbit-cost-model=%S/orbit_cost_model.json" %s | FileCheck %s --check-prefix=CHECK-COST-MODEL
-// RUN: heir-opt --annotate-module="backend=lattigo" --apply-config-override="config=bootstrapLevelsConsumed=0" --secret-insert-mgmt-ckks="bootstrap-waterline=3 level-budget=6" %s | FileCheck %s --check-prefix=CHECK-GREEDY
+// RUN: heir-opt --annotate-module="backend=lattigo" --apply-config-override="config=bootstrapLevelsConsumed=0" --secret-insert-mgmt-ckks="level-budget=3" %s | FileCheck %s --check-prefix=CHECK-GREEDY
 
 // Compare the greedy bootstrap placement against the ILP bootstrap placement
 // with bootstrap-waterline=3. Greedy gives 3 bootstraps after L5, L6, L7. ILP

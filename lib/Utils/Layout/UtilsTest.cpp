@@ -1158,6 +1158,131 @@ TEST(UtilsTest, TricyclicCtPtDiagonal2x5x7) {
   EXPECT_FALSE(relation.containsPointNoLocal({0, 0, 0, 0, 1}).has_value());
 }
 
+TEST(UtilsTest, TestBicyclicReduceProjection) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({33, 65}, Float32Type::get(&context));
+  IntegerRelation rel = getBicyclicLayoutRelation(type, 8192);
+  EXPECT_TRUE(isRelationBicyclic(type, 8192, rel));
+
+  auto reducedExpected =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 33 = 0 and 0 "
+          "<= i0 <= 32 and 0 <= slot <= 8191 }")
+          .value();
+  IntegerRelation projected = rel;
+  projected.projectOut(1, 1);
+  EXPECT_TRUE(isRelationEqual(projected, reducedExpected));
+}
+TEST(UtilsTest, TestBicyclicDiagonalRelationMatchesClosedForm) {
+  MLIRContext context;
+  constexpr int64_t n = 5;
+  constexpr int64_t p = 7;
+  constexpr int64_t stride = 3;
+  constexpr int64_t numSlots = 64;
+  RankedTensorType weightType =
+      RankedTensorType::get({n, p}, Float32Type::get(&context));
+  IntegerRelation rel = getBicyclicDiagonalRelation(
+      weightType, /*contractionDim=*/0, stride, numSlots);
+
+  std::vector<float> flat(n * p);
+  for (int64_t i = 0; i < n * p; ++i) flat[i] = static_cast<float>(i + 1);
+
+  std::function<float(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& pt) { return flat[pt[0] * p + pt[1]]; };
+
+  std::vector<std::vector<float>> polyPacked =
+      evaluateLayout<float>(rel, getValueFn);
+
+  std::vector<float> closedFormPacked = packBicyclicDiagonalClosedForm(
+      weightType.getShape(), flat, stride, /*paddedCols=*/p, /*numDiags=*/n,
+      numSlots);
+
+  ASSERT_EQ(polyPacked.size(), static_cast<size_t>(n));
+  for (int64_t c = 0; c < n; ++c) {
+    ASSERT_EQ(polyPacked[c].size(), static_cast<size_t>(numSlots));
+    for (int64_t k = 0; k < numSlots; ++k) {
+      EXPECT_EQ(closedFormPacked[c * numSlots + k], polyPacked[c][k])
+          << "diag " << c << " slot " << k;
+    }
+  }
+}
+
+TEST(UtilsTest, TestTricyclicDiagonalRelationMatchesClosedForm) {
+  MLIRContext context;
+  constexpr int64_t h = 2;
+  constexpr int64_t n = 5;
+  constexpr int64_t p = 7;
+  constexpr int64_t ctBatch = 1;
+  constexpr int64_t ctStride = 3;
+  constexpr int64_t numSlots = 128;
+  RankedTensorType weightType =
+      RankedTensorType::get({h, n, p}, Float32Type::get(&context));
+  IntegerRelation rel = getTricyclicDiagonalRelation(
+      weightType, /*contractionDim=*/1, ctStride, numSlots);
+
+  std::vector<float> flat(h * n * p);
+  for (int64_t i = 0; i < h * n * p; ++i) flat[i] = static_cast<float>(i + 1);
+
+  std::function<float(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& pt) {
+        return flat[pt[0] * n * p + pt[1] * p + pt[2]];
+      };
+
+  std::vector<std::vector<float>> polyPacked =
+      evaluateLayout<float>(rel, getValueFn);
+
+  std::vector<float> closedFormPacked = packTricyclicDiagonalClosedForm(
+      weightType.getShape(), flat, ctBatch, ctStride, /*freeDimPaddedSize=*/p,
+      /*numDiags=*/n, numSlots);
+
+  ASSERT_EQ(polyPacked.size(), static_cast<size_t>(n));
+  for (int64_t c = 0; c < n; ++c) {
+    ASSERT_EQ(polyPacked[c].size(), static_cast<size_t>(numSlots));
+    for (int64_t k = 0; k < numSlots; ++k) {
+      EXPECT_EQ(closedFormPacked[c * numSlots + k], polyPacked[c][k])
+          << "diag " << c << " slot " << k;
+    }
+  }
+}
+
+TEST(UtilsTest, TestTricyclicDiagonalRelationMatchesClosedFormPtCt) {
+  MLIRContext context;
+  constexpr int64_t h = 2;
+  constexpr int64_t p = 7;  // free dimension (wShape[1])
+  constexpr int64_t n = 5;  // contraction dimension (wShape[2])
+  constexpr int64_t ctBatch = 1;
+  constexpr int64_t ctStride = 3;
+  constexpr int64_t numSlots = 128;
+  RankedTensorType weightType =
+      RankedTensorType::get({h, p, n}, Float32Type::get(&context));
+  IntegerRelation rel = getTricyclicDiagonalRelation(
+      weightType, /*contractionDim=*/2, ctStride, numSlots);
+
+  std::vector<float> flat(h * p * n);
+  for (int64_t i = 0; i < h * p * n; ++i) flat[i] = static_cast<float>(i + 1);
+
+  std::function<float(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& pt) {
+        return flat[pt[0] * p * n + pt[1] * n + pt[2]];
+      };
+
+  std::vector<std::vector<float>> polyPacked =
+      evaluateLayout<float>(rel, getValueFn);
+
+  std::vector<float> closedFormPacked = packTricyclicDiagonalClosedForm(
+      weightType.getShape(), flat, ctBatch, ctStride, /*freeDimPaddedSize=*/p,
+      /*numDiags=*/n, numSlots, /*contractionDim=*/2);
+
+  ASSERT_EQ(polyPacked.size(), static_cast<size_t>(n));
+  for (int64_t c = 0; c < n; ++c) {
+    ASSERT_EQ(polyPacked[c].size(), static_cast<size_t>(numSlots));
+    for (int64_t k = 0; k < numSlots; ++k) {
+      EXPECT_EQ(closedFormPacked[c * numSlots + k], polyPacked[c][k])
+          << "diag " << c << " slot " << k;
+    }
+  }
+}
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

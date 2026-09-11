@@ -10,13 +10,14 @@
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
@@ -176,6 +177,15 @@ struct TensorExtToTensor
     patterns.add<ConvertRotateOp>(context);
 
     (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
+
+    getOperation()->walk([](Operation* op) {
+      op->removeAttr("tensor_ext.padding");
+      if (auto funcOp = dyn_cast<FunctionOpInterface>(op)) {
+        for (unsigned i = 0; i < funcOp.getNumArguments(); ++i) {
+          funcOp.removeArgAttr(i, "tensor_ext.padding");
+        }
+      }
+    });
   }
 };
 

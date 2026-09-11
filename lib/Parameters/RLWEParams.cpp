@@ -18,8 +18,13 @@
 namespace mlir {
 namespace heir {
 
-// from OpenFHE, the empirical way to select dnum based on level
+// Empirical RNS decomposition digits (dnum) based on circuit level depth.
+// For deep circuits (level >= 16), dnum=4 sizes auxiliary P primes compactly
+// to maintain 128-bit quantum security within standard ring dimensions.
 int computeDnum(int level) {
+  if (level >= 16) {
+    return 4;
+  }
   if (level > 3) {
     return 3;
   }

@@ -70,6 +70,13 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
       "Unroll kernel implementations."
     >,
     Option<
+      "enableClosedFormPacking",
+      "enable-closed-form-packing",
+      "bool",
+      /*default=*/"true",
+      "Use closed-form arithmetic for constant layout packing instead of polyhedral integer set evaluation."
+    >,
+    Option<
       "codegenStrategy",
       "codegen-strategy",
       "mlir::heir::CodegenStrategy",

@@ -68,6 +68,58 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
   }];
 }
 
+def TensorExt_PaddingAttr : TensorExt_Attr<"Padding", "padding"> {
+  let summary = "The logical vs padded shape of a padded tensor value.";
+  let description = [{
+    Records that a tensor-typed value semantically contains a logical tensor
+    of shape `logical_shape` embedded at the low corner of its actual
+    (padded) type of shape `padded_shape`, i.e. padding is trailing along
+    every dimension. When `zero_padded` is true, every entry outside the
+    logical region is exactly zero; otherwise the contents of the padding
+    region are unspecified.
+
+    This attribute is stamped on ops by the propagate-padding pass and
+    consumed by lowerings that must not let padding contaminate data-
+    dependent computations (e.g. softmax row sums and row statistics).
+
+    Example:
+
+    ```mlir
+    %0 = linalg.batch_matmul ... {tensor_ext.padding =
+        #tensor_ext.padding<logicalShape = array<i64: 2, 32, 32>,
+                            paddedShape = array<i64: 2, 33, 33>,
+                            zeroPadded = true>}
+    ```
+  }];
+  let parameters = (ins
+    "::mlir::DenseI64ArrayAttr":$logicalShape,
+    "::mlir::DenseI64ArrayAttr":$paddedShape,
+    "::mlir::BoolAttr":$zeroPadded
+  );
+
+  let builders = [
+    AttrBuilder<(ins "::llvm::ArrayRef<int64_t>":$logicalShape,
+                     "::llvm::ArrayRef<int64_t>":$paddedShape,
+                     "bool":$zeroPadded), [{
+      return $_get($_ctxt, DenseI64ArrayAttr::get($_ctxt, logicalShape),
+                   DenseI64ArrayAttr::get($_ctxt, paddedShape),
+                   BoolAttr::get($_ctxt, zeroPadded));
+    }]>,
+  ];
+
+  let extraClassDeclaration = [{
+    ::llvm::ArrayRef<int64_t> logical() const {
+      return getLogicalShape().asArrayRef();
+    }
+    ::llvm::ArrayRef<int64_t> padded() const {
+      return getPaddedShape().asArrayRef();
+    }
+    bool isZeroPadded() const { return getZeroPadded().getValue(); }
+    // True when no dimension actually carries padding.
+    bool isTrivial() const { return logical() == padded(); }
+  }];
+}
+
 def TensorExt_OriginalTypeAttr : TensorExt_Attr<"OriginalType", "original_type"> {
   let summary = "The original type of a secret tensor whose layout has been converted to ciphertext semantics.";
   let description = [{

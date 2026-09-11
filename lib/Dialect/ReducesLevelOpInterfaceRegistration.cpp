@@ -25,9 +25,12 @@ struct LinalgReducesLevelOpInterfaceModel
     SmallVector<OpOperand*> result;
     auto dpsOp = cast<DestinationStyleOpInterface>(op);
     for (OpOperand* operand : dpsOp.getDpsInputOperands()) {
-      if (isSecret(operand->get(), solver)) {
+      if (!solver || isSecret(operand->get(), solver)) {
         result.push_back(operand);
       }
+    }
+    if (result.empty() && !dpsOp.getDpsInputOperands().empty()) {
+      result.push_back(dpsOp.getDpsInputOperands()[0]);
     }
     return result;
   }

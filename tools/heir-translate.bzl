@@ -30,6 +30,7 @@ def _heir_translate_impl(ctx):
         mnemonic = "HeirTranslate",
         arguments = [args],
         executable = ctx.executable._heir_translate_binary,
+        tools = [ctx.executable._heir_translate_binary],
         toolchain = None,
     )
 

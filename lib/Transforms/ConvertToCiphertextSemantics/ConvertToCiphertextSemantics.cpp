@@ -59,22 +59,24 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/AsmState.h"  // from @llvm-project  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/DialectResourceBlobManager.h"  // from @llvm-project  // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -140,7 +142,7 @@ IntegerRelation restrictRelationToSlice(const IntegerRelation& relation,
 // extract the subset ciphertexts relevant to the layout of the output
 // slice.
 Operation* remapAndExtractResult(ImplicitLocOpBuilder& builder, Value input,
-                                 LayoutAttr resultLayout,
+                                 Attribute resultLayout,
                                  RankedTensorType resultType) {
   assert(resultType.getRank() == 2 && "Expected 2D ciphertext semantic type");
   auto remapOp = tensor_ext::RemapOp::create(builder, input, resultLayout);
@@ -277,6 +279,56 @@ void setMaterializedAttr(ArrayRef<Operation*> ops) {
   }
 }
 
+std::optional<std::vector<float>> evaluateCleartextFloats(Value value,
+                                                          int depth = 0) {
+  if (depth > 8) return std::nullopt;
+  auto tensorType = dyn_cast<RankedTensorType>(value.getType());
+  if (!tensorType || !tensorType.getElementType().isF32()) return std::nullopt;
+  ElementsAttr attr;
+  if (matchPattern(value, m_Constant(&attr))) {
+    std::vector<float> flat;
+    flat.reserve(tensorType.getNumElements());
+    if (auto dense = dyn_cast<DenseElementsAttr>(attr)) {
+      if (dense.isSplat()) {
+        flat.assign(tensorType.getNumElements(),
+                    dense.getSplatValue<APFloat>().convertToFloat());
+      } else {
+        for (APFloat v : dense.getValues<APFloat>())
+          flat.push_back(v.convertToFloat());
+      }
+      return flat;
+    }
+    if (auto resource = dyn_cast<DenseResourceElementsAttr>(attr)) {
+      AsmResourceBlob* blob = resource.getRawHandle().getBlob();
+      if (!blob) return std::nullopt;
+      ArrayRef<float> data = blob->getDataAs<float>();
+      flat.assign(data.begin(), data.end());
+      return flat;
+    }
+    return std::nullopt;
+  }
+  Operation* def = value.getDefiningOp();
+  if (!def || def->getNumOperands() != 2 ||
+      def->getOperand(0).getType() != value.getType() ||
+      def->getOperand(1).getType() != value.getType())
+    return std::nullopt;
+  auto lhs = evaluateCleartextFloats(def->getOperand(0), depth + 1);
+  if (!lhs) return std::nullopt;
+  auto rhs = evaluateCleartextFloats(def->getOperand(1), depth + 1);
+  if (!rhs) return std::nullopt;
+  std::vector<float>& out = *lhs;
+  if (isa<arith::MulFOp>(def)) {
+    for (size_t i = 0; i < out.size(); ++i) out[i] *= (*rhs)[i];
+  } else if (isa<arith::AddFOp>(def)) {
+    for (size_t i = 0; i < out.size(); ++i) out[i] += (*rhs)[i];
+  } else if (isa<arith::SubFOp>(def)) {
+    for (size_t i = 0; i < out.size(); ++i) out[i] -= (*rhs)[i];
+  } else {
+    return std::nullopt;
+  }
+  return out;
+}
+
 Type maybeExtractSecretType(Type type) {
   if (auto secretType = dyn_cast<secret::SecretType>(type)) {
     return secretType.getValueType();
@@ -365,11 +417,13 @@ class ConvertAssignLayout
  public:
   ConvertAssignLayout(const ContextAwareTypeConverter& typeConverter,
                       mlir::MLIRContext* context, int64_t minSlotCount,
-                      CodegenStrategy strategy)
+                      CodegenStrategy strategy,
+                      bool enableClosedFormPacking = true)
       : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(
             typeConverter, context),
         minSlotCount(minSlotCount),
-        strategy(strategy) {}
+        strategy(strategy),
+        enableClosedFormPacking(enableClosedFormPacking) {}
 
   LogicalResult matchAndRewrite(
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
@@ -441,9 +495,47 @@ class ConvertAssignLayout
       createdOps.push_back(createdOp);
     };
 
-    auto res =
-        implementAssignLayout(input, layout, minSlotCount, b, createdOpCallback,
-                              op.getDomainSchedule(), strategy);
+    FailureOr<Value> res = failure();
+    auto inputTensorType = dyn_cast<RankedTensorType>(input.getType());
+    auto targetLayoutAttr = dyn_cast<LayoutAttr>(layout);
+    DenseI64ArrayAttr diagParams = nullptr;
+    if (enableClosedFormPacking && inputTensorType && targetLayoutAttr &&
+        inputTensorType.getElementType().isF32()) {
+      diagParams = op.getPtctDiagParamsAttr();
+      if (!diagParams) {
+        diagParams = op->getAttrOfType<DenseI64ArrayAttr>(
+            tensor_ext::TensorExtDialect::kPtCtDiagParamsAttrName);
+      }
+    }
+    std::optional<std::vector<float>> weightValues;
+    if (diagParams) {
+      weightValues = evaluateCleartextFloats(op.getValue());
+    }
+    if (weightValues && diagParams) {
+      auto targetType = cast<RankedTensorType>(materializeLayout(
+          inputTensorType.getElementType(), targetLayoutAttr, minSlotCount));
+      int64_t numDiags = targetType.getDimSize(0);
+      int64_t numSlots = targetType.getDimSize(1);
+      ArrayRef<int64_t> wShape = inputTensorType.getShape();
+      std::vector<float>& flat = *weightValues;
+      if (static_cast<int64_t>(flat.size()) ==
+          inputTensorType.getNumElements()) {
+        int64_t contractionDim = diagParams.size() > 3 ? diagParams[3] : 1;
+        std::vector<float> packed = packDiagonalWeightClosedForm(
+            wShape, flat, /*ctBatch=*/diagParams[0], /*ctStride=*/diagParams[1],
+            /*paddedCols=*/diagParams[2], numDiags, numSlots, contractionDim);
+        auto packedConst = arith::ConstantOp::create(
+            b, targetType,
+            DenseElementsAttr::get(targetType, ArrayRef<float>(packed)));
+        createdOpCallback(packedConst);
+        res = packedConst.getResult();
+      }
+    }
+    if (failed(res)) {
+      res = implementAssignLayout(input, layout, minSlotCount, b,
+                                  createdOpCallback, op.getDomainSchedule(),
+                                  strategy);
+    }
     if (failed(res)) {
       // Clean up split blocks if implementation failed
       rewriter.mergeBlocks(nextBlock, scratchBlock);
@@ -491,6 +583,7 @@ class ConvertAssignLayout
  private:
   int64_t minSlotCount;
   CodegenStrategy strategy;
+  bool enableClosedFormPacking;
 
   func::FuncOp outlineAssignLayoutFunction(
       tensor_ext::AssignLayoutOp op, Value originalInput, Value originalResult,
@@ -555,21 +648,42 @@ class ConvertConvertLayout
       return failure();
     }
 
-    // This is persisted as an operation rather than lowered eagerly to a shift
-    // network so as to allow VosVosErkinShiftNetworks to cache its work across
-    // multiple instances of the same conversion.
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto resultCiphertextSemanticType = cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResult().getType(), toLayout));
     std::shared_ptr<IntegerRelation> composedLayout =
         fromLayout.getIntegerRelation().clone();
     composedLayout->inverse();
     composedLayout->compose(toLayout.getIntegerRelation());
 
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     LayoutAttr newLayoutAttr =
         LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout);
-    auto resultCiphertextSemanticType = cast<RankedTensorType>(
-        getTypeConverter()->convertType(op.getResult().getType(), toLayout));
-    auto remapAndExtract = remapAndExtractResult(
-        b, adaptor.getValue(), newLayoutAttr, resultCiphertextSemanticType);
+    Attribute mappingAttr = newLayoutAttr;
+
+    Value remapInput = adaptor.getValue();
+    auto inputPackedType = cast<RankedTensorType>(remapInput.getType());
+    if (inputPackedType.getDimSize(0) <
+        resultCiphertextSemanticType.getDimSize(0)) {
+      auto grownType =
+          RankedTensorType::get({resultCiphertextSemanticType.getDimSize(0),
+                                 inputPackedType.getDimSize(1)},
+                                inputPackedType.getElementType());
+      auto zeros =
+          arith::ConstantOp::create(b, grownType, b.getZeroAttr(grownType));
+      SmallVector<OpFoldResult> offsets(2, b.getIndexAttr(0));
+      SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
+      SmallVector<OpFoldResult> sizes = {
+          b.getIndexAttr(inputPackedType.getDimSize(0)),
+          b.getIndexAttr(inputPackedType.getDimSize(1))};
+      auto grown = tensor::InsertSliceOp::create(b, remapInput, zeros, offsets,
+                                                 sizes, strides);
+      setMaterializedAttr(zeros);
+      setMaterializedAttr(grown);
+      remapInput = grown.getResult();
+    }
+
+    Operation* remapAndExtract = remapAndExtractResult(
+        b, remapInput, mappingAttr, resultCiphertextSemanticType);
 
     setMaterializedAttr(remapAndExtract);
     setAttributeAssociatedWith(remapAndExtract->getResults()[0],
@@ -701,16 +815,69 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
  public:
   using ConversionBase<linalg::ReduceOp>::ConversionBase;
 
-  void rotateAndReduceKernel(linalg::ReduceOp op, OpAdaptor adaptor,
-                             ContextAwareConversionPatternRewriter& rewriter,
-                             Operation* innerOp) const {
+  LogicalResult rotateAndReduceKernel(
+      linalg::ReduceOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter,
+      Operation* innerOp) const {
     auto input = op.getInputs()[0];
 
-    auto originalShape = cast<RankedTensorType>(input.getType()).getShape();
+    auto inputType = cast<RankedTensorType>(input.getType());
+    auto originalShape = inputType.getShape();
     // Pre-conditions enforce that the reduction operation occurs along the
     // inputs single axis
     unsigned steps = originalShape[op.getDimensions()[0]];
     unsigned period = 1;
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto convertedType =
+        getTypeConverter()->convertType(op.getResult(0).getType(), layoutAttr);
+    assert(convertedType && "expected ranked tensor type");
+    int64_t numSlots =
+        cast<RankedTensorType>(adaptor.getInputs()[0].getType()).getDimSize(1);
+
+    // In-layout strided reduce: infer period from bicyclic or tricyclic layout.
+    int64_t dim = op.getDimensions()[0];
+    auto maybeInputLayout =
+        getTypeConverter()->getContextualAttr(adaptor.getInputs()[0]);
+    if (failed(maybeInputLayout)) {
+      return op.emitOpError("input tensor has no assigned layout");
+    }
+    auto inputLayout = dyn_cast<LayoutAttr>(maybeInputLayout.value());
+    if (!inputLayout) {
+      return op.emitOpError("input tensor layout attribute is invalid");
+    }
+
+    auto expected = convertLayoutForReduce(inputLayout, op.getDimensions());
+    if (cast<LayoutAttr>(op->getAttr(kLayoutAttrName)) != expected) {
+      return op.emitOpError()
+             << "result layout does not match the reduce of the input "
+                "layout; propagation and conversion disagree (got "
+             << op->getAttr(kLayoutAttrName) << " expected " << expected << ")";
+    }
+
+    const IntegerRelation& inputRel = inputLayout.getIntegerRelation();
+    bool isCyclicInput = isRelationCyclic(inputType, numSlots, inputRel);
+    if (inputType.getRank() == 2 && dim == 1) {
+      if (isCyclicInput) {
+        period = originalShape[0];
+      } else if (!isRelationRowMajor(inputType, numSlots, inputRel)) {
+        return op.emitOpError(
+            "input layout is neither row-major nor the cyclic congruence");
+      }
+    } else if (inputType.getRank() == 3 && dim == 2) {
+      if (isCyclicInput) {
+        period = originalShape[0] * originalShape[1];
+      } else if (!isRelationRowMajor(inputType, numSlots, inputRel)) {
+        return op.emitOpError(
+            "input layout is neither row-major nor the cyclic congruence");
+      }
+    } else if (!isRelationRowMajor(inputType, numSlots, inputRel)) {
+      return op.emitOpError(
+          "unsupported reduce dimension for non-row-major input layout");
+    } else if (dim != inputType.getRank() - 1) {
+      return op.emitOpError(
+          "row-major reduce only supported along innermost dimension");
+    }
 
     SSAValue vectorLeaf(adaptor.getInputs()[0]);
     kernel::DagType dagType = kernel::mlirTypeToDagType(input.getType());
@@ -720,16 +887,52 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
                                  innerOp->getName().getStringRef().str());
     rewriter.setInsertionPointAfter(op);
 
-    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto convertedType =
-        getTypeConverter()->convertType(input.getType(), layoutAttr);
-
     Value finalOutput = materializeKernel(
         rewriter, op.getLoc(), implementedKernel, convertedType, layoutAttr);
 
     // Add the initial  value.
     Value result = adaptor.getInits()[0];
-    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
+    if (period == 1) {
+      addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
+      return success();
+    }
+
+    // In-layout strided reduce: the rotation circuit (period P_kept over
+    // `steps` hops) wraps garbage into the tail exactly like the diagonal
+    // matmul kernels, so it joins the same valid-prefix replication
+    // contract. The result's content is periodic with period P_kept (the
+    // sum at slot s depends only on s mod P_kept: the strided hops sweep
+    // every reduced residue), so P_kept is the replication period.
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, cast<LayoutAttr>(layoutAttr));
+    setMaterializedAttr(addBias);
+    auto ctSemanticResultType =
+        cast<RankedTensorType>(addBias->getResult(0).getType());
+    int64_t reach = period * (steps - 1);
+    int64_t validPrefix = ctSemanticResultType.getDimSize(1) - reach;
+    LLVM_DEBUG(llvm::dbgs()
+               << "Strided reduce valid prefix: " << validPrefix << "\n");
+    if (validPrefix < period) {
+      return op.emitOpError()
+             << "strided reduce reach " << reach << " exceeds the " << numSlots
+             << "-slot budget (validPrefix " << validPrefix << " < period "
+             << period << ")";
+    }
+    // By CRT packing, numSlots >= period * steps.
+    // Since reach = period * (steps - 1),
+    // validPrefix = numSlots - reach >= period * steps - period * (steps - 1) =
+    // period.
+    assert(
+        validPrefix >= period &&
+        "valid prefix must be at least period to allow periodic replication");
+    Operation* replicated = replicateValidPrefixOfResult(
+        b, addBias->getResult(0), cast<LayoutAttr>(layoutAttr),
+        /*inputPeriod=*/period, validPrefix);
+    setMaterializedAttr(replicated);
+    rewriter.replaceOp(op, replicated);
+    return success();
   }
 
   LogicalResult matchAndRewrite(
@@ -771,8 +974,7 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
           op, "missing new layout attribute for input");
 
     // Based on ImplementRotateAndReduce
-    rotateAndReduceKernel(op, adaptor, rewriter, innerOp);
-    return success();
+    return rotateAndReduceKernel(op, adaptor, rewriter, innerOp);
   }
 };
 
@@ -3334,7 +3536,7 @@ struct ConvertToCiphertextSemantics
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
                                             unrollKernels);
     patterns.add<ConvertAssignLayout>(typeConverter, context, minSlotCount,
-                                      codegenStrategy);
+                                      codegenStrategy, enableClosedFormPacking);
 
     ConversionConfig config;
     config.buildMaterializations = false;
