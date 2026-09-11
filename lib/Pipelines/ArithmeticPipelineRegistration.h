@@ -22,9 +22,9 @@ enum CiphertextManagementStyle { greedy, orbitIlp };
 struct LoopOptions : public PassPipelineOptions<LoopOptions> {
   PassOptions::Option<bool> experimentalDisableLoopUnroll{
       *this, "experimental-disable-loop-unroll",
-      llvm::cl::desc("Experimental: disable loop unroll, may break analyses "
-                     "(default to false)"),
-      llvm::cl::init(false)};
+      llvm::cl::desc("Disable loop unroll "
+                     "(default to true)"),
+      llvm::cl::init(true)};
 };
 
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,

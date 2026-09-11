@@ -14,12 +14,14 @@ go_test(
 # For Google-internal reasons we must separate the go_test rules from the macro
 # above.
 
+# TODO(#2257): Loop unrolling is required because convert-to-ciphertext-semantics
+# does not support dynamic extraction indices from ciphertexts.
 heir_lattigo_lib(
     name = "simple_sum",
     go_library_name = "simplesum",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=min-slot-count=1024",
+        "--mlir-to-bgv=min-slot-count=1024 experimental-disable-loop-unroll=false",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",

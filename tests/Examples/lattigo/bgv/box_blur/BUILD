@@ -5,12 +5,14 @@ load("@rules_go//go:def.bzl", "go_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
+# TODO(#2257): Loop unrolling is required because convert-to-ciphertext-semantics
+# does not support dynamic extraction indices from ciphertexts.
 heir_lattigo_lib(
     name = "box_blur",
     go_library_name = "boxblur",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=plaintext-modulus=786433 min-slot-count=2048",
+        "--mlir-to-bgv=plaintext-modulus=786433 min-slot-count=2048 experimental-disable-loop-unroll=false",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:box_blur_16x16.mlir",

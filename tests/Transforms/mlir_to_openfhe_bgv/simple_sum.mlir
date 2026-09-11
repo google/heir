@@ -1,4 +1,6 @@
-// RUN: heir-opt --mlir-to-bgv='min-slot-count=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
+// TODO(#2257): Loop unrolling is required because convert-to-ciphertext-semantics
+// does not support dynamic extraction indices from ciphertexts.
+// RUN: heir-opt --mlir-to-bgv='min-slot-count=32 experimental-disable-loop-unroll=false' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
 
 // CHECK: @simple_sum
 // CHECK: openfhe
