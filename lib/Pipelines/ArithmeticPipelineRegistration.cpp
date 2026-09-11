@@ -48,6 +48,7 @@
 #include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/GatherZeroEncryptions/GatherZeroEncryptions.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
@@ -619,6 +620,7 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(preprocessing::createPreprocessingToOpenfhe());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
+    pm.addPass(createGatherZeroEncryptions());
 
     auto configureCryptoContextOptions =
         openfhe::ConfigureCryptoContextOptions{};
@@ -696,6 +698,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     // Bufferize without deallocation because golang has garbage collection.
     prepareForBufferize(pm);
     oneShotBufferize(pm, /*includeDeallocation=*/false);
+    pm.addPass(createGatherZeroEncryptions());
 
     // Lower Linalg to loops
     pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
