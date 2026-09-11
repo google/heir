@@ -191,6 +191,10 @@ struct PlaintextBackendOptions
       llvm::cl::desc("The size of the plaintexts; i.e., the number of slots "
                      "to use for packing."),
       llvm::cl::init(1024)};
+  PassOptions::Option<bool> experimentalDisableLoopUnroll{
+      *this, "experimental-disable-loop-unroll",
+      llvm::cl::desc("Disable loop unroll (default to true)"),
+      llvm::cl::init(true)};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {

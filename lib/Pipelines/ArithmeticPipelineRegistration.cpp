@@ -254,6 +254,8 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
   mlirToRLWEPipelineOptions.minSlotCount = options.plaintextSize;
+  mlirToRLWEPipelineOptions.experimentalDisableLoopUnroll =
+      options.experimentalDisableLoopUnroll;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
   // Insert debug handler calls and/or lower debug.validate
