@@ -7,8 +7,14 @@ package(
 
 cc_library(
     name = "ILPBootstrapPlacementAnalysis",
-    srcs = ["ILPBootstrapPlacementAnalysis.cpp"],
-    hdrs = ["ILPBootstrapPlacementAnalysis.h"],
+    srcs = [
+        "ILPBootstrapPlacementAnalysis.cpp",
+        "OpGrouping.cpp",
+    ],
+    hdrs = [
+        "ILPBootstrapPlacementAnalysis.h",
+        "OpGrouping.h",
+    ],
     deps = [
         "@com_google_absl//absl/status:statusor",
         "@com_google_ortools//ortools/math_opt/cpp:math_opt",
