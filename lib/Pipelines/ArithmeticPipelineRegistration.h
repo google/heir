@@ -20,11 +20,11 @@ enum RLWEScheme { ckksScheme, bgvScheme, bfvScheme };
 enum CiphertextManagementStyle { greedy, orbitIlp };
 
 struct LoopOptions : public PassPipelineOptions<LoopOptions> {
-  PassOptions::Option<bool> experimentalDisableLoopUnroll{
-      *this, "experimental-disable-loop-unroll",
-      llvm::cl::desc("Disable loop unroll "
-                     "(default to true)"),
-      llvm::cl::init(true)};
+  PassOptions::Option<bool> unrollFheKernelLoops{
+      *this, "unroll-fhe-kernel-loops",
+      llvm::cl::desc("Unroll FHE kernel loops "
+                     "(default to false)"),
+      llvm::cl::init(false)};
 };
 
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
@@ -191,10 +191,10 @@ struct PlaintextBackendOptions
       llvm::cl::desc("The size of the plaintexts; i.e., the number of slots "
                      "to use for packing."),
       llvm::cl::init(1024)};
-  PassOptions::Option<bool> experimentalDisableLoopUnroll{
-      *this, "experimental-disable-loop-unroll",
-      llvm::cl::desc("Disable loop unroll (default to true)"),
-      llvm::cl::init(true)};
+  PassOptions::Option<bool> unrollFheKernelLoops{
+      *this, "unroll-fhe-kernel-loops",
+      llvm::cl::desc("Unroll FHE kernel loops (default to false)"),
+      llvm::cl::init(false)};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {

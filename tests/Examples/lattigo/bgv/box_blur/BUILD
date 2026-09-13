@@ -12,7 +12,7 @@ heir_lattigo_lib(
     go_library_name = "boxblur",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=plaintext-modulus=786433 min-slot-count=2048 experimental-disable-loop-unroll=false",
+        "--mlir-to-bgv=plaintext-modulus=786433 min-slot-count=2048 unroll-fhe-kernel-loops=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:box_blur_16x16.mlir",

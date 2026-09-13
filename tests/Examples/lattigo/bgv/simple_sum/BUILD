@@ -21,7 +21,7 @@ heir_lattigo_lib(
     go_library_name = "simplesum",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=min-slot-count=1024 experimental-disable-loop-unroll=false",
+        "--mlir-to-bgv=min-slot-count=1024 unroll-fhe-kernel-loops=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",

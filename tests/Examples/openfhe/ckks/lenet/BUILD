@@ -8,7 +8,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 #     generated_lib_header = "lenet_openfhe_lib.inc.h",
 #     heir_opt_flags = [
 #         "--annotate-module=backend=openfhe scheme=ckks",
-#         "--torch-linalg-to-ckks=min-slot-count=1024 greedy-level-budget=15 greedy-modulus-switch-after-mul=true experimental-disable-loop-unroll=true first-mod-bits=30 scaling-mod-bits=24",
+#         "--torch-linalg-to-ckks=min-slot-count=1024 greedy-level-budget=15 greedy-modulus-switch-after-mul=true unroll-fhe-kernel-loops=false first-mod-bits=30 scaling-mod-bits=24",
 #         "--scheme-to-openfhe",
 #     ],
 #     mlir_src = "lenet.mlir",

@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "conv1dncwchannelpadding",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=min-slot-count=1024 experimental-disable-loop-unroll=true",
+        "--mlir-to-ckks=min-slot-count=1024 unroll-fhe-kernel-loops=false",
         "--scheme-to-lattigo",
     ],
     mlir_src = "conv1d_ncw_channel_padding.mlir",

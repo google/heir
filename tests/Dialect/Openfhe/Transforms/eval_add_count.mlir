@@ -1,6 +1,6 @@
 // TODO(#2257): Loop unrolling is required because convert-to-ciphertext-semantics
 // does not support dynamic extraction indices from ciphertexts.
-// RUN: heir-opt --mlir-to-secret-arithmetic='experimental-disable-loop-unroll=false' --secret-insert-mgmt-bgv --openfhe-count-add-and-key-switch %s | FileCheck %s
+// RUN: heir-opt --mlir-to-secret-arithmetic='unroll-fhe-kernel-loops=true' --secret-insert-mgmt-bgv --openfhe-count-add-and-key-switch %s | FileCheck %s
 
 // CHECK: #mgmt.openfhe_params<
 // CHECK-SAME: evalAddCount = 8

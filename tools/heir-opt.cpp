@@ -546,7 +546,7 @@ int main(int argc, char** argv) {
       "tensor_ext.rotate",
       [](OpPassManager& pm, const LoopOptions& options) {
         ::mlir::heir::hecoSIMDVectorizerPipelineBuilder(
-            pm, options.experimentalDisableLoopUnroll);
+            pm, !options.unrollFheKernelLoops);
       });
 
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(

@@ -11,7 +11,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "simple_sum_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bgv",
-        "--mlir-to-bgv=min-slot-count=8192 experimental-disable-loop-unroll=false",
+        "--mlir-to-bgv=min-slot-count=8192 unroll-fhe-kernel-loops=true",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",

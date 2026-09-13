@@ -1,5 +1,5 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heco-simd-vectorizer='experimental-disable-loop-unroll=false' %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer='unroll-fhe-kernel-loops=true' %s | FileCheck %s
 
 module  {
   // CHECK: @box_blur

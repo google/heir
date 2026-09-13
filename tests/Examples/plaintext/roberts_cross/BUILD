@@ -8,7 +8,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 llvm_runner_test(
     name = "roberts_cross",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-size=4096 experimental-disable-loop-unroll=false",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 unroll-fhe-kernel-loops=true",
     ],
     main_c_src = "roberts_cross_test.cpp",
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
@@ -18,7 +18,7 @@ llvm_runner_test(
 llvm_runner_test(
     name = "roberts_cross_mod_786433",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433 experimental-disable-loop-unroll=false",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433 unroll-fhe-kernel-loops=true",
     ],
     main_c_src = "roberts_cross_mod_test.cpp",
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
@@ -29,7 +29,7 @@ llvm_runner_test(
     name = "roberts_cross_mod_65537",
     defines = ["EXPECT_FAILURE"],
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=65537 experimental-disable-loop-unroll=false",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=65537 unroll-fhe-kernel-loops=true",
     ],
     main_c_src = "roberts_cross_mod_test.cpp",
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",

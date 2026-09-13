@@ -11,7 +11,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "roberts_cross_16x16_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bgv",
-        "--mlir-to-bgv=min-slot-count=4096 plaintext-modulus=536903681 experimental-disable-loop-unroll=false",
+        "--mlir-to-bgv=min-slot-count=4096 plaintext-modulus=536903681 unroll-fhe-kernel-loops=true",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",

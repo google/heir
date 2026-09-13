@@ -11,7 +11,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "box_blur_16x16_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bgv",
-        "--mlir-to-bgv=plaintext-modulus=786433 experimental-disable-loop-unroll=false",
+        "--mlir-to-bgv=plaintext-modulus=786433 unroll-fhe-kernel-loops=true",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:box_blur_16x16.mlir",
