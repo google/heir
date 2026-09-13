@@ -241,6 +241,20 @@ static Value rescaleToUnitInterval(PatternRewriter& rewriter, Location loc,
   return x;
 }
 
+// Ops may pin a specific approximation-construction method with this
+// string attribute (mirroring the secret.kernel practice of letting the
+// input IR fix an implementation the compiler must respect):
+// "chebyshev" selects the Caratheodory-Fejer/Chebyshev solver,
+// "taylor" the Taylor-by-repeated-squaring exp pattern. Absent means the
+// existing benefit/gate-based selection applies.
+constexpr ::llvm::StringLiteral kApproximationMethodAttrName =
+    "approximation_method";
+
+inline bool methodAttrAllows(Operation* op, ::llvm::StringRef method) {
+  auto attr = op->getAttrOfType<StringAttr>(kApproximationMethodAttrName);
+  return !attr || attr.getValue() == method;
+}
+
 template <typename OpTy>
 struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
   ConvertUnaryOp(mlir::MLIRContext* context, DataFlowSolver* solver,
@@ -256,6 +270,9 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
  public:
   LogicalResult matchAndRewrite(OpTy op,
                                 PatternRewriter& rewriter) const override {
+    if (!methodAttrAllows(op, "chebyshev"))
+      return rewriter.notifyMatchFailure(
+          op, "op pins a different approximation_method");
     if (!mlir::heir::isSecret(op.getOperand(), solver)) {
       return rewriter.notifyMatchFailure(op, "operand is not secret");
     }
@@ -453,6 +470,9 @@ struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
 
   LogicalResult matchAndRewrite(math::ExpOp op,
                                 PatternRewriter& rewriter) const override {
+    if (!methodAttrAllows(op, "taylor"))
+      return rewriter.notifyMatchFailure(
+          op, "op pins a different approximation_method");
     Location loc = op.getLoc();
     Value operand = op.getOperand();
     if (!mlir::heir::isSecret(operand, solver)) {

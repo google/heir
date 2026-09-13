@@ -33,6 +33,22 @@ def MathExt_SigmoidOp : MathExt_Op<"sigmoid", [Pure, ElementwiseMappable, SameOp
   let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
+def MathExt_RecipOp : MathExt_Op<"recip", [Pure, ElementwiseMappable, SameOperandsAndResultType]> {
+  let summary = "Returns the elementwise multiplicative inverse of the input";
+  let description = [{
+    Computes 1/x for each element of the input. Unlike a general
+    `arith.divf`, a unary reciprocal on a known positive domain admits
+    FHE-friendly lowerings (e.g. Goldschmidt iteration, mult/add only);
+    the expected domain is communicated via `domain_lower`/`domain_upper`
+    attributes like the `math` ops consumed by polynomial approximation.
+    The behavior is undefined for inputs outside the annotated domain,
+    and in particular at zero.
+  }];
+  let arguments = (ins FloatLike:$value);
+  let results = (outs FloatLike:$result);
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+}
+
 def 1DTo3DFloatTensor : TensorRankOf<[AnyFloat], [1, 2, 3]>;
 
 def MathExt_SoftmaxOp : MathExt_Op<"softmax", [Pure, SameOperandsAndResultType]> {
