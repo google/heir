@@ -28,6 +28,7 @@ cc_library(
         ":pass_inc_gen",
         ":patterns_inc_gen",
         "@heir//lib/Dialect/MathExt/IR:Dialect",
+        "@heir//lib/Transforms/LoweringHistory",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

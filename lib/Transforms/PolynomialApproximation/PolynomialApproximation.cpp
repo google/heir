@@ -12,6 +12,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Transforms/LoweringHistory/LoweringHistory.h"
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
@@ -292,7 +293,11 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
     TypedChebyshevPolynomialAttr polyAttr =
         TypedChebyshevPolynomialAttr::get(polyType, poly);
     auto evalOp =
-        rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, op.getOperand());
+        EvalOp::create(rewriter,
+                       getLoweringLocation(op, "polynomial-approximation",
+                                           EvalOp::getOperationName()),
+                       polyAttr, op.getOperand());
+    rewriter.replaceOp(op, evalOp.getResult());
     // These attributes need to be preserved when the polynomial is in the
     // Chebyshev basis, so that later passes can apply domain rescaling
     // properly.
@@ -425,7 +430,11 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     TypedChebyshevPolynomialAttr polyAttr =
         TypedChebyshevPolynomialAttr::get(polyType, poly);
     auto evalOp =
-        rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, nonConstOperand);
+        EvalOp::create(rewriter,
+                       getLoweringLocation(op, "polynomial-approximation",
+                                           EvalOp::getOperationName()),
+                       polyAttr, nonConstOperand);
+    rewriter.replaceOp(op, evalOp.getResult());
     // These attributes need to be preserved when the polynomial is in the
     // Chebyshev basis, so that later passes can apply domain rescaling
     // properly.

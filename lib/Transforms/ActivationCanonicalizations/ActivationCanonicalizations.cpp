@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "lib/Dialect/MathExt/IR/MathExtOps.h"
+#include "lib/Transforms/LoweringHistory/LoweringHistory.h"
 #include "llvm/include/llvm/ADT/APFloat.h"               // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -74,9 +75,11 @@ struct SelectGreaterThanEqualFloatPattern
       return rewriter.notifyMatchFailure(op,
                                          "operands are not select(a>c,a,c)");
 
-    auto maxOp =
-        arith::MaximumFOp::create(rewriter, op.getLoc(), op.getTrueValue(),
-                                  op.getFalseValue(), cmpOp.getFastmathAttr());
+    auto maxOp = arith::MaximumFOp::create(
+        rewriter,
+        getLoweringLocation(op, "activation-canonicalizations",
+                            arith::MaximumFOp::getOperationName()),
+        op.getTrueValue(), op.getFalseValue(), cmpOp.getFastmathAttr());
 
     // (a) Forward any discardable attrs annotated on the select op itself onto
     // the maximumf (the old DRR `SelectGreaterThanEqualFloat` behavior). Covers

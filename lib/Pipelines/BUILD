@@ -143,6 +143,7 @@ cc_library(
         "@heir//lib/Transforms/LayoutPropagation",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/LinalgFuseLinearOps",
+        "@heir//lib/Transforms/LoweringHistory",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/OperationBalancer",
         "@heir//lib/Transforms/OptimizeRelinearization",

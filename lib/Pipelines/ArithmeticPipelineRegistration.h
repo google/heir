@@ -31,6 +31,11 @@ void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll);
 
 struct MlirToRLWEPipelineOptions : public LoopOptions {
+  PassOptions::Option<bool> loweringHistory{
+      *this, "lowering-history",
+      llvm::cl::desc(
+          "Record named lowering checkpoints and explain them on failure"),
+      llvm::cl::init(false)};
   PassOptions::Option<bool> enableArithmetization{
       *this, "enable-arithmetization",
       llvm::cl::desc(
