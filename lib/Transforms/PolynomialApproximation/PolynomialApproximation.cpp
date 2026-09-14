@@ -26,6 +26,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -782,7 +783,18 @@ struct PolynomialApproximation
 
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
-    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
+    // A pattern can diagnose invalid input and return match failure. The
+    // greedy driver may still converge successfully, so propagate emitted
+    // errors as well as driver failures to the pass manager. Ordinary
+    // notifyMatchFailure calls do not emit errors and must remain benign.
+    bool emittedError = false;
+    ScopedDiagnosticHandler diagnostics(&getContext(), [&](Diagnostic& diag) {
+      emittedError |= diag.getSeverity() == DiagnosticSeverity::Error;
+      return failure();
+    });
+    if (failed(applyPatternsGreedily(getOperation(), std::move(patterns))) ||
+        emittedError)
+      signalPassFailure();
   }
 };
 
