@@ -58,10 +58,11 @@ TEST(NaiveMatmulTest, RunTest) {
 
   auto arg0Encrypted =
       matvec__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
+  auto ctZero = matvec__encrypt__zero__0(cryptoContext, publicKey);
 
   // Insert timing info
   std::clock_t cStart = std::clock();
-  auto outputEncrypted = matvec(cryptoContext, arg0Encrypted);
+  auto outputEncrypted = matvec(cryptoContext, arg0Encrypted, ctZero);
   std::clock_t cEnd = std::clock();
   double timeElapsedMs = 1000.0 * (cEnd - cStart) / CLOCKS_PER_SEC;
   std::cout << "CPU time used: " << timeElapsedMs << " ms\n";

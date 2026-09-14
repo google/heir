@@ -201,7 +201,7 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
-  hecoSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
+  hecoSIMDVectorizerPipelineBuilder(pm, !options.unrollFheKernelLoops);
   mathToPolynomialApproximationBuilder(pm, options.useCompositeRelu);
 
   // Layout assignment and optimization
@@ -223,7 +223,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
   convertToCiphertextSemanticsOptions.minSlotCount = options.minSlotCount;
   convertToCiphertextSemanticsOptions.unrollKernels =
-      !options.experimentalDisableLoopUnroll;
+      options.unrollFheKernelLoops;
   convertToCiphertextSemanticsOptions.codegenStrategy = options.codegenStrategy;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
@@ -254,6 +254,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
   mlirToRLWEPipelineOptions.minSlotCount = options.plaintextSize;
+  mlirToRLWEPipelineOptions.unrollFheKernelLoops = options.unrollFheKernelLoops;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
   // Insert debug handler calls and/or lower debug.validate
@@ -429,7 +430,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   }
 
   // TODO(#2600): support loops in optimize-relinearization
-  if (!options.experimentalDisableLoopUnroll) {
+  if (options.unrollFheKernelLoops) {
     OptimizeRelinearizationOptions optimizeRelinearizationOptions;
     optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
     pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
@@ -731,8 +732,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
   suboptions.enableSplitPreprocessing = options.enableSplitPreprocessing;
-  suboptions.experimentalDisableLoopUnroll =
-      options.experimentalDisableLoopUnroll;
+  suboptions.unrollFheKernelLoops = options.unrollFheKernelLoops;
   suboptions.usePublicKey = options.usePublicKey;
   suboptions.encryptionTechniqueExtended = options.encryptionTechniqueExtended;
   suboptions.greedyModulusSwitchAfterMul = options.greedyModulusSwitchAfterMul;

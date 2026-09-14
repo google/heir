@@ -27,8 +27,9 @@ TEST(Conv1DTest, RunTest) {
 
   auto ctEncrypted =
       conv_1d__encrypt__arg0(cryptoContext, m, keyPair.publicKey);
+  auto ctZero = conv_1d__encrypt__zero__0(cryptoContext, keyPair.publicKey);
 
-  auto result = conv_1d(cryptoContext, ctEncrypted, filter);
+  auto result = conv_1d(cryptoContext, ctEncrypted, filter, ctZero);
 
   auto actual =
       conv_1d__decrypt__result0(cryptoContext, result, keyPair.secretKey);

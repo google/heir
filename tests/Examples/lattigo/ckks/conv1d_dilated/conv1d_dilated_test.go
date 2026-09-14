@@ -39,13 +39,14 @@ func TestConv1DDilated(t *testing.T) {
 	}
 
 	ct0 := Conv1d_dilated__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ctZero := Conv1d_dilated__encrypt__zero__0(evaluator, params, ecd, enc)
 
 	startPre := time.Now()
 	filterPlains := conv1d_dilated_utils.Conv1d_dilated__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := Conv1d_dilated__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Conv1d_dilated__preprocessed(evaluator, params, ecd, ct0, ctZero, filterPlains)
 	t.Logf("Conv1d_dilated (preprocessed) took %s", time.Since(start))
 
 	result := Conv1d_dilated__decrypt__result0(evaluator, params, ecd, dec, resultCt)

@@ -23,7 +23,8 @@ func TestConv2D(t *testing.T) {
 	}
 
 	ct0 := Conv2d_nchw__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	resultCt := Conv2d_nchw(evaluator, params, ecd, ct0)
+	ctZero := Conv2d_nchw__encrypt__zero__0(evaluator, params, ecd, enc)
+	resultCt := Conv2d_nchw(evaluator, params, ecd, ct0, ctZero)
 	result := Conv2d_nchw__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.5)
 	for i := 0; i < 128; i++ {
