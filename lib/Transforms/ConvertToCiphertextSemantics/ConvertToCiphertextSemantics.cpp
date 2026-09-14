@@ -30,6 +30,7 @@
 #include "lib/Kernel/Utils.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/TensorKernelSupport.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/LayoutPropagation/Utils.h"
@@ -1891,30 +1892,7 @@ class ConvertTensorExtractLayout
     auto staticIndicesResult = getConstantIntValues(getAsOpFoldResult(indices));
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    if (!staticIndicesResult.has_value()) {
-      // mask = createMaskFromDynamicIndices(tensorLayout, adaptor, b);
-      //
-      // The problem is that, although we could construct the right mask
-      // dynamically, then we need to figure out how to convert the masked
-      // ciphertext from its natural layout (zeros in most slots) to the
-      // appropriate scalar layout (perhaps replicated everywhere, depending on
-      // what layout-optimization picks for the result of this op). This
-      // requires, at the very least, finding the index of the first nonzero
-      // slot (which we can determine from the mask using a loop, yikes), and
-      // then rotating the masked ciphertext to put that first nonzero slot in
-      // slot 0, and masking out the rest of the slots so we statically know the
-      // layout.
-      //
-      // As a consequence, we need to perform a rotation by a dynamic index. And
-      // it's not clear how we could determine which rotation keys to generate
-      // to support that.
-      //
-      // Punting until we have a strong need for this use case.
-      //
-      // TODO(#2257): Support dynamic indices in tensor.extract
-      return op.emitError() << "tensor.extract with dynamic cleartext indices "
-                               "not supported yet";
-    }
+    if (failed(checkEncryptedExtract(op))) return failure();
 
     MaskResult maskResult = createMaskFromStaticIndices(
         tensorLayout, staticIndicesResult.value(), adaptor, b);
@@ -1956,26 +1934,7 @@ class ConvertTensorPad : public ContextAwareOpConversionPattern<tensor::PadOp> {
   LogicalResult secretSourceSecretResult(
       tensor::PadOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const {
-    auto sourceTy = dyn_cast<RankedTensorType>(
-        maybeExtractSecretType(op.getSource().getType()));
-    auto resultTy = dyn_cast<RankedTensorType>(
-        maybeExtractSecretType(op.getResult().getType()));
-    if (!sourceTy || !resultTy || !sourceTy.hasStaticShape() ||
-        !resultTy.hasStaticShape()) {
-      return op.emitError("Only static shapes are supported for secret pad");
-    }
-    for (int64_t val : op.getStaticLow()) {
-      if (ShapedType::isDynamic(val)) {
-        return op.emitError(
-            "Only static low padding is supported for secret pad");
-      }
-    }
-    for (int64_t val : op.getStaticHigh()) {
-      if (ShapedType::isDynamic(val)) {
-        return op.emitError(
-            "Only static high padding is supported for secret pad");
-      }
-    }
+    if (failed(checkEncryptedPad(op))) return failure();
 
     FailureOr<Attribute> sourceLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSource());
@@ -1984,16 +1943,6 @@ class ConvertTensorPad : public ContextAwareOpConversionPattern<tensor::PadOp> {
 
     LayoutAttr sourceLayout = cast<LayoutAttr>(sourceLayoutResult.value());
     LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
-
-    // Check if padded value is constant 0.
-    Block& body = op.getRegion().front();
-    auto yieldOp = cast<tensor::YieldOp>(body.getTerminator());
-    Value yieldedValue = yieldOp.getValue();
-
-    if (!matchPattern(yieldedValue, m_AnyZeroFloat()) &&
-        !matchPattern(yieldedValue, m_Zero())) {
-      return op.emitError("Only zero padding is supported");
-    }
 
     // Check if sourceCTType == targetCTType
     auto sourceCTType = cast<RankedTensorType>(adaptor.getSource().getType());

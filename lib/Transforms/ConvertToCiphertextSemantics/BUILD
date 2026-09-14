@@ -8,12 +8,20 @@ package(
 
 cc_library(
     name = "ConvertToCiphertextSemantics",
-    srcs = ["ConvertToCiphertextSemantics.cpp"],
-    hdrs = ["ConvertToCiphertextSemantics.h"],
+    srcs = [
+        "ConvertToCiphertextSemantics.cpp",
+        "TensorKernelSupport.cpp",
+        "ValidateTensorKernels.cpp",
+    ],
+    hdrs = [
+        "ConvertToCiphertextSemantics.h",
+        "TensorKernelSupport.h",
+    ],
     deps = [
         ":AssignLayout",
         ":TypeConversion",
         ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",

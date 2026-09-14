@@ -84,4 +84,15 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
   ];
 }
 
+def ValidateTensorKernels : Pass<"validate-tensor-kernels"> {
+  let summary = "Diagnose unsupported encrypted tensor indexing and padding";
+  let description = [{
+    Check the shape, index, and padding-value preconditions of encrypted tensor
+    kernels before layout assignment and ciphertext conversion. Run after
+    normalization and static loop unrolling: dynamic indices that these passes
+    eliminate must not be rejected prematurely. Cleartext tensors are unaffected.
+    This is a targeted preflight check, not a complete model-support validator.
+  }];
+}
+
 #endif  // LIB_TRANSFORMS_CONVERTTOCIPHERTEXTSEMANTICS_CONVERTTOCIPHERTEXTSEMANTICS_TD_

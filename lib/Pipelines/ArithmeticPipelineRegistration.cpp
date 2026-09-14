@@ -202,6 +202,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
   hecoSIMDVectorizerPipelineBuilder(pm, !options.unrollFheKernelLoops);
+  // Normalize/unroll first so indices that become constants remain supported.
+  pm.addPass(createValidateTensorKernels());
   mathToPolynomialApproximationBuilder(pm, options.useCompositeRelu);
 
   // Layout assignment and optimization
