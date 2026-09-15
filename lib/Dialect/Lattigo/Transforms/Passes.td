@@ -30,4 +30,14 @@ def ConfigureCryptoContext : Pass<"lattigo-configure-crypto-context"> {
   ];
 }
 
+def LattigoHoistRotations : Pass<"lattigo-hoist-rotations", "::mlir::func::FuncOp"> {
+  let summary = "Hoist multiple rotations of the same ciphertext into a single operation.";
+  let description = [{
+    This pass identifies when a ciphertext is rotated by multiple different
+    shifts, and replaces the `Rotate` ops with `RotateHoistedNew`
+    followed by `LookupRotated`.
+  }];
+  let constructor = "mlir::heir::lattigo::createLattigoHoistRotations()";
+}
+
 #endif  // LIB_DIALECT_LATTIGO_TRANSFORMS_PASSES_TD_

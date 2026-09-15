@@ -100,6 +100,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/Transforms:ImplementTrivialEncryptionAsAddition",
         "@heir//lib/Dialect/Lattigo/Transforms:AllocToInPlace",
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
+        "@heir//lib/Dialect/Lattigo/Transforms:HoistRotations",
         "@heir//lib/Dialect/Openfhe/Transforms:AllocToInPlace",
         "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/Openfhe/Transforms:CountAddAndKeySwitch",
