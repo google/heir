@@ -10,5 +10,5 @@ func.func private @bad_stride(tensor<16xi32> {foo = #rotom.dim<[0:8:0]>})
 
 // -----
 
-// expected-error @below {{`dim` must be >= -2, got -3}}
-func.func private @bad_dim(tensor<16xi32> {foo = #rotom.dim<[-3:8:1]>})
+// expected-error @below {{`dim` must be >= -3, got -4}}
+func.func private @bad_dim(tensor<16xi32> {foo = #rotom.dim<[-4:8:1]>})
