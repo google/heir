@@ -338,7 +338,7 @@ def compile(
   # Currently only CKKS supports parameter/selection and noise modeling
   # in the presence of loops, so BGV/BFV must unroll all loops
   option = ""
-  if scheme != "ckks":
+  if scheme in ["bgv", "bfv"]:
     option = "=unroll-fhe-kernel-loops=true"
 
   # Decorator for Python Functions
