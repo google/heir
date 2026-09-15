@@ -41,7 +41,6 @@ def get_next_dev_version(package_name):
 
 def calculate_version(event, ref, tag, package):
   version = "0.0.0"
-  should_publish = "false"
 
   match event:
     case "workflow_dispatch":
@@ -49,11 +48,9 @@ def calculate_version(event, ref, tag, package):
         # Manual release of existing tag; use for example when release
         # workflow fails to trigger wheel upload.
         version = tag.lstrip("v")
-        should_publish = "true"
       elif ref == "refs/heads/main":
         # For dev releases
         version = get_next_dev_version(package)
-        should_publish = "true"
 
     case "schedule":
       if tag:
@@ -62,13 +59,11 @@ def calculate_version(event, ref, tag, package):
         version = datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y.%m.%d"
         )
-      should_publish = "true"
 
     case "pull_request":
       version = "0.0.0"
-      should_publish = "false"
 
-  return version, should_publish
+  return version
 
 
 def main():
@@ -93,9 +88,7 @@ def main():
 
   args = parser.parse_args()
 
-  version, should_publish = calculate_version(
-      args.event, args.ref, args.tag, args.package
-  )
+  version = calculate_version(args.event, args.ref, args.tag, args.package)
 
   if args.gha:
     # Writing to GITHUB_OUTPUT if available
@@ -103,10 +96,8 @@ def main():
     if output_file:
       with open(output_file, "a") as f:
         f.write(f"version={version}\n")
-        f.write(f"should_publish={should_publish}\n")
 
   print(f"version={version}")
-  print(f"should_publish={should_publish}")
 
 
 if __name__ == "__main__":

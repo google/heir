@@ -5,12 +5,12 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+permissions:
+  contents: read
+
 jobs:
   setup-version:
     name: Setup version
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get-version.outputs.version }}
@@ -22,9 +22,6 @@ jobs:
   build_wheels:
     name: Build HEIR wheels on ${{ matrix.name }}
     needs: [setup-version]
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -65,9 +62,6 @@ jobs:
   create_archive:
     name: Create source archive
     needs: [setup-version]
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
@@ -75,13 +69,15 @@ jobs:
 
       - name: Create Archive
         id: archive
+        env:
+          VERSION: ${{ needs.setup-version.outputs.version }}
         run: |
-          TAG_NAME="${{ needs.setup-version.outputs.version }}"
+          TAG_NAME="$VERSION"
           if [[ ! "$TAG_NAME" =~ ^v ]]; then
             TAG_NAME="v$TAG_NAME"
           fi
-          git archive --format=tar.gz --prefix=heir-$TAG_NAME/ -o heir-$TAG_NAME.tar.gz HEAD
-          sha256sum heir-$TAG_NAME.tar.gz > heir-$TAG_NAME.tar.gz.sha256
+          git archive --format=tar.gz --prefix="heir-$TAG_NAME/" -o "heir-$TAG_NAME.tar.gz" HEAD
+          sha256sum "heir-$TAG_NAME.tar.gz" > "heir-$TAG_NAME.tar.gz.sha256"
           echo "archive_file=heir-$TAG_NAME.tar.gz" >> "$GITHUB_OUTPUT"
           echo "checksum_file=heir-$TAG_NAME.tar.gz.sha256" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -92,9 +88,6 @@ jobs:
   perform_release:
     name: Create GitHub Release and Upload Assets
     needs: [setup-version, build_wheels, create_archive]
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
       contents: write

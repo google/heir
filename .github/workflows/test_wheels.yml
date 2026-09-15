@@ -1,0 +1,14 @@
+name: Test Wheels
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheels:
+    name: Build wheels
+    if: github.event.label.name == 'ci:wheels'
+    uses: ./.github/workflows/_build_wheels.yml
