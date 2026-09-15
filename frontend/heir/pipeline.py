@@ -335,13 +335,22 @@ def compile(
   if debug and heir_opt_options is not None:
     DebugMessage(f"Overriding scheme with options {heir_opt_options}")
 
+  # Currently only CKKS supports parameter/selection and noise modeling
+  # in the presence of loops, so BGV/BFV must unroll all loops
+  option = ""
+  if scheme != "ckks":
+    option = "=unroll-fhe-kernel-loops=true"
+
   # Decorator for Python Functions
   def decorator(func):
     try:
       return run_pipeline(
           func,
           heir_opt_options=heir_opt_options
-          or ["--canonicalize", f"--mlir-to-{scheme}"],
+          or [
+              "--canonicalize",
+              f"--mlir-to-{scheme}{option}",
+          ],
           backend=backend,
           heir_config=config,
           debug=debug or False,
@@ -360,7 +369,10 @@ def compile(
     return run_pipeline(
         mlir_str,
         heir_opt_options=heir_opt_options
-        or ["--canonicalize", f"--mlir-to-{scheme}"],
+        or [
+            "--canonicalize",
+            f"--mlir-to-{scheme}{option}",
+        ],
         backend=backend,
         heir_config=config,
         debug=debug or False,
