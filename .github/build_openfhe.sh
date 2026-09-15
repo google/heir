@@ -4,13 +4,15 @@ set -e
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 INSTALL_DIR="$WORKSPACE_DIR/openfhe-install"
+INC_DIR="$INSTALL_DIR/include/openfhe"
 
 # If already installed, just export variables and exit
 if [ -d "$INSTALL_DIR" ] && [ -d "$INSTALL_DIR/include/openfhe" ]; then
   echo "OpenFHE already installed at $INSTALL_DIR"
+  echo "OPENFHE_LIB_DIR=$INSTALL_DIR/lib"
+  echo "OPENFHE_INCLUDE_DIR=$INSTALL_DIR/include:$INC_DIR:$INC_DIR/binfhe:$INC_DIR/core:$INC_DIR/pke"
   if [ -n "$GITHUB_ENV" ]; then
     echo "OPENFHE_LIB_DIR=$INSTALL_DIR/lib" >> "$GITHUB_ENV"
-    INC_DIR="$INSTALL_DIR/include/openfhe"
     echo "OPENFHE_INCLUDE_DIR=$INSTALL_DIR/include:$INC_DIR:$INC_DIR/binfhe:$INC_DIR/core:$INC_DIR/pke" >> "$GITHUB_ENV"
   fi
   exit 0
@@ -40,6 +42,8 @@ make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 make install
 
 # Export variables to GITHUB_ENV if running in GitHub Actions
+echo "OPENFHE_LIB_DIR=$INSTALL_DIR/lib"
+echo "OPENFHE_INCLUDE_DIR=$INSTALL_DIR/include:$INC_DIR:$INC_DIR/binfhe:$INC_DIR/core:$INC_DIR/pke"
 if [ -n "$GITHUB_ENV" ]; then
   echo "OPENFHE_LIB_DIR=$INSTALL_DIR/lib" >> "$GITHUB_ENV"
   INC_DIR="$INSTALL_DIR/include/openfhe"
