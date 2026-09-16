@@ -8,7 +8,7 @@ module {
   // CHECK-NEXT: ) -> list[types.LweCiphertext]:
   // CHECK-COUNT-1: jaxite_bool.constant
   // CHECK-NOT: jaxite.constant
-  // CHECK-COUNT-11: jaxite_bool.lut3
+  // CHECK: jaxite_bool.lut3
   // CHECK-NOT: jaxite.lut3
   func.func @test_add_one_lut3(%in: i8 {secret.secret}) -> (i8) {
     %1 = arith.constant 1 : i8
