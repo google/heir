@@ -562,6 +562,12 @@ struct SplitPreprocessingPass
     setInterfaceRole(funcOp, kServerEvaluateRole,
                      builder.getDictionaryAttr(logicalRole(op, builder)));
 
+    for (unsigned i = 0; i < op.getNumArguments(); ++i) {
+      if (auto argAttrs = op.getArgAttrDict(i)) {
+        funcOp.setArgAttrs(i, argAttrs);
+      }
+    }
+
     IRMapping map;
     Block* entryBlock = funcOp.addEntryBlock();
     for (auto [idx, arg] : llvm::enumerate(op.getArguments())) {
