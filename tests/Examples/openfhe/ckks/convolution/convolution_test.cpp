@@ -60,9 +60,9 @@ TEST(ConvolutionTest, RunTest) {
 
   auto arg0Encrypted =
       convolution__encrypt__arg0(cryptoContext, arg0, publicKey);
-  auto ctZero = convolution__encrypt__zero__0(cryptoContext, publicKey);
+  auto ctZeros = convolution__encrypt__zeros(cryptoContext, publicKey);
   auto outputEncrypted =
-      convolution(cryptoContext, arg0Encrypted, filters, ctZero);
+      convolution(cryptoContext, arg0Encrypted, filters, ctZeros);
   auto actual =
       convolution__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
 
