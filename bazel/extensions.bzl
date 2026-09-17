@@ -6,7 +6,7 @@ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 def _llvm_deps_impl(_):
     """Implementation of the llvm_deps module extension."""
-    LLVM_COMMIT = "7024b9e1b423b3c3c6ac76ab6a73cb2c9e4ef842"
+    LLVM_COMMIT = "0038be81b8b5361112faf82e69d4590364ee81b9"
 
     # Download LLVM/MLIR using a git repository
     new_git_repository(

@@ -37,7 +37,7 @@ module @jit_func attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_pa
   func.func public @mnist(%arg0: tensor<512x784xf32>, %arg1: tensor<1x!ct_L1> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x784xf32>, layout = #layout2>}) -> (tensor<1x!ct_L1> {jax.result_info = "result[0]", tensor_ext.original_type = #original_type}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<512xf32>
     %0 = call @_assign_layout_11979326689855340354(%arg0) : (tensor<512x784xf32>) -> tensor<512x1024xf32>
-    %1 = call @mnist__preprocessed(%0, %arg1) {arg_attrs = [{mhlo.sharding = "{replicated}", tensor_ext.layout = #layout1}, {tensor_ext.layout = #layout2}]} : (tensor<512x1024xf32>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
+    %1 = call @mnist__preprocessed(%0, %arg1) <arg_attrs = [{mhlo.sharding = "{replicated}", tensor_ext.layout = #layout1}, {tensor_ext.layout = #layout2}]> : (tensor<512x1024xf32>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     return %1 : tensor<1x!ct_L1>
   }
 }
