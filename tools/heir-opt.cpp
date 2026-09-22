@@ -396,6 +396,7 @@ int main(int argc, char** argv) {
   polynomial::registerPolynomialPasses();
   preprocessing::registerPreprocessingPasses();
   rns::registerRNSPasses();
+  rotom::registerRotomLayoutAssignmentPasses();
   rotom::registerRotomMaterializePasses();
   rotom::registerRotomSeedPasses();
   secret::registerSecretPasses();
