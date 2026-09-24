@@ -129,9 +129,9 @@ module attributes {scheme.bgv} {
 
 
 // CHECK: Test_constant
-// CHECK: [[v1:.*]] := int32(1)
-// CHECK: [[v2:.*]] := []int32{1, 2}
-// CHECK: [[v3:.*]] := []int32{2, 2, 2, 2}
+// CHECK: _ = int32(1)
+// CHECK: _ = []int32{1, 2}
+// CHECK: _ = []int32{2, 2, 2, 2}
 module attributes {scheme.bgv} {
   func.func @test_constant() -> () {
     %int = arith.constant 1 : i32

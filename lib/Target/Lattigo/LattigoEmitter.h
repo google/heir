@@ -176,6 +176,7 @@ class LattigoEmitter {
   LogicalResult printOperation(RLWEDropLevelOp op);
   LogicalResult printOperation(RLWENegateNewOp op);
   LogicalResult printOperation(RLWENegateOp op);
+  LogicalResult printOperation(RLWELookupRotatedOp op);
   // BGV
   LogicalResult printOperation(BGVNewParametersFromLiteralOp op);
   LogicalResult printOperation(BGVNewEncoderOp op);
@@ -223,6 +224,7 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSRotateOp op);
   LogicalResult printOperation(CKKSLinearTransformOp op);
   LogicalResult printOperation(CKKSChebyshevOp op);
+  LogicalResult printOperation(CKKSRotateHoistedNewOp op);
 
   // Helpers for above
   void printErrPanic(std::string_view errName);
