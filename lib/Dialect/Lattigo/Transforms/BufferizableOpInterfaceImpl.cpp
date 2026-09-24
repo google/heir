@@ -100,13 +100,15 @@ struct EncodeOpInterface
   }
 };
 
-template <typename OpTy>
+// The diagonals operand (at diagonalsIndex) is read from memory; nothing is
+// written.
+template <typename OpTy, int diagonalsIndex>
 struct LinearTransformOpInterface
     : public bufferization::BufferizableOpInterface::ExternalModel<
-          LinearTransformOpInterface<OpTy>, OpTy> {
+          LinearTransformOpInterface<OpTy, diagonalsIndex>, OpTy> {
   bool bufferizesToMemoryRead(Operation* op, OpOperand& opOperand,
                               const bufferization::AnalysisState& state) const {
-    return opOperand.getOperandNumber() == 3;
+    return opOperand.getOperandNumber() == diagonalsIndex;
   };
 
   bool bufferizesToMemoryWrite(
@@ -135,7 +137,8 @@ struct LinearTransformOpInterface
     if (failed(maybeBuffer)) return failure();
     Value buffer = *maybeBuffer;
 
-    rewriter.modifyOpInPlace(op, [&]() { op->setOperand(3, buffer); });
+    rewriter.modifyOpInPlace(op,
+                             [&]() { op->setOperand(diagonalsIndex, buffer); });
 
     return success();
   }
@@ -189,7 +192,9 @@ void mlir::heir::lattigo::registerBufferizableOpInterfaceExternalModels(
     CKKSMulNewOp::attachInterface<ScalarOpInterface<CKKSMulNewOp>>(*ctx);
     CKKSAddNewOp::attachInterface<ScalarOpInterface<CKKSAddNewOp>>(*ctx);
     CKKSLinearTransformOp::attachInterface<
-        LinearTransformOpInterface<CKKSLinearTransformOp>>(*ctx);
+        LinearTransformOpInterface<CKKSLinearTransformOp, 3>>(*ctx);
+    CKKSPrepareLinearTransformOp::attachInterface<
+        LinearTransformOpInterface<CKKSPrepareLinearTransformOp, 2>>(*ctx);
     RLWEEncryptOp::attachInterface<ScalarOpInterface<RLWEEncryptOp>>(*ctx);
   });
 }

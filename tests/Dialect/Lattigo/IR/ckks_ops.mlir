@@ -18,6 +18,7 @@
 !evaluator = !lattigo.ckks.evaluator
 !encoder = !lattigo.ckks.encoder
 !params = !lattigo.ckks.parameter
+!linear_transformation = !lattigo.ckks.linear_transformation
 
 !value = tensor<8xf32>
 !value_complex = tensor<8xcomplex<f32>>
@@ -176,6 +177,41 @@ module {
   func.func @test_ckks_rotate(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate
     %output = lattigo.ckks.rotate %evaluator, %ct, %ct {static_shift = 1} : (!evaluator, !ct, !ct) -> !ct
+    return
+  }
+
+  // CHECK: func @test_ckks_linear_transform
+  func.func @test_ckks_linear_transform(%evaluator: !evaluator, %encoder: !encoder, %ct: !ct, %diagonals: tensor<2x4xf64>) {
+    // CHECK: %[[v1:.*]] = lattigo.ckks.linear_transform
+    %output = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals {diagonal_indices = array<i32: 0, 1>, levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!evaluator, !encoder, !ct, tensor<2x4xf64>) -> !ct
+    return
+  }
+
+  // CHECK: func @test_ckks_linear_transform_source_row_indices
+  func.func @test_ckks_linear_transform_source_row_indices(%evaluator: !evaluator, %encoder: !encoder, %ct: !ct, %diagonals: tensor<4x4xf64>) {
+    // CHECK: %[[v1:.*]] = lattigo.ckks.linear_transform
+    %output = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals {diagonal_indices = array<i32: 0, 1>, source_row_indices = array<i32: 2, 3>, levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!evaluator, !encoder, !ct, tensor<4x4xf64>) -> !ct
+    return
+  }
+
+  // CHECK: func @test_ckks_prepare_linear_transform
+  func.func @test_ckks_prepare_linear_transform(%params: !params, %encoder: !encoder, %diagonals: tensor<2x4xf64>) {
+    // CHECK: %[[v1:.*]] = lattigo.ckks.prepare_linear_transform
+    %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0, 1>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
+    return
+  }
+
+  // CHECK: func @test_ckks_prepare_linear_transform_source_row_indices
+  func.func @test_ckks_prepare_linear_transform_source_row_indices(%params: !params, %encoder: !encoder, %diagonals: tensor<4x4xf64>) {
+    // CHECK: %[[v1:.*]] = lattigo.ckks.prepare_linear_transform
+    %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0, 1>, source_row_indices = array<i32: 2, 3>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<4x4xf64>) -> !linear_transformation
+    return
+  }
+
+  // CHECK: func @test_ckks_apply_linear_transform
+  func.func @test_ckks_apply_linear_transform(%evaluator: !evaluator, %ct: !ct, %transformation: !linear_transformation) {
+    // CHECK: %[[v1:.*]] = lattigo.ckks.apply_linear_transform
+    %output = lattigo.ckks.apply_linear_transform %evaluator, %ct, %transformation : (!evaluator, !ct, !linear_transformation) -> !ct
     return
   }
 }

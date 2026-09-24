@@ -145,23 +145,92 @@ CKKSRotateNewOp::getRotationIndices() {
   return {getDynamicShift()};
 }
 
-::llvm::SmallVector<::mlir::OpFoldResult>
-CKKSLinearTransformOp::getRotationIndices() {
-  // The diagonals arrive as a tensor before bufferization and as a memref
-  // after it, and this accessor is reachable in both states.
-  //  Match on ShapedType so it does not assert on legal IR.
-  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
-  int64_t slots = diagonalsType.getShape()[1];
-  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
-  auto rotations = lintransRotationIndices(
-      getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+static SmallVector<OpFoldResult> computeLintransRotationIndices(
+    MLIRContext* ctx, ArrayRef<int32_t> diagonalIndices, int64_t slots,
+    int64_t logBSGS) {
+  auto rotations = lintransRotationIndices(diagonalIndices, slots, logBSGS);
   SmallVector<OpFoldResult> result;
   result.reserve(rotations.size());
-  auto* ctx = getContext();
   for (int64_t rot : rotations) {
     result.push_back(IntegerAttr::get(IndexType::get(ctx), rot));
   }
   return result;
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSLinearTransformOp::getRotationIndices() {
+  // The diagonals arrive as a tensor before bufferization and as a memref
+  // after it, and this accessor is reachable in both states.
+  // Match on ShapedType so it does not assert on legal IR.
+  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
+  int64_t slots = diagonalsType.getShape()[1];
+  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
+  return computeLintransRotationIndices(
+      getContext(), getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+}
+
+static LogicalResult verifyLinearTransformCommon(
+    Operation* op, ShapedType diagonalsType, DenseI32ArrayAttr diagonalIndices,
+    DenseI32ArrayAttr sourceRowIndices, IntegerAttr levelQ,
+    IntegerAttr logBabyStepGiantStepRatio) {
+  if (levelQ.getInt() < 0) {
+    return op->emitOpError("levelQ must be non-negative, but got ")
+           << levelQ.getInt();
+  }
+  if (logBabyStepGiantStepRatio.getInt() < 0) {
+    return op->emitOpError(
+               "logBabyStepGiantStepRatio must be non-negative, but got ")
+           << logBabyStepGiantStepRatio.getInt();
+  }
+
+  int64_t numDiagonals = diagonalsType.getDimSize(0);
+  int64_t numIndices = diagonalIndices.size();
+  if (!sourceRowIndices) {
+    if (!ShapedType::isDynamic(numDiagonals) && numDiagonals != numIndices) {
+      return op->emitOpError("number of diagonals (")
+             << numDiagonals << ") must match number of diagonal indices ("
+             << numIndices << ")";
+    }
+    return success();
+  }
+
+  if (static_cast<int64_t>(sourceRowIndices.size()) != numIndices) {
+    return op->emitOpError("number of source row indices (")
+           << sourceRowIndices.size()
+           << ") must match number of diagonal indices (" << numIndices << ")";
+  }
+  if (ShapedType::isDynamic(numDiagonals)) return success();
+  for (int32_t row : sourceRowIndices.asArrayRef()) {
+    if (row < 0 || row >= numDiagonals) {
+      return op->emitOpError("source row index ")
+             << row << " is out of bounds for " << numDiagonals
+             << " diagonal rows";
+    }
+  }
+  return success();
+}
+
+LogicalResult CKKSPrepareLinearTransformOp::verify() {
+  int64_t logSlots = getLogSlots().getInt();
+  if (logSlots < 0 || logSlots > 62) {
+    return emitOpError("logSlots must be in range [0, 62], but got ")
+           << logSlots;
+  }
+  return verifyLinearTransformCommon(
+      getOperation(), cast<ShapedType>(getDiagonals().getType()),
+      getDiagonalIndicesAttr(), getSourceRowIndicesAttr(), getLevelQAttr(),
+      getLogBabyStepGiantStepRatioAttr());
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSPrepareLinearTransformOp::getRotationIndices() {
+  // Lattigo reduces its BSGS split and Galois elements modulo the transform's
+  // slot count, not the width of the diagonals it was handed, so take the slot
+  // count this op recorded.
+  int64_t slots = int64_t{1} << getLogSlots().getInt();
+  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
+  return computeLintransRotationIndices(
+      getContext(), getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
 }
 
 }  // namespace lattigo

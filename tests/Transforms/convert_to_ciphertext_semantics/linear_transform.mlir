@@ -19,9 +19,11 @@ module attributes {
     } : tensor<2xf32>
     %2 = secret.generic(%arg0 : !secret.secret<tensor<4xf32>> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 and 0 <= slot <= 3 }">}) {
     ^body(%input: tensor<4xf32>):
-      // CHECK: kernel.linear_transform
+      // The diagonals are an operand rather than an attribute, so the packed
+      // matrix can be a resource or a preprocessed value instead of inline IR.
+      // CHECK: %[[diags:.*]] = arith.constant dense<{{\[\[}}1.000000e+00, 6.000000e+00
+      // CHECK: kernel.linear_transform %{{.*}}, %[[diags]]
       // CHECK-SAME: diagonal_indices = array<i64: 0, 1, 2, 3>
-      // CHECK-SAME: diagonals = dense<{{\[\[}}1.000000e+00, 6.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00], [2.000000e+00, 7.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00], [3.000000e+00, 8.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00], [4.000000e+00, 5.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00]]> : tensor<4x8xf32>
       %3 = linalg.matvec {
         secret.kernel = #secret.kernel<name = "MatvecDiagonal", force = false>,
         tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">
@@ -47,7 +49,6 @@ module attributes {
   // CHECK: secret.generic
   // CHECK: kernel.linear_transform {{%[a-zA-Z0-9_]+}}
   // CHECK-SAME: diagonal_indices = array<i64: 0, 1, 2, 3>
-  // CHECK-SAME: diagonals = dense<{{.*}}> : tensor<4x8xf32>
   // CHECK: secret.yield
   func.func @matvec_to_linear_transform(%arg0: !secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<4xf32>
