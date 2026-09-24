@@ -39,6 +39,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -295,26 +296,25 @@ struct LinearTransformOpConversion
       attrsToPreserve.push_back(namedAttr);
     }
     for (auto attrName : ltOp.getAttributeNames()) {
-      if (attrName == "diagonals")
-        continue;  // We will handle diagonals separately
       if (auto attr = ltOp->getAttr(attrName)) {
         attrsToPreserve.push_back(rewriter.getNamedAttr(attrName, attr));
       }
     }
 
-    // Pad diagonals
-    auto diagonalsAttr = cast<DenseElementsAttr>(ltOp.getDiagonals());
-    auto diagonalsType = cast<RankedTensorType>(diagonalsAttr.getType());
+    // Pad diagonals. They are only paddable here when they are a compile-time
+    // constant; diagonals produced by preprocessing are passed through, which
+    // requires the producer to have packed them at slot width already.
+    DenseElementsAttr diagonalsAttr;
+    bool diagonalsAreConstant =
+        matchPattern(ltOp.getDiagonals(), m_Constant(&diagonalsAttr));
+    RankedTensorType diagonalsType = ltOp.getDiagonals().getType();
     auto shape = diagonalsType.getShape();
     int64_t numDiagonals = shape[0];
     int64_t numCols = shape[1];
 
     int64_t actualSlots = ringDim / 2;  // CKKS assumption
 
-    DenseElementsAttr newDiagonalsAttr;
-    if (numCols == actualSlots) {
-      newDiagonalsAttr = diagonalsAttr;
-    } else {
+    if (numCols != actualSlots && diagonalsAreConstant) {
       if (numCols > actualSlots) {
         return ltOp.emitOpError("diagonals slot size (")
                << numCols << ") is larger than actual slots (" << actualSlots
@@ -336,10 +336,10 @@ struct LinearTransformOpConversion
 
       auto newDiagonalsType =
           RankedTensorType::get({numDiagonals, actualSlots}, elemType);
-      newDiagonalsAttr = DenseElementsAttr::get(newDiagonalsType, paddedValues);
+      inputs[1] = arith::ConstantOp::create(
+          rewriter, ltOp.getLoc(),
+          DenseElementsAttr::get(newDiagonalsType, paddedValues));
     }
-    attrsToPreserve.push_back(
-        rewriter.getNamedAttr("diagonals", newDiagonalsAttr));
 
     // Handle mgmt attrs
     convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);

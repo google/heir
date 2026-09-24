@@ -19,7 +19,8 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
   // CHECK: %[[VAL_3:.*]] = lattigo.ckks.linear_transform %[[EVAL]], %[[ENCODER]], %[[CT]], %[[DIAGONALS]] {diagonal_indices = array<i32: 0, 1>, levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64} : (![[EVAL]], ![[ENCODER]], ![[CT]], tensor<2x2xf64>) -> ![[CT]]
   // CHECK: return %[[VAL_3]] : ![[CT]]
   func.func @test_linear_transform(%ct: !ct) -> !ct {
-    %0 = kernel.linear_transform %ct {diagonals = dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>, diagonal_indices = array<i64: 0, 1>} : !ct -> !ct
+    %diagonals = arith.constant dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>
+    %0 = kernel.linear_transform %ct, %diagonals {diagonal_indices = array<i64: 0, 1>} : !ct, tensor<2x2xf64> -> !ct
     return %0 : !ct
   }
 }
