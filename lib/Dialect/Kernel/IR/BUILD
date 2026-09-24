@@ -18,14 +18,17 @@ cc_library(
     hdrs = [
         "KernelDialect.h",
         "KernelOps.h",
+        "KernelTypes.h",
     ],
     deps = [
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
@@ -37,6 +40,7 @@ td_library(
     srcs = [
         "KernelDialect.td",
         "KernelOps.td",
+        "KernelTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
@@ -56,6 +60,17 @@ add_heir_dialect_library(
     td_file = "KernelDialect.td",
     deps = [
         ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "types_inc_gen",
+    dialect = "Kernel",
+    kind = "type",
+    td_file = "KernelTypes.td",
+    deps = [
+        ":td_files",
+        "@heir//lib/Dialect:td_files",
     ],
 )
 
