@@ -35,10 +35,14 @@ namespace heir {
 // are mapped over), or if it has the ElementwiseByOperandOpInterface, which
 // means only some operands are mapped over.
 static bool isSupported(Operation* op) {
-  // Skip kernel dialect operations if they operate on standard floats or
-  // integers.
+  // Skip kernel dialect operations if they are mapped over tensors of standard
+  // floats or integers. Operands that are not mapped over (per
+  // ElementwiseByOperandOpInterface) are replicated as-is, so their element
+  // types are irrelevant.
   if (op->getDialect()->getNamespace() == "kernel") {
-    for (Type type : op->getOperandTypes()) {
+    auto byOperand = dyn_cast<ElementwiseByOperandOpInterface>(op);
+    for (auto [i, type] : llvm::enumerate(op->getOperandTypes())) {
+      if (byOperand && !byOperand.operandIsMappable(i)) continue;
       if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
         Type eltType = tensorType.getElementType();
         if (llvm::isa<FloatType, IntegerType>(eltType)) {
