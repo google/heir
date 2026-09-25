@@ -220,10 +220,10 @@ def Cheddar_GetEvkMapOp : Cheddar_Op<"get_evk_map", [Pure]> {
 def Cheddar_GetMultKeyOp : Cheddar_Op<"get_mult_key", [Pure]> {
   let summary = "Get the multiplication evaluation key";
   let description = [{
-    Returns the multiplication key from the UserInterface
-    (ui.GetMultiplicationKey()).
+    Returns the multiplication key from an evaluation-key map. A runtime that
+    keys evaluation keys by secret looks it up with the context's secret.
   }];
-  let arguments = (ins Cheddar_UserInterface:$ui);
+  let arguments = (ins Cheddar_EvkMap:$evkMap, Cheddar_AnyContext:$ctx);
   let results = (outs Cheddar_EvalKey:$key);
 }
 
@@ -553,12 +553,12 @@ def Cheddar_HRotOp : Cheddar_DpsOp<"hrot", [
   let summary = "Fused key-switch + rotation";
   let description = [{
     Calls context->HRot(res, a, rot_key, distance). The rotation key is looked
-    up from the `$ui` UserInterface operand using `distance`.
+    up from the `$evk` EvkMap operand using `distance`.
     Single fused GPU kernel. Supports both static and dynamic distances.
   }];
   let arguments = (ins
     Cheddar_AnyContext:$ctx,
-    Cheddar_UserInterface:$ui,
+    Cheddar_EvkMap:$evk,
     Cheddar_CtLike:$input,
     Cheddar_CtLike:$output,
     Optional<AnySignlessIntegerOrIndex>:$dynamic_distance,
@@ -575,11 +575,11 @@ def Cheddar_HRotAddOp : Cheddar_DpsOp<"hrot_add", [
   let description = [{
     Computes res = rotate(a, distance) + b in a single fused GPU kernel.
     Calls context->HRotAdd(res, a, b, rot_key, distance). The rotation key
-    is looked up from the `$ui` UserInterface operand using `distance`.
+    is looked up from the `$evk` EvkMap operand using `distance`.
   }];
   let arguments = (ins
     Cheddar_AnyContext:$ctx,
-    Cheddar_UserInterface:$ui,
+    Cheddar_EvkMap:$evk,
     Cheddar_CtLike:$input,
     Cheddar_CtLike:$addend,
     Cheddar_CtLike:$output,
@@ -592,11 +592,11 @@ def Cheddar_HConjOp : Cheddar_DpsOp<"hconj"> {
   let summary = "Fused key-switch + conjugation";
   let description = [{
     Calls context->HConj(res, a, conj_key). The conjugation key is looked
-    up from the `$ui` UserInterface operand.
+    up from the `$evk` EvkMap operand.
   }];
   let arguments = (ins
     Cheddar_AnyContext:$ctx,
-    Cheddar_UserInterface:$ui,
+    Cheddar_EvkMap:$evk,
     Cheddar_CtLike:$input,
     Cheddar_CtLike:$output
   );
@@ -608,11 +608,11 @@ def Cheddar_HConjAddOp : Cheddar_DpsOp<"hconj_add"> {
   let description = [{
     Computes res = conj(a) + b in a single fused GPU kernel.
     Calls context->HConjAdd(res, a, b, conj_key). The conjugation key is
-    looked up from the `$ui` UserInterface operand.
+    looked up from the `$evk` EvkMap operand.
   }];
   let arguments = (ins
     Cheddar_AnyContext:$ctx,
-    Cheddar_UserInterface:$ui,
+    Cheddar_EvkMap:$evk,
     Cheddar_CtLike:$input,
     Cheddar_CtLike:$addend,
     Cheddar_CtLike:$output
