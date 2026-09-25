@@ -18,7 +18,8 @@ def Kernel_EvalChebyshevOp : Kernel_Op<"eval_chebyshev", [
   Pure,
   DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>,
   ElementwiseMappable,
-  IncreasesMulDepthOpInterface
+  IncreasesMulDepthOpInterface,
+  RequiresLinearKeyBasisOpInterface
 ]> {
   let summary = "Evaluates a Chebyshev polynomial.";
   let description = [{
@@ -42,7 +43,8 @@ def Kernel_LinearTransformOp : Kernel_Op<"linear_transform", [
   Pure,
   DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>,
   ElementwiseMappable,
-  IncreasesMulDepthOpInterface
+  IncreasesMulDepthOpInterface,
+  RequiresLinearKeyBasisOpInterface
 ]> {
   let summary = "Performs a linear transform (matrix-vector multiplication) on a ciphertext.";
   let description = [{
