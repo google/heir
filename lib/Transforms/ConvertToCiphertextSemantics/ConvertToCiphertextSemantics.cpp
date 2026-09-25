@@ -59,10 +59,11 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -1164,9 +1165,14 @@ struct PreserveLinalgMatvecAsLinearTransform
         getTypeConverter()->convertType(outputType, resultLayout.value());
 
     rewriter.setInsertionPointAfter(op);
+    auto diagonalsValue = arith::ConstantOp::create(
+        rewriter, op.getLoc(), cast<TypedAttr>(diagonalsAttr));
+    setMaterializedAttr(diagonalsValue);
     auto linearTransformOp = kernel::LinearTransformOp::create(
         rewriter, op.getLoc(), convertedOutputType, adaptor.getInputs()[1],
-        diagonalsAttr, diagonalIndicesAttr, /*bsgs_ratio=*/nullptr);
+        diagonalsValue.getResult(), diagonalIndicesAttr,
+        /*source_row_indices=*/nullptr,
+        /*bsgs_ratio=*/nullptr);
 
     setMaterializedAttr(linearTransformOp);
     linearTransformOp->setAttr(kLayoutAttrName, resultLayout.value());
