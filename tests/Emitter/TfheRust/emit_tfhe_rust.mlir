@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-tfhe-rust --use-levels=False | FileCheck %s
+// RUN: heir-translate %s --emit-tfhe-rust --use-levels=false | FileCheck %s
 
 !sks = !tfhe_rust.server_key
 

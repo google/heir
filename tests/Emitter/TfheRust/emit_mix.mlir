@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-tfhe-rust --use-levels=False | FileCheck %s
+// RUN: heir-translate %s --emit-tfhe-rust --use-levels=false | FileCheck %s
 
 // CHECK: pub fn mix(
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &[Ciphertext; 4],

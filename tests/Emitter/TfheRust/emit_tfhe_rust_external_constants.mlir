@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-tfhe-rust --use-levels=False | FileCheck %s
+// RUN: heir-translate %s --emit-tfhe-rust --use-levels=false | FileCheck %s
 
 // CHECK: fn load_resource<T: Copy>(path: &str, size: usize) -> Vec<T> {
 // CHECK:   use std::fs::File;
