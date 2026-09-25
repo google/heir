@@ -56,6 +56,11 @@ class ILPBootstrapPlacementAnalysis {
     // are solved independently under enumerated boundary states and stitched
     // by dynamic programming.
     int partitionMinSize = 100;
+    // Multiplicative-depth gap (Orbit's bpsdepth, default 15) above which a
+    // residual connection is solved as a bypass: the deep "main" path and the
+    // shallow path are solved separately and recombined. 0 disables bypass
+    // handling.
+    int bypassDepthThreshold = 15;
     OpCostModel costModel;
     ScaleMode scaleMode = ScaleMode::kCKKS;
   };
