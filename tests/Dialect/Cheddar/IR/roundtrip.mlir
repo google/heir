@@ -43,9 +43,9 @@ func.func @test_get_evk_map(%ui: !cheddar.user_interface) -> !cheddar.evk_map {
 }
 
 // CHECK: @test_get_mult_key
-func.func @test_get_mult_key(%ui: !cheddar.user_interface) -> !cheddar.eval_key {
+func.func @test_get_mult_key(%map: !cheddar.evk_map, %ctx: !cheddar.context) -> !cheddar.eval_key {
   // CHECK: cheddar.get_mult_key
-  %key = cheddar.get_mult_key %ui : (!cheddar.user_interface) -> !cheddar.eval_key
+  %key = cheddar.get_mult_key %map, %ctx : (!cheddar.evk_map, !cheddar.context) -> !cheddar.eval_key
   return %key : !cheddar.eval_key
 }
 
@@ -291,60 +291,60 @@ func.func @test_hmult_no_rescale(
 // CHECK: @test_hrot_static
 func.func @test_hrot_static(
     %ctx: !cheddar.context,
-    %ui: !cheddar.user_interface,
+    %evk: !cheddar.evk_map,
     %ct: tensor<!cheddar.ciphertext>,
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hrot
   // CHECK-SAME: static_distance = 5
-  %result = cheddar.hrot %ctx, %ui, %ct, %out {static_distance = 5 : i64} : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hrot %ctx, %evk, %ct, %out {static_distance = 5 : i64} : (!cheddar.context, !cheddar.evk_map, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
 // CHECK: @test_hrot_dynamic
 func.func @test_hrot_dynamic(
     %ctx: !cheddar.context,
-    %ui: !cheddar.user_interface,
+    %evk: !cheddar.evk_map,
     %ct: tensor<!cheddar.ciphertext>,
     %out: tensor<!cheddar.ciphertext>,
     %dist: index) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hrot
-  %result = cheddar.hrot %ctx, %ui, %ct, %out, %dist : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, index) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hrot %ctx, %evk, %ct, %out, %dist : (!cheddar.context, !cheddar.evk_map, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, index) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
 // CHECK: @test_hrot_add
 func.func @test_hrot_add(
     %ctx: !cheddar.context,
-    %ui: !cheddar.user_interface,
+    %evk: !cheddar.evk_map,
     %ct0: tensor<!cheddar.ciphertext>,
     %ct1: tensor<!cheddar.ciphertext>,
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hrot_add
   // CHECK-SAME: distance = 3
-  %result = cheddar.hrot_add %ctx, %ui, %ct0, %ct1, %out {distance = 3 : i64} : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hrot_add %ctx, %evk, %ct0, %ct1, %out {distance = 3 : i64} : (!cheddar.context, !cheddar.evk_map, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
 // CHECK: @test_hconj
 func.func @test_hconj(
     %ctx: !cheddar.context,
-    %ui: !cheddar.user_interface,
+    %evk: !cheddar.evk_map,
     %ct: tensor<!cheddar.ciphertext>,
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hconj
-  %result = cheddar.hconj %ctx, %ui, %ct, %out : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hconj %ctx, %evk, %ct, %out : (!cheddar.context, !cheddar.evk_map, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
 // CHECK: @test_hconj_add
 func.func @test_hconj_add(
     %ctx: !cheddar.context,
-    %ui: !cheddar.user_interface,
+    %evk: !cheddar.evk_map,
     %ct0: tensor<!cheddar.ciphertext>,
     %ct1: tensor<!cheddar.ciphertext>,
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hconj_add
-  %result = cheddar.hconj_add %ctx, %ui, %ct0, %ct1, %out : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hconj_add %ctx, %evk, %ct0, %ct1, %out : (!cheddar.context, !cheddar.evk_map, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 

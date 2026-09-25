@@ -81,10 +81,10 @@ func.func @rescale_fresh(%ctx: !cheddar.context, %lhs: tensor<!cheddar.ciphertex
 // CHECK-NOT: memref.alloc
 // CHECK: cheddar.hrot_add %{{.*}}, %{{.*}}, %[[OUT]], %[[OUT]], %[[OUT]]
 // CHECK-NOT: memref.copy
-func.func @hrot_add_in_place(%ctx: !cheddar.context, %ui: !cheddar.user_interface, %lhs: tensor<!cheddar.ciphertext>, %rhs: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
+func.func @hrot_add_in_place(%ctx: !cheddar.context, %evk: !cheddar.evk_map, %lhs: tensor<!cheddar.ciphertext>, %rhs: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   %empty = tensor.empty() : tensor<!cheddar.ciphertext>
   %input = cheddar.add %ctx, %lhs, %rhs, %empty : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
-  %output = cheddar.hrot_add %ctx, %ui, %input, %input, %input {distance = 2 : i64} : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %output = cheddar.hrot_add %ctx, %evk, %input, %input, %input {distance = 2 : i64} : (!cheddar.context, !cheddar.evk_map, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %output : tensor<!cheddar.ciphertext>
 }
 
