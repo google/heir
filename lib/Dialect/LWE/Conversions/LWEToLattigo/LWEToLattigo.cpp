@@ -747,14 +747,10 @@ struct ConvertKernelLinearTransformOp
     auto levelQAttr = rewriter.getI64IntegerAttr(levelQ);
     auto logBSGSRatioAttr = rewriter.getI64IntegerAttr(logBSGSRatio);
 
-    auto diagonalsAttr = op.getDiagonals();
-    Value diagonalsValue =
-        rewriter.create<arith::ConstantOp>(op.getLoc(), diagonalsAttr);
-
     auto linearTransformOp = rewriter.create<lattigo::CKKSLinearTransformOp>(
         op.getLoc(), adaptor.getInput().getType(), evaluator, encoder,
-        adaptor.getInput(), diagonalsValue, diagonalIndicesI32Attr, levelQAttr,
-        logBSGSRatioAttr);
+        adaptor.getInput(), op.getDiagonals(), diagonalIndicesI32Attr,
+        levelQAttr, logBSGSRatioAttr);
 
     auto outputLweType =
         dyn_cast<lwe::LWECiphertextType>(op.getResult().getType());
