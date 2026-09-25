@@ -30,18 +30,18 @@ class MultilayerPerceptron(nn.Module):
     self.linear2 = nn.Linear(120, 84)
     self.feature_extractor = nn.Sequential(
         self.conv1,
-        nn.ReLU(),
+        nn.Sigmoid(),
         nn.AvgPool2d(kernel_size=2, stride=2),
         self.conv2,
-        nn.ReLU(),
+        nn.Sigmoid(),
         nn.AvgPool2d(kernel_size=2, stride=2),
     )
 
     self.classifier = nn.Sequential(
         self.linear1,  # in_features = 16x5x5
-        nn.ReLU(),
+        nn.Sigmoid(),
         self.linear2,
-        nn.ReLU(),
+        nn.Sigmoid(),
         nn.Linear(84, 10),
     )
 
