@@ -88,9 +88,12 @@ bazel_dep(name = "gawk", version = "5.3.2.bcr.7")
 # Cf. https://github.com/bazelbuild/bazel-central-registry/pull/7915
 bazel_dep(name = "sed", version = "4.9.bcr.5")
 
-# LLVM dependency requires us to manually pull in some transitive deps
+# LLVM dependency requires us to manually pull in some transitive deps.
+# This is required because our LLVM version stays very close to HEAD,
+# and the LLVM sources included with the hermetic runtime are too old.
 bazel_dep(name = "zlib-ng", version = "2.3.3.bcr.2", repo_name = "llvm_zlib")
 bazel_dep(name = "zstd", version = "1.5.7.bcr.1", repo_name = "llvm_zstd")
+bazel_dep(name = "xz", version = "5.4.5.bcr.9", repo_name = "llvm_xz")
 
 llvm_extensions = use_extension("//bazel:extensions.bzl", "llvm_deps")
 use_repo(
