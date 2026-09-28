@@ -49,6 +49,9 @@ struct AnnotateModule : impl::AnnotateModuleBase<AnnotateModule> {
         case BackendName::Lattigo:
           moduleSetLattigo(module);
           break;
+        case BackendName::Cheddar:
+          moduleSetCheddar(module);
+          break;
       }
     }
   }

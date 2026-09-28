@@ -20,6 +20,7 @@ def AnnotateModule : Pass<"annotate-module"> {
     Available backend:
       - `openfhe`
       - `lattigo`
+      - `cheddar`
 
     (* example filepath=tests/Transforms/annotate_module/pass.mlir *)
   }];

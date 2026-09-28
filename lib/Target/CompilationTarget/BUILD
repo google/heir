@@ -36,6 +36,7 @@ td_library(
     includes = ["../../.."],
     deps = [
         ":td_files",
+        "@heir//lib/Target/Cheddar:cheddar_backend_config_td",
         "@heir//lib/Target/Lattigo:lattigo_backend_config_td",
         "@heir//lib/Target/OpenFhePke:openfhe_backend_config_td",
     ],
@@ -71,6 +72,7 @@ cc_library(
     hdrs = ["RegisterAllBackends.h"],
     deps = [
         ":CompilationTarget",
+        "@heir//lib/Target/Cheddar:cheddar_backend_config",
         "@heir//lib/Target/Lattigo:lattigo_backend_config",
         "@heir//lib/Target/OpenFhePke:openfhe_backend_config",
     ],
