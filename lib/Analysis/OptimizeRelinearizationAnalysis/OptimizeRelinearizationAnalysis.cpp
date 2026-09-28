@@ -8,10 +8,8 @@
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
-#include "lib/Dialect/Kernel/IR/KernelOps.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
@@ -219,8 +217,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     });
   }
 
-  // Some ops require a linear key basis. Yield is a special case
-  // where we require returned values from funcs to be linearized.
+  // Some ops require a linear key basis.
   // TODO(#1398): determine whether we need linear key basis for modreduce.
   // TODO(#3149): Investigate which backends actually support higher-degree
   // ciphertext inputs to ciphertext-plaintext operations. For now, require
@@ -230,30 +227,35 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       return;
     }
 
-    bool requireLinear = false;
-    // A linear transform is a bundle of rotations under Galois keys, and a
-    // Chebyshev evaluation multiplies its input, so like rotation both need a
-    // linear operand; without this the model may defer a relinearization past
-    // them and leave it applied to an already-linear result.
-    if (isa<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp,
-            kernel::LinearTransformOp, kernel::EvalChebyshevOp>(op)) {
-      requireLinear = true;
-    } else {
+    auto requiresLinearInterface =
+        dyn_cast<RequiresLinearKeyBasisOpInterface>(op);
+
+    bool isCtPtOp = false;
+    if (!requiresLinearInterface) {
       SmallVector<OpOperand*, 4> secretOperands;
       getSecretOperands(op, secretOperands, solver);
       SmallVector<OpOperand*, 4> plaintextOperands;
       getPlaintextOperands(op, plaintextOperands, solver);
       if (!secretOperands.empty() && !plaintextOperands.empty()) {
-        requireLinear = true;
+        isCtPtOp = true;
       }
     }
 
-    if (requireLinear) {
-      for (OpOperand& operand : op->getOpOperands()) {
-        // skip non secret argument
-        if (!isSecret(operand.get(), solver)) {
-          continue;
-        }
+    for (OpOperand& operand : op->getOpOperands()) {
+      // skip non secret argument
+      if (!isSecret(operand.get(), solver)) {
+        continue;
+      }
+
+      bool requireLinear = false;
+      if (requiresLinearInterface) {
+        requireLinear = requiresLinearInterface.requiresLinearKeyBasis(
+            operand.getOperandNumber());
+      } else if (isCtPtOp) {
+        requireLinear = true;
+      }
+
+      if (requireLinear) {
         if (!keyBasisVars.contains(operand.get())) {
           // This could happen if you return a block argument without
           // doing anything to it. No variables are created, but it does

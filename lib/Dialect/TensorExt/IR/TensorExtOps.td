@@ -21,7 +21,8 @@ class TensorExt_Op<string mnemonic, list<Trait> traits = []> :
 def TensorExt_RotateOp : TensorExt_Op<"rotate", [
   Pure,
   AllTypesMatch<["tensor", "output"]>,
-  DeclareOpInterfaceMethods<RotationOpInterface>
+  DeclareOpInterfaceMethods<RotationOpInterface>,
+  RequiresLinearKeyBasisOpInterface
 ]> {
   let summary = "Rotate a tensor some number of indices left.";
   let description = [{

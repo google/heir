@@ -250,3 +250,41 @@ func.func @modreduce_needs_linear_inputs(%arg0: !secret.secret<tensor<8xi64>>, %
   } -> !secret.secret<tensor<8xi64>>
   return %0 : !secret.secret<tensor<8xi64>>
 }
+
+// CHECK: func.func @linear_transform_needs_linear_inputs
+// CHECK: arith.mulf
+// CHECK-NEXT: arith.mulf
+// CHECK-NEXT: arith.subf
+// CHECK-NEXT: mgmt.relinearize
+// CHECK-NEXT: kernel.linear_transform
+// CHECK-NEXT: secret.yield
+func.func @linear_transform_needs_linear_inputs(%arg0: !secret.secret<tensor<2xf64>>, %arg1: !secret.secret<tensor<2xf64>>) -> (!secret.secret<tensor<2xf64>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<2xf64>>, %arg1: !secret.secret<tensor<2xf64>>) {
+  ^body(%input0: tensor<2xf64>, %input1: tensor<2xf64>):
+    %1 = arith.mulf %input0, %input0 : tensor<2xf64>
+    %2 = arith.mulf %input1, %input1 : tensor<2xf64>
+    %3 = arith.subf %1, %2 : tensor<2xf64>
+    %4 = kernel.linear_transform %3 {diagonal_indices = array<i64: 0, 1>, diagonals = dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>} : tensor<2xf64> -> tensor<2xf64>
+    secret.yield %4 : tensor<2xf64>
+  } -> !secret.secret<tensor<2xf64>>
+  return %0 : !secret.secret<tensor<2xf64>>
+}
+
+// CHECK: func.func @eval_chebyshev_needs_linear_inputs
+// CHECK: arith.mulf
+// CHECK-NEXT: arith.mulf
+// CHECK-NEXT: arith.subf
+// CHECK-NEXT: mgmt.relinearize
+// CHECK-NEXT: kernel.eval_chebyshev
+// CHECK-NEXT: secret.yield
+func.func @eval_chebyshev_needs_linear_inputs(%arg0: !secret.secret<tensor<16xf32>>, %arg1: !secret.secret<tensor<16xf32>>) -> (!secret.secret<tensor<16xf32>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<16xf32>>, %arg1: !secret.secret<tensor<16xf32>>) {
+  ^body(%input0: tensor<16xf32>, %input1: tensor<16xf32>):
+    %1 = arith.mulf %input0, %input0 : tensor<16xf32>
+    %2 = arith.mulf %input1, %input1 : tensor<16xf32>
+    %3 = arith.subf %1, %2 : tensor<16xf32>
+    %4 = kernel.eval_chebyshev %3 {coefficients = [1.0 : f64, 2.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+    secret.yield %4 : tensor<16xf32>
+  } -> !secret.secret<tensor<16xf32>>
+  return %0 : !secret.secret<tensor<16xf32>>
+}

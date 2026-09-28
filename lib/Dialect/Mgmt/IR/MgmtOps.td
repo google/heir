@@ -15,7 +15,10 @@ class Mgmt_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::mgmt";
 }
 
-def Mgmt_ModReduceOp : Mgmt_Op<"modreduce", [ReducesLevelOpInterface]> {
+def Mgmt_ModReduceOp : Mgmt_Op<"modreduce", [
+  ReducesLevelOpInterface,
+  RequiresLinearKeyBasisOpInterface
+]> {
   let summary = "Modulus switch the input ciphertext down by one limb (RNS assumed)";
 
   let description = [{

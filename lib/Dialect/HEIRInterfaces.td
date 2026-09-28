@@ -562,6 +562,28 @@ def PlaintextEncodeOpInterface : OpInterface<"PlaintextEncodeOpInterface"> {
   }];
 }
 
+def RequiresLinearKeyBasisOpInterface : OpInterface<"RequiresLinearKeyBasisOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface for operations that require a linear key basis for certain
+    secret operands.
+
+    Callers of `requiresLinearKeyBasis` must ensure the op operand they are querying
+    is known to be secret.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return true if the secret operand at the given index requires a linearized input.",
+      /*retTy=*/"bool",
+      /*methodName=*/"requiresLinearKeyBasis",
+      /*args=*/(ins "unsigned":$operandIndex),
+      /*methodBody=*/[{}],
+      /*defaultImplementation=*/[{ return true; }]
+    >,
+  ];
+}
+
 def LimbwiseAttrInterface : AttrInterface<"LimbwiseAttrInterface"> {
   let description = [{
     Interface for an attribute that has a concept of limbs. Mainly used
