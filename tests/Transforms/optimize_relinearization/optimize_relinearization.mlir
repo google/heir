@@ -256,6 +256,7 @@ func.func @modreduce_needs_linear_inputs(%arg0: !secret.secret<tensor<8xi64>>, %
 // CHECK-NEXT: arith.mulf
 // CHECK-NEXT: arith.subf
 // CHECK-NEXT: mgmt.relinearize
+// CHECK-NEXT: arith.constant
 // CHECK-NEXT: kernel.linear_transform
 // CHECK-NEXT: secret.yield
 func.func @linear_transform_needs_linear_inputs(%arg0: !secret.secret<tensor<2xf64>>, %arg1: !secret.secret<tensor<2xf64>>) -> (!secret.secret<tensor<2xf64>>) {
@@ -264,7 +265,8 @@ func.func @linear_transform_needs_linear_inputs(%arg0: !secret.secret<tensor<2xf
     %1 = arith.mulf %input0, %input0 : tensor<2xf64>
     %2 = arith.mulf %input1, %input1 : tensor<2xf64>
     %3 = arith.subf %1, %2 : tensor<2xf64>
-    %4 = kernel.linear_transform %3 {diagonal_indices = array<i64: 0, 1>, diagonals = dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>} : tensor<2xf64> -> tensor<2xf64>
+    %diagonals = arith.constant dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>
+    %4 = kernel.linear_transform %3, %diagonals {diagonal_indices = array<i64: 0, 1>} : tensor<2xf64>, tensor<2x2xf64> -> tensor<2xf64>
     secret.yield %4 : tensor<2xf64>
   } -> !secret.secret<tensor<2xf64>>
   return %0 : !secret.secret<tensor<2xf64>>

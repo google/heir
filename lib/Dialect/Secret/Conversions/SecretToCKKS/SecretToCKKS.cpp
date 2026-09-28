@@ -253,11 +253,9 @@ class SecretGenericPlaintextDivision
 struct LinearTransformOpConversion
     : public ContextAwareOpConversionPattern<secret::GenericOp> {
   LinearTransformOpConversion(const ContextAwareTypeConverter& typeConverter_,
-                              MLIRContext* context, int64_t ringDim,
-                              PatternBenefit benefit = 1)
+                              MLIRContext* context, PatternBenefit benefit = 1)
       : ContextAwareOpConversionPattern<secret::GenericOp>(typeConverter_,
-                                                           context, benefit),
-        ringDim(ringDim) {}
+                                                           context, benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
@@ -295,51 +293,10 @@ struct LinearTransformOpConversion
       attrsToPreserve.push_back(namedAttr);
     }
     for (auto attrName : ltOp.getAttributeNames()) {
-      if (attrName == "diagonals")
-        continue;  // We will handle diagonals separately
       if (auto attr = ltOp->getAttr(attrName)) {
         attrsToPreserve.push_back(rewriter.getNamedAttr(attrName, attr));
       }
     }
-
-    // Pad diagonals
-    auto diagonalsAttr = cast<DenseElementsAttr>(ltOp.getDiagonals());
-    auto diagonalsType = cast<RankedTensorType>(diagonalsAttr.getType());
-    auto shape = diagonalsType.getShape();
-    int64_t numDiagonals = shape[0];
-    int64_t numCols = shape[1];
-
-    int64_t actualSlots = ringDim / 2;  // CKKS assumption
-
-    DenseElementsAttr newDiagonalsAttr;
-    if (numCols == actualSlots) {
-      newDiagonalsAttr = diagonalsAttr;
-    } else {
-      if (numCols > actualSlots) {
-        return ltOp.emitOpError("diagonals slot size (")
-               << numCols << ") is larger than actual slots (" << actualSlots
-               << ")";
-      }
-      SmallVector<Attribute> paddedValues;
-      auto elementValues = diagonalsAttr.getValues<Attribute>();
-      auto elemType = diagonalsType.getElementType();
-      Attribute zeroAttr = rewriter.getZeroAttr(elemType);
-
-      for (int64_t i = 0; i < numDiagonals; ++i) {
-        for (int64_t j = 0; j < numCols; ++j) {
-          paddedValues.push_back(elementValues[i * numCols + j]);
-        }
-        for (int64_t j = numCols; j < actualSlots; ++j) {
-          paddedValues.push_back(zeroAttr);
-        }
-      }
-
-      auto newDiagonalsType =
-          RankedTensorType::get({numDiagonals, actualSlots}, elemType);
-      newDiagonalsAttr = DenseElementsAttr::get(newDiagonalsType, paddedValues);
-    }
-    attrsToPreserve.push_back(
-        rewriter.getNamedAttr("diagonals", newDiagonalsAttr));
 
     // Handle mgmt attrs
     convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
@@ -358,9 +315,6 @@ struct LinearTransformOpConversion
     rewriter.replaceOp(op, newLtOp->getResults());
     return success();
   }
-
- private:
-  int64_t ringDim;
 };
 
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
@@ -426,11 +380,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpRotateConversion<ckks::RotateOp>,
         SecretGenericPlaintextDivision,
         SecretGenericOpConversion<kernel::EvalChebyshevOp>,
-        SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>>(
-        typeConverter, context);
-
-    int64_t ringDim = 1 << schemeParamAttr.getLogN();
-    patterns.add<LinearTransformOpConversion>(typeConverter, context, ringDim);
+        SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
+        LinearTransformOpConversion>(typeConverter, context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());

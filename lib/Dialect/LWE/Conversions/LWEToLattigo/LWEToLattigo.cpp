@@ -747,9 +747,20 @@ struct ConvertKernelLinearTransformOp
     auto levelQAttr = rewriter.getI64IntegerAttr(levelQ);
     auto logBSGSRatioAttr = rewriter.getI64IntegerAttr(logBSGSRatio);
 
-    auto diagonalsAttr = op.getDiagonals();
-    Value diagonalsValue =
-        rewriter.create<arith::ConstantOp>(op.getLoc(), diagonalsAttr);
+    if (op.getSourceRowIndicesAttr()) {
+      return rewriter.notifyMatchFailure(
+          op,
+          "source_row_indices is not supported by the direct lowering to "
+          "lattigo.ckks.linear_transform");
+    }
+    Value diagonalsValue = adaptor.getDiagonals();
+    auto diagonalsType = cast<RankedTensorType>(diagonalsValue.getType());
+    if (isa<IntegerType>(diagonalsType.getElementType())) {
+      auto f64DiagonalsType = RankedTensorType::get(diagonalsType.getShape(),
+                                                    rewriter.getF64Type());
+      diagonalsValue = arith::SIToFPOp::create(
+          rewriter, op.getLoc(), f64DiagonalsType, diagonalsValue);
+    }
 
     auto linearTransformOp = rewriter.create<lattigo::CKKSLinearTransformOp>(
         op.getLoc(), adaptor.getInput().getType(), evaluator, encoder,

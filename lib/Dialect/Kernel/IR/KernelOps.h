@@ -4,6 +4,7 @@
 // IWYU pragma: begin_keep
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Kernel/IR/KernelDialect.h"
+#include "lib/Dialect/Kernel/IR/KernelTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"       // from @llvm-project
