@@ -156,7 +156,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;h3 id="bgvlevel_reduce-heirbgvlevelreduceop">&lt;code>bgv.level_reduce&lt;/code> (heir::bgv::LevelReduceOp)&lt;/h3>
 &lt;p>&lt;em>Lower the modulus level of the ciphertext via dropping RNS limbs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.level_reduce` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.level_reduce` operands prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -198,7 +198,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitchop">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitchOp)&lt;/h3>
 &lt;p>&lt;em>Lower the modulus level of the ciphertext via modulus switching.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` operands prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -359,7 +359,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;h3 id="bgvrelinearize-heirbgvrelinearizeop">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::RelinearizeOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>This op takes integer array attributes &lt;code>from_basis&lt;/code> and &lt;code>to_basis&lt;/code> that are
 used to indicate the key basis from which and to which the ciphertext is
 encrypted against. A ciphertext is canonically encrypted against key basis
@@ -408,7 +408,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvrotate_cols-heirbgvrotatecolumnsop">&lt;code>bgv.rotate_cols&lt;/code> (heir::bgv::RotateColumnsOp)&lt;/h3>
 &lt;p>&lt;em>Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_cols` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_cols` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? prop-dict attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of the coefficients of the ciphertext using a
 Galois automorphism.&lt;/p>
 &lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
@@ -460,7 +460,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;h3 id="bgvrotate_rows-heirbgvrotaterowsop">&lt;code>bgv.rotate_rows&lt;/code> (heir::bgv::RotateRowsOp)&lt;/h3>
 &lt;p>&lt;em>Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_rows` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_rows` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? prop-dict attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the rows of the coefficients of the ciphertext using a
 Galois automorphism.&lt;/p>
 &lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
