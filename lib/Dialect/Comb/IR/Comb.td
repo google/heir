@@ -27,6 +27,7 @@ def CombDialect : Dialect {
     representation of combinational logic outside of a particular use-case.
   }];
   let cppNamespace = "::mlir::heir::comb";
+  let useStrictPropertiesInAssemblyFormat = 0;
 }
 
 // Base class for the operation in this dialect.

@@ -17,6 +17,7 @@ def TfheRust_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::tfhe_rust";
 
   let useDefaultTypePrinterParser = 1;
+  let useStrictPropertiesInAssemblyFormat = 0;
 }
 
 #endif  // LIB_DIALECT_TFHERUST_IR_TFHERUSTDIALECT_TD_

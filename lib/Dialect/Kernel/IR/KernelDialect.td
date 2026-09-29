@@ -14,6 +14,7 @@ def Kernel_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::kernel";
 
   let useDefaultTypePrinterParser = 1;
+  let useStrictPropertiesInAssemblyFormat = 0;
 }
 
 #endif  // LIB_DIALECT_KERNEL_IR_KERNELDIALECT_TD_

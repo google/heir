@@ -10,6 +10,7 @@ def CGGI_Dialect : Dialect {
   let summary = "A dialect for types and operations in the CGGI cryptosystem";
   let cppNamespace = "::mlir::heir::cggi";
   let useDefaultAttributePrinterParser = 1;
+  let useStrictPropertiesInAssemblyFormat = 0;
 }
 
 #endif  // LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_

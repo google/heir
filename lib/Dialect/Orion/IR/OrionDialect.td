@@ -16,6 +16,7 @@ def Orion_Dialect : Dialect {
   }];
 
   let cppNamespace = "::mlir::heir::orion";
+  let useStrictPropertiesInAssemblyFormat = 0;
 }
 
 #endif  // LIB_DIALECT_ORION_IR_ORIONDIALECT_TD_
