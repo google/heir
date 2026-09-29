@@ -40,7 +40,7 @@ module {
   func.func @test_static_rotate(%ct: !ct_L1_) -> !ct_L1_ {
     // CHECK: jaxiteword.rot
     // CHECK-SAME: index = 3 : i64
-    %rotated = ckks.rotate %ct {static_shift = 3 : index} : !ct_L1_
+    %rotated = ckks.rotate %ct <static_shift = 3 : index> : !ct_L1_
     return %rotated : !ct_L1_
   }
 

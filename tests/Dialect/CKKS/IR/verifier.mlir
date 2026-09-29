@@ -19,7 +19,7 @@
 
 func.func @test_input_dimension_error(%input: !ct) {
   // expected-error@+1 {{x.dim == 2 does not hold}}
-  %out = ckks.rotate  %input { static_shift = 4 }  : !ct
+  %out = ckks.rotate  %input <static_shift = 4>  : !ct
   return
 }
 
@@ -48,8 +48,8 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
   func.func @mul(%ct: !ct_L1_) -> !ct_L0_ {
     // expected-error@+1 {{'ckks.mul' op output plaintext space does not match}}
     %ct_0 = ckks.mul %ct, %ct : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
-    %ct_1 = ckks.relinearize %ct_0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : (!ct_L1_D3_) -> !ct_L1_
-    %ct_2 = ckks.rescale %ct_1 {to_ring = #ring_rns_L0_1_x1024_} : !ct_L1_ -> !ct_L0_
+    %ct_1 = ckks.relinearize %ct_0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L1_D3_) -> !ct_L1_
+    %ct_2 = ckks.rescale %ct_1 <to_ring = #ring_rns_L0_1_x1024_> : !ct_L1_ -> !ct_L0_
     return %ct_2 : !ct_L0_
   }
 }
@@ -82,9 +82,9 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
   func.func @mul(%ct: !ct_L1_) -> !ct_L0_ {
     %ct_0 = ckks.mul %ct, %ct : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
-    %ct_1 = ckks.relinearize %ct_0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : (!ct_L1_D3_) -> !ct_L1_1
+    %ct_1 = ckks.relinearize %ct_0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L1_D3_) -> !ct_L1_1
     // expected-error@+1 {{'ckks.rescale' op output plaintext space does not match}}
-    %ct_2 = ckks.rescale %ct_1 {to_ring = #ring_rns_L0_1_x1024_} : !ct_L1_1 -> !ct_L0_
+    %ct_2 = ckks.rescale %ct_1 <to_ring = #ring_rns_L0_1_x1024_> : !ct_L1_1 -> !ct_L0_
     return %ct_2 : !ct_L0_
   }
 }
@@ -111,7 +111,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
   func.func @bootstrap(%ct: !ct_L0_) -> !ct_L1_ {
     // expected-error@+1 {{'ckks.bootstrap' op output ciphertext must have 2 levels but has 1}}
-    %ct_2 = ckks.bootstrap %ct {targetLevel = 2} : !ct_L0_ -> !ct_L1_
+    %ct_2 = ckks.bootstrap %ct <targetLevel = 2> : !ct_L0_ -> !ct_L1_
     return %ct_2 : !ct_L1_
   }
 }

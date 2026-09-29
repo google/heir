@@ -57,7 +57,7 @@ module attributes {
     // CHECK-DAG: [[subct:%.+]] = lwe.from_coeffs [[C0]], [[C1]]
     // CHECK-DAG: [[result:%.+]] = ckks.add [[ksct]], [[subct]]
     // CHECK-NEXT: return [[result]]
-    %ct_0 = ckks.relinearize %ct, %arg0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : (!ct_L1_D3, tensor<2x!ct_L2>) -> !ct_L1_D2
+    %ct_0 = ckks.relinearize %ct, %arg0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L1_D3, tensor<2x!ct_L2>) -> !ct_L1_D2
     return %ct_0 : !ct_L1_D2
   }
 }

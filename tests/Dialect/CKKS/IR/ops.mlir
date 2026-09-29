@@ -61,15 +61,15 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>
     // CHECK: size = 3
     %0 = ckks.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
-    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (!ct1, tensor<1x!ct_ksk>) -> !ct
-    %2 = ckks.rescale %1  {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
+    %1 = ckks.relinearize %0, %ksk <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct1, tensor<1x!ct_ksk>) -> !ct
+    %2 = ckks.rescale %1 <to_ring = #ring_rns_L0_1_x1024_> : !ct -> !ct2
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>>
     return %arg0 : !ct
   }
 
   // CHECK: @test_relin_no_key
   func.func @test_relin_no_key(%arg0 : !ct1) -> !ct {
-    %1 = ckks.relinearize %arg0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (!ct1) -> !ct
+    %1 = ckks.relinearize %arg0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct1) -> !ct
     return %1 : !ct
   }
 
@@ -89,8 +89,8 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     %neg = ckks.negate %arg0 : tensor<5x!ct>
 
     %0 = ckks.mul %arg0, %arg1  : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct1>
-    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (tensor<5x!ct1>, tensor<1x!ct_ksk>) -> tensor<5x!ct>
-    %2 = ckks.rescale %1  {to_ring = #ring_rns_L0_1_x1024_} : tensor<5x!ct> -> tensor<5x!ct2>
+    %1 = ckks.relinearize %0, %ksk <from_basis = [0, 1, 2], to_basis = [0, 1]> : (tensor<5x!ct1>, tensor<1x!ct_ksk>) -> tensor<5x!ct>
+    %2 = ckks.rescale %1 <to_ring = #ring_rns_L0_1_x1024_> : tensor<5x!ct> -> tensor<5x!ct2>
     return %arg0 : tensor<5x!ct>
   }
 

@@ -46,7 +46,7 @@ module {
     %mul = ckks.mul %x, %y  : (!ct, !ct) -> !ct_D3
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {static_shift = 4 : i64}
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
-    %rot = ckks.rotate %x { static_shift = 4 } : !ct
+    %rot = ckks.rotate %x <static_shift = 4> : !ct
     // CHECK: %[[v6:.*]] = openfhe.add_plain [[C]], %[[x6:.*]], %[[z6:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
     %add_plain = ckks.add_plain %x, %z : (!ct, !pt) -> !ct
     // CHECK: %[[v7:.*]] = openfhe.sub_plain [[C]], %[[x7:.*]], %[[z7:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
@@ -70,9 +70,7 @@ module {
   // CHECK-SAME: ([[C:.*]]: [[S:!openfhe.crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]])
   func.func @test_relin(%x : !ct_D4) -> !ct {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
-    %relin = ckks.relinearize %x  {
-      from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
-    }: (!ct_D4) -> !ct
+    %relin = ckks.relinearize %x <from_basis = [0, 1, 2, 3], to_basis = [0, 1]> : (!ct_D4) -> !ct
     return %relin : !ct
   }
 }

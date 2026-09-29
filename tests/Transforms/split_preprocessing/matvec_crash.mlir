@@ -67,7 +67,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     %pt = lwe.rlwe_encode %extracted_slice_1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements = tensor.from_elements %pt : tensor<1x!pt>
     %1 = ckks.mul_plain %from_elements, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1_1>
-    %2 = ckks.rescale %1 {to_ring = #ring_rns_L0_1_x1024} : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
+    %2 = ckks.rescale %1 <to_ring = #ring_rns_L0_1_x1024> : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
     %pt_2 = lwe.rlwe_encode %cst {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements_3 = tensor.from_elements %pt_2 : tensor<1x!pt>
     %3 = ckks.add_plain %from_elements_3, %2 : (tensor<1x!pt>, tensor<1x!ct_L0>) -> tensor<1x!ct_L0>
@@ -80,7 +80,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
         %pt_6 = lwe.rlwe_encode %extracted_slice_5 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
         %from_elements_7 = tensor.from_elements %pt_6 : tensor<1x!pt>
         %12 = ckks.mul_plain %from_elements_7, %11 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1_1>
-        %13 = ckks.rescale %12 {to_ring = #ring_rns_L0_1_x1024} : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
+        %13 = ckks.rescale %12 <to_ring = #ring_rns_L0_1_x1024> : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
         %14 = ckks.add %arg2, %13 : (tensor<1x!ct_L0>, tensor<1x!ct_L0>) -> tensor<1x!ct_L0>
         scf.yield %14 : tensor<1x!ct_L0>
       } else {
@@ -100,7 +100,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
         %pt_6 = lwe.rlwe_encode %extracted_slice_5 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
         %from_elements_7 = tensor.from_elements %pt_6 : tensor<1x!pt>
         %17 = ckks.mul_plain %from_elements_7, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1_1>
-        %18 = ckks.rescale %17 {to_ring = #ring_rns_L0_1_x1024} : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
+        %18 = ckks.rescale %17 <to_ring = #ring_rns_L0_1_x1024> : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
         %19 = ckks.add_plain %from_elements_3, %18 : (tensor<1x!pt>, tensor<1x!ct_L0>) -> tensor<1x!ct_L0>
         scf.yield %19 : tensor<1x!ct_L0>
       } else {
@@ -121,7 +121,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
           %pt_6 = lwe.rlwe_encode %extracted_slice_5 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
           %from_elements_7 = tensor.from_elements %pt_6 : tensor<1x!pt>
           %21 = ckks.mul_plain %from_elements_7, %20 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1_1>
-          %22 = ckks.rescale %21 {to_ring = #ring_rns_L0_1_x1024} : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
+          %22 = ckks.rescale %21 <to_ring = #ring_rns_L0_1_x1024> : tensor<1x!ct_L1_1> -> tensor<1x!ct_L0>
           %23 = ckks.add %arg4, %22 : (tensor<1x!ct_L0>, tensor<1x!ct_L0>) -> tensor<1x!ct_L0>
           scf.yield %23 : tensor<1x!ct_L0>
         } else {
