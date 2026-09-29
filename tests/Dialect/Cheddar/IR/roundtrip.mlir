@@ -10,7 +10,7 @@
 func.func @test_make_parameter() -> !cheddar.parameter {
   // CHECK: cheddar.make_parameter
   // CHECK-SAME: logN = 14
-  %p = cheddar.make_parameter {logN = 14 : i64, logScale = 45 : i64, mainPrimes = array<i64: 1, 2, 3>, auxPrimes = array<i64: 4, 5>} : !cheddar.parameter
+  %p = cheddar.make_parameter <logN = 14 : i64, logScale = 45 : i64, mainPrimes = [1, 2, 3], auxPrimes = [4, 5]> : !cheddar.parameter
   return %p : !cheddar.parameter
 }
 
@@ -54,7 +54,7 @@ func.func @test_prepare_rot_key(%ui: tensor<!cheddar.user_interface>) -> tensor<
   // CHECK: cheddar.prepare_rot_key
   // CHECK-SAME: distance = 3
   // CHECK-SAME: maxLevel = 10
-  %ui2 = cheddar.prepare_rot_key %ui {distance = 3 : i64, maxLevel = 10 : i64} : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
+  %ui2 = cheddar.prepare_rot_key %ui <distance = 3 : i64, maxLevel = 10 : i64> : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
   return %ui2 : tensor<!cheddar.user_interface>
 }
 
@@ -67,7 +67,7 @@ func.func @test_encode(
     %out: tensor<!cheddar.plaintext>) -> tensor<!cheddar.plaintext> {
   // CHECK: cheddar.encode
   // CHECK-SAME: level = 5
-  %pt = cheddar.encode %enc, %msg, %out {level = 5 : i64, logScale = 37 : i64} : (!cheddar.encoder, tensor<4xf64>, tensor<!cheddar.plaintext>) -> tensor<!cheddar.plaintext>
+  %pt = cheddar.encode %enc, %msg, %out <level = 5 : i64, logScale = 37 : i64> : (!cheddar.encoder, tensor<4xf64>, tensor<!cheddar.plaintext>) -> tensor<!cheddar.plaintext>
   return %pt : tensor<!cheddar.plaintext>
 }
 
@@ -78,7 +78,7 @@ func.func @test_encode_constant(
     %out: tensor<!cheddar.constant>) -> tensor<!cheddar.constant> {
   // CHECK: cheddar.encode_constant
   // CHECK-SAME: level = 3
-  %c = cheddar.encode_constant %enc, %val, %out {level = 3 : i64} : (!cheddar.encoder, f64, tensor<!cheddar.constant>) -> tensor<!cheddar.constant>
+  %c = cheddar.encode_constant %enc, %val, %out <level = 3 : i64> : (!cheddar.encoder, f64, tensor<!cheddar.constant>) -> tensor<!cheddar.constant>
   return %c : tensor<!cheddar.constant>
 }
 
@@ -233,7 +233,7 @@ func.func @test_level_down(
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.level_down
   // CHECK-SAME: targetLevel = 3
-  %result = cheddar.level_down %ctx, %ct, %out {targetLevel = 3 : i64} : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.level_down %ctx, %ct, %out <targetLevel = 3 : i64> : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
@@ -271,7 +271,7 @@ func.func @test_hmult(
     %key: !cheddar.eval_key,
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hmult
-  %result = cheddar.hmult %ctx, %ct0, %ct1, %key, %out {rescale = true} : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, !cheddar.eval_key, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hmult %ctx, %ct0, %ct1, %key, %out <rescale = true> : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, !cheddar.eval_key, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
@@ -284,7 +284,7 @@ func.func @test_hmult_no_rescale(
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hmult
   // CHECK-SAME: rescale = false
-  %result = cheddar.hmult %ctx, %ct0, %ct1, %key, %out {rescale = false} : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, !cheddar.eval_key, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hmult %ctx, %ct0, %ct1, %key, %out <rescale = false> : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, !cheddar.eval_key, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
@@ -296,7 +296,7 @@ func.func @test_hrot_static(
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hrot
   // CHECK-SAME: static_distance = 5
-  %result = cheddar.hrot %ctx, %ui, %ct, %out {static_distance = 5 : i64} : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hrot %ctx, %ui, %ct, %out <static_distance = 5 : i64> : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
@@ -321,7 +321,7 @@ func.func @test_hrot_add(
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.hrot_add
   // CHECK-SAME: distance = 3
-  %result = cheddar.hrot_add %ctx, %ui, %ct0, %ct1, %out {distance = 3 : i64} : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.hrot_add %ctx, %ui, %ct0, %ct1, %out <distance = 3 : i64> : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
@@ -380,11 +380,11 @@ func.func @test_linear_transform(
     %diags: tensor<2x4xf64>,
     %out: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   // CHECK: cheddar.linear_transform
-  // CHECK-SAME: bs = 2
-  // CHECK-SAME: diagonal_indices = array<i32: 0, 1>
-  // CHECK-SAME: gs = 1
+  // CHECK-SAME: diagonal_indices = [0, 1]
   // CHECK-SAME: level = 5
-  %result = cheddar.linear_transform %ctx, %ct, %evk, %diags, %out {diagonal_indices = array<i32: 0, 1>, level = 5 : i64, bs = 2 : i64, gs = 1 : i64} : (!cheddar.context, tensor<!cheddar.ciphertext>, !cheddar.evk_map, tensor<2x4xf64>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  // CHECK-SAME: bs = 2
+  // CHECK-SAME: gs = 1
+  %result = cheddar.linear_transform %ctx, %ct, %evk, %diags, %out <diagonal_indices = [0, 1], level = 5 : i64, bs = 2 : i64, gs = 1 : i64> : (!cheddar.context, tensor<!cheddar.ciphertext>, !cheddar.evk_map, tensor<2x4xf64>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
 
@@ -398,6 +398,6 @@ func.func @test_eval_poly(
   // CHECK-SAME: coefficients = [1.000000e+00, 2.000000e+00, 3.000000e+00]
   // CHECK-SAME: level = 5
   // CHECK-SAME: outputLevel = 4
-  %result = cheddar.eval_poly %ctx, %ct, %evk, %out {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 5 : i64, outputLevel = 4 : i64} : (!cheddar.context, tensor<!cheddar.ciphertext>, !cheddar.evk_map, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %result = cheddar.eval_poly %ctx, %ct, %evk, %out <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 5 : i64, outputLevel = 4 : i64> : (!cheddar.context, tensor<!cheddar.ciphertext>, !cheddar.evk_map, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }

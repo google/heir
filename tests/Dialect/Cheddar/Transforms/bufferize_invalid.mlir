@@ -4,7 +4,7 @@
 // would need a copy, so it must bufferize in place.
 func.func @borrowed_ui(%ui: tensor<!cheddar.user_interface> {bufferization.writable = false}) -> tensor<!cheddar.user_interface> {
   // expected-error@+1 {{move-only read-write destination must bufferize in-place}}
-  %updated = cheddar.prepare_rot_key %ui {distance = 7 : i64, maxLevel = 13 : i64} : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
+  %updated = cheddar.prepare_rot_key %ui <distance = 7 : i64, maxLevel = 13 : i64> : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
   return %updated : tensor<!cheddar.user_interface>
 }
 
