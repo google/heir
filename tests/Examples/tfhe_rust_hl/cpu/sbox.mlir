@@ -12,14 +12,14 @@ module {
   func.func @g4_mul(%arg0: i2, %arg1: i2) -> i2 {
     %ext_arg0 = arith.extui %arg0 : i2 to i8
     %ext_arg1 = arith.extui %arg1 : i2 to i8
-    %res = comb.lut %ext_arg0, %ext_arg1 {coefficients = array<i8: 1, 2>, lookupTable = array<i8: 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>} : (i8, i8) -> i8
+    %res = comb.lut %ext_arg0, %ext_arg1 <coefficients = [1, 2], lookupTable = [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]> : (i8, i8) -> i8
     %cast = arith.trunci %res : i8 to i2
     return %cast : i2
   }
 
   func.func @g4_scl_N(%arg0: i2) -> i2 {
     %ext_concat = arith.extui %arg0 : i2 to i8
-    %res = comb.lut %ext_concat {coefficients = array<i8: 1>, lookupTable = array<i8: 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>} : (i8) -> i8
+    %res = comb.lut %ext_concat <coefficients = [1], lookupTable = [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]> : (i8) -> i8
     %cast = arith.trunci %res : i8 to i2
     return %cast : i2
   }
@@ -27,7 +27,7 @@ module {
   // Want the bit reverse of the arg0 element
   func.func @g4_sq(%arg0: i2) -> i2 {
     %ext_concat = arith.extui %arg0 : i2 to i8
-    %res = comb.lut %ext_concat {coefficients = array<i8: 1>, lookupTable = array<i8: 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>} : (i8) -> i8
+    %res = comb.lut %ext_concat <coefficients = [1], lookupTable = [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]> : (i8) -> i8
     %cast = arith.trunci %res : i8 to i2
     return %cast : i2
   }
