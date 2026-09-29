@@ -23,18 +23,18 @@ func.func @mad_unsafe(%ctx: !cheddar.context, %acc: tensor<!cheddar.ciphertext>,
 
 // A result equivalent to an argument is dropped; the argument is updated in place.
 // CHECK: func.func @prepare_rot_key(%[[UI:.*]]: memref<!user_interface>) {
-// CHECK: cheddar.prepare_rot_key %[[UI]] {distance = 7 : i64, maxLevel = 13 : i64} : (memref<!user_interface>) -> ()
+// CHECK: cheddar.prepare_rot_key %[[UI]] <distance = 7 : i64, maxLevel = 13 : i64> : (memref<!user_interface>) -> ()
 // CHECK-NEXT: return
 func.func @prepare_rot_key(%ui: tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface> {
-  %result = cheddar.prepare_rot_key %ui {distance = 7 : i64, maxLevel = 13 : i64} : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
+  %result = cheddar.prepare_rot_key %ui <distance = 7 : i64, maxLevel = 13 : i64> : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
   return %result : tensor<!cheddar.user_interface>
 }
 
 // CHECK: func.func @prepare_bootstrap(%[[CTX:.*]]: memref<!boot_context>, %[[UI:.*]]: memref<!user_interface>) {
-// CHECK: cheddar.prepare_bootstrap %[[CTX]], %[[UI]] {numSlots = 8 : i64} : (memref<!boot_context>, memref<!user_interface>) -> ()
+// CHECK: cheddar.prepare_bootstrap %[[CTX]], %[[UI]] <numSlots = 8 : i64> : (memref<!boot_context>, memref<!user_interface>) -> ()
 // CHECK-NEXT: return
 func.func @prepare_bootstrap(%ctx: tensor<!cheddar.boot_context>, %ui: tensor<!cheddar.user_interface>) -> (tensor<!cheddar.boot_context>, tensor<!cheddar.user_interface>) {
-  %new_ctx, %new_ui = cheddar.prepare_bootstrap %ctx, %ui {numSlots = 8 : i64} : (tensor<!cheddar.boot_context>, tensor<!cheddar.user_interface>) -> (tensor<!cheddar.boot_context>, tensor<!cheddar.user_interface>)
+  %new_ctx, %new_ui = cheddar.prepare_bootstrap %ctx, %ui <numSlots = 8 : i64> : (tensor<!cheddar.boot_context>, tensor<!cheddar.user_interface>) -> (tensor<!cheddar.boot_context>, tensor<!cheddar.user_interface>)
   return %new_ctx, %new_ui : tensor<!cheddar.boot_context>, tensor<!cheddar.user_interface>
 }
 
@@ -84,7 +84,7 @@ func.func @rescale_fresh(%ctx: !cheddar.context, %lhs: tensor<!cheddar.ciphertex
 func.func @hrot_add_in_place(%ctx: !cheddar.context, %ui: !cheddar.user_interface, %lhs: tensor<!cheddar.ciphertext>, %rhs: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   %empty = tensor.empty() : tensor<!cheddar.ciphertext>
   %input = cheddar.add %ctx, %lhs, %rhs, %empty : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
-  %output = cheddar.hrot_add %ctx, %ui, %input, %input, %input {distance = 2 : i64} : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  %output = cheddar.hrot_add %ctx, %ui, %input, %input, %input <distance = 2 : i64> : (!cheddar.context, !cheddar.user_interface, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %output : tensor<!cheddar.ciphertext>
 }
 
@@ -167,7 +167,7 @@ func.func @setup(%params: !cheddar.parameter) -> tensor<!cheddar.context> {
 func.func @keygen(%ctx: tensor<!cheddar.context>) -> (tensor<!cheddar.context>, tensor<!cheddar.user_interface>) {
   %empty = tensor.empty() : tensor<!cheddar.user_interface>
   %ui = cheddar.create_user_interface %ctx, %empty : (tensor<!cheddar.context>, tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
-  %ui2 = cheddar.prepare_rot_key %ui {distance = 1 : i64, maxLevel = 1 : i64} : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
+  %ui2 = cheddar.prepare_rot_key %ui <distance = 1 : i64, maxLevel = 1 : i64> : (tensor<!cheddar.user_interface>) -> tensor<!cheddar.user_interface>
   return %ctx, %ui2 : tensor<!cheddar.context>, tensor<!cheddar.user_interface>
 }
 // CHECK: func.func @configure(%[[PARAMS:.*]]: !parameter, %[[CTX:.*]]: memref<!context> {bufferize.result}, %[[UI:.*]]: memref<!user_interface> {bufferize.result})
