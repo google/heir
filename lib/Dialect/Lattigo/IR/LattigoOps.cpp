@@ -217,10 +217,26 @@ LogicalResult CKKSPrepareLinearTransformOp::verify() {
     return emitOpError("logSlots must be in range [0, 62], but got ")
            << logSlots;
   }
-  return verifyLinearTransformCommon(
-      getOperation(), cast<ShapedType>(getDiagonals().getType()),
-      getDiagonalIndicesAttr(), getSourceRowIndicesAttr(), getLevelQAttr(),
-      getLogBabyStepGiantStepRatioAttr());
+  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
+  if (diagonalsType.hasRank() && diagonalsType.getRank() == 2) {
+    int64_t width = diagonalsType.getDimSize(1);
+    if (!ShapedType::isDynamic(width)) {
+      int64_t slots = int64_t{1} << logSlots;
+      if (width <= 0 || width > slots) {
+        return emitOpError("diagonal width (")
+               << width << ") must be in range (0, " << slots << "]";
+      }
+      if (slots % width != 0) {
+        return emitOpError("slots (")
+               << slots << ") must be a multiple of diagonal width (" << width
+               << ")";
+      }
+    }
+  }
+  return verifyLinearTransformCommon(getOperation(), diagonalsType,
+                                     getDiagonalIndicesAttr(),
+                                     getSourceRowIndicesAttr(), getLevelQAttr(),
+                                     getLogBabyStepGiantStepRatioAttr());
 }
 
 ::llvm::SmallVector<::mlir::OpFoldResult>
