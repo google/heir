@@ -762,10 +762,10 @@ struct ConvertKernelLinearTransformOp
           rewriter, op.getLoc(), f64DiagonalsType, diagonalsValue);
     }
 
-    auto linearTransformOp = rewriter.create<lattigo::CKKSLinearTransformOp>(
-        op.getLoc(), adaptor.getInput().getType(), evaluator, encoder,
-        adaptor.getInput(), diagonalsValue, diagonalIndicesI32Attr, levelQAttr,
-        logBSGSRatioAttr);
+    auto linearTransformOp = lattigo::CKKSLinearTransformOp::create(
+        rewriter, op.getLoc(), adaptor.getInput().getType(), evaluator, encoder,
+        adaptor.getInput(), op.getDiagonals(), diagonalIndicesI32Attr,
+        levelQAttr, logBSGSRatioAttr);
 
     auto outputLweType =
         dyn_cast<lwe::LWECiphertextType>(op.getResult().getType());

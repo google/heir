@@ -53,6 +53,16 @@ def Lattigo_CKKSEncoder : Lattigo_CKKSType<"Encoder", "encoder"> {
   let asmName = "encoder";
 }
 
+def Lattigo_CKKSLinearTransformation : Lattigo_CKKSType<"LinearTransformation", "linear_transformation"> {
+  let description = [{
+    A prepared (encoded) linear transformation corresponding to lattigo's
+    `lintrans.LinearTransformation`, produced by `prepare_linear_transform` and
+    evaluated by `apply_linear_transform`.
+  }];
+  let asmName = "linear_transformation";
+}
+
+
 def Lattigo_CKKSPolynomialEvaluator : Lattigo_CKKSType<"PolynomialEvaluator", "polynomial_evaluator"> {
   let description = [{
     This type represents the PolynomialEvaluator for the CKKS encryption scheme.
