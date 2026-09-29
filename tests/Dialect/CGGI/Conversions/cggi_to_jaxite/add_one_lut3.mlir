@@ -39,19 +39,19 @@ func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %encoded_0 = lwe.encode %bool_0 { plaintext_bits = 3 : index } : i1 to !pt_ty
   %constant_F = lwe.trivial_encrypt %encoded_0  : !pt_ty -> !ct_ty
 
-  %t_0 = cggi.lut3 %x_00, %x_01, %x_02 {lookup_table = 128 : ui8} : !ct_ty
-  %t_1 = cggi.lut3 %t_0, %x_03, %x_04 {lookup_table = 128 : ui8} : !ct_ty
-  %t_2 = cggi.lut3 %t_1, %x_05, %x_06 {lookup_table = 128 : ui8} : !ct_ty
+  %t_0 = cggi.lut3 %x_00, %x_01, %x_02 <lookup_table = 128 : ui8> : !ct_ty
+  %t_1 = cggi.lut3 %t_0, %x_03, %x_04 <lookup_table = 128 : ui8> : !ct_ty
+  %t_2 = cggi.lut3 %t_1, %x_05, %x_06 <lookup_table = 128 : ui8> : !ct_ty
 
 
-  %res_07 = cggi.lut3 %t_2, %x_07, %constant_F {lookup_table = 6 : ui8} : !ct_ty
-  %res_06 = cggi.lut3 %t_1, %x_05, %x_06 {lookup_table = 120 : ui8} : !ct_ty
-  %res_05 = cggi.lut3 %t_1, %x_05, %constant_F {lookup_table = 6 : ui8} : !ct_ty
-  %res_04 = cggi.lut3 %t_0, %x_03, %x_04 {lookup_table = 120 : ui8} : !ct_ty
-  %res_03 = cggi.lut3 %t_0, %x_03, %constant_F {lookup_table = 6 : ui8} : !ct_ty
-  %res_02 = cggi.lut3 %x_00, %x_01, %x_02 {lookup_table = 120 : ui8} : !ct_ty
-  %res_01 = cggi.lut3 %x_00, %x_01, %constant_F {lookup_table = 6 : ui8} : !ct_ty
-  %res_00 = cggi.lut3 %x_00, %constant_F, %constant_F {lookup_table =1 : ui8} : !ct_ty
+  %res_07 = cggi.lut3 %t_2, %x_07, %constant_F <lookup_table = 6 : ui8> : !ct_ty
+  %res_06 = cggi.lut3 %t_1, %x_05, %x_06 <lookup_table = 120 : ui8> : !ct_ty
+  %res_05 = cggi.lut3 %t_1, %x_05, %constant_F <lookup_table = 6 : ui8> : !ct_ty
+  %res_04 = cggi.lut3 %t_0, %x_03, %x_04 <lookup_table = 120 : ui8> : !ct_ty
+  %res_03 = cggi.lut3 %t_0, %x_03, %constant_F <lookup_table = 6 : ui8> : !ct_ty
+  %res_02 = cggi.lut3 %x_00, %x_01, %x_02 <lookup_table = 120 : ui8> : !ct_ty
+  %res_01 = cggi.lut3 %x_00, %x_01, %constant_F <lookup_table = 6 : ui8> : !ct_ty
+  %res_00 = cggi.lut3 %x_00, %constant_F, %constant_F <lookup_table = 1 : ui8> : !ct_ty
 
   %from_elements = tensor.from_elements %res_00, %res_01, %res_02, %res_03, %res_04, %res_05, %res_06, %res_07 : tensor<8x!ct_ty>
   return %from_elements : tensor<8x!ct_ty>

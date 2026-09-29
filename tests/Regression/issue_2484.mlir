@@ -7,7 +7,7 @@ func.func @scalar_op_combinations(%arg0: i32, %arg1: i32) -> i32 {
   %0 = arith.addi %arg0, %arg1 : i32
   // CHECK: %[[MUL:.*]] = cggi.mul %[[ARG0]], %[[ARG1]]
   %1 = arith.muli %arg0, %arg1 : i32
-  // CHECK: %[[CMP:.*]] = cggi.cmp %[[ADD]], %[[MUL]] {predicate = 2 : i64}
+  // CHECK: %[[CMP:.*]] = cggi.cmp %[[ADD]], %[[MUL]] <predicate = slt>
   %cond = arith.cmpi slt, %0, %1 : i32
   // CHECK: %[[SEL:.*]] = cggi.cmux %[[CMP]], %[[MUL]], %[[ARG0]]
   %2 = arith.select %cond, %1, %arg0 : i1, i32

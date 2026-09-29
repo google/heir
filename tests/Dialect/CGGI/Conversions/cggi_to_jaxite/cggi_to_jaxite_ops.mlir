@@ -30,7 +30,7 @@ func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) {
     %from_elements = tensor.from_elements %extracted, %extracted_1, %extracted_2, %extracted_3 : tensor<4x!ct_ty>
     %from_elements_7 = tensor.from_elements %extracted_3, %extracted_4, %extracted_5, %extracted_6 : tensor<4x!ct_ty>
     %from_elements_8 = tensor.from_elements %extracted_4, %extracted_5, %extracted_6, %extracted_2 : tensor<4x!ct_ty>
-    %7 = cggi.packed_lut3 %from_elements, %from_elements_7, %from_elements_8 {lookup_tables = [6 : ui8, 120 : ui8, 6 : ui8, 120 : ui8]} : (tensor<4x!ct_ty>, tensor<4x!ct_ty>, tensor<4x!ct_ty>) -> tensor<4x!ct_ty>
+    %7 = cggi.packed_lut3 %from_elements, %from_elements_7, %from_elements_8 <lookup_tables = [6 : ui8, 120 : ui8, 6 : ui8, 120 : ui8]> : (tensor<4x!ct_ty>, tensor<4x!ct_ty>, tensor<4x!ct_ty>) -> tensor<4x!ct_ty>
 
     %c0_9 = arith.constant 0 : index
     %extracted_10 = tensor.extract %7[%c0_9] : tensor<4x!ct_ty>
