@@ -1,10 +1,7 @@
 load("@rules_python//python:py_library.bzl", "py_library")
 load("@rules_python//python:py_test.bzl", "py_test")
 
-package(
-    default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
-)
+package(default_applicable_licenses = ["@heir//:license"])
 
 py_library(
     name = "entrypoint_lib",
