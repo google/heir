@@ -48,6 +48,7 @@ cc_binary(
         "@heir//lib/Dialect/CGGI/Transforms",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/CKKS/Transforms",
+        "@heir//lib/Dialect/Cheddar/Conversions/CheddarToEmitC",
         "@heir//lib/Dialect/Cheddar/IR:Dialect",
         "@heir//lib/Dialect/Cheddar/Transforms:BufferizableOpInterfaceImpl",
         "@heir//lib/Dialect/Cheddar/Transforms:CheddarBufferize",
@@ -205,6 +206,7 @@ cc_binary(
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:LinalgTransforms",
         "@llvm-project//mlir:MathDialect",
+        "@llvm-project//mlir:MathToEmitC",
         "@llvm-project//mlir:MathToLLVM",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:MemRefToEmitC",
@@ -248,6 +250,7 @@ cc_binary(
         "@heir//lib/Target/TfheRustHL:TfheRustHLEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AllTranslations",
         "@llvm-project//mlir:TranslateLib",
     ],
 )

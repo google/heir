@@ -27,6 +27,7 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ConvertToEmitCInterface",
         "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
