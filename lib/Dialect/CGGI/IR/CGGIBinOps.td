@@ -68,6 +68,7 @@ def CGGI_PackedOp : CGGI_Op<"packed_gates",
   }];
 
   let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
 }
 
 /********************
@@ -112,6 +113,7 @@ def CGGI_ScalarShiftRightOp : CGGI_Op<"sshr", [
 ]> {
   let arguments = (ins LWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
   let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
   let summary = "Arithmetic shift to the right of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
 }
 
@@ -121,6 +123,7 @@ def CGGI_ScalarShiftLeftOp : CGGI_Op<"sshl", [
 ]> {
   let arguments = (ins LWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
   let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
   let summary = "Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
 }
 
@@ -137,6 +140,7 @@ def CGGI_CmpOp : CGGI_Op<"cmp", [
 ]> {
   let arguments = (ins Arith_CmpIPredicateAttr:$predicate, LWECiphertextLike:$lhs, AnyTypeOf<[Builtin_Integer,  LWECiphertextLike]>:$rhs);
   let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
   let summary = [{
   High level operation to check the relation of two ciphertexts.
   - equal (mnemonic: "eq"; integer value: 0)

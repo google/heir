@@ -14,7 +14,7 @@ module {
   func.func @test_lower_validate_lwe(%arg0: !ct_ty) -> !ct_ty {
     // CHECK: func.func @test_lower_validate_lwe
     // CHECK: call @__heir_debug_0
-    debug.validate %arg0 {name = "lwe_val1", metadata = "lwe_meta1"} : !ct_ty
+    debug.validate %arg0 <name = "lwe_val1", metadata = "lwe_meta1"> : !ct_ty
     return %arg0 : !ct_ty
   }
 }

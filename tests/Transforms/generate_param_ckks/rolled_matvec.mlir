@@ -77,7 +77,7 @@ module attributes {backend.lattigo, scheme.ckks} {
           %25 = mgmt.init %extracted_slice_0 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
           %26 = arith.mulf %25, %24 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
           %27 = mgmt.modreduce %26 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
-          %28 = mgmt.adjust_scale %17 {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
+          %28 = mgmt.adjust_scale %17 <id = 0> {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
           %29 = mgmt.modreduce %28 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
           %30 = arith.addf %29, %27 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
           scf.yield %30 : tensor<1x1024xf32>
@@ -132,7 +132,7 @@ module attributes {backend.lattigo, scheme.ckks} {
             %39 = mgmt.init %37 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
             %40 = arith.mulf %39, %38 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
             %41 = mgmt.modreduce %40 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
-            %42 = mgmt.adjust_scale %27 {id = 1 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
+            %42 = mgmt.adjust_scale %27 <id = 1> {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
             %43 = mgmt.modreduce %42 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
             %44 = arith.addf %43, %41 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
             scf.yield %44 : tensor<1x1024xf32>
@@ -159,7 +159,7 @@ module attributes {backend.lattigo, scheme.ckks} {
           scf.yield %35 : tensor<1x1024xf32>
         } {mgmt.mgmt = #mgmt.mgmt<level = 0>}
         %23 = tensor_ext.rotate %22, %18 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>, index
-        %24 = mgmt.adjust_scale %17 {id = 2 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
+        %24 = mgmt.adjust_scale %17 <id = 2> {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1x1024xf32>
         %25 = arith.addf %24, %23 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
         %26 = mgmt.level_reduce_min %25 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1x1024xf32>
         scf.yield %26 : tensor<1x1024xf32>

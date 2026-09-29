@@ -41,7 +41,7 @@ func.func @linalg(%ct: !ct_L1) -> (!ct_L1) {
   %c1 = arith.constant dense<1.0> : tensor<f32>
   %0 = tensor.empty() : tensor<1024xf32>
   %c2 = linalg.broadcast ins(%c1 : tensor<f32>) outs(%0 : tensor<1024xf32>) dimensions = [0]
-  %pt1 = lwe.rlwe_encode %c2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt1 = lwe.rlwe_encode %c2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %1 = ckks.add_plain %ct, %pt1 : (!ct_L1, !pt) -> !ct_L1
   return %1 : !ct_L1
 }

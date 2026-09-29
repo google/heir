@@ -24,6 +24,6 @@
 
 // expected-warning@below {{Conflicting ciphertext types found among function arguments}}
 func.func @conflicting_types(%arg0: !ty1, %arg1: !ty2) -> !ty1 {
-  debug.validate %arg0 {name = "v1"} : !ty1
+  debug.validate %arg0 <name = "v1"> : !ty1
   return %arg0 : !ty1
 }

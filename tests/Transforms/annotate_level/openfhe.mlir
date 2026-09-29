@@ -11,7 +11,7 @@ module {
 
     // CHECK: openfhe.level_reduce
     // CHECK-SAME: mgmt.level = 3 : index
-    %ct_reduced2 = openfhe.level_reduce %cc, %ct_reduced {levelToDrop = 2 : i64} : (!openfhe.crypto_context, !openfhe.ciphertext) -> !openfhe.ciphertext
+    %ct_reduced2 = openfhe.level_reduce %cc, %ct_reduced <levelToDrop = 2> : (!openfhe.crypto_context, !openfhe.ciphertext) -> !openfhe.ciphertext
 
     // CHECK: openfhe.bootstrap
     // CHECK-SAME: mgmt.level = 0 : index

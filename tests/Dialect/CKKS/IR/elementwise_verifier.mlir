@@ -17,7 +17,7 @@
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   func.func @test_relinearize_elementwise(%ct : tensor<10x!ct_D3>) -> tensor<10x!ct> {
-    %out = ckks.relinearize %ct {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : (tensor<10x!ct_D3>) -> tensor<10x!ct>
+    %out = ckks.relinearize %ct <from_basis = [0, 1, 2], to_basis = [0, 1]> : (tensor<10x!ct_D3>) -> tensor<10x!ct>
     return %out : tensor<10x!ct>
   }
 }
@@ -42,7 +42,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   func.func @test_relinearize_elementwise_error(%ct : tensor<10x!ct_D3>) -> tensor<11x!ct> {
     // expected-error@+1 {{expected all tensor results to have the same shape as mappable operands, but found shape (10) at operand 0 and shape (11) at result 0}}
-    %out = ckks.relinearize %ct {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : (tensor<10x!ct_D3>) -> tensor<11x!ct>
+    %out = ckks.relinearize %ct <from_basis = [0, 1, 2], to_basis = [0, 1]> : (tensor<10x!ct_D3>) -> tensor<11x!ct>
     return %out : tensor<11x!ct>
   }
 }

@@ -36,7 +36,7 @@ def Debug_ValidateOp : Debug_Op<"validate", []> {
     OptionalAttr<StrAttr>:$metadata
   );
 
-  let assemblyFormat = "$input attr-dict `:` type($input)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input)";
 }
 
 #endif  // LIB_DIALECT_DEBUG_IR_DEBUGOPS_TD_

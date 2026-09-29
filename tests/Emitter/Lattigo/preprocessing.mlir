@@ -27,7 +27,7 @@ module attributes {scheme.bgv} {
 
   func.func @preprocess(%params: !params, %encoder : !encoder, %value : tensor<4xi32>) -> !pt attributes {heir.interface = {func_name = "main", roles = ["client.pack"]}} {
     %pt = lattigo.bgv.new_plaintext %params : (!params) -> !pt
-    %res = lattigo.bgv.encode %encoder, %value, %pt {scale = 0} : (!encoder, tensor<4xi32>, !pt) -> !pt
+    %res = lattigo.bgv.encode %encoder, %value, %pt <scale = 0> : (!encoder, tensor<4xi32>, !pt) -> !pt
     return %res : !pt
   }
 

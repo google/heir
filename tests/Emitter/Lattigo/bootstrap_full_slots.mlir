@@ -22,8 +22,8 @@
 
 module attributes {scheme.ckks, scheme.requested_slot_count = 1024 : i64} {
   func.func @make_bt_params() -> !bt_params {
-    %params = lattigo.ckks.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
-    %bt_params = lattigo.ckks.new_bootstrapping_parameters_from_literal %params {btParamsLiteral = #lattigo.ckks.bootstrapping_parameters_literal<logN = 16>} : (!params) -> !bt_params
+    %params = lattigo.ckks.new_parameters_from_literal <paramsLiteral = #paramsLiteral> : () -> !params
+    %bt_params = lattigo.ckks.new_bootstrapping_parameters_from_literal %params <btParamsLiteral = #lattigo.ckks.bootstrapping_parameters_literal<logN = 16>> : (!params) -> !bt_params
     return %bt_params : !bt_params
   }
 }

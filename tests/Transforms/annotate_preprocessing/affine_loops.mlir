@@ -14,7 +14,7 @@ func.func @affine_loops(%arg0: memref<10xi1>) {
     %0 = affine.load %arg0[%i] : memref<10xi1>
     // CHECK: lwe.encode
     // CHECK-SAME: {encode_id = 0 : i32
-    %1 = lwe.encode %0 { plaintext_bits = 3 : index }: i1 to !plaintext
+    %1 = lwe.encode %0 <plaintext_bits = 3>: i1 to !plaintext
   }
   return
 }

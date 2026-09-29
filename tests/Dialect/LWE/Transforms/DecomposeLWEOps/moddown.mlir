@@ -35,20 +35,20 @@ module attributes {
   // CHECK-SAME: [[x:%.+]]: [[kskTy:!.+]]) -> [[outTy:!.+]] {
   func.func @test_moddown(%x: !ct_L2) -> !ct_L1 {
     // CHECK-DAG: [[rnsConst:%.+]] = rns.constant <[#mod_arith.value<60017030419 : !Z1095233372161_i64> : !Z1095233372161_i64]> : !rns_L0
-    // CHECK-DAG: [[constTerm:%.+]] = lwe.extract_coeff %ct {index = 0 : index} : [[kskTy]]
-    // CHECK-DAG: [[constTermQ:%.+]] = lwe.extract_slice [[constTerm]] {size = 1 : index, start = 0 : index} : [[kskrng:!.+]] -> [[qrng:!.+]]
-    // CHECK-DAG: [[constTermP:%.+]] = lwe.extract_slice [[constTerm]] {size = 1 : index, start = 1 : index} : [[kskrng]] -> [[prng:!.+]]
-    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTermP]] {targetBasis = !rns_L0} : [[prng]] -> [[qrng]]
-    // CHECK-DAG: [[linearTerm:%.+]] = lwe.extract_coeff %ct {index = 1 : index} : [[kskTy]]
-    // CHECK-DAG: [[linearTermQ:%.+]] = lwe.extract_slice [[linearTerm]] {size = 1 : index, start = 0 : index} : [[kskrng]] -> [[qrng]]
-    // CHECK-DAG: [[linearTermP:%.+]] = lwe.extract_slice [[linearTerm]] {size = 1 : index, start = 1 : index} : [[kskrng]] -> [[prng]]
-    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTermP]] {targetBasis = !rns_L0} : [[prng]] -> [[qrng]]
+    // CHECK-DAG: [[constTerm:%.+]] = lwe.extract_coeff %ct <index = 0> : [[kskTy]]
+    // CHECK-DAG: [[constTermQ:%.+]] = lwe.extract_slice [[constTerm]] <start = 0, size = 1> : [[kskrng:!.+]] -> [[qrng:!.+]]
+    // CHECK-DAG: [[constTermP:%.+]] = lwe.extract_slice [[constTerm]] <start = 1, size = 1> : [[kskrng]] -> [[prng:!.+]]
+    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTermP]] <targetBasis = !rns_L0> : [[prng]] -> [[qrng]]
+    // CHECK-DAG: [[linearTerm:%.+]] = lwe.extract_coeff %ct <index = 1> : [[kskTy]]
+    // CHECK-DAG: [[linearTermQ:%.+]] = lwe.extract_slice [[linearTerm]] <start = 0, size = 1> : [[kskrng]] -> [[qrng]]
+    // CHECK-DAG: [[linearTermP:%.+]] = lwe.extract_slice [[linearTerm]] <start = 1, size = 1> : [[kskrng]] -> [[prng]]
+    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTermP]] <targetBasis = !rns_L0> : [[prng]] -> [[qrng]]
     // CHECK-DAG: [[ctq:%.+]] = lwe.from_coeffs [[constTermQ]], [[linearTermQ]] : ([[qrng]], [[qrng]]) -> [[outTy]]
     // CHECK-DAG: [[ctp:%.+]] = lwe.from_coeffs [[const_ext]], [[linear_ext]] : ([[qrng]], [[qrng]]) -> [[outTy]]
     // CHECK-DAG: [[diff:%.+]] = lwe.rsub [[ctq]], [[ctp]] : ([[outTy]], [[outTy]]) -> [[outTy]]
     // CHECK-DAG: [[result:%.+]] = lwe.mul_scalar [[diff]], [[rnsConst]] : ([[outTy]], !rns_L0) -> [[outTy]]
     // CHECK-DAG: return [[result]] : [[outTy]]
-    %result = lwe.mod_down %x {targetBasis = !rns.rns<!Zq0>} : !ct_L2 -> !ct_L1
+    %result = lwe.mod_down %x <targetBasis = !rns.rns<!Zq0>> : !ct_L2 -> !ct_L1
     return %result: !ct_L1
   }
 }

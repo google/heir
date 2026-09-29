@@ -13,7 +13,7 @@ module attributes {scheme.ckks} {
 
   func.func @test_call_reuse(%eval: !lattigo.ckks.evaluator, %ct_other: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     %called = func.call @produce() : () -> !lattigo.rlwe.ciphertext
-    %reduced = lattigo.rlwe.drop_level %eval, %ct_other, %called {levelToDrop = 2 : i64} : (!lattigo.ckks.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    %reduced = lattigo.rlwe.drop_level %eval, %ct_other, %called <levelToDrop = 2> : (!lattigo.ckks.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
     return %reduced : !lattigo.rlwe.ciphertext
   }
 }

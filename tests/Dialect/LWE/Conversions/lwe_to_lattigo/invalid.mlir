@@ -13,7 +13,7 @@ module attributes {backend.lattigo, bgv.schemeParam = #bgv.scheme_param<logN = 1
   func.func @test_eval_chebyshev_non_ckks_params(%ct: !ct) -> !ct {
     // expected-error@below {{scheme parameters are not CKKS parameters}}
     // expected-error@below {{failed to legalize}}
-    %0 = kernel.eval_chebyshev %ct {coefficients = [1.0 : f64, 2.0 : f64]} : !ct -> !ct
+    %0 = kernel.eval_chebyshev %ct <coefficients = [1.0 : f64, 2.0 : f64]> : !ct -> !ct
     return %0 : !ct
   }
 }

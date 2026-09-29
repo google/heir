@@ -19,7 +19,7 @@ func.func @test_bad_arith_syntax() {
   %c_vec = arith.constant dense<[1, 2, 1, 2]> : tensor<4xi4>
 
   // expected-error@+1 {{input bitwidth is required to be in the range [w, 2w], where w is the smallest bit-width that contains the range [0, modulus).}}
-  %barrett = mod_arith.barrett_reduce %c_vec { modulus = 17 } : tensor<4xi4>
+  %barrett = mod_arith.barrett_reduce %c_vec <modulus = 17> : tensor<4xi4>
 
   return
 }
@@ -28,7 +28,7 @@ func.func @test_bad_arith_syntax() {
 
 func.func @test_barrett_neg_mod_err(%arg : i8) -> i8 {
   // expected-error@+1 {{provided modulus -3 is not a positive integer.}}
-  %res = mod_arith.barrett_reduce %arg { modulus = -3 : i7 } : i8
+  %res = mod_arith.barrett_reduce %arg <modulus = -3 : i7> : i8
   return %res : i8
 }
 

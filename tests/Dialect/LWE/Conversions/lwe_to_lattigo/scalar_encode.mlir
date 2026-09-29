@@ -21,7 +21,7 @@ module attributes {scheme.bgv} {
     // CHECK-NEXT: lattigo.bgv.new_plaintext
     // CHECK-NEXT: lattigo.bgv.encode
     %packed = tensor.splat %arg0 : tensor<1024xi64>
-    %pt = lwe.rlwe_encode %packed {encoding = #full_crt_packing_encoding, ring = #ring_Z4295294977_i64_1_x1024_} : tensor<1024xi64> -> !pt
+    %pt = lwe.rlwe_encode %packed <encoding = #full_crt_packing_encoding, ring = #ring_Z4295294977_i64_1_x1024_> : tensor<1024xi64> -> !pt
     // CHECK-NEXT: lattigo.rlwe.encrypt
     %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1_) -> !ct_L1_
     return %ct : !ct_L1_

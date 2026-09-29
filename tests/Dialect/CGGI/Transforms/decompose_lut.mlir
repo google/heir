@@ -12,9 +12,9 @@ func.func @lut2(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
   // CHECK-DAG: %[[const2:.*]] = arith.constant 2 : i3
   // CHECK: %[[mul_b:.*]] = lwe.mul_scalar %[[arg0]], %[[const2]]
   // CHECK: %[[res:.*]] = lwe.add %[[mul_b]], %[[arg1]]
-  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[res]] {lookup_table = 8 : ui8}
+  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[res]] <lookup_table = 8 : ui8>
   // CHECK: return %[[pbs]]
-  %r1 = cggi.lut2 %arg0, %arg1 {lookup_table = 8 : ui8} : !ct_ty
+  %r1 = cggi.lut2 %arg0, %arg1 <lookup_table = 8 : ui8> : !ct_ty
   return %r1 : !ct_ty
 }
 
@@ -27,9 +27,9 @@ func.func @lut3(%arg0: !ct_ty, %arg1: !ct_ty, %arg2: !ct_ty) -> !ct_ty {
   // CHECK: %[[mul_b:.*]] = lwe.mul_scalar %[[arg1]], %[[const2]]
   // CHECK: %[[add_cb:.*]] = lwe.add %[[mul_c]], %[[mul_b]]
   // CHECK: %[[res:.*]] = lwe.add %[[add_cb]], %[[arg2]]
-  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[res]] {lookup_table = 8 : ui8}
+  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[res]] <lookup_table = 8 : ui8>
   // CHECK: return %[[pbs]]
-  %r1 = cggi.lut3 %arg0, %arg1, %arg2 {lookup_table = 8 : ui8} : !ct_ty
+  %r1 = cggi.lut3 %arg0, %arg1, %arg2 <lookup_table = 8 : ui8> : !ct_ty
   return %r1 : !ct_ty
 }
 
@@ -41,9 +41,9 @@ func.func @lut_lincomb(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
   // CHECK: %[[mul_c:.*]] = lwe.mul_scalar %[[arg0]], %[[const3]]
   // CHECK: %[[mul_b:.*]] = lwe.mul_scalar %[[arg1]], %[[const6]]
   // CHECK: %[[add_cb:.*]] = lwe.add %[[mul_c]], %[[mul_b]]
-  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[add_cb]] {lookup_table = 68 : index}
+  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[add_cb]] <lookup_table = 68 : index>
   // CHECK: return %[[pbs]]
-  %r1 = cggi.lut_lincomb %arg0, %arg1 {coefficients = array<i32: 3, 6>, lookup_table = 68 : index} : !ct_ty
+  %r1 = cggi.lut_lincomb %arg0, %arg1 <coefficients = [3, 6], lookup_table = 68 : index> : !ct_ty
   return %r1 : !ct_ty
 }
 
@@ -59,8 +59,8 @@ func.func @lut_bitwidth_4(%arg0: !ct_ty4, %arg1: !ct_ty4) -> !ct_ty4 {
   // CHECK: %[[mul_c:.*]] = lwe.mul_scalar %[[arg0]], %[[const3]]
   // CHECK: %[[mul_b:.*]] = lwe.mul_scalar %[[arg1]], %[[const6]]
   // CHECK: %[[add_cb:.*]] = lwe.add %[[mul_c]], %[[mul_b]]
-  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[add_cb]] {lookup_table = 68 : index}
+  // CHECK: %[[pbs:.*]] = cggi.programmable_bootstrap %[[add_cb]] <lookup_table = 68 : index>
   // CHECK: return %[[pbs]]
-  %r1 = cggi.lut_lincomb %arg0, %arg1 {coefficients = array<i32: 3, 6>, lookup_table = 68 : index} : !ct_ty4
+  %r1 = cggi.lut_lincomb %arg0, %arg1 <coefficients = [3, 6], lookup_table = 68 : index> : !ct_ty4
   return %r1 : !ct_ty4
 }

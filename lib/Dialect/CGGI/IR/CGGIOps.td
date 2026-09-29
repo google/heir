@@ -38,6 +38,7 @@ include "lib/Dialect/CGGI/IR/CGGIPBSOps.td"
 def CGGI_CreateTrivialOp : CGGI_Op<"create_trivial", [Pure]> {
   let arguments = (ins AnyAttrOf<[Builtin_IntegerAttr, Builtin_ArrayAttr]>:$value);
   let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
 }
 
 def CGGI_CastOp : CGGI_Op<"cast", [Pure, SameOperandsAndResultShape]> {

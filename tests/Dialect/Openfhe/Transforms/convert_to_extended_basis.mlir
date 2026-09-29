@@ -13,7 +13,7 @@ module {
   func.func @test_convert_single_rotation(%cc: !cc, %ct: !ct) -> !ct {
     %c4 = arith.constant 4 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %ct : (!cc, !ct) -> !digit_decomp
-    %rot = openfhe.fast_rotation %cc, %ct, %c4, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !digit_decomp) -> !ct
+    %rot = openfhe.fast_rotation %cc, %ct, %c4, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !digit_decomp) -> !ct
     return %rot : !ct
   }
 
@@ -28,8 +28,8 @@ module {
     %c1 = arith.constant 1 : index
     %c2 = arith.constant 2 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %ct : (!cc, !ct) -> !digit_decomp
-    %r1 = openfhe.fast_rotation %cc, %ct, %c1, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !digit_decomp) -> !ct
-    %r2 = openfhe.fast_rotation %cc, %ct, %c2, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !digit_decomp) -> !ct
+    %r1 = openfhe.fast_rotation %cc, %ct, %c1, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !digit_decomp) -> !ct
+    %r2 = openfhe.fast_rotation %cc, %ct, %c2, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !digit_decomp) -> !ct
     %sum = openfhe.add %cc, %r1, %r2 : (!cc, !ct, !ct) -> !ct
     return %sum : !ct
   }

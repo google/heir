@@ -24,7 +24,7 @@ module attributes {scheme.bgv} {
     %sub_res = openfhe.sub %cc, %input1, %input2 : (!cc, !ct, !ct) -> !ct
     %mul_res = openfhe.mul %cc, %add_res, %sub_res : (!cc, !ct, !ct) -> !ct
     %mul_plain_res = openfhe.mul_plain %cc, %mul_res, %input3: (!cc, !ct, !pt) -> !ct
-    %rotate_res = openfhe.rot %cc, %mul_plain_res { static_shift = 4 : index } : (!cc, !ct) -> !ct
+    %rotate_res = openfhe.rot %cc, %mul_plain_res <static_shift = 4 : index> : (!cc, !ct) -> !ct
     return %rotate_res: !ct
   }
 
@@ -50,17 +50,17 @@ module attributes {scheme.bgv} {
   func.func @dot_product(%cc: !cc, %ct: !ct, %ct_0: !ct) -> !ct {
     %ct_1 = openfhe.mul_no_relin %cc, %ct, %ct_0 : (!cc, !ct, !ct) -> !ct
     %ct_2 = openfhe.relin_inplace %cc, %ct_1 : (!cc, !ct) -> !ct
-    %ct_3 = openfhe.rot %cc, %ct_2 {static_shift = 4 : index} : (!cc, !ct) -> !ct
+    %ct_3 = openfhe.rot %cc, %ct_2 <static_shift = 4 : index> : (!cc, !ct) -> !ct
     %ct_4 = openfhe.add_inplace %cc, %ct_2, %ct_3 : (!cc, !ct, !ct) -> !ct
-    %ct_5 = openfhe.rot %cc, %ct_4 {static_shift = 2 : index} : (!cc, !ct) -> !ct
+    %ct_5 = openfhe.rot %cc, %ct_4 <static_shift = 2 : index> : (!cc, !ct) -> !ct
     %ct_6 = openfhe.add_inplace %cc, %ct_4, %ct_5 : (!cc, !ct, !ct) -> !ct
-    %ct_7 = openfhe.rot %cc, %ct_6 {static_shift = 1 : index} : (!cc, !ct) -> !ct
+    %ct_7 = openfhe.rot %cc, %ct_6 <static_shift = 1 : index> : (!cc, !ct) -> !ct
     %ct_8 = openfhe.add_inplace %cc, %ct_6, %ct_7 : (!cc, !ct, !ct) -> !ct
     %ct_9 = openfhe.mod_reduce_inplace %cc, %ct_8 : (!cc, !ct) -> !ct
     %cst = memref.alloc() : memref<8xi16>
     %pt = openfhe.make_packed_plaintext %cc, %cst : (!cc, memref<8xi16>) -> !pt
     %ct_10 = openfhe.mul_plain %cc, %ct_9, %pt : (!cc, !ct, !pt) -> !ct
-    %ct_11 = openfhe.rot %cc, %ct_10 {static_shift = 7 : index} : (!cc, !ct) -> !ct
+    %ct_11 = openfhe.rot %cc, %ct_10 <static_shift = 7 : index> : (!cc, !ct) -> !ct
     %ct_12 = openfhe.mod_reduce_inplace %cc, %ct_11 : (!cc, !ct) -> !ct
     return %ct_12 : !ct
   }
@@ -81,7 +81,7 @@ module attributes {scheme.bgv} {
     // CHECK: member_call_opaque %[[PARAMS]] "SetMultiplicativeDepth"() <args = [1]>
     // CHECK: member_call_opaque %[[PARAMS]] "SetPlaintextModulus"() <args = [2]>
     // CHECK: member_call_opaque %[[PARAMS]] "SetKeySwitchTechnique"() <args = ["HYBRID"]>
-    %params = openfhe.gen_params { mulDepth = 1 : i64, plainMod = 2 : i64 } : () -> !params
+    %params = openfhe.gen_params <mulDepth = 1, plainMod = 2> : () -> !params
 
     // CHECK: %[[NEW_CC:.*]] = call_opaque "GenCryptoContext"(%[[PARAMS]])
     // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"PKE">]>
@@ -89,14 +89,14 @@ module attributes {scheme.bgv} {
     // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"LEVELEDSHE">]>
     // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"ADVANCEDSHE">]>
     // CHECK: member_call_opaque %[[NEW_CC]] "Enable"() <args = [#emitc.opaque<"FHE">]>
-    %new_cc = openfhe.gen_context %params { supportFHE = true } : (!params) -> !cc
+    %new_cc = openfhe.gen_context %params <supportFHE = true> : (!params) -> !cc
 
     // CHECK: member_call_opaque %[[CC]] "EvalMultKeyGen"(%[[SK]])
     openfhe.gen_mulkey %cc, %sk : (!cc, !sk) -> ()
 
     // CHECK: %[[VEC_CONST:.*]] = "emitc.constant"() <{value = #emitc.opaque<"{{.*}}">}> : () -> !emitc.opaque<"std::vector<int32_t>">
     // CHECK: member_call_opaque %[[CC]] "EvalRotateKeyGen"(%[[SK]], %[[VEC_CONST]])
-    openfhe.gen_rotkey %cc, %sk { indices = array<i64: 1, 2> } : (!cc, !sk) -> ()
+    openfhe.gen_rotkey %cc, %sk <indices = [1, 2]> : (!cc, !sk) -> ()
     return
   }
 

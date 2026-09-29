@@ -29,7 +29,7 @@ func.func @linear_polynomial(%arg0: !ct_ty, %arg1: !ct_ty, %arg2: !ct_ty, %arg3:
   // CHECK: %[[v0:.*]] = openfhe.mul_no_relin %[[cc]], %[[arg0]], %[[arg2]]
   %0 = bgv.mul %arg0, %arg2  : (!ct_ty, !ct_ty) -> !ct_sq_ty
   // CHECK: %[[v1:.*]] = openfhe.relin %[[cc]], %[[v0]]
-  %1 = bgv.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !ct_sq_ty -> !ct_ty
+  %1 = bgv.relinearize %0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : !ct_sq_ty -> !ct_ty
   // CHECK: %[[v2:.*]] = openfhe.sub %[[cc]], %[[arg3]], %[[v1]]
   %2 = bgv.sub %arg3, %1  : (!ct_ty, !ct_ty) -> !ct_ty
   // CHECK: %[[v3:.*]] = openfhe.sub %[[cc]], %[[v2]], %[[arg1]]

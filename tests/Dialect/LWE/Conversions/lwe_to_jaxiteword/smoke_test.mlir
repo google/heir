@@ -39,8 +39,8 @@ module {
   // CHECK: @test_static_rotate
   func.func @test_static_rotate(%ct: !ct_L1_) -> !ct_L1_ {
     // CHECK: jaxiteword.rot
-    // CHECK-SAME: index = 3 : i64
-    %rotated = ckks.rotate %ct {static_shift = 3 : index} : !ct_L1_
+    // CHECK-SAME: <index = 3>
+    %rotated = ckks.rotate %ct <static_shift = 3 : index> : !ct_L1_
     return %rotated : !ct_L1_
   }
 
@@ -48,7 +48,7 @@ module {
   func.func @test_constant_dynamic_rotate(%ct: !ct_L1_) -> !ct_L1_ {
     %shift = arith.constant -2 : index
     // CHECK: jaxiteword.rot
-    // CHECK-SAME: index = -2 : i64
+    // CHECK-SAME: <index = -2>
     %rotated = ckks.rotate %ct, %shift : index : !ct_L1_
     return %rotated : !ct_L1_
   }
@@ -57,7 +57,7 @@ module {
   // CHECK-SAME: (%{{[^:]*}}: !jaxiteword.crypto_context<>, %{{[^:]*}}: !jaxiteword.eval_key<>
   func.func @test_encode_encrypt(%input: tensor<1024xi16>, %pk: !pkey_L1_) -> !ct_L1_ {
     // CHECK: jaxiteword.encode
-    %pt = lwe.rlwe_encode %input {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x1024_} : tensor<1024xi16> -> !pt_
+    %pt = lwe.rlwe_encode %input <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x1024_> : tensor<1024xi16> -> !pt_
     // CHECK: jaxiteword.encrypt
     %ct = lwe.rlwe_encrypt %pt, %pk : (!pt_, !pkey_L1_) -> !ct_L1_
     return %ct : !ct_L1_

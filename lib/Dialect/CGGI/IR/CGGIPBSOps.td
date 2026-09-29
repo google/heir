@@ -11,7 +11,7 @@ def CGGI_ProgrammableBootstrapOp : CGGI_Op<"programmable_bootstrap", [
 ]> {
   let arguments = (ins LWECiphertextLike:$input, Builtin_IntegerAttr:$lookup_table);
   let results = (outs LWECiphertextLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($output))";
   let summary = "Programmable Bootstrap with a given lookup table.";
 
   let description = [{
@@ -34,7 +34,7 @@ class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
   DeclareOpInterfaceMethods<LUTOpInterface>
 ]> {
   let results = (outs LWECiphertextLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($output))" ;
 
   let description = [{
     An op representing a lookup table applied to some number `n` of ciphertexts
@@ -88,6 +88,7 @@ def CGGI_PackedLut3Op : CGGI_Op<"packed_lut3", [
   );
 
   let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
 }
 
 def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
@@ -138,7 +139,7 @@ def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
     Builtin_IntegerAttr:$lookup_table
   );
   let results = (outs AnyType:$output);
-  let assemblyFormat = "operands attr-dict `:` type($output)" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` type($output)" ;
   let hasVerifier = 1;
 }
 
@@ -188,7 +189,7 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
     DenseI32ArrayAttr:$lookup_tables
   );
   let results = (outs Variadic<LWECiphertextLike>:$outputs);
-  let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type($inputs, $outputs)" ;
   let hasVerifier = 1;
 }
 
@@ -229,7 +230,7 @@ def CGGI_SelectorLutLinCombOp : CGGI_Op<"selector_lut_lincomb", [
     DenseI8ArrayAttr:$lookup_tables
   );
   let results = (outs LWECiphertextLike:$outputs);
-  let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type($inputs, $outputs)" ;
   // ToDo: Add verifier to ensure the lookup table is of size 2^n for n-bit inputs.
 }
 

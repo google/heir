@@ -27,10 +27,10 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %cst2 = arith.constant dense<2.0> : tensor<1024xf32>
 
     %pt = scf.if %cond -> (!pt) {
-      %pt1 = lwe.rlwe_encode %cst1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt1 = lwe.rlwe_encode %cst1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       scf.yield %pt1 : !pt
     } else {
-      %pt2 = lwe.rlwe_encode %cst2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt2 = lwe.rlwe_encode %cst2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       scf.yield %pt2 : !pt
     }
 

@@ -23,7 +23,7 @@ module {
   // CHECK: func @callee
   // CHECK-SAME: (%[[SK:[^:]*]]: {{.*}}, %[[ARG:[^:]*]]: !lwe.lwe_ciphertext<{{.*}}>)
   func.func @callee(%arg0: !ty) {
-    debug.validate %arg0 {name = "callee_debug"} : !ty
+    debug.validate %arg0 <name = "callee_debug"> : !ty
     return
   }
 

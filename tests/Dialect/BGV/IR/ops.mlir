@@ -53,8 +53,8 @@ module {
     %neg = bgv.negate %arg0 : !ct
 
     %0 = bgv.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
-    %1 = bgv.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : !ct1 -> !ct
-    %2 = bgv.modulus_switch %1  {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
+    %1 = bgv.relinearize %0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : !ct1 -> !ct
+    %2 = bgv.modulus_switch %1 <to_ring = #ring_rns_L0_1_x1024_> : !ct -> !ct2
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>>
     return %arg0 : !ct
   }
@@ -75,8 +75,8 @@ module {
     %neg = bgv.negate %arg0 : tensor<5x!ct>
 
     %0 = bgv.mul %arg0, %arg1  : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct1>
-    %1 = bgv.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : tensor<5x!ct1> -> tensor<5x!ct>
-    %2 = bgv.modulus_switch %1  {to_ring = #ring_rns_L0_1_x1024_} : tensor<5x!ct> -> tensor<5x!ct2>
+    %1 = bgv.relinearize %0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : tensor<5x!ct1> -> tensor<5x!ct>
+    %2 = bgv.modulus_switch %1 <to_ring = #ring_rns_L0_1_x1024_> : tensor<5x!ct> -> tensor<5x!ct2>
     return %arg0 : tensor<5x!ct>
   }
 

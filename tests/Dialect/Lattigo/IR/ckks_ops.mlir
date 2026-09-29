@@ -41,9 +41,9 @@ module {
   // CHECK: func @test_new_params_from_literal
   func.func @test_new_params_from_literal() {
     // CHECK: %[[v1:.*]] = lattigo.ckks.new_parameters_from_literal
-    %params = lattigo.ckks.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
+    %params = lattigo.ckks.new_parameters_from_literal <paramsLiteral = #paramsLiteral> : () -> !params
     // CHECK: %[[v2:.*]] = lattigo.ckks.new_parameters_from_literal
-    %params2 = lattigo.ckks.new_parameters_from_literal {paramsLiteral = #paramsLiteral2} : () -> !params
+    %params2 = lattigo.ckks.new_parameters_from_literal <paramsLiteral = #paramsLiteral2> : () -> !params
     return
   }
 
@@ -155,7 +155,7 @@ module {
   // CHECK: func @test_ckks_rotate_new
   func.func @test_ckks_rotate_new(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate_new
-    %output = lattigo.ckks.rotate_new %evaluator, %ct {static_shift = 1} : (!evaluator, !ct) -> !ct
+    %output = lattigo.ckks.rotate_new %evaluator, %ct <static_shift = 1> : (!evaluator, !ct) -> !ct
     return
   }
 
@@ -176,35 +176,35 @@ module {
   // CHECK: func @test_ckks_rotate
   func.func @test_ckks_rotate(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate
-    %output = lattigo.ckks.rotate %evaluator, %ct, %ct {static_shift = 1} : (!evaluator, !ct, !ct) -> !ct
+    %output = lattigo.ckks.rotate %evaluator, %ct, %ct <static_shift = 1> : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
   // CHECK: func @test_ckks_linear_transform
   func.func @test_ckks_linear_transform(%evaluator: !evaluator, %encoder: !encoder, %ct: !ct, %diagonals: tensor<2x4xf64>) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.linear_transform
-    %output = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals {diagonal_indices = array<i32: 0, 1>, levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!evaluator, !encoder, !ct, tensor<2x4xf64>) -> !ct
+    %output = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals <diagonal_indices = [0, 1], levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!evaluator, !encoder, !ct, tensor<2x4xf64>) -> !ct
     return
   }
 
   // CHECK: func @test_ckks_linear_transform_source_row_indices
   func.func @test_ckks_linear_transform_source_row_indices(%evaluator: !evaluator, %encoder: !encoder, %ct: !ct, %diagonals: tensor<4x4xf64>) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.linear_transform
-    %output = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals {diagonal_indices = array<i32: 0, 1>, source_row_indices = array<i32: 2, 3>, levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!evaluator, !encoder, !ct, tensor<4x4xf64>) -> !ct
+    %output = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals <diagonal_indices = [0, 1], levelQ = 0 : i64, logBabyStepGiantStepRatio = 0 : i64> {source_row_indices = array<i32: 2, 3>} : (!evaluator, !encoder, !ct, tensor<4x4xf64>) -> !ct
     return
   }
 
   // CHECK: func @test_ckks_prepare_linear_transform
   func.func @test_ckks_prepare_linear_transform(%params: !params, %encoder: !encoder, %diagonals: tensor<2x4xf64>) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.prepare_linear_transform
-    %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0, 1>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
+    %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0, 1], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
     return
   }
 
   // CHECK: func @test_ckks_prepare_linear_transform_source_row_indices
   func.func @test_ckks_prepare_linear_transform_source_row_indices(%params: !params, %encoder: !encoder, %diagonals: tensor<4x4xf64>) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.prepare_linear_transform
-    %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0, 1>, source_row_indices = array<i32: 2, 3>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<4x4xf64>) -> !linear_transformation
+    %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0, 1], source_row_indices = [2, 3], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<4x4xf64>) -> !linear_transformation
     return
   }
 

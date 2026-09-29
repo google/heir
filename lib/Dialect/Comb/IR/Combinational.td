@@ -328,7 +328,7 @@ def LUTOp : CombOp<"lut", [Pure]> {
 
   let arguments = (ins Variadic<I8>:$inputs, DenseI8ArrayAttr:$coefficients, DenseI8ArrayAttr:$lookupTable);
   let results = (outs I8:$result);
-  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)" ;
 }
 
 #endif // LIB_DIALECT_COMB_COMBINATIONAL_TD

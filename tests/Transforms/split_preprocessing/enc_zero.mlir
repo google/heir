@@ -21,7 +21,7 @@
 // CHECK-SAME: attributes {heir.interface = {roles = ["client.encrypt_zero"]}}
 func.func @matvec__encrypt__zero__0(%pk: !pkey_L1) -> !ct_L1 attributes {heir.interface = {roles = ["client.encrypt_zero"]}} {
   %cst = arith.constant dense<0.000000e+00> : tensor<1024xf64>
-  %pt = lwe.rlwe_encode %cst {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf64> -> !pt
+  %pt = lwe.rlwe_encode %cst <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf64> -> !pt
   %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1) -> !ct_L1
   return %ct : !ct_L1
 }

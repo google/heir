@@ -266,7 +266,7 @@ func.func @linear_transform_needs_linear_inputs(%arg0: !secret.secret<tensor<2xf
     %2 = arith.mulf %input1, %input1 : tensor<2xf64>
     %3 = arith.subf %1, %2 : tensor<2xf64>
     %diagonals = arith.constant dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>
-    %4 = kernel.linear_transform %3, %diagonals {diagonal_indices = array<i64: 0, 1>} : tensor<2xf64>, tensor<2x2xf64> -> tensor<2xf64>
+    %4 = kernel.linear_transform %3, %diagonals <diagonal_indices = [0, 1]> : tensor<2xf64>, tensor<2x2xf64> -> tensor<2xf64>
     secret.yield %4 : tensor<2xf64>
   } -> !secret.secret<tensor<2xf64>>
   return %0 : !secret.secret<tensor<2xf64>>
@@ -285,7 +285,7 @@ func.func @eval_chebyshev_needs_linear_inputs(%arg0: !secret.secret<tensor<16xf3
     %1 = arith.mulf %input0, %input0 : tensor<16xf32>
     %2 = arith.mulf %input1, %input1 : tensor<16xf32>
     %3 = arith.subf %1, %2 : tensor<16xf32>
-    %4 = kernel.eval_chebyshev %3 {coefficients = [1.0 : f64, 2.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+    %4 = kernel.eval_chebyshev %3 <coefficients = [1.0 : f64, 2.0 : f64]> : tensor<16xf32> -> tensor<16xf32>
     secret.yield %4 : tensor<16xf32>
   } -> !secret.secret<tensor<16xf32>>
   return %0 : !secret.secret<tensor<16xf32>>

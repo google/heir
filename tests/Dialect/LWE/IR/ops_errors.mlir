@@ -11,7 +11,7 @@
 func.func @test_invalid_plaintext_bits() {
     %0 = arith.constant 0 : i1
     // expected-error@below {{LWE plaintext ring coefficient type width must match message bits parameter, expected 4 but got 3}}
-    %2 = lwe.encode %0 { plaintext_bits = 4 : index }: i1 to !plaintext
+    %2 = lwe.encode %0 <plaintext_bits = 4>: i1 to !plaintext
   return
 }
 

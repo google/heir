@@ -25,6 +25,6 @@ func.func @foo(%arg0: !ty) -> !ty {
 
 // expected-error@below {{validation operations cannot be lowered without a private key}}
 func.func @bar(%arg0: i32) {
-  debug.validate %arg0 {name = "v1"} : i32
+  debug.validate %arg0 <name = "v1"> : i32
   return
 }

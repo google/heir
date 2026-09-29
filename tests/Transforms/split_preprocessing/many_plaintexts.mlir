@@ -41,8 +41,8 @@
 func.func @multiple(%ct: !ct_L1, %tensorC1: tensor<2x1024xf32>) -> (!ct_L1) {
   %c1 = tensor.extract_slice %tensorC1[0, 0] [1, 1024] [1, 1] : tensor<2x1024xf32> to tensor<1024xf32>
   %c2 = tensor.extract_slice %tensorC1[1, 0] [1, 1024] [1, 1] : tensor<2x1024xf32> to tensor<1024xf32>
-  %pt1 = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
-  %pt2 = lwe.rlwe_encode %c2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt1 = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
+  %pt2 = lwe.rlwe_encode %c2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt1 : (!ct_L1, !pt) -> !ct_L1
   %1 = ckks.add_plain %ct, %pt2 : (!ct_L1, !pt) -> !ct_L1
   return %1 : !ct_L1

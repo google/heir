@@ -10,7 +10,7 @@ module {
         // coefficients of size 4 -> degree 3. Lattigo consumes 2 levels.
         // CHECK: kernel.eval_chebyshev
         // CHECK-SAME: mgmt.level = 2 : index
-        %1 = kernel.eval_chebyshev %val {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+        %1 = kernel.eval_chebyshev %val <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64]> : tensor<16xf32> -> tensor<16xf32>
         secret.yield %1 : tensor<16xf32>
       } -> !secret.secret<tensor<16xf32>>
       return %0 : !secret.secret<tensor<16xf32>>
@@ -22,7 +22,7 @@ module {
         // coefficients of size 5 -> degree 4. std::bit_width(4) = 3 levels to drop.
         // CHECK: kernel.eval_chebyshev
         // CHECK-SAME: mgmt.level = 3 : index
-        %1 = kernel.eval_chebyshev %val {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64, 5.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+        %1 = kernel.eval_chebyshev %val <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64, 5.0 : f64]> : tensor<16xf32> -> tensor<16xf32>
         secret.yield %1 : tensor<16xf32>
       } -> !secret.secret<tensor<16xf32>>
       return %0 : !secret.secret<tensor<16xf32>>
@@ -38,7 +38,7 @@ module {
         // coefficients of size 4 -> degree 3. OpenFHE consumes 3 levels.
         // CHECK: kernel.eval_chebyshev
         // CHECK-SAME: mgmt.level = 3 : index
-        %1 = kernel.eval_chebyshev %val {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+        %1 = kernel.eval_chebyshev %val <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64]> : tensor<16xf32> -> tensor<16xf32>
         secret.yield %1 : tensor<16xf32>
       } -> !secret.secret<tensor<16xf32>>
       return %0 : !secret.secret<tensor<16xf32>>
@@ -50,7 +50,7 @@ module {
         // coefficients of size 3 -> degree 2. std::bit_width(2) = 2 levels to drop.
         // CHECK: kernel.eval_chebyshev
         // CHECK-SAME: mgmt.level = 2 : index
-        %1 = kernel.eval_chebyshev %val {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+        %1 = kernel.eval_chebyshev %val <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64]> : tensor<16xf32> -> tensor<16xf32>
         secret.yield %1 : tensor<16xf32>
       } -> !secret.secret<tensor<16xf32>>
       return %0 : !secret.secret<tensor<16xf32>>
@@ -65,7 +65,7 @@ module {
       ^body(%val: tensor<16xf32>):
         // CHECK: kernel.eval_chebyshev
         // CHECK-SAME: mgmt.level = 2 : index
-        %1 = kernel.eval_chebyshev %val {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64]} : tensor<16xf32> -> tensor<16xf32>
+        %1 = kernel.eval_chebyshev %val <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64, 4.0 : f64]> : tensor<16xf32> -> tensor<16xf32>
         secret.yield %1 : tensor<16xf32>
       } -> !secret.secret<tensor<16xf32>>
       return %0 : !secret.secret<tensor<16xf32>>

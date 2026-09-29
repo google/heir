@@ -20,7 +20,7 @@
 !ty = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @foo(%arg0: !ty) -> !ty {
-  debug.validate %arg0 {name = "v1"} : !ty
+  debug.validate %arg0 <name = "v1"> : !ty
   return %arg0 : !ty
 }
 

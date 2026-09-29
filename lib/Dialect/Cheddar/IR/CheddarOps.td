@@ -13,7 +13,7 @@ include "lib/Dialect/HEIRInterfaces.td"
 class Cheddar_Op<string mnemonic, list<Trait> traits = []> :
         Op<Cheddar_Dialect, mnemonic, traits> {
   let assemblyFormat = [{
-    operands attr-dict `:` functional-type(operands, results)
+    operands prop-dict attr-dict `:` functional-type(operands, results)
   }];
 }
 
@@ -275,7 +275,7 @@ def Cheddar_MakeParameterOp : Cheddar_Op<"make_parameter", [Pure]> {
     OptionalAttr<Builtin_IntegerAttr>:$sparseHammingWeight
   );
   let results = (outs Cheddar_Parameter:$params);
-  let assemblyFormat = "attr-dict `:` type($params)";
+  let assemblyFormat = "prop-dict attr-dict `:` type($params)";
 }
 
 //===----------------------------------------------------------------------===//

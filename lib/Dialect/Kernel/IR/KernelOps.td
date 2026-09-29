@@ -49,7 +49,7 @@ def Kernel_EvalChebyshevOp : Kernel_Op<"eval_chebyshev", [
     AnyType:$output
   );
 
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
 }
 
 def Kernel_LinearTransformOp : Kernel_Op<"linear_transform", [
@@ -89,7 +89,7 @@ def Kernel_LinearTransformOp : Kernel_Op<"linear_transform", [
     AnyType:$output
   );
 
-  let assemblyFormat = "$input `,` $diagonals attr-dict `:` type($input) `,` type($diagonals) `->` type($output)";
+  let assemblyFormat = "$input `,` $diagonals prop-dict attr-dict `:` type($input) `,` type($diagonals) `->` type($output)";
   let hasVerifier = 1;
 }
 
@@ -125,7 +125,7 @@ def Kernel_PrepareLinearTransformOp : Kernel_Op<"prepare_linear_transform", [
     Kernel_PreparedLinearTransform:$prepared
   );
 
-  let assemblyFormat = "$diagonals attr-dict `:` type($diagonals) `->` type($prepared)";
+  let assemblyFormat = "$diagonals prop-dict attr-dict `:` type($diagonals) `->` type($prepared)";
   let hasVerifier = 1;
 }
 

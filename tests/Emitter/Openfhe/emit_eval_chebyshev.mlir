@@ -12,11 +12,11 @@
 // CHECK-NEXT:  }
 module attributes {scheme.ckks} {
   func.func @test_eval_chebyshev(%cc : !cc, %input : !ct) -> !ct {
-    %res = openfhe.eval_chebyshev_series %cc, %input {
+    %res = openfhe.eval_chebyshev_series %cc, %input <
       coefficients = [1.0 : f64, 2.5 : f64, 3.0 : f64],
       domain_lower = -1.0 : f64,
       domain_upper = 1.0 : f64
-    } : (!cc, !ct) -> !ct
+    > : (!cc, !ct) -> !ct
     return %res : !ct
   }
 }

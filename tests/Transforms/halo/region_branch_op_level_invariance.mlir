@@ -8,15 +8,15 @@ func.func @test_scf_if_level_mismatch(%arg0: i1, %arg1: !secret.secret<i32>) -> 
   // CHECK:   %[[L2:.*]] = mgmt.level_reduce %[[L1]]
   // CHECK:   scf.yield %[[L2]]
   // CHECK: else
-  // CHECK:   %[[L3:.*]] = mgmt.level_reduce %{{.*}} {levelToDrop = 2
+  // CHECK:   %[[L3:.*]] = mgmt.level_reduce %{{.*}} <levelToDrop = 2>
   // CHECK:   scf.yield %[[L3]]
   %1 = secret.generic(%arg1 : !secret.secret<i32>) {
   ^body(%arg1_val: i32):
     %0 = scf.if %arg0 -> (i32) {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 1} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 1> : i32
       scf.yield %2 : i32
     } else {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 2} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 2> : i32
       scf.yield %2 : i32
     }
     secret.yield %0 : i32
@@ -32,15 +32,15 @@ func.func @test_affine_if_level_mismatch(%arg0: index, %arg1: !secret.secret<i32
   // CHECK:   %[[L2:.*]] = mgmt.level_reduce %[[L1]]
   // CHECK:   affine.yield %[[L2]]
   // CHECK: else
-  // CHECK:   %[[L3:.*]] = mgmt.level_reduce %{{.*}} {levelToDrop = 2
+  // CHECK:   %[[L3:.*]] = mgmt.level_reduce %{{.*}} <levelToDrop = 2>
   // CHECK:   affine.yield %[[L3]]
   %1 = secret.generic(%arg1 : !secret.secret<i32>) {
   ^body(%arg1_val: i32):
     %0 = affine.if affine_set<(d0) : (d0 == 0)>(%arg0) -> (i32) {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 1} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 1> : i32
       affine.yield %2 : i32
     } else {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 2} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 2> : i32
       affine.yield %2 : i32
     }
     secret.yield %0 : i32
@@ -52,7 +52,7 @@ func.func @test_affine_if_level_mismatch(%arg0: index, %arg1: !secret.secret<i32
 func.func @test_scf_if_level_mismatch_else_insertion(%arg0: i1, %arg1: !secret.secret<i32>) -> !secret.secret<i32> {
   // CHECK: secret.generic
   // CHECK: scf.if
-  // CHECK:   %[[L1:.*]] = mgmt.level_reduce %{{.*}} {levelToDrop = 2
+  // CHECK:   %[[L1:.*]] = mgmt.level_reduce %{{.*}} <levelToDrop = 2>
   // CHECK:   scf.yield %[[L1]]
   // CHECK: else
   // CHECK:   %[[L2:.*]] = mgmt.level_reduce
@@ -61,10 +61,10 @@ func.func @test_scf_if_level_mismatch_else_insertion(%arg0: i1, %arg1: !secret.s
   %1 = secret.generic(%arg1 : !secret.secret<i32>) {
   ^body(%arg1_val: i32):
     %0 = scf.if %arg0 -> (i32) {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 2} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 2> : i32
       scf.yield %2 : i32
     } else {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 1} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 1> : i32
       scf.yield %2 : i32
     }
     secret.yield %0 : i32

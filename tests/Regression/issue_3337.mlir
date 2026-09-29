@@ -28,7 +28,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
   }
   func.func @rotate512__encrypt__arg0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk, %arg0: tensor<1024xf32>) -> tensor<1x!ct> attributes {heir.interface = {func_name = "rotate512", index = 0 : i64, roles = ["client.encrypt"]}} {
     %pt = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-    %pt_0 = lattigo.ckks.encode %encoder, %arg0, %pt {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+    %pt_0 = lattigo.ckks.encode %encoder, %arg0, %pt <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
     %ct = lattigo.rlwe.encrypt %encryptor, %pt_0 : (!encryptor_pk, !pt) -> !ct
     %from_elements = tensor.from_elements %ct : tensor<1x!ct>
     return %from_elements : tensor<1x!ct>

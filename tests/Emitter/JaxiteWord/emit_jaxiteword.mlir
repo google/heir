@@ -76,7 +76,7 @@ func.func @test_rescale(%ctx: !jaxiteword.crypto_context<>, %ct: !ct_L2) -> !ct_
 // CHECK: .he_rot[
 // CHECK-SAME: ].rotate(
 func.func @test_rotate(%ctx: !jaxiteword.crypto_context<>, %ct: !ct_L1, %ek: !jaxiteword.eval_key<>) -> !ct_L1 {
-  %out = jaxiteword.rot %ctx, %ct, %ek {index = 2 : i64} : (!jaxiteword.crypto_context<>, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1
+  %out = jaxiteword.rot %ctx, %ct, %ek <index = 2> : (!jaxiteword.crypto_context<>, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1
   return %out : !ct_L1
 }
 
@@ -131,18 +131,18 @@ func.func @test_floor_div_si(%lhs: i32, %rhs: i32) -> i32 {
 // CHECK-NOT: "evaluation_key":
 // CHECK: {{.*}} = ckks.CKKSContext(params)
 func.func @test_gen_params() -> !jaxiteword.crypto_context<> {
-  %ctx = jaxiteword.gen_params {
-    degree = 8192 : i64,
-    numSlots = 4096 : i64,
-    scalingFactor = 563019763943521.0 : f64,
-    qTowers = array<i64: 1, 2>,
-    pTowers = array<i64: 3>,
-    batch = 1 : i32,
-    r = 4 : i32,
-    c = 4 : i32,
-    dnum = 3 : i32,
-    compositeDegree = 1 : i32
-  } : () -> !jaxiteword.crypto_context<>
+  %ctx = jaxiteword.gen_params <
+    degree = 8192,
+    numSlots = 4096,
+    scalingFactor = 563019763943521.0,
+    qTowers = [1, 2],
+    pTowers = [3],
+    batch = 1,
+    r = 4,
+    c = 4,
+    dnum = 3,
+    compositeDegree = 1
+  > : () -> !jaxiteword.crypto_context<>
   return %ctx : !jaxiteword.crypto_context<>
 }
 
@@ -159,12 +159,12 @@ func.func @test_program_initialization(
     %pk: !jaxiteword.public_key<>,
     %sk: !jaxiteword.private_key<>,
     %ek: !jaxiteword.eval_key<>) {
-  jaxiteword.program_initialization %ctx, %pk, %sk, %ek {
-    totalRotationIndices = array<i64: 1, 2>,
-    dnum = 3 : i32,
-    r = 4 : i32,
-    c = 4 : i32,
-    batch = 1 : i32
-  } : (!jaxiteword.crypto_context<>, !jaxiteword.public_key<>, !jaxiteword.private_key<>, !jaxiteword.eval_key<>) -> ()
+  jaxiteword.program_initialization %ctx, %pk, %sk, %ek <
+    totalRotationIndices = [1, 2],
+    dnum = 3,
+    r = 4,
+    c = 4,
+    batch = 1
+  > : (!jaxiteword.crypto_context<>, !jaxiteword.public_key<>, !jaxiteword.private_key<>, !jaxiteword.eval_key<>) -> ()
   return
 }

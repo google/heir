@@ -49,13 +49,11 @@ module attributes {scheme.bgv} {
     // CHECK: %[[mul_plain_lhs_ct:.*]] = lattigo.bgv.mul_new [[C]], %[[x]], %[[z]]: ([[S]], [[T]], [[P]]) -> [[T]]
     %mul_plain_lhs_ct = bgv.mul_plain %x, %z : (!ct, !pt) -> !ct
     // CHECK: %[[relin:.*]] = lattigo.bgv.relinearize_new [[C]], %[[mul]] : ([[S]], [[T]]) -> [[T]]
-    %relin = bgv.relinearize %mul  {
-      from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>
-    }: !ct1 -> !ct
+    %relin = bgv.relinearize %mul <from_basis = [0, 1, 2], to_basis = [0, 1]> : !ct1 -> !ct
     // CHECK: %[[rescale:.*]] = lattigo.bgv.rescale_new [[C]], %[[relin]] : ([[S]], [[T]]) -> [[T]]
-    %rescale = bgv.modulus_switch %relin {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
-    // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rescale]] {static_shift = 1 : i64} : ([[S]], [[T]]) -> [[T]]
-    %rot = bgv.rotate_cols %rescale { static_shift = 1 } : !ct2
+    %rescale = bgv.modulus_switch %relin <to_ring = #ring_rns_L0_1_x1024_> : !ct -> !ct2
+    // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rescale]] <static_shift = 1 : i64> : ([[S]], [[T]]) -> [[T]]
+    %rot = bgv.rotate_cols %rescale <static_shift = 1> : !ct2
 
     // Test dynamic shift via arith.constant
     // CHECK: %[[shift:.*]] = arith.constant 4 : i32

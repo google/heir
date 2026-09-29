@@ -26,8 +26,8 @@
 // CHECK: func @single_use
 func.func @single_use(%ct: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 1 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 1
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %res = lwe.rmul_plain %ct, %pt : (!ct_L1_, !pt) -> !ct_L1_
   return %res : !ct_L1_
 }
@@ -38,8 +38,8 @@ func.func @single_use(%ct: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
 // CHECK: func @multiple_uses
 func.func @multiple_uses(%ct1: !ct_L1_, %ct3: !ct_L3_, %value: tensor<32xi64>) -> (!ct_L1_, !ct_L3_) {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 3 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 3
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %res1 = lwe.rmul_plain %ct1, %pt : (!ct_L1_, !pt) -> !ct_L1_
   %res3 = lwe.rmul_plain %ct3, %pt : (!ct_L3_, !pt) -> !ct_L3_
   return %res1, %res3 : !ct_L1_, !ct_L3_
@@ -52,8 +52,8 @@ func.func @multiple_uses(%ct1: !ct_L1_, %ct3: !ct_L3_, %value: tensor<32xi64>) -
 // CHECK: func @encrypt
 func.func @encrypt(%value: tensor<32xi64>, %pk: !pkey_L1_) -> !ct_L1_ {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 1 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 1
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1_) -> !ct_L1_
   return %ct : !ct_L1_
 }
@@ -63,8 +63,8 @@ func.func @encrypt(%value: tensor<32xi64>, %pk: !pkey_L1_) -> !ct_L1_ {
 // CHECK: func @encrypt_covers_combine
 func.func @encrypt_covers_combine(%ct1: !ct_L1_, %value: tensor<32xi64>, %pk: !pkey_L3_) -> (!ct_L3_, !ct_L1_) {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 3 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 3
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L3_) -> !ct_L3_
   %res = lwe.rmul_plain %ct1, %pt : (!ct_L1_, !pt) -> !ct_L1_
   return %ct, %res : !ct_L3_, !ct_L1_
@@ -78,7 +78,7 @@ func.func @encrypt_covers_combine(%ct1: !ct_L1_, %value: tensor<32xi64>, %pk: !p
 func.func @encrypt_conflicts_with_combine(%ct3: !ct_L3_, %value: tensor<32xi64>, %pk: !pkey_L1_) -> (!ct_L1_, !ct_L3_) {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1_) -> !ct_L1_
   %res = lwe.rmul_plain %ct3, %pt : (!ct_L3_, !pt) -> !ct_L3_
   return %ct, %res : !ct_L1_, !ct_L3_
@@ -90,7 +90,7 @@ func.func @encrypt_conflicts_with_combine(%ct3: !ct_L3_, %value: tensor<32xi64>,
 func.func @conflicting_encryptions(%value: tensor<32xi64>, %pk1: !pkey_L1_, %pk3: !pkey_L3_) -> (!ct_L1_, !ct_L3_) {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct1 = lwe.rlwe_encrypt %pt, %pk1 : (!pt, !pkey_L1_) -> !ct_L1_
   %ct3 = lwe.rlwe_encrypt %pt, %pk3 : (!pt, !pkey_L3_) -> !ct_L3_
   return %ct1, %ct3 : !ct_L1_, !ct_L3_
@@ -101,8 +101,8 @@ func.func @conflicting_encryptions(%value: tensor<32xi64>, %pk1: !pkey_L1_, %pk3
 // CHECK: func @through_tensor
 func.func @through_tensor(%ct: tensor<1x!ct_L1_>, %value: tensor<32xi64>) -> tensor<1x!ct_L1_> {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 1 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 1
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %pts = tensor.from_elements %pt : tensor<1x!pt>
   %res = lwe.rmul_plain %ct, %pts : (tensor<1x!ct_L1_>, tensor<1x!pt>) -> tensor<1x!ct_L1_>
   return %res : tensor<1x!ct_L1_>
@@ -114,7 +114,7 @@ func.func @through_tensor(%ct: tensor<1x!ct_L1_>, %value: tensor<32xi64>) -> ten
 func.func @no_ciphertext_use(%value: tensor<32xi64>) -> !pt {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   return %pt : !pt
 }
 
@@ -122,7 +122,7 @@ func.func @no_ciphertext_use(%value: tensor<32xi64>) -> !pt {
 func.func @stale_level(%value: tensor<32xi64>) -> !pt {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_, level = 3 : i64} : tensor<32xi64> -> !pt
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_, level = 3> : tensor<32xi64> -> !pt
   return %pt : !pt
 }
 
@@ -135,7 +135,7 @@ func.func @stale_level(%value: tensor<32xi64>) -> !pt {
 func.func @forwarded_to_call(%ct: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %res = func.call @combine(%ct, %pt) : (!ct_L1_, !pt) -> !ct_L1_
   return %res : !ct_L1_
 }
@@ -148,7 +148,7 @@ func.func private @combine(!ct_L1_, !pt) -> !ct_L1_
 func.func @loop_carried(%ct: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
   %c4 = arith.constant 4 : index
@@ -183,7 +183,7 @@ module attributes {scheme.bfv} {
   func.func @bfv(%ct: !ct_L0_, %value: tensor<32xi64>) -> !ct_L0_ {
     // CHECK: lwe.rlwe_encode
     // CHECK-NOT: level
-    %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+    %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
     %res = lwe.rmul_plain %ct, %pt : (!ct_L0_, !pt) -> !ct_L0_
     return %res : !ct_L0_
   }
@@ -221,8 +221,8 @@ module attributes {scheme.bfv} {
 // CHECK: func @trivial_encrypt
 func.func @trivial_encrypt(%value: tensor<32xi64>) -> !ct_L3_ {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 3 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 3
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct = lwe.trivial_encrypt %pt : !pt -> !ct_L3_
   return %ct : !ct_L3_
 }
@@ -232,8 +232,8 @@ func.func @trivial_encrypt(%value: tensor<32xi64>) -> !ct_L3_ {
 // CHECK: func @trivial_encrypt_covers_combine
 func.func @trivial_encrypt_covers_combine(%ct1: !ct_L1_, %value: tensor<32xi64>) -> (!ct_L3_, !ct_L1_) {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 3 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 3
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct3 = lwe.trivial_encrypt %pt : !pt -> !ct_L3_
   %res = lwe.rmul_plain %ct1, %pt : (!ct_L1_, !pt) -> !ct_L1_
   return %ct3, %res : !ct_L3_, !ct_L1_
@@ -246,10 +246,10 @@ func.func @trivial_encrypt_covers_combine(%ct1: !ct_L1_, %value: tensor<32xi64>)
 // CHECK: func @no_walk_through_ciphertext
 func.func @no_walk_through_ciphertext(%value: tensor<32xi64>, %other: !pt) -> !ct_L1_ {
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 3 : i64
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 3
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %ct3 = lwe.trivial_encrypt %pt : !pt -> !ct_L3_
-  %ct1 = bgv.modulus_switch %ct3 {to_ring = #ring_rns_L1_1_x32_} : !ct_L3_ -> !ct_L1_
+  %ct1 = bgv.modulus_switch %ct3 <to_ring = #ring_rns_L1_1_x32_> : !ct_L3_ -> !ct_L1_
   %res = lwe.rmul_plain %ct1, %other : (!ct_L1_, !pt) -> !ct_L1_
   return %res : !ct_L1_
 }
@@ -263,12 +263,12 @@ func.func @no_walk_through_ciphertext(%value: tensor<32xi64>, %other: !pt) -> !c
 func.func @walk_stays_in_plaintext(%ct1: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
   // CHECK: lwe.rlwe_encode
   // CHECK-NOT: level
-  %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
-  %decoded = lwe.rlwe_decode %pt {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : !pt -> tensor<32xi64>
+  %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
+  %decoded = lwe.rlwe_decode %pt <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : !pt -> tensor<32xi64>
   // The re-encoded plaintext does reach the ciphertext, so it keeps its level.
   // CHECK: lwe.rlwe_encode
-  // CHECK-SAME: level = 1 : i64
-  %pt2 = lwe.rlwe_encode %decoded {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
+  // CHECK-SAME: level = 1
+  %pt2 = lwe.rlwe_encode %decoded <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi64> -> !pt
   %res = lwe.rmul_plain %ct1, %pt2 : (!ct_L1_, !pt) -> !ct_L1_
   return %res : !ct_L1_
 }

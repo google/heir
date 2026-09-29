@@ -13,9 +13,9 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     // CHECK-SAME: lwe_ciphertext
     %0 = secret.generic(%arg0: !efi1) {
       ^bb0(%ARG0 : tensor<1024xf64>):
-        %1 = kernel.eval_chebyshev %ARG0 {
+        %1 = kernel.eval_chebyshev %ARG0 <
           coefficients = [1.0 : f64, 2.0 : f64]
-        } : tensor<1024xf64> -> tensor<1024xf64>
+        > : tensor<1024xf64> -> tensor<1024xf64>
         secret.yield %1 : tensor<1024xf64>
     } -> (!efi1 {mgmt.mgmt = #mgmt})
     return %0 : !efi1

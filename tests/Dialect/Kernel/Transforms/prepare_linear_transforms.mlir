@@ -13,14 +13,14 @@
 // degree 1024 with inverse-canonical encoding, so 512 slots.
 
 // CHECK: @split
-// CHECK: %[[LT:.*]] = kernel.prepare_linear_transform %{{.*}} {diagonal_indices = array<i64: 0, 2>, source_row_indices = array<i64: 1, 3>} : tensor<4x512xf64> -> <level = 0, slots = 512, log_bsgs_ratio = 0>
+// CHECK: %[[LT:.*]] = kernel.prepare_linear_transform %{{.*}} <diagonal_indices = [0, 2], source_row_indices = [1, 3]> : tensor<4x512xf64> -> <level = 0, slots = 512, log_bsgs_ratio = 0>
 // CHECK: %[[OUT:.*]] = kernel.apply_linear_transform %{{.*}}, %[[LT]] {kernel.test} : {{.*}}<level = 0, slots = 512, log_bsgs_ratio = 0>{{.*}}
 // CHECK-NOT: kernel.linear_transform
 // CHECK: return %[[OUT]]
 module attributes {backend.lattigo, scheme.ckks} {
   func.func @split(%ct: !ct) -> !ct {
     %diagonals = arith.constant dense<1.0> : tensor<4x512xf64>
-    %0 = kernel.linear_transform %ct, %diagonals {diagonal_indices = array<i64: 0, 2>, kernel.test, source_row_indices = array<i64: 1, 3>} : !ct, tensor<4x512xf64> -> !ct
+    %0 = kernel.linear_transform %ct, %diagonals <diagonal_indices = [0, 2], source_row_indices = [1, 3]> {kernel.test} : !ct, tensor<4x512xf64> -> !ct
     return %0 : !ct
   }
 }
@@ -40,14 +40,14 @@ module attributes {backend.lattigo, scheme.ckks} {
 // requested_slot_count attribute for determining the slots.
 
 // CHECK: @split
-// CHECK: %[[LT:.*]] = kernel.prepare_linear_transform %{{.*}} {diagonal_indices = array<i64: 0, 2>, source_row_indices = array<i64: 1, 3>} : tensor<4x512xf64> -> <level = 0, slots = 1024, log_bsgs_ratio = 0>
+// CHECK: %[[LT:.*]] = kernel.prepare_linear_transform %{{.*}} <diagonal_indices = [0, 2], source_row_indices = [1, 3]> : tensor<4x512xf64> -> <level = 0, slots = 1024, log_bsgs_ratio = 0>
 // CHECK: %[[OUT:.*]] = kernel.apply_linear_transform %{{.*}}, %[[LT]] {kernel.test} : {{.*}}<level = 0, slots = 1024, log_bsgs_ratio = 0>{{.*}}
 // CHECK-NOT: kernel.linear_transform
 // CHECK: return %[[OUT]]
 module attributes {backend.lattigo, scheme.ckks,  scheme.requested_slot_count = 1024 : i64} {
   func.func @split(%ct: !ct) -> !ct {
     %diagonals = arith.constant dense<1.0> : tensor<4x512xf64>
-    %0 = kernel.linear_transform %ct, %diagonals {diagonal_indices = array<i64: 0, 2>, kernel.test, source_row_indices = array<i64: 1, 3>} : !ct, tensor<4x512xf64> -> !ct
+    %0 = kernel.linear_transform %ct, %diagonals <diagonal_indices = [0, 2], source_row_indices = [1, 3]> {kernel.test} : !ct, tensor<4x512xf64> -> !ct
     return %0 : !ct
   }
 }
@@ -72,7 +72,7 @@ module attributes {backend.lattigo, scheme.ckks,  scheme.requested_slot_count = 
 module attributes {backend.openfhe, scheme.ckks} {
   func.func @skip_decomp(%ct: !ct) -> !ct {
     %diagonals = arith.constant dense<1.0> : tensor<2x512xf64>
-    %0 = kernel.linear_transform %ct, %diagonals {diagonal_indices = array<i64: 0, 1>} : !ct, tensor<2x512xf64> -> !ct
+    %0 = kernel.linear_transform %ct, %diagonals <diagonal_indices = [0, 1]> : !ct, tensor<2x512xf64> -> !ct
     return %0 : !ct
   }
 }

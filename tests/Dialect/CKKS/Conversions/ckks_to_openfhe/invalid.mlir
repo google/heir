@@ -24,7 +24,7 @@
 func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
   // expected-error@+2 {{toBasis must be [0, 1], got [0, 2]}}
   // expected-error@+1 {{failed to legalize operation 'ckks.relinearize'}}
-  %relin_error = ckks.relinearize %x { from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 2> }: (!ct1) -> !ct
+  %relin_error = ckks.relinearize %x <from_basis = [0, 1, 2, 3], to_basis = [0, 2]> : (!ct1) -> !ct
   return %relin_error : !ct
 }
 
@@ -59,7 +59,7 @@ func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
 
 func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
   // expected-error@+1 {{output ciphertext_space ring should match to_ring}}
-  %relin_error = bgv.modulus_switch %x  {to_ring=#ring_rns_L0_1_x1024_}: !ct2 -> !ct
+  %relin_error = bgv.modulus_switch %x <to_ring = #ring_rns_L0_1_x1024_> : !ct2 -> !ct
   return %relin_error : !ct
 }
 
@@ -79,6 +79,6 @@ func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
 func.func @encode_scalar(%arg0: i64, %arg1: !pk) -> !pt_scalar {
   // expected-error@+2 {{Expected a tensor type for input; maybe assign_layout wasn't properly lowered?}}
   // expected-error@+1 {{failed to legalize}}
-  %0 = lwe.rlwe_encode %arg0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_} : i64 -> !pt_scalar
+  %0 = lwe.rlwe_encode %arg0 <encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_> : i64 -> !pt_scalar
   return %0 : !pt_scalar
 }
