@@ -821,7 +821,7 @@ Note this operations is not a standard CGGI operation, but an mirror of the cast
 &lt;p>Note: &lt;a href="https://mlir.llvm.org/docs/Dialects/ArithOps/#arithcmpi-arithcmpiop">https://mlir.llvm.org/docs/Dialects/ArithOps/#arithcmpi-arithcmpiop&lt;/a>
 Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.cmp` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.cmp` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -913,7 +913,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;/table>
 &lt;h3 id="cggicreate_trivial-heircggicreatetrivialop">&lt;code>cggi.create_trivial&lt;/code> (heir::cggi::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.create_trivial` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.create_trivial` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -981,7 +981,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;h3 id="cggilut2-heircggilut2op">&lt;code>cggi.lut2&lt;/code> (heir::cggi::Lut2Op)&lt;/h3>
 &lt;p>&lt;em>A lookup table on two inputs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut2` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut2` operands prop-dict attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>An op representing a lookup table applied to some number &lt;code>n&lt;/code> of ciphertexts
 encrypting boolean input bits.&lt;/p>
 &lt;p>Over cleartext bits &lt;code>a, b, c&lt;/code>, using &lt;code>n = 3&lt;/code> for example, the operation
@@ -1036,7 +1036,7 @@ and sums.&lt;/p>
 &lt;h3 id="cggilut3-heircggilut3op">&lt;code>cggi.lut3&lt;/code> (heir::cggi::Lut3Op)&lt;/h3>
 &lt;p>&lt;em>A lookup table on three inputs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut3` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut3` operands prop-dict attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>An op representing a lookup table applied to some number &lt;code>n&lt;/code> of ciphertexts
 encrypting boolean input bits.&lt;/p>
 &lt;p>Over cleartext bits &lt;code>a, b, c&lt;/code>, using &lt;code>n = 3&lt;/code> for example, the operation
@@ -1095,7 +1095,7 @@ and sums.&lt;/p>
 &lt;h3 id="cggilut4-heircggilut4op">&lt;code>cggi.lut4&lt;/code> (heir::cggi::Lut4Op)&lt;/h3>
 &lt;p>&lt;em>A lookup table on four inputs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut4` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut4` operands prop-dict attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>An op representing a lookup table applied to some number &lt;code>n&lt;/code> of ciphertexts
 encrypting boolean input bits.&lt;/p>
 &lt;p>Over cleartext bits &lt;code>a, b, c&lt;/code>, using &lt;code>n = 3&lt;/code> for example, the operation
@@ -1158,7 +1158,7 @@ and sums.&lt;/p>
 &lt;h3 id="cggilut_lincomb-heircggilutlincombop">&lt;code>cggi.lut_lincomb&lt;/code> (heir::cggi::LutLinCombOp)&lt;/h3>
 &lt;p>&lt;em>A variadic-input lookup table with inputs prepared via linear combination.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut_lincomb` operands attr-dict `:` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.lut_lincomb` operands prop-dict attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>An op representing a lookup table applied to an arbitrary number of
 input ciphertexts, which are combined according to a static linear
 combination attached to the op.&lt;/p>
@@ -1345,7 +1345,7 @@ to this op the appropriate CGGI ops.&lt;/p>
 &lt;h3 id="cggimulti_lut_lincomb-heircggimultilutlincombop">&lt;code>cggi.multi_lut_lincomb&lt;/code> (heir::cggi::MultiLutLinCombOp)&lt;/h3>
 &lt;p>&lt;em>A multi-output version of lut_lincomb with one LUT per output.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.multi_lut_lincomb` operands attr-dict `:` functional-type($inputs, $outputs)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.multi_lut_lincomb` operands prop-dict attr-dict `:` functional-type($inputs, $outputs)
 &lt;/code>&lt;/pre>&lt;p>An op representing multiple lookup tables applied to a shared input, which
 is prepared via a static linear combination. This is equivalent to
 &lt;code>cggi.lut_lincomb&lt;/code>, but where the linear combination is given to multiple
@@ -1610,7 +1610,7 @@ return (
 &lt;/table>
 &lt;h3 id="cggipacked_gates-heircggipackedop">&lt;code>cggi.packed_gates&lt;/code> (heir::cggi::PackedOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.packed_gates` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.packed_gates` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Operation to where different Boolean gates are executed pairwise between elements of two ciphertext arrays.&lt;/p>
 &lt;p>For example,&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> cggi&lt;span style="color:#000;font-weight:bold">.&lt;/span>packed_gates &lt;span style="color:#000">%a&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%b&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">gates =&lt;/span> &lt;span style="color:#000">#cggi.cggi_gate&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;and&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;xor&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>lwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
@@ -1661,7 +1661,7 @@ second elements.&lt;/p>
 &lt;/table>
 &lt;h3 id="cggipacked_lut3-heircggipackedlut3op">&lt;code>cggi.packed_lut3&lt;/code> (heir::cggi::PackedLut3Op)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.packed_lut3` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.packed_lut3` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -1711,7 +1711,7 @@ second elements.&lt;/p>
 &lt;h3 id="cggiprogrammable_bootstrap-heircggiprogrammablebootstrapop">&lt;code>cggi.programmable_bootstrap&lt;/code> (heir::cggi::ProgrammableBootstrapOp)&lt;/h3>
 &lt;p>&lt;em>Programmable Bootstrap with a given lookup table.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.programmable_bootstrap` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.programmable_bootstrap` operands prop-dict attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>An op representing a programmable bootstrap applied to an LWE ciphertext.&lt;/p>
 &lt;p>This operation evaluates a univariate function homomorphically on the
 ciphertext by selecting the correct value from a lookup table. The bit size
@@ -1759,7 +1759,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;h3 id="cggiselector_lut_lincomb-heircggiselectorlutlincombop">&lt;code>cggi.selector_lut_lincomb&lt;/code> (heir::cggi::SelectorLutLinCombOp)&lt;/h3>
 &lt;p>&lt;em>A multi-value version of lut_lincomb&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.selector_lut_lincomb` operands attr-dict `:` functional-type($inputs, $outputs)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.selector_lut_lincomb` operands prop-dict attr-dict `:` functional-type($inputs, $outputs)
 &lt;/code>&lt;/pre>&lt;p>An op representing a lookup table applied to a shared input, which
 is prepared via a static linear combination. This is equivalent to
 &lt;code>cggi.lut_lincomb&lt;/code>, but where the linear combination is given to a
@@ -1819,7 +1819,7 @@ will be used, and the output will be a i4 number.&lt;/p>
 &lt;h3 id="cggisshl-heircggiscalarshiftleftop">&lt;code>cggi.sshl&lt;/code> (heir::cggi::ScalarShiftLeftOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.sshl` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.sshl` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -1861,7 +1861,7 @@ will be used, and the output will be a i4 number.&lt;/p>
 &lt;h3 id="cggisshr-heircggiscalarshiftrightop">&lt;code>cggi.sshr&lt;/code> (heir::cggi::ScalarShiftRightOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic shift to the right of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.sshr` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.sshr` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
