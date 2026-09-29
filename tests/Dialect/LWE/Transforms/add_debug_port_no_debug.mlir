@@ -22,6 +22,6 @@
 // CHECK: func.func @simple_sum(%[[arg0:.*]]: !lwe.lwe_ciphertext<{{.*}}>) -> !lwe.lwe_ciphertext<{{.*}}> {
 // CHECK-NOT: lwe.lwe_secret_key
 func.func @simple_sum(%arg0: !ty) -> !ty {
-  %0 = bgv.rotate_cols %arg0 { static_shift = 16 } : !ty
+  %0 = bgv.rotate_cols %arg0 <static_shift = 16> : !ty
   return %0 : !ty
 }

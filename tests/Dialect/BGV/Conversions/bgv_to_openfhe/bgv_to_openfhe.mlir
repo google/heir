@@ -45,7 +45,7 @@ module {
     %mul = bgv.mul %x, %y  : (!ct, !ct) -> !ct_D3
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {static_shift = 4 : i64}
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
-    %rot = bgv.rotate_cols %x { static_shift = 4 } : !ct
+    %rot = bgv.rotate_cols %x <static_shift = 4> : !ct
     // CHECK: %[[v6:.*]] = openfhe.add_plain [[C]], %[[x6:.*]], %[[z6:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
     %add_plain = bgv.add_plain %x, %z : (!ct, !pt) -> !ct
     // CHECK: %[[v7:.*]] = openfhe.sub_plain [[C]], %[[x7:.*]], %[[z7:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
@@ -69,9 +69,7 @@ module {
   // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]])
   func.func @test_relin(%x : !ct_D4) -> !ct {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
-    %relin = bgv.relinearize %x  {
-      from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
-    }: !ct_D4 -> !ct
+    %relin = bgv.relinearize %x <from_basis = [0, 1, 2, 3], to_basis = [0, 1]> : !ct_D4 -> !ct
     return %relin : !ct
   }
 
@@ -79,7 +77,7 @@ module {
   // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]]) -> [[T]]
   func.func @test_modswitch(%x : !ct) -> !ct_L0 {
     // CHECK: %[[v7:.*]] = openfhe.mod_reduce [[C]], %[[x7:.*]] : ([[S]], [[T]]) -> [[T]]
-    %mod_switch = bgv.modulus_switch %x  { to_ring=#ring_rns_L0_1_x1024_ }: !ct -> !ct_L0
+    %mod_switch = bgv.modulus_switch %x <to_ring = #ring_rns_L0_1_x1024_> : !ct -> !ct_L0
     return %mod_switch : !ct_L0
   }
 }

@@ -20,7 +20,7 @@
 
 func.func @test_input_dimension_error(%input: !ct) {
   // expected-error@+1 {{x.dim == 2 does not hold}}
-  %out = bgv.rotate_cols  %input { static_shift = 4 }  : !ct
+  %out = bgv.rotate_cols  %input <static_shift = 4> : !ct
   return
 }
 
@@ -50,8 +50,8 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961,
   func.func @mul(%ct: !ct_L1_) -> !ct_L0_ {
     // expected-error@+1 {{'bgv.mul' op output plaintext space does not match}}
     %ct_0 = bgv.mul %ct, %ct : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
-    %ct_1 = bgv.relinearize %ct_0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !ct_L1_D3_ -> !ct_L1_
-    %ct_2 = bgv.modulus_switch %ct_1 {to_ring = #ring_rns_L0_1_x1024_} : !ct_L1_ -> !ct_L0_
+    %ct_1 = bgv.relinearize %ct_0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : !ct_L1_D3_ -> !ct_L1_
+    %ct_2 = bgv.modulus_switch %ct_1 <to_ring = #ring_rns_L0_1_x1024_> : !ct_L1_ -> !ct_L0_
     return %ct_2 : !ct_L0_
   }
 }
@@ -82,9 +82,9 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961,
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961, 17592186175489], P = [17592186273793], plaintextModulus = 65537>, scheme.bgv} {
   func.func @mul(%ct: !ct_L1_) -> !ct_L0_ {
     %ct_0 = bgv.mul %ct, %ct : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
-    %ct_1 = bgv.relinearize %ct_0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !ct_L1_D3_ -> !ct_L1_
+    %ct_1 = bgv.relinearize %ct_0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : !ct_L1_D3_ -> !ct_L1_
     // expected-error@+1 {{'bgv.modulus_switch' op output plaintext space does not match}}
-    %ct_2 = bgv.modulus_switch %ct_1 {to_ring = #ring_rns_L0_1_x1024_} : !ct_L1_ -> !ct_L0_
+    %ct_2 = bgv.modulus_switch %ct_1 <to_ring = #ring_rns_L0_1_x1024_> : !ct_L1_ -> !ct_L0_
     return %ct_2 : !ct_L0_
   }
 }

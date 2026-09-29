@@ -59,7 +59,7 @@ func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
 
 func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
   // expected-error@+1 {{output ciphertext_space ring should match to_ring}}
-  %relin_error = bgv.modulus_switch %x  {to_ring=#ring_rns_L0_1_x1024_}: !ct2 -> !ct
+  %relin_error = bgv.modulus_switch %x <to_ring = #ring_rns_L0_1_x1024_> : !ct2 -> !ct
   return %relin_error : !ct
 }
 

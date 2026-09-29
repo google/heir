@@ -44,11 +44,11 @@ module {
   func.func @test_bgv(%ct: !ct3, %pt: !pt) -> !ct0 {
     // CHECK: bgv.modulus_switch
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 2>
-    %ct_reduced = bgv.modulus_switch %ct {to_ring = #ring_rns_L2_1_x1024_} : !ct3 -> !ct2
+    %ct_reduced = bgv.modulus_switch %ct <to_ring = #ring_rns_L2_1_x1024_> : !ct3 -> !ct2
 
     // CHECK: bgv.level_reduce
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 0>
-    %ct_reduced2 = bgv.level_reduce %ct_reduced {levelToDrop = 2 : i64} : !ct2 -> !ct0
+    %ct_reduced2 = bgv.level_reduce %ct_reduced <levelToDrop = 2> : !ct2 -> !ct0
 
     // CHECK: mgmt.init
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 0>

@@ -249,7 +249,7 @@ func.func @no_walk_through_ciphertext(%value: tensor<32xi64>, %other: !pt) -> !c
   // CHECK-SAME: level = 3 : i64
   %pt = lwe.rlwe_encode %value {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt
   %ct3 = lwe.trivial_encrypt %pt : !pt -> !ct_L3_
-  %ct1 = bgv.modulus_switch %ct3 {to_ring = #ring_rns_L1_1_x32_} : !ct_L3_ -> !ct_L1_
+  %ct1 = bgv.modulus_switch %ct3 <to_ring = #ring_rns_L1_1_x32_> : !ct_L3_ -> !ct_L1_
   %res = lwe.rmul_plain %ct1, %other : (!ct_L1_, !pt) -> !ct_L1_
   return %res : !ct_L1_
 }

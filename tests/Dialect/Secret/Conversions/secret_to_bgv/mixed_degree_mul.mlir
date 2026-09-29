@@ -12,7 +12,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [115292150
       // CHECK-SAME: size = 4
       %2 = arith.muli %1, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 4>} : tensor<8xi16>
       // CHECK: bgv.relinearize
-      // CHECK-SAME: from_basis = array<i32: 0, 1, 2, 3>
+      // CHECK-SAME: from_basis = [0, 1, 2, 3]
       %3 = mgmt.relinearize %2 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<8xi16>
       secret.yield %3 : tensor<8xi16>
     } -> (!secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>})

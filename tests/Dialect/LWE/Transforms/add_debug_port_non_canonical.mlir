@@ -23,7 +23,7 @@
 
 func.func @mul_relin(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
   %0 = bgv.mul %arg0, %arg1 : (!ct_ty, !ct_ty) -> !ct_sq_ty
-  %1 = bgv.relinearize %0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !ct_sq_ty -> !ct_ty
+  %1 = bgv.relinearize %0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : !ct_sq_ty -> !ct_ty
   return %1 : !ct_ty
 }
 
