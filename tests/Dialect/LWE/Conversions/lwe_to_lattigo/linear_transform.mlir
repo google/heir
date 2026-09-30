@@ -20,7 +20,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
   // CHECK: return %[[VAL_3]] : ![[CT]]
   func.func @test_linear_transform(%ct: !ct) -> !ct {
     %diagonals = arith.constant dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>
-    %0 = kernel.linear_transform %ct, %diagonals {diagonal_indices = array<i64: 0, 1>} : !ct, tensor<2x2xf64> -> !ct
+    %0 = kernel.linear_transform %ct, %diagonals <diagonal_indices = [0, 1]> : !ct, tensor<2x2xf64> -> !ct
     return %0 : !ct
   }
 }

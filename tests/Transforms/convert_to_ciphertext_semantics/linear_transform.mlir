@@ -23,7 +23,7 @@ module attributes {
       // matrix can be a resource or a preprocessed value instead of inline IR.
       // CHECK: %[[diags:.*]] = arith.constant dense<{{\[\[}}1.000000e+00, 6.000000e+00
       // CHECK: kernel.linear_transform %{{.*}}, %[[diags]]
-      // CHECK-SAME: diagonal_indices = array<i64: 0, 1, 2, 3>
+      // CHECK-SAME: diagonal_indices = [0, 1, 2, 3]
       %3 = linalg.matvec {
         secret.kernel = #secret.kernel<name = "MatvecDiagonal", force = false>,
         tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">
@@ -48,7 +48,7 @@ module attributes {
   // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x8xf32>> {{.*}}) -> (!secret.secret<tensor<1x8xf32>> {{.*}})
   // CHECK: secret.generic
   // CHECK: kernel.linear_transform {{%[a-zA-Z0-9_]+}}
-  // CHECK-SAME: diagonal_indices = array<i64: 0, 1, 2, 3>
+  // CHECK-SAME: diagonal_indices = [0, 1, 2, 3]
   // CHECK: secret.yield
   func.func @matvec_to_linear_transform(%arg0: !secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<4xf32>

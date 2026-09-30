@@ -31,10 +31,10 @@ func.func @test_linear_transform_ciphertext(%arg0: tensor<1x!ct>) -> tensor<1x!c
   // CHECK-NOT: tensor.extract{{(_slice)?}} %[[DIAGONALS]]
   // CHECK: affine.for %[[I:[a-zA-Z0-9_]+]] = 0 to 1
   // CHECK-NEXT: %[[CT:[a-zA-Z0-9_]+]] = tensor.extract %[[ARG0]][%[[I]]]
-  // CHECK-NEXT: %[[RES:[a-zA-Z0-9_]+]] = kernel.linear_transform %[[CT]], %[[DIAGONALS]] {{.*}}diagonal_indices = array<i64: 0, 1>{{.*}} : !{{[a-zA-Z0-9_.]+}}, tensor<2x512xf64> -> !
+  // CHECK-NEXT: %[[RES:[a-zA-Z0-9_]+]] = kernel.linear_transform %[[CT]], %[[DIAGONALS]] {{.*}}diagonal_indices = [0, 1]{{.*}} : !{{[a-zA-Z0-9_.]+}}, tensor<2x512xf64> -> !
   // CHECK-NEXT: tensor.insert %[[RES]]
   // CHECK-NEXT: affine.yield
-  %0 = kernel.linear_transform %arg0, %diagonals {diagonal_indices = array<i64: 0, 1>} : tensor<1x!ct>, tensor<2x512xf64> -> tensor<1x!ct>
+  %0 = kernel.linear_transform %arg0, %diagonals <diagonal_indices = [0, 1]> : tensor<1x!ct>, tensor<2x512xf64> -> tensor<1x!ct>
   return %0 : tensor<1x!ct>
 }
 
@@ -49,10 +49,10 @@ func.func @test_linear_transform_multi_ciphertext(%arg0: tensor<2x!ct>) -> tenso
   // CHECK-NOT: tensor.extract{{(_slice)?}} %[[DIAGONALS]]
   // CHECK: affine.for %[[I:[a-zA-Z0-9_]+]] = 0 to 2
   // CHECK-NEXT: %[[CT:[a-zA-Z0-9_]+]] = tensor.extract %[[ARG0]][%[[I]]]
-  // CHECK-NEXT: %[[RES:[a-zA-Z0-9_]+]] = kernel.linear_transform %[[CT]], %[[DIAGONALS]] {{.*}}diagonal_indices = array<i64: 0, 1>{{.*}} : !{{[a-zA-Z0-9_.]+}}, tensor<2x512xf64> -> !
+  // CHECK-NEXT: %[[RES:[a-zA-Z0-9_]+]] = kernel.linear_transform %[[CT]], %[[DIAGONALS]] {{.*}}diagonal_indices = [0, 1]{{.*}} : !{{[a-zA-Z0-9_.]+}}, tensor<2x512xf64> -> !
   // CHECK-NEXT: tensor.insert %[[RES]]
   // CHECK-NEXT: affine.yield
-  %0 = kernel.linear_transform %arg0, %diagonals {diagonal_indices = array<i64: 0, 1>} : tensor<2x!ct>, tensor<2x512xf64> -> tensor<2x!ct>
+  %0 = kernel.linear_transform %arg0, %diagonals <diagonal_indices = [0, 1]> : tensor<2x!ct>, tensor<2x512xf64> -> tensor<2x!ct>
   return %0 : tensor<2x!ct>
 }
 
@@ -63,6 +63,6 @@ func.func @test_linear_transform_cleartext(%arg0: tensor<4xf32>, %diagonals: ten
   // CHECK: %[[RES:[a-zA-Z0-9_]+]] = kernel.linear_transform %[[ARG0]], %[[DIAGONALS]] {{.*}} : tensor<4xf32>, tensor<2x4xf32> -> tensor<4xf32>
   // CHECK-NOT: affine.for
   // CHECK: return %[[RES]]
-  %0 = kernel.linear_transform %arg0, %diagonals {diagonal_indices = array<i64: 0, 1>} : tensor<4xf32>, tensor<2x4xf32> -> tensor<4xf32>
+  %0 = kernel.linear_transform %arg0, %diagonals <diagonal_indices = [0, 1]> : tensor<4xf32>, tensor<2x4xf32> -> tensor<4xf32>
   return %0 : tensor<4xf32>
 }

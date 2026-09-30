@@ -57,7 +57,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     // expected-error@below {{failed to legalize}}
     %0 = secret.generic(%arg0 : !secret.secret<tensor<1024xf32>>) {
       ^bb0(%ARG0 : tensor<1024xf32>):
-        %1 = kernel.linear_transform %ARG0, %diagonals {diagonal_indices = array<i64: 0>} : tensor<1024xf32>, tensor<1x1024xf32> -> tensor<1024xf32>
+        %1 = kernel.linear_transform %ARG0, %diagonals <diagonal_indices = [0]> : tensor<1024xf32>, tensor<1x1024xf32> -> tensor<1024xf32>
         secret.yield %1 : tensor<1024xf32>
     } -> (!secret.secret<tensor<1024xf32>> {mgmt.mgmt = "invalid"})
     return %0 : !secret.secret<tensor<1024xf32>>

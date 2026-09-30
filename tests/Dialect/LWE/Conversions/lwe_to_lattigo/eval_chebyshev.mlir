@@ -21,7 +21,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
   // CHECK: %[[VAL_5:.*]] = lattigo.ckks.chebyshev %[[VAL_4]], %[[VAL_3]] {coefficients = [1.000000e+00, 2.000000e+00], domain = array<f64: -1.000000e+00, 1.000000e+00>, targetScale = 35184372088832 : i64} : (![[POLY_EVAL]], ![[CT]]) -> ![[CT]]
   // CHECK: return %[[VAL_5]] : ![[CT]]
   func.func @test_eval_chebyshev(%ct: !ct) -> !ct {
-    %0 = kernel.eval_chebyshev %ct {coefficients = [1.0 : f64, 2.0 : f64]} : !ct -> !ct
+    %0 = kernel.eval_chebyshev %ct <coefficients = [1.0 : f64, 2.0 : f64]> : !ct -> !ct
     return %0 : !ct
   }
 }
