@@ -14,7 +14,7 @@ module {
   func.func @pad_1d(%arg0: !secret.secret<tensor<5xf32>> {tensor_ext.layout = #layout_src}) -> (!secret.secret<tensor<8xf32>> {tensor_ext.layout = #layout_dst}) {
     // CHECK: %[[res:.*]] = secret.generic(%[[arg0]]: !secret.secret<tensor<1x16xf32>>)
     // CHECK: ^body(%[[input0:.*]]: tensor<1x16xf32>):
-    // CHECK: %[[remap:.*]] = tensor_ext.remap %[[input0]] {permutation = #[[layout_remap]]} : tensor<1x16xf32>
+    // CHECK: %[[remap:.*]] = tensor_ext.remap %[[input0]] <permutation = #[[layout_remap]]> : tensor<1x16xf32>
     // CHECK: secret.yield %[[remap]] : tensor<1x16xf32>
     %2 = secret.generic(%arg0: !secret.secret<tensor<5xf32>> {tensor_ext.layout = #layout_src}) {
     ^body(%input0: tensor<5xf32>):
@@ -45,7 +45,7 @@ module {
   func.func @pad_2d(%arg0: !secret.secret<tensor<5x5xf32>> {tensor_ext.layout = #layout_src_2d}) -> (!secret.secret<tensor<6x7xf32>> {tensor_ext.layout = #layout_dst_2d}) {
     // CHECK: %[[res:.*]] = secret.generic(%[[arg0]]: !secret.secret<tensor<2x16xf32>>)
     // CHECK: ^body(%[[input0:.*]]: tensor<2x16xf32>):
-    // CHECK: %[[remap:.*]] = tensor_ext.remap %[[input0]] {permutation = #[[layout_remap_2d]]} : tensor<2x16xf32>
+    // CHECK: %[[remap:.*]] = tensor_ext.remap %[[input0]] <permutation = #[[layout_remap_2d]]> : tensor<2x16xf32>
     // CHECK: secret.yield %[[remap]] : tensor<2x16xf32>
     %2 = secret.generic(%arg0: !secret.secret<tensor<5x5xf32>> {tensor_ext.layout = #layout_src_2d}) {
     ^body(%input0: tensor<5x5xf32>):

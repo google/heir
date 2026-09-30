@@ -9,7 +9,7 @@ module {
   // CHECK: func.func @main
   // CHECK: %[[v0:.*]] = tensor.empty() : tensor<1x2x4x4xf32>
   // CHECK: tensor_ext.assign_layout %[[v0]]
-  // CHECK-SAME: {layout = #[[layout]], tensor_ext.layout = #[[layout]]}
+  // CHECK-SAME: <layout = #[[layout]]> {tensor_ext.layout = #[[layout]]}
   // CHECK: tensor.insert_slice
   // CHECK-SAME: {tensor_ext.layout = #[[layout]]}
   // CHECK: arith.addf
@@ -19,7 +19,7 @@ module {
     %0 = tensor.empty() : tensor<1x2x4x4xf32>
     %1 = secret.generic(%arg0: !secret.secret<tensor<4x4xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<4x4xf32>):
-      %2 = tensor_ext.assign_layout %0 {layout = #layout, tensor_ext.layout = #layout} : tensor<1x2x4x4xf32>
+      %2 = tensor_ext.assign_layout %0 <layout = #layout> {tensor_ext.layout = #layout} : tensor<1x2x4x4xf32>
       %inserted_slice = tensor.insert_slice %input0 into %2[0, 0, 0, 0] [1, 1, 4, 4] [1, 1, 1, 1] {tensor_ext.layout = #layout} : tensor<4x4xf32> into tensor<1x2x4x4xf32>
       %inserted_slice_0 = tensor.insert_slice %input0 into %inserted_slice[0, 1, 0, 0] [1, 1, 4, 4] [1, 1, 1, 1] {tensor_ext.layout = #layout} : tensor<4x4xf32> into tensor<1x2x4x4xf32>
       %3 = arith.addf %inserted_slice_0, %inserted_slice_0 {tensor_ext.layout = #layout} : tensor<1x2x4x4xf32>

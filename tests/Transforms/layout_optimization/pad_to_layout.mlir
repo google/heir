@@ -18,7 +18,7 @@ module attributes {backend.lattigo, scheme.ckks} {
     ^body(%input0: tensor<1x10x48xf32>):
       // CHECK: debug.validate
       debug.validate %input0 <name = "input", metadata = "input"> {tensor_ext.layout = []} : tensor<1x10x48xf32>
-      // CHECK: %[[remap:.*]] = tensor_ext.remap %[[input0]] {permutation = #[[layout1]]} : tensor<1x4096xf32>
+      // CHECK: %[[remap:.*]] = tensor_ext.remap %[[input0]] <permutation = #[[layout1]]> : tensor<1x4096xf32>
       %collapsed = tensor.collapse_shape %input0 [[0, 1], [2]] {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 10, 48>}, tensor_ext.layout = #layout2} : tensor<1x10x48xf32> into tensor<10x48xf32>
       %padded = tensor.pad %collapsed low[0, 1] high[0, 1] {
       ^bb0(%arg1: index, %arg2: index):

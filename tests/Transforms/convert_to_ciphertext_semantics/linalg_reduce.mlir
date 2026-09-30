@@ -18,7 +18,7 @@ module {
     %0 = secret.generic(%arg0: !secret.secret<tensor<8xf32>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<8xf32>> {tensor_ext.layout = #layout1}) {
 ^body(%input0: tensor<8xf32>, %input1: tensor<8xf32>):
       %1 = arith.mulf %input0, %input1 {tensor_ext.layout = #layout1} : tensor<8xf32>
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<f32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<f32>
       %reduced = linalg.reduce ins(%1 : tensor<8xf32>) outs(%2 : tensor<f32>) dimensions = [0]  {tensor_ext.layout = #layout}
         (%in: f32, %init: f32) {
           %3 = arith.addf %in, %init : f32

@@ -12,7 +12,7 @@ module {
         linalg.yield %3 : f32
       }
     %1 = secret.conceal %reduced : tensor<f32> -> !secret.secret<tensor<f32>>
-    %2 = tensor_ext.assign_layout %1 {layout = #layout, tensor_ext.layout = #layout} : !secret.secret<tensor<f32>>
+    %2 = tensor_ext.assign_layout %1 <layout = #layout> {tensor_ext.layout = #layout} : !secret.secret<tensor<f32>>
     // expected-error @+1 {{unexpected unrealized conversion cast op found}}
     return %2 : !secret.secret<tensor<f32>>
   }

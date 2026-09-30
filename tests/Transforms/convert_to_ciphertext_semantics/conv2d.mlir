@@ -18,8 +18,8 @@ module {
     ^body(%input0: tensor<5x5xf32>):
     // CHECK: secret.generic
     // CHECK-COUNT-13: tensor_ext.rotate
-      %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<3x3xf32>
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<3x3xf32>
+      %1 = tensor_ext.assign_layout %cst_0 <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<3x3xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<3x3xf32>
       %3 = linalg.conv_2d {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%input0, %1 : tensor<5x5xf32>, tensor<3x3xf32>) outs(%2 : tensor<3x3xf32>) -> tensor<3x3xf32>
       secret.yield %3 : tensor<3x3xf32>
     } -> (!secret.secret<tensor<3x3xf32>> {tensor_ext.layout = #layout})

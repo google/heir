@@ -15,8 +15,8 @@ func.func @matvec(
   %cst_0 = arith.constant dense<2.0> : tensor<4x4xf32>
   %0 = secret.generic(%arg0: !secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout}) {
   ^body(%input0: tensor<4xf32>):
-    %1 = tensor_ext.assign_layout %cst_0 {layout = #layout1, tensor_ext.layout = #layout1} : tensor<4x4xf32>
-    %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<4xf32>
+    %1 = tensor_ext.assign_layout %cst_0 <layout = #layout1> {tensor_ext.layout = #layout1} : tensor<4x4xf32>
+    %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<4xf32>
     %3 = linalg.matvec {secret.kernel = #kernel, tensor_ext.layout = #layout}
           ins(%1, %input0 : tensor<4x4xf32>, tensor<4xf32>)
           outs(%2 : tensor<4xf32>) -> tensor<4xf32>

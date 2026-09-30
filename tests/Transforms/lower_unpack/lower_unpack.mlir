@@ -7,7 +7,7 @@
 // CHECK: arith.constant 0
 // CHECK: tensor.extract
 func.func @unpack_scalar(%arg0: tensor<1x1024xi16> {tensor_ext.original_type = #scalar_original_type}) -> i16 {
-  %0 = tensor_ext.unpack %arg0 {layout=#scalar_layout} : (tensor<1x1024xi16>) -> i16
+  %0 = tensor_ext.unpack %arg0 <layout = #scalar_layout> : (tensor<1x1024xi16>) -> i16
   return %0 : i16
 }
 
@@ -22,7 +22,7 @@ func.func @unpack_scalar(%arg0: tensor<1x1024xi16> {tensor_ext.original_type = #
 // CHECK: scf.yield
 // CHECK: return
 func.func @unpack_rotated_tensor(%arg0: tensor<1x1024xi16> {tensor_ext.original_type = #tensor_original_type}) -> tensor<32xi16> {
-  %0 = tensor_ext.unpack %arg0 {layout=#tensor_layout} : (tensor<1x1024xi16>) -> tensor<32xi16>
+  %0 = tensor_ext.unpack %arg0 <layout = #tensor_layout> : (tensor<1x1024xi16>) -> tensor<32xi16>
   return %0 : tensor<32xi16>
 }
 
@@ -35,7 +35,7 @@ func.func @unpack_rotated_tensor(%arg0: tensor<1x1024xi16> {tensor_ext.original_
 // CHECK: scf.for
 // CHECK: return
 func.func @unpack_rotated_tensor2(%arg0: tensor<64x64xi16> {tensor_ext.original_type = #tensor_original_type2}) -> tensor<32xi16> {
-  %0 = tensor_ext.unpack %arg0 {layout=#tensor_layout2} : (tensor<64x64xi16>) -> tensor<32xi16>
+  %0 = tensor_ext.unpack %arg0 <layout = #tensor_layout2> : (tensor<64x64xi16>) -> tensor<32xi16>
   return %0 : tensor<32xi16>
 }
 
@@ -51,7 +51,7 @@ func.func @unpack_rotated_tensor2(%arg0: tensor<64x64xi16> {tensor_ext.original_
 // CHECK: tensor.from_elements
 // CHECK: return
 func.func @unpack_single_element(%arg0: tensor<1x1024xi16> {tensor_ext.original_type = #singleton_original_type}) -> tensor<1xi16> {
-  %0 = tensor_ext.unpack %arg0 {layout=#singleton_layout} : (tensor<1x1024xi16>) -> tensor<1xi16>
+  %0 = tensor_ext.unpack %arg0 <layout = #singleton_layout> : (tensor<1x1024xi16>) -> tensor<1xi16>
   return %0 : tensor<1xi16>
 }
 
@@ -68,6 +68,6 @@ func.func @unpack_single_element(%arg0: tensor<1x1024xi16> {tensor_ext.original_
 // CHECK-DAG: %[[C5:.*]] = arith.constant 5 : index
 // CHECK: tensor.extract %{{[^[]*}}[%{{[^,]*}}, %[[C5]]]
 func.func @unpack_single_element_loose_domain(%arg0: tensor<1x1024xi16> {tensor_ext.original_type = #loose_original_type}) -> tensor<1xi16> {
-  %0 = tensor_ext.unpack %arg0 {layout=#loose_layout} : (tensor<1x1024xi16>) -> tensor<1xi16>
+  %0 = tensor_ext.unpack %arg0 <layout = #loose_layout> : (tensor<1x1024xi16>) -> tensor<1xi16>
   return %0 : tensor<1xi16>
 }

@@ -8,7 +8,7 @@ module {
   func.func @test(%arg0: !secret.secret<tensor<16x22x2xf32>>, %arg1: tensor<16x22x2xf32>) -> (!secret.secret<tensor<16x22x2xf32>> {tensor_ext.layout = #layout_reproducer}) {
     %0 = secret.generic(%arg0 : !secret.secret<tensor<16x22x2xf32>>) {
     ^body(%unused: tensor<16x22x2xf32>):
-      %val = tensor_ext.assign_layout %arg1 {domainSchedule = array<i64: 0, 1>, layout = #layout_reproducer, tensor_ext.layout = #layout_reproducer} : tensor<16x22x2xf32>
+      %val = tensor_ext.assign_layout %arg1 <layout = #layout_reproducer, domainSchedule = [0, 1]> {tensor_ext.layout = #layout_reproducer} : tensor<16x22x2xf32>
       secret.yield %val : tensor<16x22x2xf32>
     } -> (!secret.secret<tensor<16x22x2xf32>> {tensor_ext.layout = #layout_reproducer})
     return %0 : !secret.secret<tensor<16x22x2xf32>>

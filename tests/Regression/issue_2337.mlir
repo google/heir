@@ -13,7 +13,7 @@ module {
   func.func @trivial_insert(%arg0: !secret.secret<tensor<2x32xi32>>) -> !secret.secret<tensor<2x32xi32>> {
     %0 = secret.generic(%arg0: !secret.secret<tensor<2x32xi32>>) {
     ^body(%input0: tensor<2x32xi32>):
-      %1 = tensor_ext.remap %input0 {permutation = #layout1} : tensor<2x32xi32>
+      %1 = tensor_ext.remap %input0 <permutation = #layout1> : tensor<2x32xi32>
       secret.yield %1 : tensor<2x32xi32>
     } -> !secret.secret<tensor<2x32xi32>>
     return %0 : !secret.secret<tensor<2x32xi32>>

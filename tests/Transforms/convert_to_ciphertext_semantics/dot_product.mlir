@@ -9,7 +9,7 @@
 // CHECK: secret.secret<tensor<1x1024xi16>>
 func.func @dot_product(%arg0: !data_ty {tensor_ext.layout = #tensor_layout}, %arg1: !data_ty {tensor_ext.layout = #tensor_layout}) -> (!secret.secret<i16> {tensor_ext.layout = #scalar_layout}) {
   %c0_i16 = arith.constant 0 : i16
-  %c0_laidout = tensor_ext.assign_layout %c0_i16 {layout = #scalar_layout, tensor_ext.layout = #scalar_layout} : i16
+  %c0_laidout = tensor_ext.assign_layout %c0_i16 <layout = #scalar_layout> {tensor_ext.layout = #scalar_layout} : i16
   %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #tensor_layout}, %arg1: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #tensor_layout}) {
   ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
     %1 = affine.for %arg2 = 0 to 8 iter_args(%arg3 = %c0_laidout) -> (i16) {

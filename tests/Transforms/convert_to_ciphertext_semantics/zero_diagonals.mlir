@@ -18,8 +18,8 @@ module {
     // CHECK-COUNT-241: arith.mulf
     // CHECK-NOT: arith.mulf
     // CHECK: secret.yield
-      %7 = tensor_ext.assign_layout %cst_0 {layout = #layout3, tensor_ext.layout = #layout3} : tensor<5x5xf32>
-      %8 = tensor_ext.assign_layout %cst {layout = #layout4, tensor_ext.layout = #layout4} : tensor<28x28xf32>
+      %7 = tensor_ext.assign_layout %cst_0 <layout = #layout3> {tensor_ext.layout = #layout3} : tensor<5x5xf32>
+      %8 = tensor_ext.assign_layout %cst <layout = #layout4> {tensor_ext.layout = #layout4} : tensor<28x28xf32>
       %9 = linalg.conv_2d {secret.kernel = #kernel, tensor_ext.layout = #layout4} ins(%input0, %7 : tensor<32x32xf32>, tensor<5x5xf32>) outs(%8 : tensor<28x28xf32>) -> tensor<28x28xf32>
       secret.yield %9 : tensor<28x28xf32>
     } -> (!secret.secret<tensor<28x28xf32>> {tensor_ext.layout = #layout4})

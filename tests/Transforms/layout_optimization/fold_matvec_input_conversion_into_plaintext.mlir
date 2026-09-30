@@ -12,8 +12,8 @@ func.func @fold_matvec_input_conversion_into_plaintext(
     %input: !secret.secret<tensor<8xf32>> {tensor_ext.layout = #permuted})
     -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #result}) {
   %empty = tensor.empty() : tensor<4xf32>
-  %init = tensor_ext.assign_layout %empty {layout = #result, tensor_ext.layout = #result} : tensor<4xf32>
-  %matrix = tensor_ext.assign_layout %weights {layout = #matrix, tensor_ext.layout = #matrix} : tensor<4x8xf32>
+  %init = tensor_ext.assign_layout %empty <layout = #result> {tensor_ext.layout = #result} : tensor<4xf32>
+  %matrix = tensor_ext.assign_layout %weights <layout = #matrix> {tensor_ext.layout = #matrix} : tensor<4x8xf32>
   %0 = secret.generic(
       %input: !secret.secret<tensor<8xf32>> {tensor_ext.layout = #permuted}) {
   ^body(%arg0: tensor<8xf32>):
@@ -23,7 +23,7 @@ func.func @fold_matvec_input_conversion_into_plaintext(
     // CHECK-NOT: tensor_ext.convert_layout
     // CHECK: linalg.matvec
     // CHECK-SAME: ins(%[[PACKED_WEIGHTS]], %[[INPUT]]
-    %converted = tensor_ext.convert_layout %arg0 {from_layout = #permuted, tensor_ext.layout = #row_major, to_layout = #row_major} : tensor<8xf32>
+    %converted = tensor_ext.convert_layout %arg0 <from_layout = #permuted, to_layout = #row_major> {tensor_ext.layout = #row_major} : tensor<8xf32>
     %result = linalg.matvec {secret.kernel = #secret.kernel<name="MatvecDiagonal", force=false>, tensor_ext.layout = #result}
         ins(%matrix, %converted : tensor<4x8xf32>, tensor<8xf32>)
         outs(%init : tensor<4xf32>) -> tensor<4xf32>

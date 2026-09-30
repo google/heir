@@ -23,9 +23,9 @@ module {
     // CHECK-NEXT: arith.addi %[[v1]], %[[input2]]
     // CHECK-SAME: tensor_ext.layout = [[layout0]]
     // CHECK-NEXT: secret.yield
-      %1 = tensor_ext.convert_layout %input1 {from_layout = #layout0, tensor_ext.layout = [#layout1], to_layout = #layout1} : tensor<32xi16>
+      %1 = tensor_ext.convert_layout %input1 <from_layout = #layout0, to_layout = #layout1> {tensor_ext.layout = [#layout1]} : tensor<32xi16>
       %2 = arith.addi %input0, %1 {tensor_ext.layout = #layout1} : tensor<32xi16>
-      %3 = tensor_ext.convert_layout %2 {from_layout = #layout1, tensor_ext.layout = [#layout0], to_layout = #layout0} : tensor<32xi16>
+      %3 = tensor_ext.convert_layout %2 <from_layout = #layout1, to_layout = #layout0> {tensor_ext.layout = [#layout0]} : tensor<32xi16>
       %4 = arith.addi %3, %input2 {tensor_ext.layout = #layout0} : tensor<32xi16>
       secret.yield %4 : tensor<32xi16>
     } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = [#layout0]})

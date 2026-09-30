@@ -36,10 +36,7 @@ module {
 
     %0 = secret.generic(%arg0 : !secret.secret<tensor<4xi16>>) {
     ^body(%arg1: tensor<4xi16>):
-      %1 = tensor_ext.assign_layout %arg1 {
-        layout = [#layout1, #layout2],
-        tensor_ext.layout = #composed
-      } : tensor<4xi16>
+      %1 = tensor_ext.assign_layout %arg1 <layout = [#layout1, #layout2]> {tensor_ext.layout = #composed} : tensor<4xi16>
       secret.yield %1 : tensor<4xi16>
     } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #composed})
     // CHECK: return %[[GEN]]
@@ -90,10 +87,7 @@ module {
 
     %0 = secret.generic(%arg0 : !secret.secret<tensor<2x2xi32>>) {
     ^body(%arg1: tensor<2x2xi32>):
-      %1 = tensor_ext.assign_layout %arg1 {
-        layout = [#layout1, #layout2, #layout3],
-        tensor_ext.layout = #composed
-      } : tensor<2x2xi32>
+      %1 = tensor_ext.assign_layout %arg1 <layout = [#layout1, #layout2, #layout3]> {tensor_ext.layout = #composed} : tensor<2x2xi32>
       secret.yield %1 : tensor<2x2xi32>
     } -> (!secret.secret<tensor<2x2xi32>> {tensor_ext.layout = #composed})
     // CHECK: return %[[GEN]]
@@ -117,10 +111,7 @@ module {
     // CHECK:   secret.yield %[[CST]] : tensor<4x32xi16>
 
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {
-        layout = [#layout1, #layout2],
-        tensor_ext.layout = #composed
-      } : tensor<4xi16>
+      %1 = tensor_ext.assign_layout %cst <layout = [#layout1, #layout2]> {tensor_ext.layout = #composed} : tensor<4xi16>
       secret.yield %1 : tensor<4xi16>
     } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #composed})
     // CHECK: return %[[GEN]]

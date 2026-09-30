@@ -9,14 +9,8 @@ module attributes {
   func.func @main(%arg0: !secret.secret<tensor<4xf32>> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 and 0 <= slot <= 3 }">}) -> (!secret.secret<tensor<2xf32>> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">}) {
     %cst = arith.constant dense<0.0> : tensor<2xf32>
     %cst_mat = arith.constant dense<[[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]> : tensor<2x4xf32>
-    %0 = tensor_ext.assign_layout %cst_mat {
-      layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : exists (e0: ct + slot - i1 - 4e0 = 0 and 0 <= ct <= 3) and slot - i0 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 and 0 <= slot <= 3 }">,
-      tensor_ext.layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : exists (e0: ct + slot - i1 - 4e0 = 0 and 0 <= ct <= 3) and slot - i0 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 and 0 <= slot <= 3 }">
-    } : tensor<2x4xf32>
-    %1 = tensor_ext.assign_layout %cst {
-      layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">,
-      tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">
-    } : tensor<2xf32>
+    %0 = tensor_ext.assign_layout %cst_mat <layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : exists (e0: ct + slot - i1 - 4e0 = 0 and 0 <= ct <= 3) and slot - i0 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 and 0 <= slot <= 3 }">> {tensor_ext.layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : exists (e0: ct + slot - i1 - 4e0 = 0 and 0 <= ct <= 3) and slot - i0 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 and 0 <= slot <= 3 }">} : tensor<2x4xf32>
+    %1 = tensor_ext.assign_layout %cst <layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">} : tensor<2xf32>
     %2 = secret.generic(%arg0 : !secret.secret<tensor<4xf32>> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 and 0 <= slot <= 3 }">}) {
     ^body(%input: tensor<4xf32>):
       // The diagonals are an operand rather than an attribute, so the packed
@@ -55,8 +49,8 @@ module attributes {
     %cst_0 = arith.constant dense<[[1.0, 2.0, 3.0, 4.0], [5.0, 1.0, 2.0, 3.0], [6.0, 5.0, 1.0, 2.0], [7.0, 6.0, 5.0, 1.0]]> : tensor<4x4xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout}) {
     ^body(%input0: tensor<4xf32>):
-      %1 = tensor_ext.assign_layout %cst_0 {layout = #layout1, tensor_ext.layout = #layout1} : tensor<4x4xf32>
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<4xf32>
+      %1 = tensor_ext.assign_layout %cst_0 <layout = #layout1> {tensor_ext.layout = #layout1} : tensor<4x4xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<4xf32>
       %3 = linalg.matvec {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%1, %input0 : tensor<4x4xf32>, tensor<4xf32>) outs(%2 : tensor<4xf32>) -> tensor<4xf32>
       secret.yield %3 : tensor<4xf32>
     } -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout})

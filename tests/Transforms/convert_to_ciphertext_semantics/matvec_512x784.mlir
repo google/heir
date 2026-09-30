@@ -33,8 +33,8 @@ module attributes {
     %cst_0 = arith.constant dense<1.000000e+00> : tensor<512x784xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<784xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<784xf32>):
-      %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<512x784xf32>
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<512xf32>
+      %1 = tensor_ext.assign_layout %cst_0 <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<512x784xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<512xf32>
       %3 = linalg.matvec {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%1, %input0 : tensor<512x784xf32>, tensor<784xf32>) outs(%2 : tensor<512xf32>) -> tensor<512xf32>
       secret.yield %3 : tensor<512xf32>
     } -> (!secret.secret<tensor<512xf32>> {tensor_ext.layout = #layout})

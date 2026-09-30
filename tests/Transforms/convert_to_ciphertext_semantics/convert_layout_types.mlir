@@ -21,7 +21,7 @@ module {
   func.func @main(%arg0: !secret.secret<tensor<392xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<392xf32>> {tensor_ext.layout = #layout}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<392xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<392xf32>):
-      %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, tensor_ext.layout = #layout, to_layout = #layout} : tensor<392xf32>
+      %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<392xf32>
       secret.yield %1 : tensor<392xf32>
     } -> (!secret.secret<tensor<392xf32>> {tensor_ext.layout = #layout})
     return %0 : !secret.secret<tensor<392xf32>>

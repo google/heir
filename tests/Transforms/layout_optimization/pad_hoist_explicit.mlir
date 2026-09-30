@@ -22,7 +22,7 @@ module attributes {backend.lattigo, scheme.ckks} {
 
       // Explicit convert_layout from layout2 to layout
       // CHECK-NOT: tensor_ext.convert_layout
-      %converted = tensor_ext.convert_layout %padded {from_layout = #layout2, tensor_ext.layout = #layout, to_layout = #layout} : tensor<10x50xf32>
+      %converted = tensor_ext.convert_layout %padded <from_layout = #layout2, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<10x50xf32>
 
       secret.yield %converted : tensor<10x50xf32>
     } -> (!secret.secret<tensor<10x50xf32>> {tensor_ext.layout = #layout})

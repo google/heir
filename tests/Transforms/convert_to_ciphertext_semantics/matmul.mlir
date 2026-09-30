@@ -14,7 +14,7 @@ module {
     %cst = arith.constant dense<0.000000e+00> : tensor<3x2xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<3x5xf32>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<5x2xf32>> {tensor_ext.layout = #layout2}) {
     ^body(%input0: tensor<3x5xf32>, %input1: tensor<5x2xf32>):
-      %1 = tensor_ext.assign_layout %cst {layout = #layout3, tensor_ext.layout = #layout3} : tensor<3x2xf32>
+      %1 = tensor_ext.assign_layout %cst <layout = #layout3> {tensor_ext.layout = #layout3} : tensor<3x2xf32>
       %2 = linalg.matmul {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%input0, %input1 : tensor<3x5xf32>, tensor<5x2xf32>) outs(%1 : tensor<3x2xf32>) -> tensor<3x2xf32>
       secret.yield %2 : tensor<3x2xf32>
     } -> (!secret.secret<tensor<3x2xf32>> {tensor_ext.layout = #layout})

@@ -33,8 +33,8 @@ module {
       // CHECK-SAME: tensor_ext.layout = [[layout2]]
 
       %1 = arith.addi %input0, %input0 {tensor_ext.layout = #layout0} : tensor<32xi16>
-      %2 = tensor_ext.convert_layout %1 {from_layout = #layout0, tensor_ext.layout = [#layout1], to_layout = #layout1} : tensor<32xi16>
-      %3 = tensor_ext.convert_layout %1 {from_layout = #layout0, tensor_ext.layout = [#layout2], to_layout = #layout2} : tensor<32xi16>
+      %2 = tensor_ext.convert_layout %1 <from_layout = #layout0, to_layout = #layout1> {tensor_ext.layout = [#layout1]} : tensor<32xi16>
+      %3 = tensor_ext.convert_layout %1 <from_layout = #layout0, to_layout = #layout2> {tensor_ext.layout = [#layout2]} : tensor<32xi16>
 
       // 2. No change needed since no tensor_ext.convert_layout follows.
       // CHECK: %[[v3:.*]] = arith.addi %[[v2]], %[[input2]]
@@ -45,7 +45,7 @@ module {
       // CHECK: arith.addi %[[v2]], %[[input1]]
       // CHECK-SAME: tensor_ext.layout = [[layout2]]
       %5 = arith.addi %2, %input1 {tensor_ext.layout = #layout1} : tensor<32xi16>
-      %6 = tensor_ext.convert_layout %5 {from_layout = #layout1, tensor_ext.layout = [#layout2], to_layout = #layout2} : tensor<32xi16>
+      %6 = tensor_ext.convert_layout %5 <from_layout = #layout1, to_layout = #layout2> {tensor_ext.layout = [#layout2]} : tensor<32xi16>
 
       // CHECK: arith.addi
       // CHECK-SAME: tensor_ext.layout = [[layout2]]

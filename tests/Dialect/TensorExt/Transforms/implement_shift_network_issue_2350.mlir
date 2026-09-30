@@ -10,7 +10,7 @@ module {
   func.func @main(%arg0: !secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x1x4x4xf32>, layout = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 1023 }">>}, %arg1: tensor<2x1x3x3xf32>) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<1x1024xf32>>) {
     ^body(%input0: tensor<1x1024xf32>):
-      %1 = tensor_ext.remap %input0 {permutation = #layout1} : tensor<1x1024xf32>
+      %1 = tensor_ext.remap %input0 <permutation = #layout1> : tensor<1x1024xf32>
       secret.yield %1 : tensor<1x1024xf32>
     } -> !secret.secret<tensor<1x1024xf32>>
     return %0 : !secret.secret<tensor<1x1024xf32>>

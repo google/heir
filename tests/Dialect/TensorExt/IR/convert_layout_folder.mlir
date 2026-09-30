@@ -9,8 +9,8 @@
 func.func @fold(%arg0: !secret.secret<tensor<1x32xi16>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x32xi16>> {tensor_ext.layout = #layout1}) {
   %0 = secret.generic(%arg0 : !secret.secret<tensor<1x32xi16>>) attrs = {arg0 = {layout = #layout1}, layout = [#layout1]} {
   ^body(%input0: tensor<1x32xi16>):
-    %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, tensor_ext.layout = [#layout2], to_layout = #layout2} : tensor<1x32xi16>
-    %2 = tensor_ext.convert_layout %1 {from_layout = #layout2, layout = [#layout1], to_layout = #layout1} : tensor<1x32xi16>
+    %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout2> {tensor_ext.layout = [#layout2]} : tensor<1x32xi16>
+    %2 = tensor_ext.convert_layout %1 <from_layout = #layout2, to_layout = #layout1> {layout = [#layout1]} : tensor<1x32xi16>
     secret.yield %2 : tensor<1x32xi16>
   } -> !secret.secret<tensor<1x32xi16>>
   return %0 : !secret.secret<tensor<1x32xi16>>
@@ -26,7 +26,7 @@ func.func @fold(%arg0: !secret.secret<tensor<1x32xi16>> {tensor_ext.layout = #la
 func.func @noop(%arg0: !secret.secret<tensor<1x32xi16>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x32xi16>> {tensor_ext.layout = #layout1}) {
   %0 = secret.generic(%arg0 : !secret.secret<tensor<1x32xi16>>) attrs = {arg0 = {layout = #layout1}, layout = [#layout1]} {
   ^body(%input0: tensor<1x32xi16>):
-    %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, layout = [#layout1], to_layout = #layout1} : tensor<1x32xi16>
+    %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout1> {layout = [#layout1]} : tensor<1x32xi16>
     secret.yield %1 : tensor<1x32xi16>
   } -> !secret.secret<tensor<1x32xi16>>
   return %0 : !secret.secret<tensor<1x32xi16>>

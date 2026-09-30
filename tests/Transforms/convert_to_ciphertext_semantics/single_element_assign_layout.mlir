@@ -16,7 +16,7 @@ module {
     // CHECK-NOT: scf.for
     // CHECK-NOT: tensor.insert
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %arg0 {layout = #dense_layout, tensor_ext.layout = #dense_layout} : tensor<1xi16>
+      %1 = tensor_ext.assign_layout %arg0 <layout = #dense_layout> {tensor_ext.layout = #dense_layout} : tensor<1xi16>
       secret.yield %1 : tensor<1xi16>
     } -> (!secret.secret<tensor<1xi16>> {tensor_ext.layout = #dense_layout})
     // CHECK: return
@@ -36,7 +36,7 @@ module {
   func.func @assign_layout_single_element_not_dense(%arg0: tensor<1xi16>) -> (!secret.secret<tensor<1xi16>> {tensor_ext.layout = #sparse_layout}) {
     // CHECK-NOT: tensor.splat
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %arg0 {layout = #sparse_layout, tensor_ext.layout = #sparse_layout} : tensor<1xi16>
+      %1 = tensor_ext.assign_layout %arg0 <layout = #sparse_layout> {tensor_ext.layout = #sparse_layout} : tensor<1xi16>
       secret.yield %1 : tensor<1xi16>
     } -> (!secret.secret<tensor<1xi16>> {tensor_ext.layout = #sparse_layout})
     // CHECK: return
