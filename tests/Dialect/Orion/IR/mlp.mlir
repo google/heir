@@ -45,7 +45,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [5369036
     %ct_8 = ckks.add %ct_7, %ct_6 : (!ct_L5, !ct_L5) -> !ct_L5
     %ct_9 = ckks.rotate %ct_8 <static_shift = 128 : i32> : !ct_L5
     %ct_10 = ckks.add %ct_9, %ct_8 : (!ct_L5, !ct_L5) -> !ct_L5
-    %pt = lwe.rlwe_encode %arg1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192} : tensor<4096xf64> -> !pt
+    %pt = lwe.rlwe_encode %arg1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192> : tensor<4096xf64> -> !pt
     %ct_11 = ckks.add_plain %ct_10, %pt : (!ct_L5, !pt) -> !ct_L5
     %ct_12 = ckks.mul %ct_11, %ct_11 : (!ct_L5, !ct_L5) -> !ct_L5_D3
     %ct_13 = ckks.relinearize %ct_12 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L5_D3) -> !ct_L5_1
@@ -61,13 +61,13 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [5369036
     %ct_23 = ckks.add %ct_22, %ct_21 : (!ct_L4, !ct_L4) -> !ct_L4
     %ct_24 = ckks.rotate %ct_23 <static_shift = 128 : i32> : !ct_L4
     %ct_25 = ckks.add %ct_24, %ct_23 : (!ct_L4, !ct_L4) -> !ct_L4
-    %pt_26 = lwe.rlwe_encode %arg3 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192} : tensor<4096xf64> -> !pt
+    %pt_26 = lwe.rlwe_encode %arg3 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192> : tensor<4096xf64> -> !pt
     %ct_27 = ckks.add_plain %ct_25, %pt_26 : (!ct_L4, !pt) -> !ct_L4
     %ct_28 = ckks.mul %ct_27, %ct_27 : (!ct_L4, !ct_L4) -> !ct_L4_D3
     %ct_29 = ckks.relinearize %ct_28 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L4_D3) -> !ct_L4_1
     %ct_30 = ckks.rescale %ct_29 <to_ring = #ring_rns_L3_1_x8192> : !ct_L4_1 -> !ct_L3
     %ct_31 = orion.linear_transform %ct_30, %arg4 {block_col = 0 : i32, block_row = 0 : i32, bsgs_ratio = 2.000000e+00 : f64, diagonal_count = 137 : i32, diagonal_indices = array<i32: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 4087, 4088, 4089, 4090, 4091, 4092, 4093, 4094, 4095>, orion_level = 1 : i32, slots = 4096 : i32} : (!ct_L3, tensor<137x4096xf64>) -> !ct_L3
-    %pt_32 = lwe.rlwe_encode %arg5 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192} : tensor<4096xf64> -> !pt
+    %pt_32 = lwe.rlwe_encode %arg5 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192> : tensor<4096xf64> -> !pt
     %ct_33 = ckks.add_plain %ct_31, %pt_32 : (!ct_L3, !pt) -> !ct_L3
     return %ct_33 : !ct_L3
   }

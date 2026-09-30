@@ -23,7 +23,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
   func.func @noncanonical_affine_loop() {
     %cst = arith.constant dense<1.0> : tensor<1024xf32>
     affine.for %i = 1 to 7 step 3 {
-      %pt = lwe.rlwe_encode %cst {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt = lwe.rlwe_encode %cst <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     }
     return
   }

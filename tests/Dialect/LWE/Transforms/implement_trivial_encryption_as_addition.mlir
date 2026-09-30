@@ -35,10 +35,10 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
       %1 = lwe.radd %arg0, %arg0 : (!ty, !ty) -> !ty
       scf.yield %1 : !ty
     } else {
-      %pt = lwe.rlwe_encode %cst {
+      %pt = lwe.rlwe_encode %cst <
         encoding = #full_crt_packing_encoding,
         ring = #ring_Z65537_i64_1_x32_
-      } : tensor<1024xi16> -> !pt
+      > : tensor<1024xi16> -> !pt
       %4 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index} : !pt -> !ty
       scf.yield %4 : !ty
     }

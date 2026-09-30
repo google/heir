@@ -16,7 +16,7 @@
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [67239937, 34359754753], P = [34359771137], plaintextModulus = 65537>, scheme.bgv} {
   func.func @simple_sum__encrypt__arg0(%arg0: tensor<32xi16>, %pk: !pkey_L1) -> !ct_L1 {
     %cst = arith.constant dense<0> : tensor<4096xi16>
-    %pt = lwe.rlwe_encode %cst {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32} : tensor<4096xi16> -> !pt
+    %pt = lwe.rlwe_encode %cst <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32> : tensor<4096xi16> -> !pt
     %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1) -> !ct_L1
     return %ct : !ct_L1
   }

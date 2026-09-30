@@ -32,9 +32,9 @@ func.func @add_one(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %extracted_4 = tensor.extract %arg0[%c5] : tensor<8x!ct_ty>
   %extracted_5 = tensor.extract %arg0[%c6] : tensor<8x!ct_ty>
   %extracted_6 = tensor.extract %arg0[%c7] : tensor<8x!ct_ty>
-  %0 = lwe.encode %true { plaintext_bits = 3 : index } : i1 to !pt_ty
+  %0 = lwe.encode %true <plaintext_bits = 3> : i1 to !pt_ty
   %1 = lwe.trivial_encrypt %0  : !pt_ty -> !ct_ty
-  %2 = lwe.encode %false { plaintext_bits = 3 : index } : i1 to !pt_ty
+  %2 = lwe.encode %false <plaintext_bits = 3> : i1 to !pt_ty
   %3 = lwe.trivial_encrypt %2  : !pt_ty -> !ct_ty
   %4 = cggi.lut3 %extracted, %1, %3 <lookup_table = 8 : ui8> : !ct_ty
   %5 = cggi.lut3 %4, %extracted_0, %3 <lookup_table = 150 : ui8> : !ct_ty

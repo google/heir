@@ -37,7 +37,7 @@
 
 func.func @hoist_one_assign(%ct: !ct_L1) -> (!ct_L1) {
   %c1 = arith.constant dense<1.0> : tensor<1024xf32>
-  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
   return %0 : !ct_L1
 }
@@ -53,7 +53,7 @@ func.func @hoist_one_assign(%ct: !ct_L1) -> (!ct_L1) {
 // CHECK: return
 func.func @renamed(%ct: !ct_L1) -> !ct_L1 attributes {heir.interface = {extra = "keep", func_name = "logical_entry", input_types = [tensor<16xf32>], result_types = [tensor<16xf32>], roles = ["entry", "server.evaluate"]}} {
   %c1 = arith.constant dense<1.0> : tensor<1024xf32>
-  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
   return %0 : !ct_L1
 }

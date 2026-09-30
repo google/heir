@@ -144,7 +144,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 16, Q = [3602879
     %ct_102 = ckks.rotate %ct_101 <static_shift = 8192 : i32> : !ct_L10
     %ct_103 = ckks.add %ct_102, %ct_101 : (!ct_L10, !ct_L10) -> !ct_L10
     %ct_104 = orion.linear_transform %ct_103, %arg9 {block_col = 0 : i32, block_row = 0 : i32, bsgs_ratio = 2.000000e+00 : f64, diagonal_count = 89 : i32, diagonal_indices = array<i32: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 32759, 32760, 32761, 32762, 32763, 32764, 32765, 32766, 32767>, orion_level = 1 : i32, slots = 32768 : i32} : (!ct_L10, tensor<89x32768xf64>) -> !ct_L10
-    %pt = lwe.rlwe_encode %arg10 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x65536} : tensor<32768xf64> -> !pt
+    %pt = lwe.rlwe_encode %arg10 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x65536> : tensor<32768xf64> -> !pt
     %ct_105 = ckks.add_plain %ct_104, %pt : (!ct_L10, !pt) -> !ct_L10
     return %ct_105 : !ct_L10
   }

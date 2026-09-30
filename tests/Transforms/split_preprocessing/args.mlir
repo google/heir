@@ -33,7 +33,7 @@
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
 func.func @hoist_arg(%ct: !ct_L1, %c1: tensor<1024xf32>) -> (!ct_L1) {
-  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
   return %0 : !ct_L1
 }
@@ -77,8 +77,8 @@ func.func @hoist_arg(%ct: !ct_L1, %c1: tensor<1024xf32>) -> (!ct_L1) {
 
 func.func @hoist_arg_and_constant(%ct: !ct_L1, %c1: tensor<1024xf32>) -> (!ct_L1) {
   %c2 = arith.constant dense<2.0> : tensor<1024xf32>
-  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
-  %pt2 = lwe.rlwe_encode %c2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
+  %pt2 = lwe.rlwe_encode %c2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
   %1 = ckks.add_plain %ct, %pt2 : (!ct_L1, !pt) -> !ct_L1
   return %1 : !ct_L1
@@ -124,7 +124,7 @@ func.func @hoist_arg_and_constant(%ct: !ct_L1, %c1: tensor<1024xf32>) -> (!ct_L1
 
 func.func @hoist_with_computation(%ct: !ct_L1, %tensorC1: tensor<1x1024xf32>) -> (!ct_L1) {
   %c1 = tensor.extract_slice %tensorC1[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
   return %0 : !ct_L1
 }

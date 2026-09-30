@@ -79,6 +79,6 @@ func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
 func.func @encode_scalar(%arg0: i64, %arg1: !pk) -> !pt_scalar {
   // expected-error@+2 {{Expected a tensor type for input; maybe assign_layout wasn't properly lowered?}}
   // expected-error@+1 {{failed to legalize}}
-  %0 = lwe.rlwe_encode %arg0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_} : i64 -> !pt_scalar
+  %0 = lwe.rlwe_encode %arg0 <encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_> : i64 -> !pt_scalar
   return %0 : !pt_scalar
 }

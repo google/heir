@@ -31,9 +31,9 @@ func.func @add_one_bool(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> ten
   %extracted_05 = tensor.extract %arg0[%c5] : tensor<8x!ct_ty>
   %extracted_06 = tensor.extract %arg0[%c6] : tensor<8x!ct_ty>
   %extracted_07 = tensor.extract %arg0[%c7] : tensor<8x!ct_ty>
-  %1 = lwe.encode %i0 { plaintext_bits = 1 : index } : i1 to !pt_ty
+  %1 = lwe.encode %i0 <plaintext_bits = 1> : i1 to !pt_ty
   %ec0 = lwe.trivial_encrypt %1  : !pt_ty -> !ct_ty
-  %2 = lwe.encode %i1 { plaintext_bits = 1 : index } : i1 to !pt_ty
+  %2 = lwe.encode %i1 <plaintext_bits = 1> : i1 to !pt_ty
   %ec1 = lwe.trivial_encrypt %2  : !pt_ty -> !ct_ty
   %ha_s = cggi.xor %extracted_00, %ec1 : !ct_ty
   %ha_c = cggi.and %extracted_00, %ec1 : !ct_ty

@@ -38,7 +38,7 @@ func.func @simple_sum(%arg0: !ty) -> !ty {
   %7 = bgv.add %5, %6 : (!ty, !ty) -> !ty
   %8 = bgv.rotate_cols %7 <static_shift = 1> : !ty
   %9 = bgv.add %7, %8 : (!ty, !ty) -> !ty
-  %pt = lwe.rlwe_encode %inserted {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi16> -> !pt
+  %pt = lwe.rlwe_encode %inserted <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi16> -> !pt
   %10 = bgv.mul_plain %9, %pt : (!ty, !pt) -> !ty
   %11 = bgv.rotate_cols %10 <static_shift = 31 : index> : !ty
   return %11 : !ty

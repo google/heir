@@ -18,7 +18,7 @@
 
 module {
   func.func @preserve_extract_slice_shape(%x: !input_ringelt) {
-    %0 = lwe.extract_slice %x {start = 0 : index, size = 1 : index}
+    %0 = lwe.extract_slice %x <start = 0, size = 1>
         : !input_ringelt -> !slice_ringelt
     return
   }

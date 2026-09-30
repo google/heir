@@ -14,8 +14,8 @@ module {
   func.func @test_syntax(%arg0 : !ciphertext) -> !ciphertext {
     %0 = arith.constant 0 : i1
     %1 = arith.constant 1 : i1
-    %2 = lwe.encode %0 { plaintext_bits = 4 : index } : i1 to !plaintext
-    %3 = lwe.encode %1 { plaintext_bits = 4 : index } : i1 to !plaintext
+    %2 = lwe.encode %0 <plaintext_bits = 4> : i1 to !plaintext
+    %3 = lwe.encode %1 <plaintext_bits = 4> : i1 to !plaintext
     %4 = lwe.trivial_encrypt %2 : !plaintext -> !ciphertext
     %5 = lwe.trivial_encrypt %3 : !plaintext -> !ciphertext
     %6 = cggi.lut3 %arg0, %4, %5 <lookup_table = 127 : index> : !ciphertext

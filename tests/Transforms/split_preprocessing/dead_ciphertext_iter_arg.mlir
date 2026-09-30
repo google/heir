@@ -33,7 +33,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
   func.func @f(%arg0: tensor<1x!ct_L2>) -> tensor<1x!ct_L2> {
     %cst = arith.constant dense<1.0> : tensor<1024xf32>
     %0 = affine.for %i = 0 to 4 iter_args(%sum = %arg0) -> (tensor<1x!ct_L2>) {
-      %pt = lwe.rlwe_encode %cst {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt = lwe.rlwe_encode %cst <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       %from = tensor.from_elements %pt : tensor<1x!pt>
       %1 = ckks.add_plain %sum, %from : (tensor<1x!ct_L2>, tensor<1x!pt>) -> tensor<1x!ct_L2>
       affine.yield %1 : tensor<1x!ct_L2>

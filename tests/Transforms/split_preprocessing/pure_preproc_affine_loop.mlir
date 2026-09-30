@@ -27,7 +27,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
 
     %0 = affine.for %arg1 = 0 to 4 iter_args(%arg2 = %empty) -> (tensor<4x!pt>) {
       %extracted_slice = tensor.extract_slice %cst[%arg1, 0] [1, 1024] [1, 1] : tensor<4x1024xf32> to tensor<1024xf32>
-      %pt = lwe.rlwe_encode %extracted_slice {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt = lwe.rlwe_encode %extracted_slice <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       %inserted = tensor.insert %pt into %arg2[%arg1] : tensor<4x!pt>
       affine.yield %inserted : tensor<4x!pt>
     }

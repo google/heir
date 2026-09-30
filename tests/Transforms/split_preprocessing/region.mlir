@@ -68,7 +68,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %extracted_slice = tensor.extract_slice %1[0, 0, 0, 0] [1, 1, 28, 28] [1, 1, 1, 1] : tensor<1x6x28x28xf32> to tensor<28x28xf32>
     %2 = call @_assign_layout_1845394520611349023(%extracted_slice) : (tensor<28x28xf32>) -> tensor<1x1024xf32>
     %extracted_slice_0 = tensor.extract_slice %2[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt = lwe.rlwe_encode %extracted_slice_0 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt = lwe.rlwe_encode %extracted_slice_0 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements = tensor.from_elements %pt : tensor<1x!pt>
     %3 = ckks.add_plain %arg0, %from_elements : (tensor<1x!ct_L2>, tensor<1x!pt>) -> tensor<1x!ct_L2>
     return %3 : tensor<1x!ct_L2>
