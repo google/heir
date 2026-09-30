@@ -12,7 +12,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class Orion_Op<string mnemonic, list<Trait> traits = []> :
         Op<Orion_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::orion";
-  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
 }
 
 def Orion_LinearTransformOp : Orion_Op<"linear_transform", [Pure]> {
