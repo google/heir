@@ -254,6 +254,15 @@ LogicalResult PrepareLinearTransformOp::verify() {
 LogicalResult ApplyLinearTransformOp::verify() {
   PreparedLinearTransformType preparedType = getPrepared().getType();
 
+  if (static_cast<bool>(getDiagonalIndicesAttr()) !=
+      static_cast<bool>(getDiagonalWidthAttr())) {
+    return emitOpError(
+        "diagonal_indices and diagonal_width must be specified together");
+  }
+  if (auto width = getDiagonalWidthAttr(); width && width.getInt() <= 0) {
+    return emitOpError("diagonal_width must be positive");
+  }
+
   // A wrong level would silently evaluate a wrongly-scaled transform, so
   // require the prepared level to match the ciphertext exactly.
   std::optional<int64_t> inputLevel = getInputLevel(getInput().getType());

@@ -14,7 +14,7 @@
 
 // CHECK: @split
 // CHECK: %[[LT:.*]] = kernel.prepare_linear_transform %{{.*}} <diagonal_indices = [0, 2], source_row_indices = [1, 3]> : tensor<4x512xf64> -> <level = 0, slots = 512, log_bsgs_ratio = 0>
-// CHECK: %[[OUT:.*]] = kernel.apply_linear_transform %{{.*}}, %[[LT]] {kernel.test} : {{.*}}<level = 0, slots = 512, log_bsgs_ratio = 0>{{.*}}
+// CHECK: %[[OUT:.*]] = kernel.apply_linear_transform %{{.*}}, %[[LT]] <diagonal_indices = [0, 2], diagonal_width = 512> {kernel.test} : {{.*}}<level = 0, slots = 512, log_bsgs_ratio = 0>{{.*}}
 // CHECK-NOT: kernel.linear_transform
 // CHECK: return %[[OUT]]
 module attributes {backend.lattigo, scheme.ckks} {
@@ -41,7 +41,7 @@ module attributes {backend.lattigo, scheme.ckks} {
 
 // CHECK: @split
 // CHECK: %[[LT:.*]] = kernel.prepare_linear_transform %{{.*}} <diagonal_indices = [0, 2], source_row_indices = [1, 3]> : tensor<4x512xf64> -> <level = 0, slots = 1024, log_bsgs_ratio = 0>
-// CHECK: %[[OUT:.*]] = kernel.apply_linear_transform %{{.*}}, %[[LT]] {kernel.test} : {{.*}}<level = 0, slots = 1024, log_bsgs_ratio = 0>{{.*}}
+// CHECK: %[[OUT:.*]] = kernel.apply_linear_transform %{{.*}}, %[[LT]] <diagonal_indices = [0, 2], diagonal_width = 512> {kernel.test} : {{.*}}<level = 0, slots = 1024, log_bsgs_ratio = 0>{{.*}}
 // CHECK-NOT: kernel.linear_transform
 // CHECK: return %[[OUT]]
 module attributes {backend.lattigo, scheme.ckks,  scheme.requested_slot_count = 1024 : i64} {

@@ -12,6 +12,7 @@
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "mlir/include/mlir/IR/Builders.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
@@ -88,7 +89,9 @@ struct PrepareLinearTransforms
           op.getDiagonalIndicesAttr(), op.getSourceRowIndicesAttr());
       auto apply = ApplyLinearTransformOp::create(
           builder, op.getLoc(), op.getOutput().getType(), op.getInput(),
-          prepare.getPrepared());
+          prepare.getPrepared(), op.getDiagonalIndicesAttr(),
+          builder.getI64IntegerAttr(
+              cast<ShapedType>(op.getDiagonals().getType()).getDimSize(1)));
 
       apply->setDiscardableAttrs(op->getDiscardableAttrDictionary());
       op.getOutput().replaceAllUsesWith(apply.getOutput());
