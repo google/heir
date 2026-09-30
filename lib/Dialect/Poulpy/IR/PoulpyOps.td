@@ -9,7 +9,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class Poulpy_Op<string mnemonic, list<Trait> traits = []> :
         Op<Poulpy_Dialect, mnemonic, traits> {
   let assemblyFormat = [{
-    operands attr-dict `:` functional-type(operands, results)
+    operands prop-dict attr-dict `:` functional-type(operands, results)
   }];
 }
 
