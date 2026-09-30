@@ -25,8 +25,8 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
     %ct = jaxiteword.mul %arg0, %arg2, %arg3, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1_D3
     %ct_1 = jaxiteword.relin %arg0, %ct, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1_D3, !jaxiteword.eval_key<>) -> !ct_L1_1
     %ct_2 = jaxiteword.mod_reduce %arg0, %ct_1 : (!jaxiteword.crypto_context<>, !ct_L1_1) -> !ct_L0
-    %ct_3 = jaxiteword.rot %arg0, %ct_2, %arg1 {index = 4 : i64} : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
-    %ct_4 = jaxiteword.rot %arg0, %ct_3, %arg1 {index = 8 : i64} : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
+    %ct_3 = jaxiteword.rot %arg0, %ct_2, %arg1 <index = 4> : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
+    %ct_4 = jaxiteword.rot %arg0, %ct_3, %arg1 <index = 8> : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
     return %ct_4 : !ct_L0
   }
 }
@@ -44,4 +44,4 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 // CHECK-SAME: !jaxiteword.private_key
 // CHECK-SAME: !jaxiteword.eval_key
 // CHECK: jaxiteword.program_initialization
-// CHECK-SAME: totalRotationIndices = array<i64: 4, 8>
+// CHECK-SAME: totalRotationIndices = [4, 8]

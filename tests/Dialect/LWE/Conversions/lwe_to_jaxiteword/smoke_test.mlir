@@ -39,7 +39,7 @@ module {
   // CHECK: @test_static_rotate
   func.func @test_static_rotate(%ct: !ct_L1_) -> !ct_L1_ {
     // CHECK: jaxiteword.rot
-    // CHECK-SAME: index = 3 : i64
+    // CHECK-SAME: <index = 3>
     %rotated = ckks.rotate %ct <static_shift = 3 : index> : !ct_L1_
     return %rotated : !ct_L1_
   }
@@ -48,7 +48,7 @@ module {
   func.func @test_constant_dynamic_rotate(%ct: !ct_L1_) -> !ct_L1_ {
     %shift = arith.constant -2 : index
     // CHECK: jaxiteword.rot
-    // CHECK-SAME: index = -2 : i64
+    // CHECK-SAME: <index = -2>
     %rotated = ckks.rotate %ct, %shift : index : !ct_L1_
     return %rotated : !ct_L1_
   }
