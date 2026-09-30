@@ -7405,15 +7405,24 @@ dataflow analyses treat it like any other encoded plaintext.&lt;/p>
 &lt;h3 id="kernelapply_linear_transform-heirkernelapplylineartransformop">&lt;code>kernel.apply_linear_transform&lt;/code> (heir::kernel::ApplyLinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Applies a prepared linear transform to a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `kernel.apply_linear_transform` $input `,` $prepared attr-dict `:` type($input) `,` type($prepared) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `kernel.apply_linear_transform` $input `,` $prepared prop-dict attr-dict `:` type($input) `,` type($prepared) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Evaluates a transform prepared by &lt;code>kernel.prepare_linear_transform&lt;/code> on a
 ciphertext. The prepared type&amp;rsquo;s parameters are verified against the
 ciphertext: applying at a level other than the one the diagonals were
 encoded at would silently compute with a wrongly-scaled transform, so a
 mismatch is a compile-time error here rather than a runtime surprise.&lt;/p>
+&lt;p>&lt;code>diagonal_indices&lt;/code> and &lt;code>diagonal_width&lt;/code> retain planning metadata needed by
+target lowerings after preparation and application are split across
+functions.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>diagonal_width&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -7457,7 +7466,7 @@ on a given input. The domain is required to be &lt;code>[-1, 1]&lt;/code>.&lt;/p
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>, &lt;code>RequiresLinearKeyBasisOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>coefficients&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>array attribute&lt;/td>&lt;/tr>
@@ -7506,7 +7515,7 @@ mapping, &lt;code>input&lt;/code> may be a single secret-typed value.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>, &lt;code>RequiresLinearKeyBasisOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
@@ -7566,7 +7575,7 @@ generalized diagonal named by &lt;code>diagonal_indices[k]&lt;/code>. If
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
