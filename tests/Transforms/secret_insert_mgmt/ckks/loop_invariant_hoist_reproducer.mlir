@@ -395,7 +395,7 @@ module attributes {backend.lattigo, scheme.ckks,
     %4 = tensor.empty() : tensor<4x4096xf32>
     %5 = secret.generic(%arg0: !secret.secret<tensor<1x4096xf32>> {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 10, 48>}}) {
     ^body(%input0: tensor<1x4096xf32>):
-      debug.validate %input0 {metadata = "input", name = "input"} : tensor<1x4096xf32>
+      debug.validate %input0 <name = "input", metadata = "input"> : tensor<1x4096xf32>
       %6 = arith.mulf %input0, %cst_270 : tensor<1x4096xf32>
       %7 = scf.for %arg1 = %c0 to %c23 step %c1 iter_args(%arg2 = %0) -> (tensor<23x4096xf32>) {
         %727 = tensor_ext.rotate %6, %arg1 : tensor<1x4096xf32>, index
@@ -433,11 +433,11 @@ module attributes {backend.lattigo, scheme.ckks,
         scf.yield %730 : tensor<1x4096xf32>
       }
       %9 = arith.addf %8, %cst_0 : tensor<1x4096xf32>
-      debug.validate %9 {metadata = "conv1", name = "conv1"} : tensor<1x4096xf32>
+      debug.validate %9 <name = "conv1", metadata = "conv1"> : tensor<1x4096xf32>
       %10 = arith.mulf %9, %cst_4 {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 16, 48>}} : tensor<1x4096xf32>
       %11 = arith.addf %10, %cst_5 {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 16, 48>}} : tensor<1x4096xf32>
       %12 = kernel.eval_chebyshev %11 {coefficients = [2.3251965538185049, 3.6698357203950502, 1.7070180567163611, -0.042888578030742995], heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 16, 48>}} : tensor<1x4096xf32> -> tensor<1x4096xf32>
-      debug.validate %12 {metadata = "relu1", name = "relu1"} : tensor<1x4096xf32>
+      debug.validate %12 <name = "relu1", metadata = "relu1"> : tensor<1x4096xf32>
       %13 = scf.for %arg1 = %c0 to %c32 step %c1 iter_args(%arg2 = %1) -> (tensor<32x4096xf32>) {
         %727 = tensor_ext.rotate %12, %arg1 : tensor<1x4096xf32>, index
         %inserted_slice = tensor.insert_slice %727 into %arg2[%arg1, 0] [1, 4096] [1, 1] : tensor<1x4096xf32> into tensor<32x4096xf32>
@@ -474,7 +474,7 @@ module attributes {backend.lattigo, scheme.ckks,
         scf.yield %730 : tensor<1x4096xf32>
       }
       %15 = arith.addf %14, %cst_7 : tensor<1x4096xf32>
-      debug.validate %15 {metadata = "conv2", name = "conv2"} : tensor<1x4096xf32>
+      debug.validate %15 <name = "conv2", metadata = "conv2"> : tensor<1x4096xf32>
       %16 = arith.mulf %12, %cst_271 : tensor<1x4096xf32>
       %17 = scf.for %arg1 = %c0 to %c32 step %c1 iter_args(%arg2 = %1) -> (tensor<32x4096xf32>) {
         %727 = tensor_ext.rotate %16, %arg1 : tensor<1x4096xf32>, index
@@ -512,11 +512,11 @@ module attributes {backend.lattigo, scheme.ckks,
         scf.yield %730 : tensor<1x4096xf32>
       }
       %19 = arith.addf %18, %cst_10 : tensor<1x4096xf32>
-      debug.validate %19 {metadata = "conv3", name = "conv3"} : tensor<1x4096xf32>
+      debug.validate %19 <name = "conv3", metadata = "conv3"> : tensor<1x4096xf32>
       %20 = arith.mulf %19, %cst_12 {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 24, 24>}} : tensor<1x4096xf32>
       %21 = arith.addf %20, %cst_13 {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 24, 24>}} : tensor<1x4096xf32>
       %22 = kernel.eval_chebyshev %21 {coefficients = [1.928445874218355, 3.1291131356625779, 1.6714159928421066, 0.079184834538447213], heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 24, 24>}} : tensor<1x4096xf32> -> tensor<1x4096xf32>
-      debug.validate %22 {metadata = "relu2", name = "relu2"} : tensor<1x4096xf32>
+      debug.validate %22 <name = "relu2", metadata = "relu2"> : tensor<1x4096xf32>
       %23 = arith.mulf %22, %cst_272 : tensor<1x4096xf32>
       %24 = arith.mulf %22, %cst_273 : tensor<1x4096xf32>
       %25 = tensor_ext.rotate %24, %c1 : tensor<1x4096xf32>, index
@@ -660,7 +660,7 @@ module attributes {backend.lattigo, scheme.ckks,
         scf.yield %730 : tensor<1x4096xf32>
       }
       %139 = arith.addf %138, %cst_15 : tensor<1x4096xf32>
-      debug.validate %139 {metadata = "conv4", name = "conv4"} : tensor<1x4096xf32>
+      debug.validate %139 <name = "conv4", metadata = "conv4"> : tensor<1x4096xf32>
       %140 = arith.mulf %15, %cst_87 : tensor<1x4096xf32>
       %141 = arith.mulf %15, %cst_88 : tensor<1x4096xf32>
       %142 = tensor_ext.rotate %141, %c1 : tensor<1x4096xf32>, index
@@ -762,7 +762,7 @@ module attributes {backend.lattigo, scheme.ckks,
       %238 = arith.mulf %237, %cst_16 {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 24, 24>}} : tensor<1x4096xf32>
       %239 = arith.addf %238, %cst_17 {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 24, 24>}} : tensor<1x4096xf32>
       %240 = kernel.eval_chebyshev %239 {coefficients = [3.2315526501609444, 5.0763567915464565, 2.3095994252524283, -0.08145488075797401], heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 24, 24>}} : tensor<1x4096xf32> -> tensor<1x4096xf32>
-      debug.validate %240 {metadata = "relu3", name = "relu3"} : tensor<1x4096xf32>
+      debug.validate %240 <name = "relu3", metadata = "relu3"> : tensor<1x4096xf32>
       %241 = scf.for %arg1 = %c0 to %c23 step %c1 iter_args(%arg2 = %0) -> (tensor<23x4096xf32>) {
         %727 = tensor_ext.rotate %240, %arg1 : tensor<1x4096xf32>, index
         %inserted_slice = tensor.insert_slice %727 into %arg2[%arg1, 0] [1, 4096] [1, 1] : tensor<1x4096xf32> into tensor<23x4096xf32>
@@ -803,7 +803,7 @@ module attributes {backend.lattigo, scheme.ckks,
       %245 = arith.addf %244, %243 : tensor<1x4096xf32>
       // This serves as a starting marker for the filecheck matches
       // CHECK: conv5
-      debug.validate %245 {metadata = "conv5", name = "conv5"} : tensor<1x4096xf32>
+      debug.validate %245 <name = "conv5", metadata = "conv5"> : tensor<1x4096xf32>
       %246 = arith.mulf %240, %cst_278 : tensor<1x4096xf32>
       %247 = scf.for %arg1 = %c0 to %c23 step %c1 iter_args(%arg2 = %0) -> (tensor<23x4096xf32>) {
         %727 = tensor_ext.rotate %246, %arg1 : tensor<1x4096xf32>, index
@@ -883,7 +883,7 @@ module attributes {backend.lattigo, scheme.ckks,
       %249 = tensor_ext.rotate %248, %c512 : tensor<1x4096xf32>, index
       %250 = arith.addf %248, %cst_22 : tensor<1x4096xf32>
       %251 = arith.addf %250, %249 : tensor<1x4096xf32>
-      debug.validate %251 {metadata = "conv6", name = "conv6"} : tensor<1x4096xf32>
+      debug.validate %251 <name = "conv6", metadata = "conv6"> : tensor<1x4096xf32>
       secret.yield %251 : tensor<1x4096xf32>
     } -> !secret.secret<tensor<1x4096xf32>>
     return %5 : !secret.secret<tensor<1x4096xf32>>
