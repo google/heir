@@ -24,7 +24,7 @@ func.func @test_scf_if_level_mismatch_init(%arg0: i1, %arg1: !secret.secret<i32>
       %1 = mgmt.init %cst : i32
       scf.yield %1 : i32
     } else {
-      %2 = mgmt.level_reduce %arg1_val {levelToDrop = 2} : i32
+      %2 = mgmt.level_reduce %arg1_val <levelToDrop = 2> : i32
       %3 = arith.muli %2, %2 : i32
       scf.yield %3 : i32
     }

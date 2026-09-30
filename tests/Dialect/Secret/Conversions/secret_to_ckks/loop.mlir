@@ -33,7 +33,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
       %5 = arith.mulf %input0, %1 {mgmt.mgmt = #mgmt.mgmt<level = 3, scale = 110>} : tensor<1x8xf32>
       %6 = mgmt.modreduce %5 {mgmt.mgmt = #mgmt.mgmt<level = 2, scale = 55>} : tensor<1x8xf32>
       %7 = arith.subf %6, %2 {mgmt.mgmt = #mgmt.mgmt<level = 2, scale = 55>} : tensor<1x8xf32>
-      %8 = mgmt.level_reduce %7 {levelToDrop = 2 : i64, mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 55>} : tensor<1x8xf32>
+      %8 = mgmt.level_reduce %7 <levelToDrop = 2> {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 55>} : tensor<1x8xf32>
 
       // CHECK: affine.for
       %9 = affine.for %arg1 = 1 to 7 step 3 iter_args(%arg2 = %8) -> (tensor<1x8xf32>) {
@@ -67,7 +67,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
       %12 = mgmt.relinearize %11 {mgmt.mgmt = #mgmt.mgmt<level = 3, scale = 110>} : tensor<1x8xf32>
       %13 = mgmt.modreduce %12 {mgmt.mgmt = #mgmt.mgmt<level = 2, scale = 55>} : tensor<1x8xf32>
       %14 = arith.subf %13, %3 {mgmt.mgmt = #mgmt.mgmt<level = 2, scale = 55>} : tensor<1x8xf32>
-      %15 = mgmt.level_reduce %14 {levelToDrop = 2 : i64, mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 55>} : tensor<1x8xf32>
+      %15 = mgmt.level_reduce %14 <levelToDrop = 2> {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 55>} : tensor<1x8xf32>
       secret.yield %15 : tensor<1x8xf32>
     } -> (!secret.secret<tensor<1x8xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 55>})
     return %4 : !secret.secret<tensor<1x8xf32>>
