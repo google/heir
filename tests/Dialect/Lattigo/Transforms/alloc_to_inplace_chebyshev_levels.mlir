@@ -16,7 +16,7 @@ func.func @chebyshev_consumes_levels(%params: !params, %evaluator: !ckks_evaluat
   %poly_eval = lattigo.ckks.new_polynomial_evaluator %params, %evaluator : (!params, !ckks_evaluator) -> !poly_eval
   // A degree-15 polynomial drops 4 levels.
   // CHECK: %[[CHEB:.*]] = lattigo.ckks.chebyshev
-  %cheb = lattigo.ckks.chebyshev %poly_eval, %ct {coefficients = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], targetScale = 1073741824} : (!poly_eval, !ct) -> !ct
+  %cheb = lattigo.ckks.chebyshev %poly_eval, %ct <coefficients = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], targetScale = 1073741824> : (!poly_eval, !ct) -> !ct
   // %cheb is dead after this point, but it is 4 levels below %ct, so the
   // add on the untouched %ct must not be given %cheb as its output buffer.
   // CHECK-NOT: lattigo.ckks.add %{{.*}}, %{{.*}}, %{{.*}}, %[[CHEB]]

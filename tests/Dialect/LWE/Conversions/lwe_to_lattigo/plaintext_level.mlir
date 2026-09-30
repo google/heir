@@ -21,7 +21,7 @@
 module attributes {scheme.bgv} {
   // CHECK: func @with_level
   func.func @with_level(%ct: !ct_L1_, %value: tensor<1024xi64>) -> !ct_L1_ {
-    // CHECK: lattigo.bgv.new_plaintext %{{.*}} {level = 1 : i64}
+    // CHECK: lattigo.bgv.new_plaintext %{{.*}} <level = 1>
     // CHECK-NEXT: lattigo.bgv.encode
     %pt = lwe.rlwe_encode %value <encoding = #full_crt_packing_encoding, ring = #ring_Z4295294977_i64_1_x1024_, level = 1> : tensor<1024xi64> -> !pt
     %res = lwe.rmul_plain %ct, %pt : (!ct_L1_, !pt) -> !ct_L1_

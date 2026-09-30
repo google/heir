@@ -64,7 +64,7 @@ func.func @test_rlwe_new_encryptor_pk_input_sk(%params: !params, %pk: !pk) {
 
 func.func @test_ckks_prepare_linear_transform_1d_diagonals(%params: !params, %encoder: !encoder, %diagonals: tensor<4xf64>) {
   // expected-error@+1 {{'lattigo.ckks.prepare_linear_transform' op operand #2 must be}}
-  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<4xf64>) -> !linear_transformation
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<4xf64>) -> !linear_transformation
   return
 }
 
@@ -87,7 +87,7 @@ func.func @test_ckks_apply_linear_transform_wrong_operand_type(%evaluator: !eval
 
 func.func @test_ckks_prepare_linear_transform_log_slots_negative(%params: !params, %encoder: !encoder, %diagonals: tensor<1x4xf64>) {
   // expected-error@+1 {{logSlots must be in range [0, 62], but got -1}}
-  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0>, levelQ = 0 : i64, logSlots = -1 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<1x4xf64>) -> !linear_transformation
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], levelQ = 0 : i64, logSlots = -1 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<1x4xf64>) -> !linear_transformation
   return
 }
 
@@ -99,7 +99,7 @@ func.func @test_ckks_prepare_linear_transform_log_slots_negative(%params: !param
 
 func.func @test_ckks_prepare_linear_transform_log_slots_too_large(%params: !params, %encoder: !encoder, %diagonals: tensor<1x4xf64>) {
   // expected-error@+1 {{logSlots must be in range [0, 62], but got 63}}
-  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0>, levelQ = 0 : i64, logSlots = 63 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<1x4xf64>) -> !linear_transformation
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], levelQ = 0 : i64, logSlots = 63 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<1x4xf64>) -> !linear_transformation
   return
 }
 
@@ -111,7 +111,7 @@ func.func @test_ckks_prepare_linear_transform_log_slots_too_large(%params: !para
 
 func.func @test_ckks_prepare_linear_transform_source_row_indices_size_mismatch(%params: !params, %encoder: !encoder, %diagonals: tensor<2x4xf64>) {
   // expected-error@+1 {{number of source row indices (2) must match number of diagonal indices (1)}}
-  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0>, source_row_indices = array<i32: 0, 1>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], source_row_indices = [0, 1], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
   return
 }
 
@@ -123,6 +123,6 @@ func.func @test_ckks_prepare_linear_transform_source_row_indices_size_mismatch(%
 
 func.func @test_ckks_prepare_linear_transform_source_row_index_out_of_bounds(%params: !params, %encoder: !encoder, %diagonals: tensor<2x4xf64>) {
   // expected-error@+1 {{source row index 2 is out of bounds for 2 diagonal rows}}
-  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals {diagonal_indices = array<i32: 0>, source_row_indices = array<i32: 2>, levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64} : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], source_row_indices = [2], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
   return
 }

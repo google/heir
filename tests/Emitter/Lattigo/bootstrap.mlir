@@ -15,7 +15,7 @@
 module attributes {scheme.ckks} {
   func.func @test_bootstrap(%boot_eval: !lattigo.ckks.bootstrapping_evaluator, %eval: !lattigo.ckks.evaluator, %ct: !lattigo.rlwe.ciphertext, %ct_other: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     %bootstrapped = lattigo.ckks.bootstrap %boot_eval, %ct : (!lattigo.ckks.bootstrapping_evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
-    %reduced = lattigo.rlwe.drop_level %eval, %ct_other, %bootstrapped {levelToDrop = 2 : i64} : (!lattigo.ckks.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    %reduced = lattigo.rlwe.drop_level %eval, %ct_other, %bootstrapped <levelToDrop = 2> : (!lattigo.ckks.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
     return %reduced : !lattigo.rlwe.ciphertext
   }
 }

@@ -6,11 +6,11 @@
 
 module attributes {scheme.ckks} {
   func.func @ckks_level_past_chain() {
-    %params = lattigo.ckks.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
+    %params = lattigo.ckks.new_parameters_from_literal <paramsLiteral = #paramsLiteral> : () -> !params
     // CHECK: level 5 is past the top of the modulus chain
     // CHECK-SAME: 3 moduli
     // CHECK-SAME: maximum level of 2
-    %pt = lattigo.ckks.new_plaintext %params {level = 5 : i64} : (!params) -> !pt
+    %pt = lattigo.ckks.new_plaintext %params <level = 5> : (!params) -> !pt
     return
   }
 }
@@ -23,11 +23,11 @@ module attributes {scheme.ckks} {
 
 module attributes {scheme.bgv} {
   func.func @bgv_level_past_chain() {
-    %params = lattigo.bgv.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
+    %params = lattigo.bgv.new_parameters_from_literal <paramsLiteral = #paramsLiteral> : () -> !params
     // CHECK: level 4 is past the top of the modulus chain
     // CHECK-SAME: 2 moduli
     // CHECK-SAME: maximum level of 1
-    %pt = lattigo.bgv.new_plaintext %params {level = 4 : i64} : (!params) -> !pt
+    %pt = lattigo.bgv.new_plaintext %params <level = 4> : (!params) -> !pt
     return
   }
 }

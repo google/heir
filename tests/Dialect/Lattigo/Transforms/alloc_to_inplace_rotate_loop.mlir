@@ -14,7 +14,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [171799265
       %0 = memref.load %memref[%i] : memref<10x!ct>
       // CHECK: lattigo.bgv.rotate_columns %{{.*}}, %{{.*}}, %{{.*}}
       // CHECK-NOT: lattigo.bgv.rotate_columns_new
-      %1 = lattigo.bgv.rotate_columns_new %evaluator, %0 {static_shift = 1} : (!evaluator, !ct) -> !ct
+      %1 = lattigo.bgv.rotate_columns_new %evaluator, %0 <static_shift = 1> : (!evaluator, !ct) -> !ct
       memref.store %1, %memref[%i] : memref<10x!ct>
     }
     return

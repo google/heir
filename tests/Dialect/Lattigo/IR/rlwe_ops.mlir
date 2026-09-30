@@ -45,7 +45,7 @@ module {
   // CHECK: func @test_rlwe_gen_galois_key
   func.func @test_rlwe_gen_galois_key(%key_generator: !key_generator, %sk: !sk) {
     // CHECK: %[[v1:.*]] = lattigo.rlwe.gen_galois_key
-    %gk = lattigo.rlwe.gen_galois_key %key_generator, %sk {galoisElement = 5} : (!key_generator, !sk) -> !gk5
+    %gk = lattigo.rlwe.gen_galois_key %key_generator, %sk <galoisElement = 5> : (!key_generator, !sk) -> !gk5
     return
   }
 
