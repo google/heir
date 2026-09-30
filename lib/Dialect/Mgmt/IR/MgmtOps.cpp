@@ -2,13 +2,24 @@
 
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtPatterns.h"
-#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace mgmt {
+
+static bool canEmitAdjustScale(Operation* op) {
+  auto module = op->getParentOfType<ModuleOp>();
+  auto target = getTargetConfig(module);
+  return succeeded(target) && !target->supports_adjust_scale;
+}
 
 //===----------------------------------------------------------------------===//
 // Canonicalization Patterns
@@ -19,6 +30,10 @@ struct ModReduceAfterLevelReduce : public OpRewritePattern<LevelReduceOp> {
 
   LogicalResult matchAndRewrite(LevelReduceOp op,
                                 PatternRewriter& rewriter) const override {
+    // Targets without same-level scale adjustment require rescale to remain
+    // before level reduction. Moving it after level reduction would apply
+    // rescale to the squared scale at the wrong level.
+    if (canEmitAdjustScale(op)) return failure();
     auto modReduceOp = op.getInput().getDefiningOp<ModReduceOp>();
     if (!modReduceOp || !modReduceOp->hasOneUse() || !op->hasOneUse())
       return failure();
@@ -170,6 +185,7 @@ struct MergeModReduce : public OpRewritePattern<ModReduceOp> {
 
   LogicalResult matchAndRewrite(ModReduceOp op,
                                 PatternRewriter& rewriter) const override {
+    if (canEmitAdjustScale(op)) return failure();
     auto innerMr = op.getInput().getDefiningOp<ModReduceOp>();
     if (!innerMr || !innerMr->hasOneUse()) return failure();
 

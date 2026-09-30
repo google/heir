@@ -1,7 +1,9 @@
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
@@ -28,10 +30,17 @@ struct SecretInsertMgmtCKKS
     // Helper for future lowerings that want to know what scheme was used
     moduleSetCKKS(getOperation());
 
+    bool canEmitAdjustScale = true;
+    if (auto target = getTargetConfig(getOperation()); succeeded(target))
+      canEmitAdjustScale = target->supports_adjust_scale;
+
     InsertMgmtPipelineOptions options;
     options.includeFloats = true;
     options.levelBudget = levelBudget;
-    options.modReduceAfterMul = afterMul;
+    // A target with one canonical scale per level must rescale immediately
+    // after multiplication. This turns scale mismatches into cross-level
+    // mismatches that can be resolved with a level reduction.
+    options.modReduceAfterMul = afterMul || !canEmitAdjustScale;
     options.modReduceBeforeMulIncludeFirstMul = beforeMulIncludeFirstMul;
     options.bootstrapWaterline = bootstrapWaterline;
     LogicalResult result = runInsertMgmtPipeline(getOperation(), options);
@@ -58,6 +67,15 @@ struct SecretInsertMgmtCKKS
     annotateOptions.levelBudget = levelBudget;
     pipeline.addPass(mgmt::createAnnotateMgmt(annotateOptions));
     (void)runPipeline(pipeline, getOperation());
+
+    if (!canEmitAdjustScale) {
+      bool foundUnsupportedOp = false;
+      getOperation()->walk([&](mgmt::AdjustScaleOp op) {
+        op.emitError("target does not support mgmt.adjust_scale");
+        foundUnsupportedOp = true;
+      });
+      if (foundUnsupportedOp) signalPassFailure();
+    }
   }
 };
 

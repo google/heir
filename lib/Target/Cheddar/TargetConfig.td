@@ -14,5 +14,5 @@ def Cheddar : CompilationTarget<"cheddar"> {
 
   // scale-snu/cheddar exposes one canonical scale per level and has no
   // operation for a same-level scalar scale correction.
-  let can_emit_adjust_scale = 0;
+  let supports_adjust_scale = 0;
 }

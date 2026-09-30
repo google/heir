@@ -242,6 +242,11 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
       if (resultLevelState.isMaxLevel()) {
         managed =
             mgmt::LevelReduceMinOp::create(rewriter, op.getLoc(), managed);
+      } else if (!canEmitAdjustScale) {
+        auto resultLevel = resultLevelState.getInt();
+        auto level = levelState.getInt();
+        managed = mgmt::LevelReduceOp::create(rewriter, op.getLoc(), managed,
+                                              resultLevel - level);
       } else {
         auto resultLevel = resultLevelState.getInt();
         auto level = levelState.getInt();

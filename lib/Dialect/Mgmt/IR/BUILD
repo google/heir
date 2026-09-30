@@ -27,6 +27,7 @@ cc_library(
         ":ops_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

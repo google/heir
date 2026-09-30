@@ -116,11 +116,12 @@ struct MatchCrossLevel : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
   MatchCrossLevel(MLIRContext* context, int* idCounter, Operation* top,
-                  DataFlowSolver* solver)
+                  DataFlowSolver* solver, bool canEmitAdjustScale = true)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         idCounter(idCounter),
         top(top),
-        solver(solver) {}
+        solver(solver),
+        canEmitAdjustScale(canEmitAdjustScale) {}
 
   LogicalResult matchAndRewrite(Op op,
                                 PatternRewriter& rewriter) const override;
@@ -129,6 +130,7 @@ struct MatchCrossLevel : public OpRewritePattern<Op> {
   int* idCounter;
   Operation* top;
   DataFlowSolver* solver;
+  bool canEmitAdjustScale;
 };
 
 /// Similar to MatchCrossLevel, see its description for behavior.

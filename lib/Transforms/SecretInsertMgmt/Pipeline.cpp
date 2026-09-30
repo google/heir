@@ -126,11 +126,13 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   }
 
   int64_t bootstrapLevelsConsumed = 0;
+  bool canEmitAdjustScale = true;
   // A default large value when the user does not set a level budget. Used for
   // ensuring subesquent passes that require a level budget get one.
   int64_t maxLevel = 100;
   if (succeeded(target)) {
     bootstrapLevelsConsumed = target->bootstrapLevelsConsumed;
+    canEmitAdjustScale = target->supports_adjust_scale;
   }
 
   int budget = options.levelBudget == -1
@@ -197,7 +199,8 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   adjustScalesForRegionBranchOps(top, &idCounter);
 
   LDBG(2) << "Handling cross level ops";
-  handleCrossLevelOps(top, &idCounter, options.includeFloats, budget);
+  handleCrossLevelOps(top, &idCounter, options.includeFloats, budget,
+                      canEmitAdjustScale);
 
   LDBG(2) << "Handling cross mul depth ops";
   handleCrossMulDepthOps(top, &idCounter, options.includeFloats, budget);
@@ -298,7 +301,7 @@ void insertRelinearizeAfterMult(Operation* top, bool includeFloats) {
 }
 
 void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats,
-                         int levelBudget) {
+                         int levelBudget, bool canEmitAdjustScale) {
   DataFlowSolver solver;
   makeAndRunSecretnessAndLevelSolver(top, solver, levelBudget);
   MLIRContext* ctx = top->getContext();
@@ -306,10 +309,12 @@ void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats,
   patterns.add<MatchCrossLevel<arith::AddIOp>, MatchCrossLevel<arith::SubIOp>,
                MatchCrossLevel<arith::MulIOp>,
                MatchCrossLevel<tensor::InsertSliceOp>,
-               MatchCrossLevel<tensor::InsertOp>>(ctx, idCounter, top, &solver);
+               MatchCrossLevel<tensor::InsertOp>>(ctx, idCounter, top, &solver,
+                                                  canEmitAdjustScale);
   if (includeFloats)
     patterns.add<MatchCrossLevel<arith::AddFOp>, MatchCrossLevel<arith::SubFOp>,
-                 MatchCrossLevel<arith::MulFOp>>(ctx, idCounter, top, &solver);
+                 MatchCrossLevel<arith::MulFOp>>(ctx, idCounter, top, &solver,
+                                                 canEmitAdjustScale);
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 

@@ -44,6 +44,7 @@ const CompilationTarget* CompilationTargetRegistry::get(BackendName name) {
 }
 
 FailureOr<BackendName> findBackend(ModuleOp module) {
+  if (!module) return failure();
   for (NamedAttribute attr : module->getAttrs()) {
     // This skips over backend.config_override, in particular
     if (!isa<UnitAttr>(attr.getValue())) continue;

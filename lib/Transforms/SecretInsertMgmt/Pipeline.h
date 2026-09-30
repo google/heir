@@ -39,7 +39,7 @@ void adjustLevelsForRegionBranchOps(Operation* top, int levelBudget = 40);
 void adjustScalesForRegionBranchOps(Operation* top, int* idCounter);
 
 void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats,
-                         int levelBudget = 40);
+                         int levelBudget = 40, bool canEmitAdjustScale = true);
 
 void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats,
                             int levelBudget = 40);
