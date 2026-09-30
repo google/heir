@@ -17,7 +17,7 @@ func.func @test_levelled_op(%sks : !sks, %lut: !lut, %input1 : !eui3, %input2 : 
   %v0 = tfhe_rust.apply_lookup_table %sks, %input1, %lut : (!sks, !eui3, !lut) -> !eui3
   %v1 = tfhe_rust.apply_lookup_table %sks, %input2, %lut : (!sks, !eui3, !lut) -> !eui3
   %v2 = tfhe_rust.add %sks, %v0, %v1 : (!sks, !eui3, !eui3) -> !eui3
-  %v3 = tfhe_rust.scalar_left_shift %sks, %v2 {shiftAmount = 1 : index} : (!sks, !eui3) -> !eui3
+  %v3 = tfhe_rust.scalar_left_shift %sks, %v2 <shiftAmount = 1> : (!sks, !eui3) -> !eui3
   %v4 = tfhe_rust.apply_lookup_table %sks, %v3, %lut : (!sks, !eui3, !lut) -> !eui3
   return %v4 : !eui3
 }
@@ -43,7 +43,7 @@ func.func @test_levelled_op_break(%sks : !sks, %lut: !lut, %input1 : !eui3, %inp
   %v1 = tfhe_rust.apply_lookup_table %sks, %input2, %lut : (!sks, !eui3, !lut) -> !eui3
   %v2 = tfhe_rust.add %sks, %v0, %v1 : (!sks, !eui3, !eui3) -> !eui3
   %c1 = arith.constant 1 : i8
-  %v3 = tfhe_rust.scalar_left_shift %sks, %v2 {shiftAmount = 1 : index} : (!sks, !eui3) -> !eui3
+  %v3 = tfhe_rust.scalar_left_shift %sks, %v2 <shiftAmount = 1> : (!sks, !eui3) -> !eui3
   %v4 = tfhe_rust.apply_lookup_table %sks, %v3, %lut : (!sks, !eui3, !lut) -> !eui3
   return %v4 : !eui3
 }
