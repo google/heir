@@ -259,7 +259,7 @@ func.func @test_lower_barrett_reduce(%arg : tensor<4xi10>) -> tensor<4xi10> {
   // CHECK: %[[MULCMOD:.*]] = arith.muli %[[SHIFTED]], %[[CMOD]] : [[INTER_TYPE]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[EXT]], %[[MULCMOD]] : [[INTER_TYPE]]
   // CHECK: %[[RES:.*]] = arith.trunci %[[SUB]] : [[INTER_TYPE]] to [[TENSOR_TYPE]]
-  %res = mod_arith.barrett_reduce %arg { modulus = 17 } : tensor<4xi10>
+  %res = mod_arith.barrett_reduce %arg <modulus = 17> : tensor<4xi10>
 
   // CHECK: return %[[RES]] : [[TENSOR_TYPE]]
   return %res : tensor<4xi10>
@@ -281,7 +281,7 @@ func.func @test_lower_barrett_reduce_int(%arg : i10) -> i10 {
   // CHECK: %[[MULCMOD:.*]] = arith.muli %[[SHIFTED]], %[[CMOD]] : [[INTER_TYPE]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[EXT]], %[[MULCMOD]] : [[INTER_TYPE]]
   // CHECK: %[[RES:.*]] = arith.trunci %[[SUB]] : [[INTER_TYPE]] to [[INT_TYPE]]
-  %res = mod_arith.barrett_reduce %arg { modulus = 17 } : i10
+  %res = mod_arith.barrett_reduce %arg <modulus = 17> : i10
 
   // CHECK: return %[[RES]] : [[INT_TYPE]]
   return %res : i10
