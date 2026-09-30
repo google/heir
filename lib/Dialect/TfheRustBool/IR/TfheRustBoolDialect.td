@@ -17,7 +17,7 @@ def TfheRustBool_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::tfhe_rust_bool";
   let useDefaultAttributePrinterParser = 1;
   let useDefaultTypePrinterParser = 1;
-  let useStrictPropertiesInAssemblyFormat = 0;
+  let useStrictPropertiesInAssemblyFormat = 1;
 }
 
 #endif  // LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLDIALECT_TD_
