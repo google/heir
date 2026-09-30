@@ -8168,7 +8168,7 @@ bool # publicKey
 &lt;h3 id="lattigobgvadd-heirlattigobgvaddop">&lt;code>lattigo.bgv.add&lt;/code> (heir::lattigo::BGVAddOp)&lt;/h3>
 &lt;p>&lt;em>Add two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.add` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.add` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation adds two ciphertext values in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -8218,7 +8218,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvadd_new-heirlattigobgvaddnewop">&lt;code>lattigo.bgv.add_new&lt;/code> (heir::lattigo::BGVAddNewOp)&lt;/h3>
 &lt;p>&lt;em>Add two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.add_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.add_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation adds two ciphertext values in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -8264,7 +8264,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvdecode-heirlattigobgvdecodeop">&lt;code>lattigo.bgv.decode&lt;/code> (heir::lattigo::BGVDecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode a plaintext value in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.decode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.decode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decodes a plaintext value using the specified encoder in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The input value tensor should have elements of integer type.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
@@ -8309,7 +8309,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvencode-heirlattigobgvencodeop">&lt;code>lattigo.bgv.encode&lt;/code> (heir::lattigo::BGVEncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode a plaintext value in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.encode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.encode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The input value tensor should have elements of integer type.&lt;/p>
 &lt;p>The &lt;code>scale&lt;/code> attribute indicates the scaling factor for encoding.&lt;/p>
@@ -8360,7 +8360,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvmul-heirlattigobgvmulop">&lt;code>lattigo.bgv.mul&lt;/code> (heir::lattigo::BGVMulOp)&lt;/h3>
 &lt;p>&lt;em>Multiply two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.mul` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation multiplies two ciphertext values in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -8410,7 +8410,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvmul_new-heirlattigobgvmulnewop">&lt;code>lattigo.bgv.mul_new&lt;/code> (heir::lattigo::BGVMulNewOp)&lt;/h3>
 &lt;p>&lt;em>Multiply two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.mul_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.mul_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation multiplies two ciphertext values in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -8456,7 +8456,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvnew_encoder-heirlattigobgvnewencoderop">&lt;code>lattigo.bgv.new_encoder&lt;/code> (heir::lattigo::BGVNewEncoderOp)&lt;/h3>
 &lt;p>&lt;em>Create a new encoder in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_encoder` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_encoder` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new encoder for encoding plaintext values in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -8494,7 +8494,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvnew_evaluator-heirlattigobgvnewevaluatorop">&lt;code>lattigo.bgv.new_evaluator&lt;/code> (heir::lattigo::BGVNewEvaluatorOp)&lt;/h3>
 &lt;p>&lt;em>Create a new evaluator in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_evaluator` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_evaluator` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new evaluator for performing operations on ciphertexts in the Lattigo BGV dialect.&lt;/p>
 &lt;p>By default, the evaluator is created with the provided parameters and could execute
 operations which does not relying on evaluation keys.&lt;/p>
@@ -8547,7 +8547,7 @@ If it is set to true, the evaluator will evaluate operations in B/FV style.&lt;/
 &lt;h3 id="lattigobgvnew_parameters_from_literal-heirlattigobgvnewparametersfromliteralop">&lt;code>lattigo.bgv.new_parameters_from_literal&lt;/code> (heir::lattigo::BGVNewParametersFromLiteralOp)&lt;/h3>
 &lt;p>&lt;em>Create new BGV parameters from a literal in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_parameters_from_literal` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_parameters_from_literal` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates new BGV parameters from a given literal value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -8575,7 +8575,7 @@ If it is set to true, the evaluator will evaluate operations in B/FV style.&lt;/
 &lt;h3 id="lattigobgvnew_plaintext-heirlattigobgvnewplaintextop">&lt;code>lattigo.bgv.new_plaintext&lt;/code> (heir::lattigo::BGVNewPlaintextOp)&lt;/h3>
 &lt;p>&lt;em>Create a new plaintext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_plaintext` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_plaintext` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new plaintext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The optional &lt;code>level&lt;/code> attribute is the level to allocate the plaintext at.
 When absent, the
@@ -8619,7 +8619,7 @@ plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;h3 id="lattigobgvrelinearize-heirlattigobgvrelinearizeop">&lt;code>lattigo.bgv.relinearize&lt;/code> (heir::lattigo::BGVRelinearizeOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.relinearize` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.relinearize` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -8665,7 +8665,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrelinearize_new-heirlattigobgvrelinearizenewop">&lt;code>lattigo.bgv.relinearize_new&lt;/code> (heir::lattigo::BGVRelinearizeNewOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.relinearize_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.relinearize_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -8707,7 +8707,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrescale-heirlattigobgvrescaleop">&lt;code>lattigo.bgv.rescale&lt;/code> (heir::lattigo::BGVRescaleOp)&lt;/h3>
 &lt;p>&lt;em>Rescale a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rescale` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rescale` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -8753,7 +8753,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrescale_new-heirlattigobgvrescalenewop">&lt;code>lattigo.bgv.rescale_new&lt;/code> (heir::lattigo::BGVRescaleNewOp)&lt;/h3>
 &lt;p>&lt;em>Rescale a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rescale_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rescale_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
@@ -8795,7 +8795,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrotate_columns-heirlattigobgvrotatecolumnsop">&lt;code>lattigo.bgv.rotate_columns&lt;/code> (heir::lattigo::BGVRotateColumnsOp)&lt;/h3>
 &lt;p>&lt;em>Rotate columns of a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_columns` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_columns` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.&lt;/p>
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
@@ -8852,7 +8852,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrotate_columns_new-heirlattigobgvrotatecolumnsnewop">&lt;code>lattigo.bgv.rotate_columns_new&lt;/code> (heir::lattigo::BGVRotateColumnsNewOp)&lt;/h3>
 &lt;p>&lt;em>Rotate columns of a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_columns_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_columns_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.&lt;/p>
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
@@ -8903,7 +8903,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrotate_rows-heirlattigobgvrotaterowsop">&lt;code>lattigo.bgv.rotate_rows&lt;/code> (heir::lattigo::BGVRotateRowsOp)&lt;/h3>
 &lt;p>&lt;em>Rotate rows of a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_rows` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_rows` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation swap the rows of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where 2 is the row.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
@@ -8950,7 +8950,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvrotate_rows_new-heirlattigobgvrotaterowsnewop">&lt;code>lattigo.bgv.rotate_rows_new&lt;/code> (heir::lattigo::BGVRotateRowsNewOp)&lt;/h3>
 &lt;p>&lt;em>Rotate rows of a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_rows_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_rows_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation swap the rows of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where 2 is the row.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
@@ -8993,7 +8993,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvsub-heirlattigobgvsubop">&lt;code>lattigo.bgv.sub&lt;/code> (heir::lattigo::BGVSubOp)&lt;/h3>
 &lt;p>&lt;em>Subtract two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.sub` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -9043,7 +9043,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigobgvsub_new-heirlattigobgvsubnewop">&lt;code>lattigo.bgv.sub_new&lt;/code> (heir::lattigo::BGVSubNewOp)&lt;/h3>
 &lt;p>&lt;em>Subtract two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.sub_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.sub_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -9089,7 +9089,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksadd-heirlattigockksaddop">&lt;code>lattigo.ckks.add&lt;/code> (heir::lattigo::CKKSAddOp)&lt;/h3>
 &lt;p>&lt;em>Add two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.add` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.add` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation adds two ciphertext values in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -9139,7 +9139,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksadd_new-heirlattigockksaddnewop">&lt;code>lattigo.ckks.add_new&lt;/code> (heir::lattigo::CKKSAddNewOp)&lt;/h3>
 &lt;p>&lt;em>Add two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.add_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.add_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation adds two ciphertext values in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -9185,7 +9185,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksapply_linear_transform-heirlattigockksapplylineartransformop">&lt;code>lattigo.ckks.apply_linear_transform&lt;/code> (heir::lattigo::CKKSApplyLinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Apply a prepared linear transform to a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.apply_linear_transform` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.apply_linear_transform` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Evaluates a transformation prepared by
 lattigo.ckks.prepare_linear_transform on a ciphertext. The ciphertext must
 be at the level the transformation was prepared for. Evaluation preserves
@@ -9232,7 +9232,7 @@ that level, so we must emit a rescale op after this op.&lt;/p>
 &lt;h3 id="lattigockksbootstrap-heirlattigockksbootstrapop">&lt;code>lattigo.ckks.bootstrap&lt;/code> (heir::lattigo::CKKSBootstrapOp)&lt;/h3>
 &lt;p>&lt;em>Bootstrap a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.bootstrap` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.bootstrap` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Bootstraps a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The operation applies bootstrapping in-place and also returns the result.&lt;/p>
 &lt;p>It takes a ciphertext at level 0 (if not at level 0, then it will reduce it
@@ -9278,7 +9278,7 @@ to level 0) and returns a ciphertext with the max level of
 &lt;h3 id="lattigockkschebyshev-heirlattigockkschebyshevop">&lt;code>lattigo.ckks.chebyshev&lt;/code> (heir::lattigo::CKKSChebyshevOp)&lt;/h3>
 &lt;p>&lt;em>Evaluate a chebyshev polynomial on a lattigo CKKS ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.chebyshev` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.chebyshev` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation evaluates a chebyshev polynomial on a CKKS ciphertext using
 the Lattigo polynomial evaluator API.&lt;/p>
 &lt;p>The codegen constructs the Lattigo polynomial and, using an existing polynomial
@@ -9328,7 +9328,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;h3 id="lattigockksdecode-heirlattigockksdecodeop">&lt;code>lattigo.ckks.decode&lt;/code> (heir::lattigo::CKKSDecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode a plaintext value in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.decode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.decode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The input value tensor should have elements of float type or complex type.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
@@ -9373,7 +9373,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;h3 id="lattigockksencode-heirlattigockksencodeop">&lt;code>lattigo.ckks.encode&lt;/code> (heir::lattigo::CKKSEncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode a plaintext value in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.encode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.encode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The input value tensor should have elements of float type or complex type.&lt;/p>
 &lt;p>The &lt;code>scale&lt;/code> attribute indicates the scaling factor for encoding.&lt;/p>
@@ -9424,7 +9424,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;h3 id="lattigockksgen_evaluation_keys_bootstrapping-heirlattigockksgenevaluationkeysbootstrappingop">&lt;code>lattigo.ckks.gen_evaluation_keys_bootstrapping&lt;/code> (heir::lattigo::CKKSGenEvaluationKeysBootstrappingOp)&lt;/h3>
 &lt;p>&lt;em>Create new evaluation keys for CKKS bootstrapping&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.gen_evaluation_keys_bootstrapping` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.gen_evaluation_keys_bootstrapping` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9465,7 +9465,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;h3 id="lattigockkslinear_transform-heirlattigockkslineartransformop">&lt;code>lattigo.ckks.linear_transform&lt;/code> (heir::lattigo::CKKSLinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Apply a linear transform on a lattigo CKKS ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.linear_transform` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.linear_transform` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation applies a linear transform on a CKKS ciphertext using
 the provided float diagonals.&lt;/p>
 &lt;p>The transform is built at the input ciphertext&amp;rsquo;s own level, so evaluating
@@ -9544,7 +9544,7 @@ it is zero by default.&lt;/p>
 &lt;h3 id="lattigockksmul-heirlattigockksmulop">&lt;code>lattigo.ckks.mul&lt;/code> (heir::lattigo::CKKSMulOp)&lt;/h3>
 &lt;p>&lt;em>Multiply two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.mul` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation multiplies two ciphertext values in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -9594,7 +9594,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksmul_new-heirlattigockksmulnewop">&lt;code>lattigo.ckks.mul_new&lt;/code> (heir::lattigo::CKKSMulNewOp)&lt;/h3>
 &lt;p>&lt;em>Multiply two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.mul_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.mul_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation multiplies two ciphertext values in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -9640,7 +9640,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksnew_bootstrapping_evaluator-heirlattigockksnewbootstrappingevaluatorop">&lt;code>lattigo.ckks.new_bootstrapping_evaluator&lt;/code> (heir::lattigo::CKKSNewBootstrappingEvaluatorOp)&lt;/h3>
 &lt;p>&lt;em>Create a new bootstrapping evaluator in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_bootstrapping_evaluator` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_bootstrapping_evaluator` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Creates a new bootstrapping evaluator for performing operations on
 ciphertexts in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>By default, the evaluator is created with default parameters to provide a
@@ -9686,7 +9686,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;h3 id="lattigockksnew_bootstrapping_parameters_from_literal-heirlattigockksnewbootstrappingparametersfromliteralop">&lt;code>lattigo.ckks.new_bootstrapping_parameters_from_literal&lt;/code> (heir::lattigo::CKKSNewBootstrappingParametersFromLiteralOp)&lt;/h3>
 &lt;p>&lt;em>Create new CKKS bootstrapping parameters from a literal in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_bootstrapping_parameters_from_literal` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_bootstrapping_parameters_from_literal` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates new CKKS bootstrapping parameters from a given literal value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -9729,7 +9729,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;h3 id="lattigockksnew_encoder-heirlattigockksnewencoderop">&lt;code>lattigo.ckks.new_encoder&lt;/code> (heir::lattigo::CKKSNewEncoderOp)&lt;/h3>
 &lt;p>&lt;em>Create a new encoder in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_encoder` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_encoder` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new encoder for encoding plaintext values in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -9767,7 +9767,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;h3 id="lattigockksnew_evaluator-heirlattigockksnewevaluatorop">&lt;code>lattigo.ckks.new_evaluator&lt;/code> (heir::lattigo::CKKSNewEvaluatorOp)&lt;/h3>
 &lt;p>&lt;em>Create a new evaluator in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_evaluator` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_evaluator` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new evaluator for performing operations on ciphertexts in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>By default, the evaluator is created with the provided parameters and could execute
 operations which does not relying on evaluation keys.&lt;/p>
@@ -9813,7 +9813,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;h3 id="lattigockksnew_parameters_from_literal-heirlattigockksnewparametersfromliteralop">&lt;code>lattigo.ckks.new_parameters_from_literal&lt;/code> (heir::lattigo::CKKSNewParametersFromLiteralOp)&lt;/h3>
 &lt;p>&lt;em>Create new CKKS parameters from a literal in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_parameters_from_literal` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_parameters_from_literal` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates new CKKS parameters from a given literal value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -9841,7 +9841,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;h3 id="lattigockksnew_plaintext-heirlattigockksnewplaintextop">&lt;code>lattigo.ckks.new_plaintext&lt;/code> (heir::lattigo::CKKSNewPlaintextOp)&lt;/h3>
 &lt;p>&lt;em>Create a new plaintext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_plaintext` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_plaintext` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new plaintext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The optional &lt;code>level&lt;/code> attribute is the level to allocate the plaintext at.
 When absent, the
@@ -9885,7 +9885,7 @@ plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;h3 id="lattigockksnew_polynomial_evaluator-heirlattigockksnewpolynomialevaluatorop">&lt;code>lattigo.ckks.new_polynomial_evaluator&lt;/code> (heir::lattigo::CKKSNewPolynomialEvaluatorOp)&lt;/h3>
 &lt;p>&lt;em>Create a new polynomial evaluator in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_polynomial_evaluator` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_polynomial_evaluator` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new evaluator for evaluating polynomials in the
 Lattigo CKKS dialect.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
@@ -9926,7 +9926,7 @@ Lattigo CKKS dialect.&lt;/p>
 &lt;h3 id="lattigockksprepare_linear_transform-heirlattigockkspreparelineartransformop">&lt;code>lattigo.ckks.prepare_linear_transform&lt;/code> (heir::lattigo::CKKSPrepareLinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Prepare (encode) a linear transform for evaluation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.prepare_linear_transform` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.prepare_linear_transform` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Builds and encodes a lintrans.LinearTransformation from the given float
 diagonals. Row i of the &lt;code>diagonals&lt;/code> holds the generalized diagonal named by
 &lt;code>diagonal_indices[i]&lt;/code>. If &lt;code>source_row_indices&lt;/code> is present, that diagonal is
@@ -9991,7 +9991,7 @@ rotation keys are needed.&lt;/p>
 &lt;h3 id="lattigockksrelinearize-heirlattigockksrelinearizeop">&lt;code>lattigo.ckks.relinearize&lt;/code> (heir::lattigo::CKKSRelinearizeOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.relinearize` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.relinearize` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -10037,7 +10037,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksrelinearize_new-heirlattigockksrelinearizenewop">&lt;code>lattigo.ckks.relinearize_new&lt;/code> (heir::lattigo::CKKSRelinearizeNewOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.relinearize_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.relinearize_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10079,7 +10079,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksrescale-heirlattigockksrescaleop">&lt;code>lattigo.ckks.rescale&lt;/code> (heir::lattigo::CKKSRescaleOp)&lt;/h3>
 &lt;p>&lt;em>Rescale a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rescale` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rescale` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -10125,7 +10125,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksrescale_new-heirlattigockksrescalenewop">&lt;code>lattigo.ckks.rescale_new&lt;/code> (heir::lattigo::CKKSRescaleNewOp)&lt;/h3>
 &lt;p>&lt;em>Rescale a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rescale_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rescale_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
@@ -10167,7 +10167,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksrotate-heirlattigockksrotateop">&lt;code>lattigo.ckks.rotate&lt;/code> (heir::lattigo::CKKSRotateOp)&lt;/h3>
 &lt;p>&lt;em>Rotate slots of a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rotate` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rotate` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rotates slots of a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>For vanilla CKKS, the maximum number of slots is N/2 with each slot being complex number.
 Lattigo also support a conjugate-invariant version of CKKS, i.e. the ring is
@@ -10226,7 +10226,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockksrotate_new-heirlattigockksrotatenewop">&lt;code>lattigo.ckks.rotate_new&lt;/code> (heir::lattigo::CKKSRotateNewOp)&lt;/h3>
 &lt;p>&lt;em>Rotate slots of a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rotate_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rotate_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rotates slots of a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>For vanilla CKKS, the maximum number of slots is N/2 with each slot being complex number.
 Lattigo also support a conjugate-invariant version of CKKS, i.e. the ring is
@@ -10281,7 +10281,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;h3 id="lattigockkssub-heirlattigockkssubop">&lt;code>lattigo.ckks.sub&lt;/code> (heir::lattigo::CKKSSubOp)&lt;/h3>
 &lt;p>&lt;em>Subtract two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.sub` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -10331,7 +10331,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigockkssub_new-heirlattigockkssubnewop">&lt;code>lattigo.ckks.sub_new&lt;/code> (heir::lattigo::CKKSSubNewOp)&lt;/h3>
 &lt;p>&lt;em>Subtract two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.sub_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.sub_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10377,7 +10377,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwedecrypt-heirlattigorlwedecryptop">&lt;code>lattigo.rlwe.decrypt&lt;/code> (heir::lattigo::RLWEDecryptOp)&lt;/h3>
 &lt;p>&lt;em>Decrypts a ciphertext using RLWE&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.decrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.decrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decrypts a ciphertext using RLWE&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10419,7 +10419,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwedrop_level-heirlattigorlwedroplevelop">&lt;code>lattigo.rlwe.drop_level&lt;/code> (heir::lattigo::RLWEDropLevelOp)&lt;/h3>
 &lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation drops the level of a ciphertext&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -10470,7 +10470,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwedrop_level_new-heirlattigorlwedroplevelnewop">&lt;code>lattigo.rlwe.drop_level_new&lt;/code> (heir::lattigo::RLWEDropLevelNewOp)&lt;/h3>
 &lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -10516,7 +10516,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlweencrypt-heirlattigorlweencryptop">&lt;code>lattigo.rlwe.encrypt&lt;/code> (heir::lattigo::RLWEEncryptOp)&lt;/h3>
 &lt;p>&lt;em>Encrypts a plaintext using RLWE&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.encrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.encrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encrypts a plaintext using RLWE&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10558,7 +10558,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwegen_galois_key-heirlattigorlwegengaloiskeyop">&lt;code>lattigo.rlwe.gen_galois_key&lt;/code> (heir::lattigo::RLWEGenGaloisKeyOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE Galois key&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_galois_key` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_galois_key` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE Galois key&lt;/p>
 &lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
@@ -10606,7 +10606,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwegen_key_pair-heirlattigorlwegenkeypairop">&lt;code>lattigo.rlwe.gen_key_pair&lt;/code> (heir::lattigo::RLWEGenKeyPairOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE key pair&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key pair&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10648,7 +10648,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwegen_relinearization_key-heirlattigorlwegenrelinearizationkeyop">&lt;code>lattigo.rlwe.gen_relinearization_key&lt;/code> (heir::lattigo::RLWEGenRelinearizationKeyOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE relinearization key&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE relinearization key&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10690,7 +10690,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwenegate-heirlattigorlwenegateop">&lt;code>lattigo.rlwe.negate&lt;/code> (heir::lattigo::RLWENegateOp)&lt;/h3>
 &lt;p>&lt;em>Negate of a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.negate` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.negate` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation negates a ciphertext&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code> result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
@@ -10736,7 +10736,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwenegate_new-heirlattigorlwenegatenewop">&lt;code>lattigo.rlwe.negate_new&lt;/code> (heir::lattigo::RLWENegateNewOp)&lt;/h3>
 &lt;p>&lt;em>Negate a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.negate_new` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.negate_new` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -10777,7 +10777,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwenew_decryptor-heirlattigorlwenewdecryptorop">&lt;code>lattigo.rlwe.new_decryptor&lt;/code> (heir::lattigo::RLWENewDecryptorOp)&lt;/h3>
 &lt;p>&lt;em>Creates a new RLWE decryptor&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_decryptor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_decryptor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE decryptor&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10819,7 +10819,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwenew_encryptor-heirlattigorlwenewencryptorop">&lt;code>lattigo.rlwe.new_encryptor&lt;/code> (heir::lattigo::RLWENewEncryptorOp)&lt;/h3>
 &lt;p>&lt;em>Creates a new RLWE encryptor&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_encryptor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_encryptor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE encryptor&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10861,7 +10861,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwenew_evaluation_key_set-heirlattigorlwenewevaluationkeysetop">&lt;code>lattigo.rlwe.new_evaluation_key_set&lt;/code> (heir::lattigo::RLWENewEvaluationKeySetOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE evaluation key set&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_evaluation_key_set` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_evaluation_key_set` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE evaluation key set&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -10899,7 +10899,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h3 id="lattigorlwenew_key_generator-heirlattigorlwenewkeygeneratorop">&lt;code>lattigo.rlwe.new_key_generator&lt;/code> (heir::lattigo::RLWENewKeyGeneratorOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE key generator&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_key_generator` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_key_generator` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key generator&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
