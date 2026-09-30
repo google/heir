@@ -1787,31 +1787,27 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
   }
 
-  std::string packedName = valueName;
-  // EncodeOp requires its argument to be a slice of int64 so we emit a loop
-  // implementing type conversion if needed.
-  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
-      64) {
-    packedName = valueName + "_" + plaintextName + "_packed";
-    os << packedName << " := make([]int64, ";
-    os << maxSlotsName << ")\n";
-    os << "for i := range " << packedName << " {\n";
+  std::string packedName = valueName + "_" + plaintextName + "_packed";
+  // EncodeOp requires its argument to be a slice of int64, and we emit a loop
+  // for cyclic repetition and type conversion.
+  os << packedName << " := make([]int64, ";
+  os << maxSlotsName << ")\n";
+  os << "for i := range " << packedName << " {\n";
 
-    // packedName[i] = int64(value[i])
-    auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
-    auto packedNameAtI = packedName + "[i]";
-    os.indent();
-    if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
-        1) {
-      emitIf(
-          valueNameAtI, [&]() { os << packedNameAtI << " = int64(1)\n"; },
-          [&]() { os << packedNameAtI << " = int64(0)\n"; });
-    } else {
-      os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
-    }
-    os.unindent();
-    os << "}\n";
+  // packedName[i] = int64(value[i % len(value)])
+  auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
+  auto packedNameAtI = packedName + "[i]";
+  os.indent();
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+      1) {
+    emitIf(
+        valueNameAtI, [&]() { os << packedNameAtI << " = int64(1)\n"; },
+        [&]() { os << packedNameAtI << " = int64(0)\n"; });
+  } else {
+    os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
   }
+  os.unindent();
+  os << "}\n";
 
   // set the scale of plaintext
   auto scale = op.getScale();
@@ -2092,37 +2088,33 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
        << "}\n";
   }
 
-  std::string packedName = valueName;
-  // EncodeOp requires its argument to be a slice of int64 so we emit a loop
-  // implementing type conversion if needed.
-  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
-      64) {
-    packedName = valueName + "_" + plaintextName + "_packed";
-    os << packedName << " := make([]float64, ";
-    os << maxSlotsName << ")\n";
-    os << "for i := range " << packedName << " {\n";
-    // packedName[i] = float64(value[i])
-    auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
-    auto packedNameAtI = packedName + "[i]";
-    os.indent();
-    if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
-        1) {
-      const auto* boolToFloat64Template = R"GO(
+  std::string packedName = valueName + "_" + plaintextName + "_packed";
+  // EncodeOp requires its argument to be a slice of float64, and we emit a loop
+  // for cyclic repetition and type conversion.
+  os << packedName << " := make([]float64, ";
+  os << maxSlotsName << ")\n";
+  os << "for i := range " << packedName << " {\n";
+  // packedName[i] = float64(value[i % len(value)])
+  auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
+  auto packedNameAtI = packedName + "[i]";
+  os.indent();
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+      1) {
+    const auto* boolToFloat64Template = R"GO(
       if {0} {
         {1} = 1.0
       } else {
         {1} = 0.0
       }
     )GO";
-      auto res =
-          llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
-      os << res;
-    } else {
-      os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
-    }
-    os.unindent();
-    os << "}\n";
+    auto res =
+        llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
+    os << res;
+  } else {
+    os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
   }
+  os.unindent();
+  os << "}\n";
 
   // set the scale of plaintext
   imports.insert(std::string(kMathImport));

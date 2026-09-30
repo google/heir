@@ -374,3 +374,46 @@ module attributes {scheme.bgv} {
     return %0 : tensor<4xi32>
   }
 }
+
+// -----
+
+!pt = !lattigo.rlwe.plaintext
+!encoder = !lattigo.bgv.encoder
+!params = !lattigo.bgv.parameter
+
+module attributes {scheme.bgv, scheme.requested_slot_count = 16 : i64} {
+  // CHECK: func Encode_i64
+  func.func @encode_i64(%params: !params, %encoder: !encoder, %value: tensor<4xi64>) -> !pt {
+    // CHECK: [[pt:[^, ].*]] := bgv.NewPlaintext([[params:[^,]*]], [[params]].MaxLevel())
+    // CHECK: [[packed:[^, ].*]] := make([]int64, 16)
+    // CHECK: for i := range [[packed]] {
+    // CHECK:   [[packed]][i] = int64([[value:[^, ].*]][i % len([[value]])])
+    // CHECK: }
+    // CHECK: [[encoder:.*]].Encode([[packed]], [[pt]])
+    %pt = lattigo.bgv.new_plaintext %params : (!params) -> !pt
+    %res = lattigo.bgv.encode %encoder, %value, %pt <scale = 0> : (!encoder, tensor<4xi64>, !pt) -> !pt
+    return %res : !pt
+  }
+}
+
+// -----
+
+!pt = !lattigo.rlwe.plaintext
+!encoder = !lattigo.ckks.encoder
+!params = !lattigo.ckks.parameter
+
+module attributes {scheme.ckks, scheme.requested_slot_count = 16 : i64} {
+  // CHECK: func Encode_f64
+  func.func @encode_f64(%params: !params, %encoder: !encoder, %value: tensor<4xf64>) -> !pt {
+    // CHECK: [[pt:[^, ].*]] := ckks.NewPlaintext([[params:[^,]*]], [[params]].MaxLevel())
+    // CHECK: [[pt]].LogDimensions = ring.Dimensions{Rows: 0, Cols: 4}
+    // CHECK: [[packed:[^, ].*]] := make([]float64, 16)
+    // CHECK: for i := range [[packed]] {
+    // CHECK:   [[packed]][i] = float64([[value:[^, ].*]][i % len([[value]])])
+    // CHECK: }
+    // CHECK: [[encoder:.*]].Encode([[packed]], [[pt]])
+    %pt = lattigo.ckks.new_plaintext %params : (!params) -> !pt
+    %res = lattigo.ckks.encode %encoder, %value, %pt <scale = 45> : (!encoder, tensor<4xf64>, !pt) -> !pt
+    return %res : !pt
+  }
+}
