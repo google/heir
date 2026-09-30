@@ -12694,7 +12694,7 @@ going through the secret-to-bgv bgv-to-openfhe pass.&lt;/p>
 &lt;h3 id="mgmtadjust_scale-heirmgmtadjustscaleop">&lt;code>mgmt.adjust_scale&lt;/code> (heir::mgmt::AdjustScaleOp)&lt;/h3>
 &lt;p>&lt;em>Adjust the scale of the input ciphertext (for BGV and CKKS)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.adjust_scale` operands attr-dict `:` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.adjust_scale` operands prop-dict attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that adjust the scale of the input
 ciphertext. This is an opaque operation, and the concrete value of the
 scale is determined by other methods.&lt;/p>
@@ -12848,7 +12848,7 @@ and only in later analyses we know whether they are equivalent or not.&lt;/p>
 &lt;h3 id="mgmtlevel_reduce-heirmgmtlevelreduceop">&lt;code>mgmt.level_reduce&lt;/code> (heir::mgmt::LevelReduceOp)&lt;/h3>
 &lt;p>&lt;em>Reduce the level of input ciphertext by dropping the last k RNS limbs&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.level_reduce` operands attr-dict `:` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.level_reduce` operands prop-dict attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>This scheme-agonistic operation reduces the ciphertext level
 by k, as specified by the &lt;code>levelToDrop&lt;/code> attribute.&lt;/p>
 &lt;p>If &lt;code>levelToDrop&lt;/code> is not specified, it defaults to 1.&lt;/p>
@@ -13155,7 +13155,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="mod_arithbarrett_reduce-heirmod_arithbarrettreduceop">&lt;code>mod_arith.barrett_reduce&lt;/code> (heir::mod_arith::BarrettReduceOp)&lt;/h3>
 &lt;p>&lt;em>Compute the first step of the Barrett reduction.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.barrett_reduce` operands attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.barrett_reduce` operands prop-dict attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the
 smallest bit-width that contains the range $[0, q)$. The Barrett reduce
 operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * q&lt;/code>.&lt;/p>
@@ -13664,7 +13664,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfheadd-heiropenfheaddop">&lt;code>openfhe.add&lt;/code> (heir::openfhe::AddOp)&lt;/h3>
 &lt;p>&lt;em>Addition of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -13709,7 +13709,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfheadd_inplace-heiropenfheaddinplaceop">&lt;code>openfhe.add_inplace&lt;/code> (heir::openfhe::AddInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place addition, modifying lhs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -13752,7 +13752,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfheadd_plain-heiropenfheaddplainop">&lt;code>openfhe.add_plain&lt;/code> (heir::openfhe::AddPlainOp)&lt;/h3>
 &lt;p>&lt;em>Addition of a ciphertext and a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_plain` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextOperandInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -13797,7 +13797,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfheadd_plain_inplace-heiropenfheaddplaininplaceop">&lt;code>openfhe.add_plain_inplace&lt;/code> (heir::openfhe::AddPlainInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place addition of a ciphertext and a plaintext, modifying the ciphertext operand.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_plain_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_plain_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
@@ -13839,7 +13839,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfheautomorph-heiropenfheautomorphop">&lt;code>openfhe.automorph&lt;/code> (heir::openfhe::AutomorphOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.automorph` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.automorph` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -13884,7 +13884,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfhebootstrap-heiropenfhebootstrapop">&lt;code>openfhe.bootstrap&lt;/code> (heir::openfhe::BootstrapOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE bootstrap operation of a ciphertext. (For CKKS)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.bootstrap` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.bootstrap` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ResetsLevelOpInterface&lt;/code>, &lt;code>ResetsMulDepthOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -13996,7 +13996,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhedecrypt-heiropenfhedecryptop">&lt;code>openfhe.decrypt&lt;/code> (heir::openfhe::DecryptOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.decrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.decrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14040,7 +14040,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfheencrypt-heiropenfheencryptop">&lt;code>openfhe.encrypt&lt;/code> (heir::openfhe::EncryptOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.encrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.encrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14085,7 +14085,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfheeval_chebyshev_series-heiropenfheevalchebyshevseriesop">&lt;code>openfhe.eval_chebyshev_series&lt;/code> (heir::openfhe::EvalChebyshevSeriesOp)&lt;/h3>
 &lt;p>&lt;em>Evaluate a Chebyshev polynomial series on a ciphertext using OpenFHE&amp;rsquo;s EvalChebyshevSeries&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.eval_chebyshev_series` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.eval_chebyshev_series` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14132,7 +14132,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhefast_rotation-heiropenfhefastrotationop">&lt;code>openfhe.fast_rotation&lt;/code> (heir::openfhe::FastRotationOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14186,7 +14186,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfhefast_rotation_ext-heiropenfhefastrotationextop">&lt;code>openfhe.fast_rotation_ext&lt;/code> (heir::openfhe::FastRotationExtOp)&lt;/h3>
 &lt;p>&lt;em>Fast (hoisted) rotation in extended (P*Q) CRT basis.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation_ext` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation_ext` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14239,7 +14239,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhefast_rotation_precompute-heiropenfhefastrotationprecomputeop">&lt;code>openfhe.fast_rotation_precompute&lt;/code> (heir::openfhe::FastRotationPrecomputeOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation_precompute` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation_precompute` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14279,7 +14279,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhegen_bootstrapkey-heiropenfhegenbootstrapkeyop">&lt;code>openfhe.gen_bootstrapkey&lt;/code> (heir::openfhe::GenBootstrapKeyOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_bootstrapkey` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_bootstrapkey` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -14301,7 +14301,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhegen_context-heiropenfhegencontextop">&lt;code>openfhe.gen_context&lt;/code> (heir::openfhe::GenContextOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_context` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_context` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
@@ -14341,7 +14341,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhegen_mulkey-heiropenfhegenmulkeyop">&lt;code>openfhe.gen_mulkey&lt;/code> (heir::openfhe::GenMulKeyOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_mulkey` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_mulkey` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -14363,7 +14363,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhegen_params-heiropenfhegenparamsop">&lt;code>openfhe.gen_params&lt;/code> (heir::openfhe::GenParamsOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_params` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_params` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Generates the parameters for the OpenFHE scheme.&lt;/p>
 &lt;p>&lt;code>mulDepth&lt;/code> is the depth of the multiplication circuit,
 including the bootstrapping depth.&lt;/p>
@@ -14411,7 +14411,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhegen_rotkey-heiropenfhegenrotkeyop">&lt;code>openfhe.gen_rotkey&lt;/code> (heir::openfhe::GenRotKeyOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_rotkey` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_rotkey` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -14439,7 +14439,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhekey_switch-heiropenfhekeyswitchop">&lt;code>openfhe.key_switch&lt;/code> (heir::openfhe::KeySwitchOp)&lt;/h3>
 &lt;p>&lt;em>Key switch a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14484,7 +14484,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhekey_switch_down-heiropenfhekeyswitchdownop">&lt;code>openfhe.key_switch_down&lt;/code> (heir::openfhe::KeySwitchDownOp)&lt;/h3>
 &lt;p>&lt;em>Key switch down from extended (P*Q) basis to normal (Q) basis.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch_down` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch_down` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14525,7 +14525,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhekey_switch_inplace-heiropenfhekeyswitchinplaceop">&lt;code>openfhe.key_switch_inplace&lt;/code> (heir::openfhe::KeySwitchInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place key switch of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-20">Operands:&lt;/h4>
 &lt;table>
@@ -14568,7 +14568,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhelevel_reduce-heiropenfhelevelreduceop">&lt;code>openfhe.level_reduce&lt;/code> (heir::openfhe::LevelReduceOp)&lt;/h3>
 &lt;p>&lt;em>Reduce the level of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.level_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.level_reduce` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14614,7 +14614,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhelevel_reduce_inplace-heiropenfhelevelreduceinplaceop">&lt;code>openfhe.level_reduce_inplace&lt;/code> (heir::openfhe::LevelReduceInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place level reduction of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.level_reduce_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.level_reduce_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
@@ -14657,7 +14657,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhemake_ckks_packed_plaintext-heiropenfhemakeckkspackedplaintextop">&lt;code>openfhe.make_ckks_packed_plaintext&lt;/code> (heir::openfhe::MakeCKKSPackedPlaintextOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.make_ckks_packed_plaintext` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.make_ckks_packed_plaintext` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14697,7 +14697,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhemake_packed_plaintext-heiropenfhemakepackedplaintextop">&lt;code>openfhe.make_packed_plaintext&lt;/code> (heir::openfhe::MakePackedPlaintextOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.make_packed_plaintext` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.make_packed_plaintext` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14738,7 +14738,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemod_reduce-heiropenfhemodreduceop">&lt;code>openfhe.mod_reduce&lt;/code> (heir::openfhe::ModReduceOp)&lt;/h3>
 &lt;p>&lt;em>Mod_reduce of a ciphertext. (used only for BGV/CKKS)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mod_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mod_reduce` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14779,7 +14779,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemod_reduce_inplace-heiropenfhemodreduceinplaceop">&lt;code>openfhe.mod_reduce_inplace&lt;/code> (heir::openfhe::ModReduceInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place mod_reduce of a ciphertext. (used only for BGV/CKKS)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mod_reduce_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mod_reduce_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-26">Operands:&lt;/h4>
 &lt;table>
@@ -14818,7 +14818,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemul-heiropenfhemulop">&lt;code>openfhe.mul&lt;/code> (heir::openfhe::MulOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication of two ciphertexts with relinearization.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14863,7 +14863,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemul_const-heiropenfhemulconstop">&lt;code>openfhe.mul_const&lt;/code> (heir::openfhe::MulConstOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication of a ciphertext and a constant.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_const` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_const` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14908,7 +14908,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemul_const_inplace-heiropenfhemulconstinplaceop">&lt;code>openfhe.mul_const_inplace&lt;/code> (heir::openfhe::MulConstInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place multiplication of a ciphertext and a constant, modifying the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_const_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_const_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-29">Operands:&lt;/h4>
 &lt;table>
@@ -14951,7 +14951,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemul_no_relin-heiropenfhemulnorelinop">&lt;code>openfhe.mul_no_relin&lt;/code> (heir::openfhe::MulNoRelinOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication of two ciphertexts without relinearization.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_no_relin` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_no_relin` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14996,7 +14996,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhemul_plain-heiropenfhemulplainop">&lt;code>openfhe.mul_plain&lt;/code> (heir::openfhe::MulPlainOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication of a ciphertext and a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_plain` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextOperandInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15041,7 +15041,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhenegate-heiropenfhenegateop">&lt;code>openfhe.negate&lt;/code> (heir::openfhe::NegateOp)&lt;/h3>
 &lt;p>&lt;em>Negation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15082,7 +15082,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhenegate_inplace-heiropenfhenegateinplaceop">&lt;code>openfhe.negate_inplace&lt;/code> (heir::openfhe::NegateInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place negation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-33">Operands:&lt;/h4>
 &lt;table>
@@ -15121,7 +15121,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfherelin-heiropenfherelinop">&lt;code>openfhe.relin&lt;/code> (heir::openfhe::RelinOp)&lt;/h3>
 &lt;p>&lt;em>Relinearization of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15162,7 +15162,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfherelin_inplace-heiropenfherelininplaceop">&lt;code>openfhe.relin_inplace&lt;/code> (heir::openfhe::RelinInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place relinearization of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-35">Operands:&lt;/h4>
 &lt;table>
@@ -15200,7 +15200,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfherot-heiropenfherotop">&lt;code>openfhe.rot&lt;/code> (heir::openfhe::RotOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15249,7 +15249,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhesetup_bootstrap-heiropenfhesetupbootstrapop">&lt;code>openfhe.setup_bootstrap&lt;/code> (heir::openfhe::SetupBootstrapOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.setup_bootstrap` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.setup_bootstrap` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -15274,7 +15274,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhesquare-heiropenfhesquareop">&lt;code>openfhe.square&lt;/code> (heir::openfhe::SquareOp)&lt;/h3>
 &lt;p>&lt;em>Square of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15315,7 +15315,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhesquare_inplace-heiropenfhesquareinplaceop">&lt;code>openfhe.square_inplace&lt;/code> (heir::openfhe::SquareInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place square of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-39">Operands:&lt;/h4>
 &lt;table>
@@ -15354,7 +15354,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhesub-heiropenfhesubop">&lt;code>openfhe.sub&lt;/code> (heir::openfhe::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15399,7 +15399,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhesub_inplace-heiropenfhesubinplaceop">&lt;code>openfhe.sub_inplace&lt;/code> (heir::openfhe::SubInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place subtraction, modifying lhs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-41">Operands:&lt;/h4>
 &lt;table>
@@ -15442,7 +15442,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhesub_plain-heiropenfhesubplainop">&lt;code>openfhe.sub_plain&lt;/code> (heir::openfhe::SubPlainOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction of a ciphertext and a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_plain` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextOperandInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15487,7 +15487,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhesub_plain_inplace-heiropenfhesubplaininplaceop">&lt;code>openfhe.sub_plain_inplace&lt;/code> (heir::openfhe::SubPlainInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place subtraction of a ciphertext and a plaintext, modifying the ciphertext operand.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_plain_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_plain_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-43">Operands:&lt;/h4>
 &lt;table>
@@ -15539,7 +15539,7 @@ expressed as black boxes by Orion.&lt;/p>
 &lt;h3 id="orionchebyshev-heirorionchebyshevop">&lt;code>orion.chebyshev&lt;/code> (heir::orion::ChebyshevOp)&lt;/h3>
 &lt;p>&lt;em>Evaluates a Chebyshev polynomial on a ciphertext using pre-computed coefficients&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `orion.chebyshev` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `orion.chebyshev` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -15583,7 +15583,7 @@ expressed as black boxes by Orion.&lt;/p>
 &lt;h3 id="orionlinear_transform-heirorionlineartransformop">&lt;code>orion.linear_transform&lt;/code> (heir::orion::LinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Apply a linear transformation to the input ciphertext using pre-computed diagonals&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `orion.linear_transform` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `orion.linear_transform` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation applies a linear transformation on a ciphertext using
 the provided float diagonals.&lt;/p>
 &lt;p>The &lt;code>diagonals&lt;/code> input is a tensor where each row represents one non-zero
@@ -16221,7 +16221,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;h3 id="polynomialextract_slice-heirpolynomialextractsliceop">&lt;code>polynomial.extract_slice&lt;/code> (heir::polynomial::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extract a subset of the polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.extract_slice` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.extract_slice` $input prop-dict attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
 RNS components for each coefficient, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
 &lt;p>The result type is a polynomial with RNS type containing the subset of basis types
@@ -16320,7 +16320,7 @@ implying that trailing terms are padded with zero.&lt;/p>
 &lt;h3 id="polynomialintt-heirpolynomialinttop">&lt;code>polynomial.intt&lt;/code> (heir::polynomial::INTTOp)&lt;/h3>
 &lt;p>&lt;em>Computes the reverse integer Number Theoretic Transform (NTT).&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.intt` $input attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.intt` $input prop-dict attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.intt&lt;/code> computes the reverse integer Number Theoretic Transform
 (INTT) on the input tensor. This is the inverse operation of the
 &lt;code>polynomial.ntt&lt;/code> operation.&lt;/p>
@@ -16671,7 +16671,7 @@ coefficientType.&lt;/p>
 &lt;h3 id="polynomialntt-heirpolynomialnttop">&lt;code>polynomial.ntt&lt;/code> (heir::polynomial::NTTOp)&lt;/h3>
 &lt;p>&lt;em>Computes point-value tensor representation of a polynomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.ntt` $input attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.ntt` $input prop-dict attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.ntt&lt;/code> computes the forward integer Number Theoretic Transform
 (NTT) on the input polynomial. It returns a tensor containing a point-value
 representation of the input polynomial. The output tensor has shape equal
@@ -16948,7 +16948,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyadd-heirpoulpyaddop">&lt;code>poulpy.add&lt;/code> (heir::poulpy::AddOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = a + b&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.add` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.add` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
@@ -16984,7 +16984,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyadd_assign-heirpoulpyaddassignop">&lt;code>poulpy.add_assign&lt;/code> (heir::poulpy::AddAssignOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst += a&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.add_assign` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.add_assign` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -17016,7 +17016,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyadd_unnormalized-heirpoulpyaddunnormalizedop">&lt;code>poulpy.add_unnormalized&lt;/code> (heir::poulpy::AddUnnormalizedOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = a + b&lt;/code> without normalizing &lt;code>dst&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.add_unnormalized` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.add_unnormalized` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
@@ -17052,7 +17052,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpycompact_limbs-heirpoulpycompactlimbsop">&lt;code>poulpy.compact_limbs&lt;/code> (heir::poulpy::CompactLimbsOp)&lt;/h3>
 &lt;p>&lt;em>Level-aware ciphertext copy that compacts src into a smaller dst.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.compact_limbs` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.compact_limbs` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSCopyOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSCopyOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
@@ -17084,7 +17084,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpydecode-heirpoulpydecodeop">&lt;code>poulpy.decode&lt;/code> (heir::poulpy::DecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode a plaintext into real and imaginary slot vectors&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.decode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.decode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/encoding/reim/struct.Encoder.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/encoding/reim/struct.Encoder.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
@@ -17116,7 +17116,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpydecrypt-heirpoulpydecryptop">&lt;code>poulpy.decrypt&lt;/code> (heir::poulpy::DecryptOp)&lt;/h3>
 &lt;p>&lt;em>Secret-key decryption of a CKKS ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.decrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.decrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSDecrypt.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSDecrypt.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
@@ -17152,7 +17152,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyencode-heirpoulpyencodeop">&lt;code>poulpy.encode&lt;/code> (heir::poulpy::EncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode real and imaginary slot vectors into a plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.encode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.encode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/encoding/reim/struct.Encoder.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/encoding/reim/struct.Encoder.html&lt;/a>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
@@ -17191,7 +17191,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyencrypt-heirpoulpyencryptop">&lt;code>poulpy.encrypt&lt;/code> (heir::poulpy::EncryptOp)&lt;/h3>
 &lt;p>&lt;em>Secret-key encryption of a CKKS plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.encrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.encrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSEncrypt.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSEncrypt.html&lt;/a>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
@@ -17233,7 +17233,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpymodule_create-heirpoulpymodulecreateop">&lt;code>poulpy.module_create&lt;/code> (heir::poulpy::ModuleCreateOp)&lt;/h3>
 &lt;p>&lt;em>Create a new poulpy module&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.module_create` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.module_create` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-hal/latest/poulpy_hal/layouts/struct.Module.html">https://docs.rs/poulpy-hal/latest/poulpy_hal/layouts/struct.Module.html&lt;/a>&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -17261,7 +17261,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpymul-heirpoulpymulop">&lt;code>poulpy.mul&lt;/code> (heir::poulpy::MulOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = a * b&lt;/code> using tensor-product keyswitching via &lt;code>tsk&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.mul` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSMulOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSMulOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
@@ -17301,7 +17301,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpymul_assign-heirpoulpymulassignop">&lt;code>poulpy.mul_assign&lt;/code> (heir::poulpy::MulAssignOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst *= a&lt;/code> in-place using tensor-product keyswitching via &lt;code>tsk&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.mul_assign` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.mul_assign` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSMulOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSMulOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
@@ -17337,7 +17337,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpynormalize-heirpoulpynormalizeop">&lt;code>poulpy.normalize&lt;/code> (heir::poulpy::NormalizeOp)&lt;/h3>
 &lt;p>&lt;em>Propagate carries in an unnormalized ciphertext, producing a normalized result.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.normalize` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.normalize` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-core/latest/poulpy_core/api/trait.GLWENormalize.html">https://docs.rs/poulpy-core/latest/poulpy_core/api/trait.GLWENormalize.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
@@ -17369,7 +17369,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyrescale-heirpoulpyrescaleop">&lt;code>poulpy.rescale&lt;/code> (heir::poulpy::RescaleOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = src / 2^bits&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rescale` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rescale` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html&lt;/a>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
@@ -17406,7 +17406,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyrescale_assign-heirpoulpyrescaleassignop">&lt;code>poulpy.rescale_assign&lt;/code> (heir::poulpy::RescaleAssignOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst /= 2^bits&lt;/code> in-place.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rescale_assign` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rescale_assign` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html&lt;/a>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
@@ -17439,7 +17439,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyrotate-heirpoulpyrotateop">&lt;code>poulpy.rotate&lt;/code> (heir::poulpy::RotateOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = rotate(src, k)&lt;/code>: shifts all complex slots by &lt;code>k&lt;/code> positions.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rotate` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rotate` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSRotateOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSRotateOps.html&lt;/a>&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
@@ -17480,7 +17480,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyrotate_assign-heirpoulpyrotateassignop">&lt;code>poulpy.rotate_assign&lt;/code> (heir::poulpy::RotateAssignOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = rotate(dst, k)&lt;/code> in-place. Metadata is unchanged.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rotate_assign` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.rotate_assign` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSRotateOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSRotateOps.html&lt;/a>&lt;/p>
 &lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
@@ -17517,7 +17517,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpyscratch_alloc-heirpoulpyscratchallocop">&lt;code>poulpy.scratch_alloc&lt;/code> (heir::poulpy::ScratchAllocOp)&lt;/h3>
 &lt;p>&lt;em>Allocate a scratch arena of the given byte size&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.scratch_alloc` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.scratch_alloc` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-hal/latest/poulpy_hal/layouts/struct.ScratchOwned.html">https://docs.rs/poulpy-hal/latest/poulpy_hal/layouts/struct.ScratchOwned.html&lt;/a>&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -17545,7 +17545,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpysub-heirpoulpysubop">&lt;code>poulpy.sub&lt;/code> (heir::poulpy::SubOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = a - b&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.sub` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
@@ -17581,7 +17581,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpysub_assign-heirpoulpysubassignop">&lt;code>poulpy.sub_assign&lt;/code> (heir::poulpy::SubAssignOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst -= a&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.sub_assign` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.sub_assign` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
@@ -17613,7 +17613,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;h3 id="poulpysub_unnormalized-heirpoulpysubunnormalizedop">&lt;code>poulpy.sub_unnormalized&lt;/code> (heir::poulpy::SubUnnormalizedOp)&lt;/h3>
 &lt;p>&lt;em>Computes &lt;code>dst = a - b&lt;/code> without normalizing &lt;code>dst&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.sub_unnormalized` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `poulpy.sub_unnormalized` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>See &lt;a href="https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html">https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html&lt;/a>&lt;/p>
 &lt;h4 id="operands-17">Operands:&lt;/h4>
 &lt;table>
@@ -17918,7 +17918,7 @@ uniform or gaussian as an attribute ($distribution_type).&lt;/p>
 &lt;h3 id="randomdiscrete_gaussian_distribution-heirrandomdiscretegaussiandistributionop">&lt;code>random.discrete_gaussian_distribution&lt;/code> (heir::random::DiscreteGaussianDistributionOp)&lt;/h3>
 &lt;p>&lt;em>Initializes the Discrete Gaussian Distribution&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `random.discrete_gaussian_distribution` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `random.discrete_gaussian_distribution` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Initializes the Discrete Gaussian Distribution. The distribution is
 initialized with a mean and a standard deviation and pseudorandom generator
 that provides the source of the randomness.&lt;/p>
@@ -18011,7 +18011,7 @@ the minimum and exclusive of the maximum.&lt;/p>
 &lt;h3 id="randominit_prng-heirrandominitop">&lt;code>random.init_prng&lt;/code> (heir::random::InitOp)&lt;/h3>
 &lt;p>&lt;em>Initializes the pseudorandom number generator with a seed.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `random.init_prng` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `random.init_prng` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Initializes the PRNG with a seed. The seed is dynamically provided due to
 protocols that agree on shared randomness. The PRNG is used to initialized
 the random distributions such as the discrete gaussian distribution and the
@@ -18064,7 +18064,7 @@ far not considered.&lt;/p>
 &lt;h3 id="randomsample-heirrandomsampleop">&lt;code>random.sample&lt;/code> (heir::random::SampleOp)&lt;/h3>
 &lt;p>&lt;em>Samples from a distribution&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `random.sample` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `random.sample` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Samples from the distribution to obtain a random value
 or tensor of values.&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
@@ -18227,7 +18227,7 @@ canonicalization patterns, etc.&lt;/p>
 &lt;h3 id="rnsconvert_basis-heirrnsconvertbasisop">&lt;code>rns.convert_basis&lt;/code> (heir::rns::ConvertBasisOp)&lt;/h3>
 &lt;p>&lt;em>Change an RNS value&amp;rsquo;s basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `rns.convert_basis` $value attr-dict `:` type($value) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `rns.convert_basis` $value prop-dict attr-dict `:` type($value) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given x \in Z_Q represented as {x_i mod q_i} where Q=\prod q_i,
 convertBasis returns the target-basis representation obtained by:&lt;/p>
 &lt;ol>
@@ -18279,7 +18279,7 @@ with even moduli.&lt;/p>
 &lt;h3 id="rnsextract_residue-heirrnsextractresidueop">&lt;code>rns.extract_residue&lt;/code> (heir::rns::ExtractResidueOp)&lt;/h3>
 &lt;p>&lt;em>Extract one RNS residue as the type of the limb&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `rns.extract_residue` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `rns.extract_residue` $input prop-dict attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given an RNS-typed value, extract the basis limb at &lt;code>index&lt;/code> and return it
 as the corresponding type.&lt;/p>
 &lt;p>For shaped inputs, this operation is applied elementwise, preserving the
@@ -18326,7 +18326,7 @@ limb.&lt;/p>
 &lt;h3 id="rnsextract_slice-heirrnsextractsliceop">&lt;code>rns.extract_slice&lt;/code> (heir::rns::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extracts a slice of RNS limbs&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `rns.extract_slice` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `rns.extract_slice` $input prop-dict attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given an RNS-typed value with $k$ basis types (limbs), extract the slice of
 RNS components starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
 &lt;p>The result type is an RNS type containing the subset of basis types
@@ -19584,7 +19584,7 @@ with attribute &lt;code>tensor_ext.original_type&amp;lt;!secret.secret&amp;lt;te
 &lt;h3 id="tensor_extassign_layout-heirtensor_extassignlayoutop">&lt;code>tensor_ext.assign_layout&lt;/code> (heir::tensor_ext::AssignLayoutOp)&lt;/h3>
 &lt;p>&lt;em>Assign a layout to a plaintext tensor or scalar.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.assign_layout` operands attr-dict `:` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.assign_layout` operands prop-dict attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>This op allows the ingestion of a plaintext value into the layout system.
 For example, ops like &lt;code>linalg.reduce&lt;/code>, require a tensor input to represent
 initial values. These will generally be created by an &lt;code>arith.constant&lt;/code> or
@@ -19639,7 +19639,7 @@ a slower generated loop nest.&lt;/p>
 &lt;h3 id="tensor_extconvert_layout-heirtensor_extconvertlayoutop">&lt;code>tensor_ext.convert_layout&lt;/code> (heir::tensor_ext::ConvertLayoutOp)&lt;/h3>
 &lt;p>&lt;em>Convert from one layout to another.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.convert_layout` operands attr-dict `:` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.convert_layout` operands prop-dict attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>This op represents the conversion of a value from one packed layout to
 another. This is implemented via a &amp;ldquo;shift network&amp;rdquo; of ciphertext rotations,
 plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
@@ -19692,7 +19692,7 @@ layout assignment. See &lt;code>tensor_ext.assign_layout&lt;/code> for more deta
 &lt;h3 id="tensor_extremap-heirtensor_extremapop">&lt;code>tensor_ext.remap&lt;/code> (heir::tensor_ext::RemapOp)&lt;/h3>
 &lt;p>&lt;em>Reorganize the entries of a tensor by a static mapping.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.remap` operands attr-dict `:` type($input)
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.remap` operands prop-dict attr-dict `:` type($input)
 &lt;/code>&lt;/pre>&lt;p>This op represents a remapping of entries of a tensor.&lt;/p>
 &lt;p>This op is primarily inserted as a lowered form of &lt;code>convert_layout&lt;/code> op, to
 represent a ciphertext slot-repacking operation. However, it can more
@@ -19804,7 +19804,7 @@ the given amount.&lt;/p>
 &lt;h3 id="tensor_extrotate_and_reduce-heirtensor_extrotateandreduceop">&lt;code>tensor_ext.rotate_and_reduce&lt;/code> (heir::tensor_ext::RotateAndReduceOp)&lt;/h3>
 &lt;p>&lt;em>Performs a reduction of a periodically rotated tensor.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate_and_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate_and_reduce` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This op reduces products of a plaintext with a periodically rotated
 tensor.&lt;/p>
 &lt;p>In almost full generality, the reduction performed is&lt;/p>
@@ -19879,7 +19879,7 @@ ciphertext rotations.&lt;/p>
 &lt;h3 id="tensor_extunpack-heirtensor_extunpackop">&lt;code>tensor_ext.unpack&lt;/code> (heir::tensor_ext::UnpackOp)&lt;/h3>
 &lt;p>&lt;em>Unpack data from a ciphertext-semantic tensor.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.unpack` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.unpack` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This op extracts the underlying cleartext data from a ciphertext-semantic
 tensor.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
@@ -20002,7 +20002,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;h3 id="tfhe_rustadd-heirtfhe_rustaddop">&lt;code>tfhe_rust.add&lt;/code> (heir::tfhe_rust::AddOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic add of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20058,7 +20058,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/table>
 &lt;h3 id="tfhe_rustapply_lookup_table-heirtfhe_rustapplylookuptableop">&lt;code>tfhe_rust.apply_lookup_table&lt;/code> (heir::tfhe_rust::ApplyLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.apply_lookup_table` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.apply_lookup_table` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20111,7 +20111,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;h3 id="tfhe_rustbitand-heirtfhe_rustbitandop">&lt;code>tfhe_rust.bitand&lt;/code> (heir::tfhe_rust::BitAndOp)&lt;/h3>
 &lt;p>&lt;em>Logical AND of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20156,7 +20156,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;h3 id="tfhe_rustbitor-heirtfhe_rustbitorop">&lt;code>tfhe_rust.bitor&lt;/code> (heir::tfhe_rust::BitOrOp)&lt;/h3>
 &lt;p>&lt;em>Logical OR of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20201,7 +20201,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;h3 id="tfhe_rustbitxor-heirtfhe_rustbitxorop">&lt;code>tfhe_rust.bitxor&lt;/code> (heir::tfhe_rust::BitXorOp)&lt;/h3>
 &lt;p>&lt;em>Logical XOR of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitxor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitxor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20245,7 +20245,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/table>
 &lt;h3 id="tfhe_rustcast-heirtfhe_rustcastop">&lt;code>tfhe_rust.cast&lt;/code> (heir::tfhe_rust::CastOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.cast` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.cast` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20307,7 +20307,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/ul>
 &lt;p>Note: &lt;a href="https://mlir.llvm.org/docs/Dialects/ArithOps/#arithcmpi-arithcmpiop">https://mlir.llvm.org/docs/Dialects/ArithOps/#arithcmpi-arithcmpiop&lt;/a>_&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.cmp` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.cmp` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20370,7 +20370,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;p>&lt;em>Multiplexer operations, the &lt;code>select&lt;/code> ciphertext will return the &lt;code>trueCtxt&lt;/code>
 if in contains a 1. In the other case, it will will return the &lt;code>falseCtxt&lt;/code>.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.cmux` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.cmux` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20422,7 +20422,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;/table>
 &lt;h3 id="tfhe_rustcreate_trivial-heirtfhe_rustcreatetrivialop">&lt;code>tfhe_rust.create_trivial&lt;/code> (heir::tfhe_rust::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.create_trivial` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.create_trivial` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20468,7 +20468,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;h3 id="tfhe_rusteq-heirtfhe_rusteqop">&lt;code>tfhe_rust.eq&lt;/code> (heir::tfhe_rust::EqOp)&lt;/h3>
 &lt;p>&lt;em>High level operation to check equality of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.eq` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.eq` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20512,7 +20512,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;/table>
 &lt;h3 id="tfhe_rustgenerate_lookup_table-heirtfhe_rustgeneratelookuptableop">&lt;code>tfhe_rust.generate_lookup_table&lt;/code> (heir::tfhe_rust::GenerateLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.generate_lookup_table` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.generate_lookup_table` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20554,7 +20554,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;h3 id="tfhe_rustmax-heirtfhe_rustmaxop">&lt;code>tfhe_rust.max&lt;/code> (heir::tfhe_rust::MaxOp)&lt;/h3>
 &lt;p>&lt;em>High level operation to return maximum of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.max` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.max` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20599,7 +20599,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;h3 id="tfhe_rustmin-heirtfhe_rustminop">&lt;code>tfhe_rust.min&lt;/code> (heir::tfhe_rust::MinOp)&lt;/h3>
 &lt;p>&lt;em>High level operation to return minimum of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.min` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.min` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20644,7 +20644,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;h3 id="tfhe_rustmul-heirtfhe_rustmulop">&lt;code>tfhe_rust.mul&lt;/code> (heir::tfhe_rust::MulOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic mul of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.mul` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20701,7 +20701,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;h3 id="tfhe_rustneq-heirtfhe_rustneqop">&lt;code>tfhe_rust.neq&lt;/code> (heir::tfhe_rust::NeqOp)&lt;/h3>
 &lt;p>&lt;em>High level operation to check inequality of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.neq` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.neq` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20745,7 +20745,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;/table>
 &lt;h3 id="tfhe_rustscalar_left_shift-heirtfhe_rustscalarleftshiftop">&lt;code>tfhe_rust.scalar_left_shift&lt;/code> (heir::tfhe_rust::ScalarLeftShiftOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_left_shift` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_left_shift` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20798,7 +20798,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;/table>
 &lt;h3 id="tfhe_rustscalar_right_shift-heirtfhe_rustscalarrightshiftop">&lt;code>tfhe_rust.scalar_right_shift&lt;/code> (heir::tfhe_rust::ScalarRightShiftOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_right_shift` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_right_shift` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20852,7 +20852,7 @@ if in contains a 1. In the other case, it will will return the &lt;code>falseCtx
 &lt;h3 id="tfhe_rustsub-heirtfhe_rustsubop">&lt;code>tfhe_rust.sub&lt;/code> (heir::tfhe_rust::SubOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic sub of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -20957,7 +20957,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;h3 id="tfhe_rust_booland-heirtfhe_rust_boolandop">&lt;code>tfhe_rust_bool.and&lt;/code> (heir::tfhe_rust_bool::AndOp)&lt;/h3>
 &lt;p>&lt;em>Logical AND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.and` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.and` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21001,7 +21001,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolcreate_trivial-heirtfhe_rust_boolcreatetrivialop">&lt;code>tfhe_rust_bool.create_trivial&lt;/code> (heir::tfhe_rust_bool::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.create_trivial` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.create_trivial` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21041,7 +21041,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolgates_packed-heirtfhe_rust_boolpackedop">&lt;code>tfhe_rust_bool.gates_packed&lt;/code> (heir::tfhe_rust_bool::PackedOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.gates_packed` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.gates_packed` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Operation to where different Boolean gates are executed pairwise between elements of two ciphertext arrays.&lt;/p>
 &lt;p>For example,&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> tfhe_rust_bool&lt;span style="color:#000;font-weight:bold">.&lt;/span>packed_gates &lt;span style="color:#000">%a&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%b&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">gates =&lt;/span> &lt;span style="color:#000">#tfhe_rust_bool.tfhe_rust_bool_gates&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span>
@@ -21099,7 +21099,7 @@ second elements.&lt;/p>
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolmux-heirtfhe_rust_boolmuxop">&lt;code>tfhe_rust_bool.mux&lt;/code> (heir::tfhe_rust_bool::MuxOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.mux` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.mux` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21148,7 +21148,7 @@ second elements.&lt;/p>
 &lt;h3 id="tfhe_rust_boolnand-heirtfhe_rust_boolnandop">&lt;code>tfhe_rust_bool.nand&lt;/code> (heir::tfhe_rust_bool::NandOp)&lt;/h3>
 &lt;p>&lt;em>Logical NAND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nand` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nand` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21193,7 +21193,7 @@ second elements.&lt;/p>
 &lt;h3 id="tfhe_rust_boolnor-heirtfhe_rust_boolnorop">&lt;code>tfhe_rust_bool.nor&lt;/code> (heir::tfhe_rust_bool::NorOp)&lt;/h3>
 &lt;p>&lt;em>Logical NOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21237,7 +21237,7 @@ second elements.&lt;/p>
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolnot-heirtfhe_rust_boolnotop">&lt;code>tfhe_rust_bool.not&lt;/code> (heir::tfhe_rust_bool::NotOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21278,7 +21278,7 @@ second elements.&lt;/p>
 &lt;h3 id="tfhe_rust_boolor-heirtfhe_rust_boolorop">&lt;code>tfhe_rust_bool.or&lt;/code> (heir::tfhe_rust_bool::OrOp)&lt;/h3>
 &lt;p>&lt;em>Logical OR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21323,7 +21323,7 @@ second elements.&lt;/p>
 &lt;h3 id="tfhe_rust_boolxnor-heirtfhe_rust_boolxnorop">&lt;code>tfhe_rust_bool.xnor&lt;/code> (heir::tfhe_rust_bool::XnorOp)&lt;/h3>
 &lt;p>&lt;em>Logical XNOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -21368,7 +21368,7 @@ second elements.&lt;/p>
 &lt;h3 id="tfhe_rust_boolxor-heirtfhe_rust_boolxorop">&lt;code>tfhe_rust_bool.xor&lt;/code> (heir::tfhe_rust_bool::XorOp)&lt;/h3>
 &lt;p>&lt;em>Logical XOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
