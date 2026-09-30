@@ -14,7 +14,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class Random_Op<string mnemonic, list<Trait> traits = []> :
         Op<Random_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::random";
-  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
 }
 
 def Random_InitOp: Random_Op<"init_prng", [Pure]> {
