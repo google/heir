@@ -231,3 +231,143 @@ func.func @test_input_plaintext(%arg0: tensor<1x!pt>) -> tensor<1x!pt> {
   > : tensor<1x!pt>, tensor<2x512xf64> -> tensor<1x!pt>
   return %0 : tensor<1x!pt>
 }
+
+// -----
+
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+#key = #lwe.key<>
+#modulus_chain = #lwe.modulus_chain<elements = <36028797018652673 : i64, 35184372121601 : i64>, current = 0>
+#ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
+!rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
+#ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
+!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+
+// Each ciphertext is transformed independently, so the diagonals must fit in
+// one ciphertext's 512 slots, not in the 2 * 512 slots of the whole tensor.
+func.func @test_multi_ciphertext_diagonals_too_wide(%arg0: tensor<2x!ct>) -> tensor<2x!ct> {
+  %diagonals = arith.constant dense<1.0> : tensor<2x1024xf64>
+  // expected-error@below {{input slot size (512) is smaller than diagonals slot size (1024)}}
+  %0 = kernel.linear_transform %arg0, %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<2x!ct>, tensor<2x1024xf64> -> tensor<2x!ct>
+  return %0 : tensor<2x!ct>
+}
+
+// -----
+
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+#key = #lwe.key<>
+#modulus_chain = #lwe.modulus_chain<elements = <36028797018652673 : i64, 35184372121601 : i64>, current = 0>
+#ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
+!rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
+#ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
+!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+
+// A scalar ciphertext (e.g. after elementwise-to-affine) is still checked.
+func.func @test_scalar_ciphertext_diagonals_too_wide(%arg0: !ct) -> !ct {
+  %diagonals = arith.constant dense<1.0> : tensor<2x1024xf64>
+  // expected-error@below {{input slot size (512) is smaller than diagonals slot size (1024)}}
+  %0 = kernel.linear_transform %arg0, %diagonals <
+    diagonal_indices = [0, 1]
+  > : !ct, tensor<2x1024xf64> -> !ct
+  return %0 : !ct
+}
+
+// -----
+
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+#key = #lwe.key<>
+#modulus_chain = #lwe.modulus_chain<elements = <36028797018652673 : i64, 35184372121601 : i64>, current = 0>
+#ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
+!rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
+#ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
+!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+
+// A prepared transform is applied per ciphertext as well.
+func.func @test_apply_multi_ciphertext_slots_too_small(%arg0: tensor<2x!ct>) -> tensor<2x!ct> {
+  %diagonals = arith.constant dense<1.0> : tensor<2x1024xf64>
+  %lt = kernel.prepare_linear_transform %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<2x1024xf64> -> !kernel.prepared_linear_transform<level = 0, slots = 1024, log_bsgs_ratio = 0>
+  // expected-error@below {{input slot size (512) is smaller than the prepared slot count (1024)}}
+  %0 = kernel.apply_linear_transform %arg0, %lt : tensor<2x!ct>, !kernel.prepared_linear_transform<level = 0, slots = 1024, log_bsgs_ratio = 0> -> tensor<2x!ct>
+  return %0 : tensor<2x!ct>
+}
+
+// -----
+
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+#key = #lwe.key<>
+#modulus_chain = #lwe.modulus_chain<elements = <36028797018652673 : i64, 35184372121601 : i64>, current = 0>
+#ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
+!rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
+#ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
+!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+
+func.func @test_apply_scalar_ciphertext_slots_too_small(%arg0: !ct) -> !ct {
+  %diagonals = arith.constant dense<1.0> : tensor<2x1024xf64>
+  %lt = kernel.prepare_linear_transform %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<2x1024xf64> -> !kernel.prepared_linear_transform<level = 0, slots = 1024, log_bsgs_ratio = 0>
+  // expected-error@below {{input slot size (512) is smaller than the prepared slot count (1024)}}
+  %0 = kernel.apply_linear_transform %arg0, %lt : !ct, !kernel.prepared_linear_transform<level = 0, slots = 1024, log_bsgs_ratio = 0> -> !ct
+  return %0 : !ct
+}
+
+// -----
+
+func.func @test_dynamic_input(%arg0: tensor<?xf64>) -> tensor<?xf64> {
+  %diagonals = arith.constant dense<1.0> : tensor<2x4xf64>
+  // expected-error@below {{input must have a static shape}}
+  %0 = kernel.linear_transform %arg0, %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<?xf64>, tensor<2x4xf64> -> tensor<?xf64>
+  return %0 : tensor<?xf64>
+}
+
+// -----
+
+func.func @test_dynamic_input_2d(%arg0: tensor<1x?xf64>) -> tensor<1x?xf64> {
+  %diagonals = arith.constant dense<1.0> : tensor<2x4xf64>
+  // expected-error@below {{input must have a static shape}}
+  %0 = kernel.linear_transform %arg0, %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<1x?xf64>, tensor<2x4xf64> -> tensor<1x?xf64>
+  return %0 : tensor<1x?xf64>
+}
+
+// -----
+
+func.func @test_dynamic_diagonals(%arg0: tensor<4xf64>, %diagonals: tensor<2x?xf64>) -> tensor<4xf64> {
+  // expected-error@below {{diagonals must have a static shape}}
+  %0 = kernel.linear_transform %arg0, %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<4xf64>, tensor<2x?xf64> -> tensor<4xf64>
+  return %0 : tensor<4xf64>
+}
+
+// -----
+
+func.func @test_apply_dynamic_input(%arg0: tensor<?xf64>) -> tensor<?xf64> {
+  %diagonals = arith.constant dense<1.0> : tensor<2x4xf64>
+  %lt = kernel.prepare_linear_transform %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<2x4xf64> -> !kernel.prepared_linear_transform<level = 0, slots = 4, log_bsgs_ratio = 0>
+  // expected-error@below {{input must have a static shape}}
+  %0 = kernel.apply_linear_transform %arg0, %lt : tensor<?xf64>, !kernel.prepared_linear_transform<level = 0, slots = 4, log_bsgs_ratio = 0> -> tensor<?xf64>
+  return %0 : tensor<?xf64>
+}
+
+// -----
+
+func.func @test_prepare_dynamic_diagonals(%diagonals: tensor<2x?xf64>) -> !kernel.prepared_linear_transform<level = 0, slots = 4, log_bsgs_ratio = 0> {
+  // expected-error@below {{diagonals must have a static shape}}
+  %lt = kernel.prepare_linear_transform %diagonals <
+    diagonal_indices = [0, 1]
+  > : tensor<2x?xf64> -> !kernel.prepared_linear_transform<level = 0, slots = 4, log_bsgs_ratio = 0>
+  return %lt : !kernel.prepared_linear_transform<level = 0, slots = 4, log_bsgs_ratio = 0>
+}

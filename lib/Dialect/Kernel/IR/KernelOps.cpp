@@ -162,31 +162,54 @@ ApplyLinearTransformOp::getOperandsToReduce(
 
 namespace {
 
-// Returns the total slot capacity of a (possibly tensor-wrapped) ciphertext
-// input, or nullopt when the type does not determine one.
+// Returns an upper bound on the number of message slots in one LWE
+// ciphertext: the ring degree, halved for CKKS (inverse canonical) encoding.
+// Finer constraints, such as the two rows of N/2 slots of BGV/BFV full-CRT
+// packing or the single slot of constant-coefficient encoding, are not
+// checked here.
+int64_t getSlotsPerCiphertext(lwe::LWECiphertextType ctType) {
+  auto plaintextSpace = ctType.getPlaintextSpace();
+  int64_t slots = plaintextSpace.getRing()
+                      .getPolynomialModulus()
+                      .getPolynomial()
+                      .getDegree();
+  if (isa<lwe::InverseCanonicalEncodingAttr>(plaintextSpace.getEncoding())) {
+    slots /= 2;
+  }
+  return slots;
+}
+
+// Returns the number of slots a single application of a linear transform acts
+// on, or nullopt when the type does not determine one. Ciphertexts are
+// transformed one at a time, so a ciphertext or a tensor of ciphertexts has
+// the capacity of a single ciphertext, independent of the tensor shape. A
+// cleartext vector (rank 1, or rank 2 with a unit leading dimension) is
+// transformed as a whole.
 std::optional<int64_t> getInputSlotSize(Type inputType) {
-  auto inputRankedType = dyn_cast<RankedTensorType>(inputType);
-  if (!inputRankedType) return std::nullopt;
-
-  auto elementType = inputRankedType.getElementType();
-  int64_t slotsPerCiphertext = 1;
+  auto rankedType = dyn_cast<RankedTensorType>(inputType);
+  Type elementType = rankedType ? rankedType.getElementType() : inputType;
   if (auto ctType = dyn_cast<lwe::LWECiphertextType>(elementType)) {
-    auto plaintextSpace = ctType.getPlaintextSpace();
-    auto ring = plaintextSpace.getRing();
-    slotsPerCiphertext =
-        ring.getPolynomialModulus().getPolynomial().getDegree();
-    if (isa<lwe::InverseCanonicalEncodingAttr>(plaintextSpace.getEncoding())) {
-      slotsPerCiphertext /= 2;
-    }
+    return getSlotsPerCiphertext(ctType);
   }
+  if (!rankedType) return std::nullopt;
+  std::optional<int64_t> size;
+  if (rankedType.getRank() == 1) {
+    size = rankedType.getDimSize(0);
+  } else if (rankedType.getRank() == 2 && rankedType.getDimSize(0) == 1) {
+    size = rankedType.getDimSize(1);
+  }
+  if (size.has_value() && ShapedType::isDynamic(*size)) return std::nullopt;
+  return size;
+}
 
-  if (inputRankedType.getRank() == 1) {
-    return inputRankedType.getDimSize(0) * slotsPerCiphertext;
+// Linear transforms are packed at compile time, so shaped operands must have
+// fully static shapes. Non-shaped types (e.g. a scalar ciphertext) pass.
+LogicalResult verifyStaticShape(Operation* op, Type type, StringRef name) {
+  auto shapedType = dyn_cast<ShapedType>(type);
+  if (shapedType && !shapedType.hasStaticShape()) {
+    return op->emitOpError() << name << " must have a static shape";
   }
-  if (inputRankedType.getRank() == 2 && inputRankedType.getDimSize(0) == 1) {
-    return inputRankedType.getDimSize(1) * slotsPerCiphertext;
-  }
-  return std::nullopt;
+  return success();
 }
 
 // Returns the modulus-chain level of a (possibly tensor-wrapped) LWE
@@ -237,6 +260,9 @@ LogicalResult verifyDiagonalRows(Operation* op, RankedTensorType diagonalsType,
 LogicalResult PrepareLinearTransformOp::verify() {
   RankedTensorType diagonalsType = getDiagonals().getType();
 
+  if (failed(verifyStaticShape(getOperation(), diagonalsType, "diagonals")))
+    return failure();
+
   if (failed(verifyDiagonalRows(getOperation(), diagonalsType,
                                 getDiagonalIndicesAttr(),
                                 getSourceRowIndicesAttr())))
@@ -253,6 +279,8 @@ LogicalResult PrepareLinearTransformOp::verify() {
 
 LogicalResult ApplyLinearTransformOp::verify() {
   PreparedLinearTransformType preparedType = getPrepared().getType();
+  if (failed(verifyStaticShape(getOperation(), getInput().getType(), "input")))
+    return failure();
 
   if (static_cast<bool>(getDiagonalIndicesAttr()) !=
       static_cast<bool>(getDiagonalWidthAttr())) {
@@ -285,44 +313,30 @@ LogicalResult LinearTransformOp::verify() {
   Type inputType = getInput().getType();
   RankedTensorType diagonalsType = getDiagonals().getType();
 
-  if (auto inputRankedType = dyn_cast<RankedTensorType>(inputType)) {
-    int64_t inputSize = 0;
-    auto elementType = inputRankedType.getElementType();
-    int64_t slotsPerCiphertext = 1;
-    if (auto ctType = dyn_cast<lwe::LWECiphertextType>(elementType)) {
-      auto plaintextSpace = ctType.getPlaintextSpace();
-      auto ring = plaintextSpace.getRing();
-      slotsPerCiphertext =
-          ring.getPolynomialModulus().getPolynomial().getDegree();
-      if (isa<lwe::InverseCanonicalEncodingAttr>(
-              plaintextSpace.getEncoding())) {
-        slotsPerCiphertext /= 2;
-      }
-    }
+  if (failed(verifyStaticShape(getOperation(), inputType, "input")))
+    return failure();
 
-    // TODO(jkun) - For a tensor of K > 1 ciphertexts, each ciphertext is
-    // transformed independently, so this should use per-ciphertext slots
-    // rather than K * slots. All current producers emit K = 1.
-    if (inputRankedType.getRank() == 1) {
-      inputSize = inputRankedType.getDimSize(0) * slotsPerCiphertext;
-    } else if (inputRankedType.getRank() == 2) {
-      if (inputRankedType.getDimSize(0) != 1) {
-        return emitOpError(
-            "input tensor batch dimension (first dimension) must be 1");
-      }
-      inputSize = inputRankedType.getDimSize(1) * slotsPerCiphertext;
-    } else {
+  if (failed(verifyStaticShape(getOperation(), diagonalsType, "diagonals")))
+    return failure();
+
+  if (auto inputRankedType = dyn_cast<RankedTensorType>(inputType)) {
+    if (inputRankedType.getRank() == 2 && inputRankedType.getDimSize(0) != 1) {
+      return emitOpError(
+          "input tensor batch dimension (first dimension) must be 1");
+    }
+    if (inputRankedType.getRank() != 1 && inputRankedType.getRank() != 2) {
       return emitOpError("input must be 1D or 2D ranked tensor");
     }
+  }
 
-    // The diagonals may be narrower than the ciphertext: the transform then
-    // acts on the leading slots and the backend's encoder zero-fills the rest.
-    int64_t diagonalSlotSize = diagonalsType.getDimSize(1);
-    if (inputSize < diagonalSlotSize) {
-      return emitOpError("input slot size (")
-             << inputSize << ") is smaller than diagonals slot size ("
-             << diagonalSlotSize << ")";
-    }
+  // The diagonals may be narrower than the ciphertext: the transform then
+  // acts on the leading slots and the backend's encoder zero-fills the rest.
+  int64_t diagonalSlotSize = diagonalsType.getDimSize(1);
+  std::optional<int64_t> inputSize = getInputSlotSize(inputType);
+  if (inputSize.has_value() && *inputSize < diagonalSlotSize) {
+    return emitOpError("input slot size (")
+           << *inputSize << ") is smaller than diagonals slot size ("
+           << diagonalSlotSize << ")";
   }
 
   if (failed(verifyDiagonalRows(getOperation(), diagonalsType,
