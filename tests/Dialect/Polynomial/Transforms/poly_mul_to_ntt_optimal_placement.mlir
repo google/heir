@@ -50,7 +50,7 @@ module {
     // coeff-only consumer of %prod
     %out = polynomial.apply_coefficientwise (%prod : !poly_ty_2) {
     ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
-      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      %reduced = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
       polynomial.yield %reduced : !rns.rns<!Zq0>
     } -> !poly_ty_1
     return %out, %x_t, %shift_t : !poly_ty_1, tensor<1024x!rns.rns<!Zq0, !Zq1>>, tensor<1024x!rns.rns<!Zq0, !Zq1>>

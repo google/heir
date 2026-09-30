@@ -54,7 +54,7 @@ module {
     // CHECK: [[out2:%.+]] = polynomial.apply_coefficientwise{{ *}}([[coeff2]] : [[poly_ty_2]])
     %y = polynomial.apply_coefficientwise (%xsq : !poly_ty_2) {
     ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
-      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      %reduced = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
       polynomial.yield %reduced : !rns.rns<!Zq0>
     } -> !poly_ty_1
     // CHECK: return [[out2]] : [[poly_ty_1]]
@@ -239,12 +239,12 @@ module {
     %xsq1 = tensor.extract %xsq[%c1] : tensor<2x!poly_ty_2>
     %y0 = polynomial.apply_coefficientwise (%xsq0 : !poly_ty_2) {
     ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
-      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      %reduced = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
       polynomial.yield %reduced : !rns.rns<!Zq0>
     } -> !poly_ty_1
     %y1 = polynomial.apply_coefficientwise (%xsq1 : !poly_ty_2) {
     ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
-      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      %reduced = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
       polynomial.yield %reduced : !rns.rns<!Zq0>
     } -> !poly_ty_1
     %y = tensor.from_elements %y0, %y1 : tensor<2x!poly_ty_1>
