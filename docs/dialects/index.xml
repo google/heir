@@ -6182,7 +6182,7 @@ insert function calls at specific program checkpoints.&lt;/p>
 &lt;h3 id="debugvalidate-heirdebugvalidateop">&lt;code>debug.validate&lt;/code> (heir::debug::ValidateOp)&lt;/h3>
 &lt;p>&lt;em>Validates an SSA value.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `debug.validate` $input attr-dict `:` type($input)
+&lt;pre tabindex="0">&lt;code>operation ::= `debug.validate` $input prop-dict attr-dict `:` type($input)
 &lt;/code>&lt;/pre>&lt;p>The &lt;code>debug.validate&lt;/code> operation is a high-level placeholder for validating
 an SSA value. This is transformed via &lt;code>*-add-debug-port&lt;/code> passes to a function
 call to an externally defined function that may then decrypt and validate
@@ -6453,7 +6453,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordadd-heirjaxitewordaddop">&lt;code>jaxiteword.add&lt;/code> (heir::jaxiteword::AddOp)&lt;/h3>
 &lt;p>&lt;em>Homomorphic addition of two ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.add` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.add` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6498,7 +6498,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordadd_inplace-heirjaxitewordaddinplaceop">&lt;code>jaxiteword.add_inplace&lt;/code> (heir::jaxiteword::AddInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place homomorphic addition&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.add_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.add_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -6525,7 +6525,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordadd_plain-heirjaxitewordaddplainop">&lt;code>jaxiteword.add_plain&lt;/code> (heir::jaxiteword::AddPlainOp)&lt;/h3>
 &lt;p>&lt;em>Add a plaintext to a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.add_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.add_plain` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6570,7 +6570,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxiteworddecode-heirjaxiteworddecodeop">&lt;code>jaxiteword.decode&lt;/code> (heir::jaxiteword::DecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode a plaintext back to real values&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.decode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.decode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6611,7 +6611,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxiteworddecrypt-heirjaxiteworddecryptop">&lt;code>jaxiteword.decrypt&lt;/code> (heir::jaxiteword::DecryptOp)&lt;/h3>
 &lt;p>&lt;em>Decrypt a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.decrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.decrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6656,7 +6656,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordencode-heirjaxitewordencodeop">&lt;code>jaxiteword.encode&lt;/code> (heir::jaxiteword::EncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode a real tensor into a plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.encode` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.encode` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6697,7 +6697,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordencrypt-heirjaxitewordencryptop">&lt;code>jaxiteword.encrypt&lt;/code> (heir::jaxiteword::EncryptOp)&lt;/h3>
 &lt;p>&lt;em>Encrypt a plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.encrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.encrypt` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6742,7 +6742,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordgen_keypair-heirjaxitewordgenkeypairop">&lt;code>jaxiteword.gen_keypair&lt;/code> (heir::jaxiteword::GenKeyPairOp)&lt;/h3>
 &lt;p>&lt;em>Generate public/private key pair&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_keypair` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_keypair` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
@@ -6781,7 +6781,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordgen_mulkey-heirjaxitewordgenmulkeyop">&lt;code>jaxiteword.gen_mulkey&lt;/code> (heir::jaxiteword::GenMulKeyOp)&lt;/h3>
 &lt;p>&lt;em>Generate evaluation key for relinearization&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_mulkey` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_mulkey` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
@@ -6820,7 +6820,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordgen_params-heirjaxitewordgenparamsop">&lt;code>jaxiteword.gen_params&lt;/code> (heir::jaxiteword::GenParamsOp)&lt;/h3>
 &lt;p>&lt;em>Generate crypto context for CROSS&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_params` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_params` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Creates scheme parameters for the CROSS CKKS implementation.&lt;/p>
 &lt;p>Scheme parameters (from CKKSContext):&lt;/p>
 &lt;ul>
@@ -6869,7 +6869,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordgen_rot_key-heirjaxitewordgenrotkeyop">&lt;code>jaxiteword.gen_rot_key&lt;/code> (heir::jaxiteword::GenRotKeyOp)&lt;/h3>
 &lt;p>&lt;em>Generate rotation keys&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_rot_key` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.gen_rot_key` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
@@ -6913,7 +6913,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordmod_reduce-heirjaxitewordmodreduceop">&lt;code>jaxiteword.mod_reduce&lt;/code> (heir::jaxiteword::ModReduceOp)&lt;/h3>
 &lt;p>&lt;em>Rescale/modulus reduce a ciphertext (CKKS)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mod_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mod_reduce` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6954,7 +6954,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordmul-heirjaxitewordmulop">&lt;code>jaxiteword.mul&lt;/code> (heir::jaxiteword::MulOp)&lt;/h3>
 &lt;p>&lt;em>Homomorphic multiplication of two ciphertexts with relinearization&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mul` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7003,7 +7003,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordmul_no_relin-heirjaxitewordmulnorelinop">&lt;code>jaxiteword.mul_no_relin&lt;/code> (heir::jaxiteword::MulNoRelinOp)&lt;/h3>
 &lt;p>&lt;em>Homomorphic multiplication without relinearization&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mul_no_relin` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mul_no_relin` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7048,7 +7048,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordmul_plain-heirjaxitewordmulplainop">&lt;code>jaxiteword.mul_plain&lt;/code> (heir::jaxiteword::MulPlainOp)&lt;/h3>
 &lt;p>&lt;em>Multiply ciphertext with plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mul_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.mul_plain` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7093,7 +7093,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitewordprogram_initialization-heirjaxitewordprograminitializationop">&lt;code>jaxiteword.program_initialization&lt;/code> (heir::jaxiteword::ProgramInitializationOp)&lt;/h3>
 &lt;p>&lt;em>Initialize CROSS program context with HEMul/HERot accessors&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.program_initialization` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.program_initialization` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Calls ctx.program_initialization() which pre-builds level-indexed
 HEMul and HERot accessors and loads all keys onto the context. The key
 operands are attached to the CROSS context before calling
@@ -7139,7 +7139,7 @@ Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.&lt;/p>
 &lt;h3 id="jaxitewordrelin-heirjaxitewordrelinop">&lt;code>jaxiteword.relin&lt;/code> (heir::jaxiteword::RelinOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.relin` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.relin` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7184,7 +7184,7 @@ Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.&lt;/p>
 &lt;h3 id="jaxitewordrot-heirjaxitewordrotop">&lt;code>jaxiteword.rot&lt;/code> (heir::jaxiteword::RotOp)&lt;/h3>
 &lt;p>&lt;em>Rotate slots in a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.rot` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.rot` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7234,7 +7234,7 @@ Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.&lt;/p>
 &lt;h3 id="jaxitewordsquare-heirjaxitewordsquareop">&lt;code>jaxiteword.square&lt;/code> (heir::jaxiteword::SquareOp)&lt;/h3>
 &lt;p>&lt;em>Square a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.square` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.square` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7275,7 +7275,7 @@ Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.&lt;/p>
 &lt;h3 id="jaxitewordsub-heirjaxitewordsubop">&lt;code>jaxiteword.sub&lt;/code> (heir::jaxiteword::SubOp)&lt;/h3>
 &lt;p>&lt;em>Homomorphic subtraction of two ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.sub` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7320,7 +7320,7 @@ Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.&lt;/p>
 &lt;h3 id="jaxitewordsub_inplace-heirjaxitewordsubinplaceop">&lt;code>jaxiteword.sub_inplace&lt;/code> (heir::jaxiteword::SubInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>In-place homomorphic subtraction&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.sub_inplace` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.sub_inplace` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-19">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -7451,7 +7451,7 @@ mismatch is a compile-time error here rather than a runtime surprise.&lt;/p>
 &lt;h3 id="kerneleval_chebyshev-heirkernelevalchebyshevop">&lt;code>kernel.eval_chebyshev&lt;/code> (heir::kernel::EvalChebyshevOp)&lt;/h3>
 &lt;p>&lt;em>Evaluates a Chebyshev polynomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `kernel.eval_chebyshev` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `kernel.eval_chebyshev` $input prop-dict attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>The &lt;code>kernel.eval_chebyshev&lt;/code> operation evaluates a Chebyshev polynomial
 on a given input. The domain is required to be &lt;code>[-1, 1]&lt;/code>.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
@@ -7495,7 +7495,7 @@ on a given input. The domain is required to be &lt;code>[-1, 1]&lt;/code>.&lt;/p
 &lt;h3 id="kernellinear_transform-heirkernellineartransformop">&lt;code>kernel.linear_transform&lt;/code> (heir::kernel::LinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Performs a linear transform (matrix-vector multiplication) on a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `kernel.linear_transform` $input `,` $diagonals attr-dict `:` type($input) `,` type($diagonals) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `kernel.linear_transform` $input `,` $diagonals prop-dict attr-dict `:` type($input) `,` type($diagonals) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Performs a linear transform on a ciphertext using the diagonal method. Row
 k of the &lt;code>diagonals&lt;/code> operand is the generalized diagonal named by
 &lt;code>diagonal_indices[k]&lt;/code>. If &lt;code>source_row_indices&lt;/code> is present, that diagonal is
@@ -7550,7 +7550,7 @@ mapping, &lt;code>input&lt;/code> may be a single secret-typed value.&lt;/p>
 &lt;h3 id="kernelprepare_linear_transform-heirkernelpreparelineartransformop">&lt;code>kernel.prepare_linear_transform&lt;/code> (heir::kernel::PrepareLinearTransformOp)&lt;/h3>
 &lt;p>&lt;em>Prepares (encodes) a linear transform for later application.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `kernel.prepare_linear_transform` $diagonals attr-dict `:` type($diagonals) `-&amp;gt;` type($prepared)
+&lt;pre tabindex="0">&lt;code>operation ::= `kernel.prepare_linear_transform` $diagonals prop-dict attr-dict `:` type($diagonals) `-&amp;gt;` type($prepared)
 &lt;/code>&lt;/pre>&lt;p>Encodes the generalized diagonals of a matrix into a backend-specific
 prepared transform, at the level, slot count, and BSGS split recorded in
 the result type. The prepared transform is applied to a ciphertext with
@@ -11503,7 +11503,7 @@ KeyAttr, # key
 &lt;h3 id="lweconvert_basis-heirlweconvertbasisop">&lt;code>lwe.convert_basis&lt;/code> (heir::lwe::ConvertBasisOp)&lt;/h3>
 &lt;p>&lt;em>Change a ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` $value attr-dict `:` type($value) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` $value prop-dict attr-dict `:` type($value) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a ring element with an RNS basis, output a ring element with the target
 output basis. The output value is equivalent to lifting the ring element to its
 centered representative over the integers, and reducing by the output modulus.&lt;/p>
@@ -11548,7 +11548,7 @@ centered representative over the integers, and reducing by the output modulus.&l
 &lt;h3 id="lweencode-heirlweencodeop">&lt;code>lwe.encode&lt;/code> (heir::lwe::EncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encodes a cleartext into a plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $input prop-dict attr-dict `:` qualified(type($input)) `to` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>The &lt;code>encode&lt;/code> op encodes a cleartext into a plaintext. It takes the
 cleartext value and a parameter &lt;code>plaintext_bits&lt;/code> describing how many
 bits of the cleartext should be encoded into the plaintext.&lt;/p>
@@ -11597,7 +11597,7 @@ bits of the cleartext should be encoded into the plaintext.&lt;/p>
 &lt;h3 id="lweextract_coeff-heirlweextractcoeffop">&lt;code>lwe.extract_coeff&lt;/code> (heir::lwe::ExtractCoeffOp)&lt;/h3>
 &lt;p>&lt;em>Extract a ciphertext component&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_coeff` $value attr-dict `:` type($value)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_coeff` $value prop-dict attr-dict `:` type($value)
 &lt;/code>&lt;/pre>&lt;p>A ciphertext can be viewed as a polynomial in the indeterminant &lt;code>S&lt;/code>,
 the abstract secret key. For example, a ciphertext with two components
 &lt;code>[c0, c1]&lt;/code> represents the polynomial &lt;code>c0 + c1 * S&lt;/code>. This op returns &lt;code>c_i&lt;/code>.&lt;/p>
@@ -11642,7 +11642,7 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;h3 id="lweextract_slice-heirlweextractsliceop">&lt;code>lwe.extract_slice&lt;/code> (heir::lwe::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extract a subset of the ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` $input prop-dict attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a ring element an RNS basis with $k$ limbs, extract the slice of
 RNS components, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
 &lt;p>The result type is a ring element with RNS type containing the subset of basis types
@@ -11792,7 +11792,7 @@ with the key-switching primes.&lt;/p>
 &lt;h3 id="lwemod_down-heirlwemoddownop">&lt;code>lwe.mod_down&lt;/code> (heir::lwe::ModDownOp)&lt;/h3>
 &lt;p>&lt;em>Scale a plaintext by the ratio of the input and output (target) moduli.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.mod_down` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.mod_down` $input prop-dict attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given an encryption of &lt;code>x&lt;/code> with ciphertext modulus &lt;code>Q&lt;/code> and target modulus &lt;code>Q'&lt;/code>, produces
 an encryption of round(Q&amp;rsquo; / Q * x).&lt;/p>
 &lt;p>The target RNS basis must be a prefix of the input&amp;rsquo;s RNS basis.&lt;/p>
@@ -12001,7 +12001,7 @@ an encryption of round(Q&amp;rsquo; / Q * x).&lt;/p>
 &lt;h3 id="lwerlwe_decode-heirlwerlwedecodeop">&lt;code>lwe.rlwe_decode&lt;/code> (heir::lwe::RLWEDecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode an RLWE plaintext to an underlying type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_decode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_decode` $input prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -12086,7 +12086,7 @@ an encryption of round(Q&amp;rsquo; / Q * x).&lt;/p>
 &lt;h3 id="lwerlwe_encode-heirlwerlweencodeop">&lt;code>lwe.rlwe_encode&lt;/code> (heir::lwe::RLWEEncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode an integer to yield an RLWE plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Encode a packed cleartext tensor to yield an RLWE plaintext.&lt;/p>
 &lt;p>This op uses a an encoding attribute to encode the bits of the input into
 an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
