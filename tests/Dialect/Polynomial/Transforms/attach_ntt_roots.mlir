@@ -13,9 +13,9 @@
 
 // CHECK: func.func @attach_roots([[ARG:%.+]]: ![[POLY]]) -> ![[POLY]] {
 func.func @attach_roots(%arg0: !poly_ty) -> !poly_ty {
-  // CHECK: [[NTT:%.+]] = polynomial.ntt [[ARG]] {root = #polynomial.primitive_root<value = #mod_arith.value<1925 : ![[COEFF]]> : ![[COEFF]], degree = 8 : i64>} : ![[POLY]]
+  // CHECK: [[NTT:%.+]] = polynomial.ntt [[ARG]] <root = <value = #mod_arith.value<1925 : ![[COEFF]]> : ![[COEFF]], degree = 8 : i64>> : ![[POLY]]
   %0 = polynomial.ntt %arg0 : !poly_ty
-  // CHECK: [[INTT:%.+]] = polynomial.intt [[NTT]] {root = #polynomial.primitive_root<value = #mod_arith.value<1213 : ![[COEFF]]> : ![[COEFF]], degree = 8 : i64>} : ![[NTT_POLY]]
+  // CHECK: [[INTT:%.+]] = polynomial.intt [[NTT]] <root = <value = #mod_arith.value<1213 : ![[COEFF]]> : ![[COEFF]], degree = 8 : i64>> : ![[NTT_POLY]]
   %1 = polynomial.intt %0 : !ntt_poly_ty
   // CHECK: return [[INTT]] : ![[POLY]]
   return %1 : !poly_ty

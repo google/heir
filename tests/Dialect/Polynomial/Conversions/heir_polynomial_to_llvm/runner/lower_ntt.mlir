@@ -13,6 +13,6 @@ func.func public @test_ntt() -> !ntt_poly_ty {
   %coeffsRaw = arith.constant dense<[1,2,3,4]> : tensor<4xi32>
   %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<4xi32> -> tensor<4x!coeff_ty>
   %poly = polynomial.from_tensor %coeffs : tensor<4x!coeff_ty> -> !poly_ty
-  %res = polynomial.ntt %poly {root=#root} : !poly_ty
+  %res = polynomial.ntt %poly <root = #root> : !poly_ty
   return %res : !ntt_poly_ty
 }

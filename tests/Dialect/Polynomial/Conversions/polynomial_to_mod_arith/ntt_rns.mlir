@@ -27,6 +27,6 @@ func.func @test_ntt_rns(%p0 : !poly) -> !ntt_poly {
   // CHECK: mod_arith.mul
   // CHECK: mod_arith.add
   // CHECK: mod_arith.sub
-  %1 = polynomial.ntt %p0 {root = #root} : !poly
+  %1 = polynomial.ntt %p0 <root = #root> : !poly
   return %1 : !ntt_poly
 }

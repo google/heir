@@ -103,17 +103,17 @@ module {
   }
 
   func.func @test_ntt(%0 : !poly_ty) {
-    %1 = polynomial.ntt %0 {root=#ntt_ring_1_root} : !poly_ty
+    %1 = polynomial.ntt %0 <root = #ntt_ring_1_root> : !poly_ty
     return
   }
 
   func.func @test_ntt_with_overflowing_root(%0 : !poly_ty_2) {
-    %1 = polynomial.ntt %0 {root=#ntt_ring_2_root} : !poly_ty_2
+    %1 = polynomial.ntt %0 <root = #ntt_ring_2_root> : !poly_ty_2
     return
   }
 
   func.func @test_intt(%0 : !ntt_poly_ty) {
-    %1 = polynomial.intt %0 {root=#ntt_ring_1_root} : !ntt_poly_ty
+    %1 = polynomial.intt %0 <root = #ntt_ring_1_root> : !ntt_poly_ty
     return
   }
 }

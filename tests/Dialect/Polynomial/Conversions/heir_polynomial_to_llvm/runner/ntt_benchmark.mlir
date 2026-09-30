@@ -18,7 +18,7 @@ func.func @input_generation() -> !poly_ty attributes { llvm.emit_c_interface } {
 }
 
 func.func @ntt(%arg0 : !poly_ty) -> tensor<65536xi32> attributes { llvm.emit_c_interface } {
-  %0 = polynomial.ntt %arg0 {root=#root} : !poly_ty
+  %0 = polynomial.ntt %arg0 <root = #root> : !poly_ty
   %1 = polynomial.to_tensor %0 : !ntt_poly_ty -> tensor<65536x!coeff_ty>
   %2 = mod_arith.lift standard %1 : tensor<65536x!coeff_ty> -> tensor<65536xi32>
   return %2 : tensor<65536xi32>
@@ -27,6 +27,6 @@ func.func @ntt(%arg0 : !poly_ty) -> tensor<65536xi32> attributes { llvm.emit_c_i
 func.func @intt(%arg0 : tensor<65536xi32>) -> !poly_ty attributes { llvm.emit_c_interface } {
   %0 = mod_arith.encapsulate %arg0 : tensor<65536xi32> -> tensor<65536x!coeff_ty>
   %1 = polynomial.from_tensor %0 : tensor<65536x!coeff_ty> -> !ntt_poly_ty
-  %2 = polynomial.intt %1 {root=#root} : !ntt_poly_ty
+  %2 = polynomial.intt %1 <root = #root> : !ntt_poly_ty
   return %2 :!poly_ty
 }

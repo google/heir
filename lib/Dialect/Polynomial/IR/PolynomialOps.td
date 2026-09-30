@@ -346,7 +346,7 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, ElementwiseMappable, DeclareO
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
   let results = (outs PolynomialLike:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input))";
+  let assemblyFormat = "$input prop-dict attr-dict `:` qualified(type($input))";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
@@ -372,7 +372,7 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, ElementwiseMappable, Declar
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
   let results = (outs PolynomialLike:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input))";
+  let assemblyFormat = "$input prop-dict attr-dict `:` qualified(type($input))";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
@@ -422,7 +422,7 @@ def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, SameOperan
   }];
   let arguments = (ins Polynomial_PolynomialType:$input, IndexAttr:$start, IndexAttr:$size);
   let results = (outs Polynomial_PolynomialType:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 

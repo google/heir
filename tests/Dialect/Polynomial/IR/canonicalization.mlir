@@ -15,8 +15,8 @@ func.func @test_canonicalize_intt_after_ntt(%p0 : !poly_ty) -> !poly_ty {
   // CHECK-NOT: polynomial.ntt
   // CHECK-NOT: polynomial.intt
   // CHECK: %[[RESULT:.+]] = polynomial.add %[[P]], %[[P]]  : [[T]]
-  %t0 = polynomial.ntt %p0 {root=#root} : !poly_ty
-  %p1 = polynomial.intt %t0 {root=#root} : !ntt_poly_ty
+  %t0 = polynomial.ntt %p0 <root = #root> : !poly_ty
+  %p1 = polynomial.intt %t0 <root = #root> : !ntt_poly_ty
   %p2 = polynomial.add %p1, %p1 : !poly_ty
   // CHECK: return %[[RESULT]] : [[T]]
   return %p2 : !poly_ty
@@ -28,8 +28,8 @@ func.func @test_canonicalize_ntt_after_intt(%t0 : !ntt_poly_ty) -> !ntt_poly_ty 
   // CHECK-NOT: polynomial.intt
   // CHECK-NOT: polynomial.ntt
   // CHECK: %[[RESULT:.+]] = polynomial.add %[[X]], %[[X]] : [[T]]
-  %p0 = polynomial.intt %t0 {root=#root} : !ntt_poly_ty
-  %t1 = polynomial.ntt %p0 {root=#root} : !poly_ty
+  %p0 = polynomial.intt %t0 <root = #root> : !ntt_poly_ty
+  %t1 = polynomial.ntt %p0 <root = #root> : !poly_ty
   %t2 = polynomial.add %t1, %t1 : !ntt_poly_ty
   // CHECK: return %[[RESULT]] : [[T]]
   return %t2 : !ntt_poly_ty
