@@ -97,7 +97,7 @@ module {
   // CHECK: func @test_rot
   func.func @test_rot(%cc : !cc, %pt : !pt, %pk: !pk) {
     %ct = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %out = openfhe.rot %cc, %ct { static_shift = 2 }: (!cc, !ct) -> !ct
+    %out = openfhe.rot %cc, %ct <static_shift = 2>: (!cc, !ct) -> !ct
     return
   }
 
@@ -150,7 +150,7 @@ module {
 
   // CHECK: func @test_setup_bootstrap
   func.func @test_setup_bootstrap(%cc : !cc) {
-    openfhe.setup_bootstrap %cc {levelBudgetEncode = 3, levelBudgetDecode = 3}: (!cc) -> ()
+    openfhe.setup_bootstrap %cc <levelBudgetEncode = 3, levelBudgetDecode = 3>: (!cc) -> ()
     return
   }
 }

@@ -14,7 +14,7 @@
 
 module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797005856769, 35184478519297], P = [1152921504616808449], logDefaultScale = 45>, scheme.ckks} {
   // CHECK: func.func @test_eval_chebyshev(%[[VAL_0:.*]]: ![[CC]], %[[VAL_1:.*]]: ![[CT]]) -> ![[CT]]
-  // CHECK: %[[VAL_2:.*]] = openfhe.eval_chebyshev_series %[[VAL_0]], %[[VAL_1]] {coefficients = [2.000000e+00, 2.000000e+00], domain_lower = -1.000000e+00 : f64, domain_upper = 1.000000e+00 : f64} : (![[CC]], ![[CT]]) -> ![[CT]]
+  // CHECK: %[[VAL_2:.*]] = openfhe.eval_chebyshev_series %[[VAL_0]], %[[VAL_1]] <coefficients = [2.000000e+00, 2.000000e+00], domain_lower = -1.000000e+00 : f64, domain_upper = 1.000000e+00 : f64> : (![[CC]], ![[CT]]) -> ![[CT]]
   // CHECK: return %[[VAL_2]] : ![[CT]]
   func.func @test_eval_chebyshev(%ct: !ct) -> !ct {
     %0 = kernel.eval_chebyshev %ct <coefficients = [1.0 : f64, 2.0 : f64]> : !ct -> !ct

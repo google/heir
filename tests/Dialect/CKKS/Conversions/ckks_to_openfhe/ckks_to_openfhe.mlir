@@ -44,7 +44,7 @@ module {
     %sub = ckks.sub %x, %y  : (!ct, !ct) -> !ct
     // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T2:.*]]
     %mul = ckks.mul %x, %y  : (!ct, !ct) -> !ct_D3
-    // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {static_shift = 4 : i64}
+    // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] <static_shift = 4 : i64>
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
     %rot = ckks.rotate %x <static_shift = 4> : !ct
     // CHECK: %[[v6:.*]] = openfhe.add_plain [[C]], %[[x6:.*]], %[[z6:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]

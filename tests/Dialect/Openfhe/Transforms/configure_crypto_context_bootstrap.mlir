@@ -10,9 +10,9 @@ func.func @bootstrap(%arg0: !openfhe.crypto_context, %arg1: !ct) -> !ct {
 // CHECK: @bootstrap
 // CHECK: @bootstrap__generate_crypto_context
 // CHECK: mulDepth = 20
-// CHECK: openfhe.gen_context %{{.*}} {supportFHE = true}
+// CHECK: openfhe.gen_context %{{.*}} <supportFHE = true>
 
 // CHECK: @bootstrap__configure_crypto_context
 // CHECK: openfhe.gen_mulkey
-// CHECK: openfhe.setup_bootstrap %{{.*}} {levelBudgetDecode = 3 : index, levelBudgetEncode = 3 : index}
+// CHECK: openfhe.setup_bootstrap %{{.*}} <levelBudgetEncode = 3 : index, levelBudgetDecode = 3 : index>
 // CHECK: openfhe.gen_bootstrapkey
