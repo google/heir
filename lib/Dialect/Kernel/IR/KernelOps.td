@@ -132,6 +132,7 @@ def Kernel_PrepareLinearTransformOp : Kernel_Op<"prepare_linear_transform", [
 def Kernel_ApplyLinearTransformOp : Kernel_Op<"apply_linear_transform", [
   Pure,
   DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>,
+  DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>,
   IncreasesMulDepthOpInterface
 ]> {
   let summary = "Applies a prepared linear transform to a ciphertext.";

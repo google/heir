@@ -354,6 +354,11 @@ bool LinearTransformOp::operandIsMappable(unsigned operandIndex) {
   return operandIndex == 0;
 }
 
+bool ApplyLinearTransformOp::operandIsMappable(unsigned operandIndex) {
+  // Only `input`: the `prepared` operand is shared by every application.
+  return operandIndex == 0;
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir
