@@ -1,11 +1,15 @@
 #include "lib/Dialect/Polynomial/Transforms/PolyMulToNTT.h"
 
+#include <cstdint>
+#include <limits>
+
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Dialect/Polynomial/Transforms/NTTSolver.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SetVector.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -13,13 +17,16 @@
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
@@ -108,6 +115,118 @@ static llvm::SmallVector<Value> filterPolynomialOps(ValueRange values) {
   return result;
 }
 
+// For loops whose iteration count is not statically-known, we set the cost of
+// conversions inside the loop to this large value so that the solver
+// strongly prefers hoisting a conversion out of it over leaving it inside.
+static constexpr int64_t kUnknownLoopIterations = 1000;
+
+// Returns the cost of a conversion inside a specific single region.
+// E.g., for loops with a statically-known iteration count, returns the
+// iteration count via LoopLikeOpInterface::getStaticTripCount.
+// Falls back to RegionBranchOpInterface::getRegionInvocationBounds,
+// which is more general (e.g., it also covers multi-region ops like scf.while).
+// For loops whose iteration count is not statically-known, returns
+// kUnknownLoopIterations.
+static int64_t getRegionIterationCount(RegionBranchOpInterface loopOp,
+                                       Region* region) {
+  if (auto loopLike = dyn_cast<LoopLikeOpInterface>(loopOp.getOperation())) {
+    if (std::optional<APInt> tripCount = loopLike.getStaticTripCount()) {
+      return static_cast<int64_t>(
+          tripCount->getLimitedValue(std::numeric_limits<int64_t>::max()));
+    }
+  }
+
+  // getRegionInvocationBounds takes *attributes* rather than raw operands.
+  // `matchPattern` and `m_Constant` are built-ins that put either a
+  // constant-like op or the null attribute into `operandConstants`.
+  SmallVector<Attribute> operandConstants(loopOp->getNumOperands());
+  for (auto [i, operand] : llvm::enumerate(loopOp->getOperands())) {
+    matchPattern(operand, m_Constant(&operandConstants[i]));
+  }
+  SmallVector<InvocationBounds> bounds;
+  loopOp.getRegionInvocationBounds(operandConstants, bounds);
+  for (auto [candidate, bound] : llvm::zip(loopOp->getRegions(), bounds)) {
+    if (&candidate != region) continue;
+    // the "bound" here is a pair with a lower-bound and upper-bound on the
+    // number of times the region will execute. We choose the upper-bound as
+    // a worst-case cost. Note that for non-static bounds, this API sets the
+    // lower-bound to zero, so it's not useful as an estimate if the
+    // upper-bound isn't available.
+    if (std::optional<unsigned> upper = bound.getUpperBound()) {
+      return *upper;
+    }
+  }
+  return kUnknownLoopIterations;
+}
+
+// Return how many times a conversion at v's materialization site actually runs:
+// once per iteration of every loop it's nested in (multiplied together for
+// nested loops), or 1 if it's not in a loop at all.
+static int64_t getConversionCostMultiplier(Value v) {
+  int64_t weight = 1;
+  // This loop starts in the op's defining region and iterates upward to
+  // capture nested regions
+  for (Region* region = getEnclosingRepetitiveRegion(v); region;
+       region = getEnclosingRepetitiveRegion(region->getParentOp())) {
+    auto loopOp = cast<RegionBranchOpInterface>(region->getParentOp());
+    weight *= getRegionIterationCount(loopOp, region);
+  }
+  return weight;
+}
+
+// A note on terminology, using scf.for as an example:
+// %result = scf.for %i = %lb to %ub step %step iter_args(%acc = %init) ->
+// (!poly_ty) {
+//  %next = polynomial.mul %acc, %acc : !poly_ty
+//  scf.yield %next : !poly_ty
+// }
+//
+// %init and %next are operands forwarded across a region boundary. %acc and
+// %result are the "successor inputs" that receive them -- %acc is the body
+// region's successor input (a block argument), %result is the parent's
+// successor input (an op result). A "successor" is the *destination*
+// itself (the region, or "the parent"), not a value.
+//
+// getSuccessorOperandInputMapping returns a map from each such operand to
+// the successor input(s) it feeds, e.g. {%init: [%acc, %result], %next: [%acc,
+// %result]} (both fan out to both here, since the trip count isn't
+// statically known in this example).
+//
+// Adds solver constraints for a RegionBranchOpInterface op (scf.for, scf.if,
+// scf.while, ...): every successor input can be fed by more than one
+// operand (as above), so each gets its own coeff/eval demand, independent
+// of the op(s) that produced the operands flowing into it. This one call
+// covers loop entry, backedges, and results, without needing to
+// special-case any individual op.
+static void addRegionBranchConstraints(NTTSolver& solver,
+                                       RegionBranchOpInterface regionBranchOp) {
+  RegionBranchSuccessorMapping operandToInputs;
+  regionBranchOp.getSuccessorOperandInputMapping(operandToInputs);
+
+  for (auto& [operand, inputs] : operandToInputs) {
+    Value source = operand->get();
+    if (!isPolyValue(source)) continue;
+
+    for (Value target : inputs) {
+      solver.addConversionCostIfBothForms(target);
+      // Whichever form target (a successor input) needs natively, source
+      // (the operand feeding it) must supply -- e.g. if %result needs COEFF,
+      // the yielded value %next must too.
+      solver.requireSourceMatchesNativeForm(target, source);
+    }
+
+    // One operand can feed more than one target -- e.g. scf.for's yielded
+    // value feeds both the next iter_arg and the loop's result. Since both
+    // are rewritten from that same operand, they must end up the same type.
+    // In short, the previous loop tied the yielded value to iterArgs.front(),
+    // this loop ties iterArgs.front() to loop.getResults(0) so that all inputs
+    // are forced to the same form
+    for (Value other : llvm::drop_begin(inputs)) {
+      solver.equateNativeForm(inputs.front(), other);
+    }
+  }
+}
+
 void PolyMulToNTT::runOnOperation() {
   func::FuncOp func = getOperation();
   MLIRContext* context = &getContext();
@@ -168,8 +287,22 @@ void PolyMulToNTT::runOnOperation() {
   //     fix up the inputs
   //  5. Fix the function signature and arguments
   //
-  // TODO(#2685): This pass only handles polynomial and tensor ops in functions;
-  // it does *not* support ops with regions (e.g., loops).
+  // Ops implementing RegionBranchOpInterface (scf.for, scf.if, scf.while,
+  // ...) are supported via a separate mechanism layered on top of the five
+  // steps above; see addRegionBranchConstraints and Steps 3b/4b for details.
+  // A conversion's cost is weighted by how many times it actually runs
+  // (getConversionCostMultiplier), using RegionBranchOpInterface's own
+  // invocation-bounds query: a loop with a statically known bound (e.g.
+  // scf.for with constant lower/upper bound and step) contributes its exact
+  // iteration count, and any loop we can't size statically is assumed to
+  // run many times, so the solver strongly prefers hoisting a conversion
+  // out of it.
+  //
+  // A block argument or region-branch result that isn't fed by any operand
+  // (e.g. a loop's induction variable) is not a forwarding edge and is not
+  // supported; this isn't a real limitation in practice since such
+  // "produced" successor inputs are never polynomial-typed for the ops this
+  // pass deals with.
 
   // Steps 1, 3, and 4 above involve walking the AST. Since we're going to be
   // doing multiple walks and adding some nodes on the way, we first memoize
@@ -177,8 +310,50 @@ void PolyMulToNTT::runOnOperation() {
   // prune it to remove ops that don't involve polynomials. This doesn't remove
   // ops from the AST, it just means that we don't walk over them later.
   llvm::SmallVector<Operation*> rewriteOrder;
+  // RegionBranchOpInterface ops (e.g. scf.for, scf.if, scf.while) collected
+  // here have their polynomial operands/results handled entirely by the
+  // dedicated region-branch forwarding logic below (see
+  // addRegionBranchConstraints), not by the generic per-op walks over
+  // rewriteOrder.
+  llvm::SmallVector<RegionBranchOpInterface> regionBranchOps;
   WalkResult wr =
       func.walk([&](Operation* op) -> WalkResult {
+        // RegionBranchTerminatorOpInterface ops that actually terminate a
+        // region of a RegionBranchOpInterface parent (e.g. scf.yield inside
+        // scf.for/scf.if, scf.condition inside scf.while) never need their
+        // own entry in rewriteOrder: every polynomial operand they have is a
+        // forwarding edge into some successor input, captured via the
+        // parent's successor mapping and rewritten directly through that
+        // mapping's OpOperand pointers.
+        //
+        // The interface check alone isn't enough to identify these: many
+        // ReturnLike ops (e.g. func.return, polynomial.yield) satisfy
+        // RegionBranchTerminatorOpInterface "for free" regardless of what
+        // their parent op is, even when that parent has nothing to do with
+        // region-branching (e.g. func.func, polynomial.apply_coefficientwise)
+        // and must still be handled by the ordinary per-op walks below. So we
+        // additionally require the parent op to actually implement
+        // RegionBranchOpInterface.
+        Operation* parentOp = op->getParentOp();
+        if (isa<RegionBranchTerminatorOpInterface>(op) && parentOp &&
+            isa<RegionBranchOpInterface>(parentOp)) {
+          return WalkResult::advance();
+        }
+        if (auto regionBranchOp = dyn_cast<RegionBranchOpInterface>(op)) {
+          // Likewise, a region branch op's own operands/results (e.g.
+          // scf.for's initial iter_arg operand, or a value returned to the
+          // parent) are forwarding edges, not ordinary op inputs/outputs, so
+          // this op is excluded from the single-poly-result restriction
+          // below: each of its successor inputs gets its own, independently
+          // solved form, so there's no bound on how many polynomial
+          // loop-carried values it may have.
+          if (!filterPolynomialOps(op->getOperands()).empty() ||
+              !filterPolynomialOps(op->getResults()).empty()) {
+            regionBranchOps.push_back(regionBranchOp);
+          }
+          return WalkResult::advance();
+        }
+
         auto polyResults = filterPolynomialOps(op->getResults());
         auto polyOperands = filterPolynomialOps(op->getOperands());
 
@@ -191,6 +366,15 @@ void PolyMulToNTT::runOnOperation() {
                 << op->getName() << " has " << polyResults.size() << " outputs";
             signalPassFailure();
             return WalkResult::interrupt();
+          }
+          // A conversion on this op's result, if one is needed, is inserted
+          // right after the op, so it costs however many times that site
+          // actually runs.
+          for (Value result : polyResults) {
+            int64_t multiplier = getConversionCostMultiplier(result);
+            if (multiplier != 1) {
+              solver.setConversionCostMultiplier(result, multiplier);
+            }
           }
         }
         return WalkResult::advance();
@@ -205,6 +389,41 @@ void PolyMulToNTT::runOnOperation() {
     if (isPolyValue(arg)) {
       solver.addConversionCostIfBothForms(arg);
     }
+  }
+
+  // Region-branch successor inputs (loop iter_args, scf.if results, etc.)
+  // are collected here so that Step 3 can materialize them once solving is
+  // done; see addRegionBranchConstraints for how they're constrained. Cost
+  // multipliers for all of them must be registered
+  // before any of them are constrained
+  // (addRegionBranchConstraints) -- see that function's comment for why.
+  llvm::SetVector<Value> polySuccessorInputs;
+  for (RegionBranchOpInterface regionBranchOp : regionBranchOps) {
+    // setConversionCostMultiplier must run on a value before anything else
+    // touches it -- but a nested loop's successor input can be fed by an
+    // enclosing loop's own successor input (e.g. the outer iter_arg feeding the
+    // inner loop's entry operand), so we can't set multipliers while we build
+    // constraints: an inner loop could reference the outer loop's block
+    // argument as a source (via requireSourceMatchesNativeForm below) before
+    // the outer loop's own turn to register it. So this runs, for every
+    // RegionBranchOpInterface op, before addRegionBranchConstraints runs for
+    // any of them.
+    RegionBranchSuccessorMapping operandToInputs;
+    regionBranchOp.getSuccessorOperandInputMapping(operandToInputs);
+    for (auto& [operand, inputs] : operandToInputs) {
+      if (!isPolyValue(operand->get())) continue;
+      for (Value target : inputs) {
+        if (polySuccessorInputs.insert(target)) {
+          int64_t multiplier = getConversionCostMultiplier(target);
+          if (multiplier != 1) {
+            solver.setConversionCostMultiplier(target, multiplier);
+          }
+        }
+      }
+    }
+  }
+  for (RegionBranchOpInterface regionBranchOp : regionBranchOps) {
+    addRegionBranchConstraints(solver, regionBranchOp);
   }
 
   for (Operation* op : rewriteOrder) {
@@ -593,6 +812,49 @@ void PolyMulToNTT::runOnOperation() {
     }
   }
 
+  /****************************************************************
+   ***** Step 3b: Materialize region-branch successor inputs ******
+   *****************************************************************/
+  // Block arguments and region-branch results are materialized exactly like
+  // function arguments (see the loop over func.getArguments() above): we
+  // arbitrarily fix one native form into the IR -- preferring coeff form
+  // when both are needed -- and, if the other form is also required by some
+  // use, insert a single conversion right where the value comes into
+  // existence: at the start of the owning block for a block argument, or
+  // right after the op for a value returned to the parent. We remember which
+  // form each successor input was fixed to so Step 4b can rewrite the
+  // forwarding operands that feed it to match.
+  llvm::DenseMap<Value, Form> successorNativeForm;
+  for (Value target : polySuccessorInputs) {
+    Form f = soln.needsForm(target, Form::COEFF) ? Form::COEFF : Form::EVAL;
+    successorNativeForm[target] = f;
+
+    Type newTy = typeToForm(target.getType(), f);
+    if (!newTy) {
+      signalPassFailure();
+      return;
+    }
+    target.setType(newTy);
+
+    if (auto blockArg = dyn_cast<BlockArgument>(target)) {
+      b.setInsertionPointToStart(blockArg.getOwner());
+    } else {
+      b.setInsertionPointAfter(target.getDefiningOp());
+    }
+
+    if (f == Form::COEFF) {
+      coeffFormCache[target] = target;
+      if (soln.needsForm(target, Form::EVAL)) {
+        evalFormCache[target] = addConversion(target, Form::EVAL);
+      }
+    } else {
+      evalFormCache[target] = target;
+      if (soln.needsForm(target, Form::COEFF)) {
+        coeffFormCache[target] = addConversion(target, Form::COEFF);
+      }
+    }
+  }
+
   /************************************************
    *********** Step 4: Fix up AST inputs **********
    ***********************************************/
@@ -680,6 +942,26 @@ void PolyMulToNTT::runOnOperation() {
           "polyMulToNTT");
       signalPassFailure();
       return;
+    }
+  }
+
+  /**********************************************************
+   ***** Step 4b: Rewrite region-branch forwarding edges *****
+   **********************************************************/
+  // Every successor input now has a resolved, materialized native form
+  // (Step 3b). Point each operand that forwards into one -- the region
+  // branch op's own entry operands, and every operand yielded/forwarded
+  // inside its regions -- at the cached value in that form.
+  for (RegionBranchOpInterface regionBranchOp : regionBranchOps) {
+    RegionBranchSuccessorMapping operandToInputs;
+    regionBranchOp.getSuccessorOperandInputMapping(operandToInputs);
+    for (auto& [operand, inputs] : operandToInputs) {
+      if (!isPolyValue(operand->get())) continue;
+      // All of this operand's targets were tied to the same form in
+      // addRegionBranchConstraints (equateForms), so any one of them tells
+      // us the form this operand must be rewritten to.
+      Form form = successorNativeForm.at(inputs.front());
+      operand->set(formToValue(operand->get(), form));
     }
   }
 
