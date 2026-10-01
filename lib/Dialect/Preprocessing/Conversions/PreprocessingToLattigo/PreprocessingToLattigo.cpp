@@ -4,16 +4,14 @@
 
 #include "lib/Analysis/PreprocessingStorageLayoutAnalysis/PreprocessingStorageLayoutAnalysis.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
-#include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/Preprocessing/Conversions/Util.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -47,8 +45,10 @@ struct PreprocessingToLattigo
       return;
     }
 
-    Type targetType = lattigo::RLWEPlaintextType::get(&getContext());
-    SingleMemrefPreprocessingTypeConverter typeConverter(analysis, targetType);
+    // By this point LWEToLattigo has already converted the storage's element
+    // types to lattigo types, so each unique element type (plaintexts,
+    // prepared linear transformations) lowers to its own flat memref.
+    FlatMemrefPreprocessingTypeConverter typeConverter(analysis);
 
     ConversionTarget target(getContext());
     target.addIllegalDialect<PreprocessingDialect>();
@@ -58,7 +58,8 @@ struct PreprocessingToLattigo
                            lattigo::LattigoDialect>();
 
     RewritePatternSet patterns(&getContext());
-    populateCommonPreprocessingToMemrefPatterns(typeConverter, patterns);
+    populatePreprocessingToFlatMemrefPatterns(typeConverter, patterns,
+                                              analysis);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
