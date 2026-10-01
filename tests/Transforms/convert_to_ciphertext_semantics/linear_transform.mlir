@@ -3,7 +3,7 @@
 // CHECK: module
 module attributes {
   backend.openfhe,
-  backend.config_override = {has_kernel_linear_transform = true}
+  backend.config_override = {hasKernelLinearTransform = true}
 } {
   // CHECK: @main
   func.func @main(%arg0: !secret.secret<tensor<4xf32>> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 and 0 <= slot <= 3 }">}) -> (!secret.secret<tensor<2xf32>> {tensor_ext.layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 1 and 0 <= slot <= 3 }">}) {
@@ -36,7 +36,7 @@ module attributes {
 
 module attributes {
   backend.openfhe,
-  backend.config_override = {has_kernel_linear_transform = true}
+  backend.config_override = {hasKernelLinearTransform = true}
 } {
   // CHECK: func.func @matvec_to_linear_transform
   // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x8xf32>> {{.*}}) -> (!secret.secret<tensor<1x8xf32>> {{.*}})

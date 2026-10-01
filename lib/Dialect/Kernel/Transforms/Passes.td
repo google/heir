@@ -9,7 +9,7 @@ def PrepareLinearTransforms : Pass<"prepare-linear-transforms", "ModuleOp"> {
     Splits each `kernel.linear_transform` into a
     `kernel.prepare_linear_transform` of its diagonals and a
     `kernel.apply_linear_transform` of the resulting prepared transform, when
-    the backend target supports `has_kernel_linear_transform`. Only applies to
+    the backend target supports `hasKernelLinearTransform`. Only applies to
     inputs matching `SecretLikeTypeInterface` or containers thereof, i.e.,
     LWECiphertextType or lower-level ciphertext types.
 

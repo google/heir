@@ -15,10 +15,10 @@ namespace mlir {
 namespace heir {
 namespace mgmt {
 
-static bool canEmitAdjustScale(Operation* op) {
+static bool cannotEmitAdjustScale(Operation* op) {
   auto module = op->getParentOfType<ModuleOp>();
   auto target = getTargetConfig(module);
-  return succeeded(target) && !target->supports_adjust_scale;
+  return succeeded(target) && !target->supportsAdjustScale;
 }
 
 //===----------------------------------------------------------------------===//
@@ -33,7 +33,7 @@ struct ModReduceAfterLevelReduce : public OpRewritePattern<LevelReduceOp> {
     // Targets without same-level scale adjustment require rescale to remain
     // before level reduction. Moving it after level reduction would apply
     // rescale to the squared scale at the wrong level.
-    if (canEmitAdjustScale(op)) return failure();
+    if (cannotEmitAdjustScale(op)) return failure();
     auto modReduceOp = op.getInput().getDefiningOp<ModReduceOp>();
     if (!modReduceOp || !modReduceOp->hasOneUse() || !op->hasOneUse())
       return failure();
@@ -185,7 +185,7 @@ struct MergeModReduce : public OpRewritePattern<ModReduceOp> {
 
   LogicalResult matchAndRewrite(ModReduceOp op,
                                 PatternRewriter& rewriter) const override {
-    if (canEmitAdjustScale(op)) return failure();
+    if (cannotEmitAdjustScale(op)) return failure();
     auto innerMr = op.getInput().getDefiningOp<ModReduceOp>();
     if (!innerMr || !innerMr->hasOneUse()) return failure();
 

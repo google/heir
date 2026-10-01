@@ -32,7 +32,7 @@ struct SecretInsertMgmtCKKS
 
     bool canEmitAdjustScale = true;
     if (auto target = getTargetConfig(getOperation()); succeeded(target))
-      canEmitAdjustScale = target->supports_adjust_scale;
+      canEmitAdjustScale = target->supportsAdjustScale;
 
     InsertMgmtPipelineOptions options;
     options.includeFloats = true;

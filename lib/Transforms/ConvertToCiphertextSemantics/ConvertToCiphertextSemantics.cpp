@@ -1069,7 +1069,7 @@ struct PreserveLinalgMatvecAsLinearTransform
       linalg::MatvecOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
     auto target = getTargetConfig(op->getParentOfType<ModuleOp>());
-    if (failed(target) || !target->has_kernel_linear_transform) {
+    if (failed(target) || !target->hasKernelLinearTransform) {
       return rewriter.notifyMatchFailure(op, "linear transform not enabled");
     }
 

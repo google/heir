@@ -5,6 +5,6 @@ def Lattigo : CompilationTarget<"lattigo"> {
   // whose ring carries extra primes, so a bootstrap returns the ciphertext at
   // the top of the standard compute chain and consumes none of it.
   let bootstrapLevelsConsumed = 0;
-  let has_kernel_chebyshev = 1;
-  let has_kernel_linear_transform = 1;
+  let hasKernelChebyshev = 1;
+  let hasKernelLinearTransform = 1;
 }

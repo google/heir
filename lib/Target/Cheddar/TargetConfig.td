@@ -6,13 +6,13 @@ def Cheddar : CompilationTarget<"cheddar"> {
   let bootstrapLevelsConsumed = 0;
 
   // TODO(#3429): enable both kernels when cheddar backend gets them
-  let has_kernel_linear_transform = 0;
-  let has_kernel_chebyshev = 0;
+  let hasKernelLinearTransform = 0;
+  let hasKernelChebyshev = 0;
 
   // Cheddar rejects ciphertext-plaintext operations with different prime sets.
-  let requires_matching_ciphertext_plaintext_levels = 1;
+  let requiresMatchingCiphertextPlaintextLevels = 1;
 
   // scale-snu/cheddar exposes one canonical scale per level and has no
   // operation for a same-level scalar scale correction.
-  let supports_adjust_scale = 0;
+  let supportsAdjustScale = 0;
 }

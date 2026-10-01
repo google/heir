@@ -55,7 +55,7 @@ struct PrepareLinearTransforms
   void runOnOperation() override {
     ModuleOp module = getOperation();
     auto target = getTargetConfig(module);
-    if (failed(target) || !target->has_kernel_linear_transform) return;
+    if (failed(target) || !target->hasKernelLinearTransform) return;
 
     // Limit to CKKS for now
     if (!moduleIsCKKS(module)) return;

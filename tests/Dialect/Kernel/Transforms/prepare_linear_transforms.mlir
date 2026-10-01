@@ -64,7 +64,7 @@ module attributes {backend.lattigo, scheme.ckks,  scheme.requested_slot_count = 
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
 !ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
-// A target that does not declare has_kernel_linear_transform skips the
+// A target that does not declare hasKernelLinearTransform skips the
 // decomposition.
 
 // CHECK: @skip_decomp

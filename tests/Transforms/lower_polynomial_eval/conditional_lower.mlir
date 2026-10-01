@@ -4,7 +4,7 @@
 
 module attributes {
   backend.lattigo,
-  backend.config_override = {has_kernel_chebyshev = true}
+  backend.config_override = {hasKernelChebyshev = true}
 } {
   // CHECK: @test_secret_kernel
   func.func @test_secret_kernel(%x: !secret.secret<f64>) -> !secret.secret<f64> {
@@ -63,7 +63,7 @@ module attributes {
 
 module attributes {
   backend.lattigo,
-  backend.config_override = {has_kernel_chebyshev = false}
+  backend.config_override = {hasKernelChebyshev = false}
 } {
   // CHECK: @test_arith
   func.func @test_arith(%x: f64) -> f64 {

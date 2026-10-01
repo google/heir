@@ -132,7 +132,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   int64_t maxLevel = 100;
   if (succeeded(target)) {
     bootstrapLevelsConsumed = target->bootstrapLevelsConsumed;
-    canEmitAdjustScale = target->supports_adjust_scale;
+    canEmitAdjustScale = target->supportsAdjustScale;
   }
 
   int budget = options.levelBudget == -1

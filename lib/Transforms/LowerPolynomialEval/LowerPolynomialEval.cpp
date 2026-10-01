@@ -48,7 +48,7 @@ struct LowerPolynomialEval
     if (module && hasBackendAttribute(module)) {
       auto target = getTargetConfig(module);
       if (succeeded(target)) {
-        hasKernelChebyshev = target->has_kernel_chebyshev;
+        hasKernelChebyshev = target->hasKernelChebyshev;
       }
     }
 

@@ -5,10 +5,10 @@
 class CompilationTarget<string name> {
   string backendName = name;
   int bootstrapLevelsConsumed = 0;
-  int has_kernel_chebyshev = 0;
-  int has_kernel_linear_transform = 0;
-  int requires_matching_ciphertext_plaintext_levels = 0;
-  int supports_adjust_scale = 1;
+  int hasKernelChebyshev = 0;
+  int hasKernelLinearTransform = 0;
+  int requiresMatchingCiphertextPlaintextLevels = 0;
+  int supportsAdjustScale = 1;
 }
 
 def TestTarget : CompilationTarget<"test_target"> {
@@ -29,28 +29,28 @@ def TestTarget : CompilationTarget<"test_target"> {
 // OVERRIDE:     target.bootstrapLevelsConsumed = attr.getInt();
 // OVERRIDE:     return success();
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "has_kernel_chebyshev") {
+// OVERRIDE:   if (key == "hasKernelChebyshev") {
 // OVERRIDE:     auto attr = dyn_cast<IntegerAttr>(value);
 // OVERRIDE:     if (!attr) { return emitError(loc, "expected integer attribute for key: ") << key; }
-// OVERRIDE:     target.has_kernel_chebyshev = attr.getInt();
+// OVERRIDE:     target.hasKernelChebyshev = attr.getInt();
 // OVERRIDE:     return success();
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "has_kernel_linear_transform") {
+// OVERRIDE:   if (key == "hasKernelLinearTransform") {
 // OVERRIDE:     auto attr = dyn_cast<IntegerAttr>(value);
 // OVERRIDE:     if (!attr) { return emitError(loc, "expected integer attribute for key: ") << key; }
-// OVERRIDE:     target.has_kernel_linear_transform = attr.getInt();
+// OVERRIDE:     target.hasKernelLinearTransform = attr.getInt();
 // OVERRIDE:     return success();
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "requires_matching_ciphertext_plaintext_levels") {
+// OVERRIDE:   if (key == "requiresMatchingCiphertextPlaintextLevels") {
 // OVERRIDE:     auto attr = dyn_cast<IntegerAttr>(value);
 // OVERRIDE:     if (!attr) { return emitError(loc, "expected integer attribute for key: ") << key; }
-// OVERRIDE:     target.requires_matching_ciphertext_plaintext_levels = attr.getInt();
+// OVERRIDE:     target.requiresMatchingCiphertextPlaintextLevels = attr.getInt();
 // OVERRIDE:     return success();
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "supports_adjust_scale") {
+// OVERRIDE:   if (key == "supportsAdjustScale") {
 // OVERRIDE:     auto attr = dyn_cast<IntegerAttr>(value);
 // OVERRIDE:     if (!attr) { return emitError(loc, "expected integer attribute for key: ") << key; }
-// OVERRIDE:     target.supports_adjust_scale = attr.getInt();
+// OVERRIDE:     target.supportsAdjustScale = attr.getInt();
 // OVERRIDE:     return success();
 // OVERRIDE:   }
 // OVERRIDE:   return emitError(loc, "Cannot override backend config for unknown key: ") << key;
@@ -67,28 +67,28 @@ def TestTarget : CompilationTarget<"test_target"> {
 // OVERRIDE:     }
 // OVERRIDE:     return Attribute(IntegerAttr::get(IntegerType::get(ctx, 64), intVal));
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "has_kernel_chebyshev") {
+// OVERRIDE:   if (key == "hasKernelChebyshev") {
 // OVERRIDE:     int64_t intVal;
 // OVERRIDE:     if (value.getAsInteger(10, intVal)) {
 // OVERRIDE:       return emitError(loc, "expected base-10 integer attribute for key: ") << key;
 // OVERRIDE:     }
 // OVERRIDE:     return Attribute(IntegerAttr::get(IntegerType::get(ctx, 64), intVal));
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "has_kernel_linear_transform") {
+// OVERRIDE:   if (key == "hasKernelLinearTransform") {
 // OVERRIDE:     int64_t intVal;
 // OVERRIDE:     if (value.getAsInteger(10, intVal)) {
 // OVERRIDE:       return emitError(loc, "expected base-10 integer attribute for key: ") << key;
 // OVERRIDE:     }
 // OVERRIDE:     return Attribute(IntegerAttr::get(IntegerType::get(ctx, 64), intVal));
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "requires_matching_ciphertext_plaintext_levels") {
+// OVERRIDE:   if (key == "requiresMatchingCiphertextPlaintextLevels") {
 // OVERRIDE:     int64_t intVal;
 // OVERRIDE:     if (value.getAsInteger(10, intVal)) {
 // OVERRIDE:       return emitError(loc, "expected base-10 integer attribute for key: ") << key;
 // OVERRIDE:     }
 // OVERRIDE:     return Attribute(IntegerAttr::get(IntegerType::get(ctx, 64), intVal));
 // OVERRIDE:   }
-// OVERRIDE:   if (key == "supports_adjust_scale") {
+// OVERRIDE:   if (key == "supportsAdjustScale") {
 // OVERRIDE:     int64_t intVal;
 // OVERRIDE:     if (value.getAsInteger(10, intVal)) {
 // OVERRIDE:       return emitError(loc, "expected base-10 integer attribute for key: ") << key;
@@ -118,8 +118,8 @@ def TestTarget : CompilationTarget<"test_target"> {
 // STRUCT: struct CompilationTarget {
 // STRUCT:   BackendName backendName = BackendName::None;
 // STRUCT:   int64_t bootstrapLevelsConsumed = 0;
-// STRUCT:   int64_t has_kernel_chebyshev = 0;
-// STRUCT:   int64_t has_kernel_linear_transform = 0;
-// STRUCT:   int64_t requires_matching_ciphertext_plaintext_levels = 0;
-// STRUCT:   int64_t supports_adjust_scale = 1;
+// STRUCT:   int64_t hasKernelChebyshev = 0;
+// STRUCT:   int64_t hasKernelLinearTransform = 0;
+// STRUCT:   int64_t requiresMatchingCiphertextPlaintextLevels = 0;
+// STRUCT:   int64_t supportsAdjustScale = 1;
 // STRUCT: };
