@@ -894,7 +894,7 @@ class ConvertLinalgBroadcast
       return rewriter.notifyMatchFailure(
           op, "missing new layout attribute for input");
 
-    // TODO: support multi-dimension broadcasts
+    // TODO(#3465): support multi-dimension broadcasts
     if (op.getDimensions().size() != 1) {
       return op.emitError(
           "linalg.broadcast only supported with a single broadcast dimension");
