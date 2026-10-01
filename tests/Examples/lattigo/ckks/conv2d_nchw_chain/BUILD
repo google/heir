@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "conv2dnchwchain",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=4096 scaling-mod-bits=45 first-mod-bits=60",
+        "--torch-linalg-to-ckks=min-slot-count=4096 scaling-mod-bits=45 first-mod-bits=60",
         "--scheme-to-lattigo",
     ],
     mlir_src = "conv2d_nchw_chain.mlir",

@@ -12,7 +12,6 @@ cc_library(
     hdrs = ["LWEToJaxiteWord.h"],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",

@@ -37,8 +37,8 @@ inline int64_t normalizeShift(int64_t input, int64_t output,
 
 int64_t ShiftStrategy::getVirtualShift(const CtSlot& source,
                                        const CtSlot& target) const {
-  int64_t sourceIndex = source.ct * ciphertextSize + source.slot;
-  int64_t targetIndex = target.ct * ciphertextSize + target.slot;
+  int64_t sourceIndex = source.ct * minSlotCount + source.slot;
+  int64_t targetIndex = target.ct * minSlotCount + target.slot;
   return normalizeShift(sourceIndex, targetIndex, virtualCiphertextSize);
 }
 
@@ -71,15 +71,15 @@ void ShiftStrategy::evaluate(const Mapping& mapping) {
              "Expected to find source in last round positions");
       CtSlot currentPos = lastRoundPositions[key];
       int64_t currentVirtualSlot =
-          currentPos.ct * ciphertextSize + currentPos.slot;
+          currentPos.ct * minSlotCount + currentPos.slot;
 
       CtSlot nextPosition = currentPos;
       if (rotationAmount & key.shift) {
         currentVirtualSlot =
             (currentVirtualSlot - rotationAmount + virtualCiphertextSize) %
             virtualCiphertextSize;
-        nextPosition = CtSlot{currentVirtualSlot / ciphertextSize,
-                              currentVirtualSlot % ciphertextSize};
+        nextPosition = CtSlot{currentVirtualSlot / minSlotCount,
+                              currentVirtualSlot % minSlotCount};
       }
       currentRoundPosns[key] = nextPosition;
     }

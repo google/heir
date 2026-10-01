@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks="bootstrap-waterline=2 level-budget=2 slot-number=8 after-mul=true" %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks="bootstrap-waterline=2 level-budget=2 min-slot-count=8 after-mul=true" %s | FileCheck %s
 
 module {
   // CHECK: func.func @main

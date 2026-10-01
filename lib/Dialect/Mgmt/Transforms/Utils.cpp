@@ -19,10 +19,8 @@ LogicalResult copyMgmtAttrToClientHelpers(Operation* op) {
   ModuleOp moduleOp = cast<ModuleOp>(op);
   WalkResult result = op->walk([&](func::FuncOp funcOp) {
     // Check for the helper attributes
-    auto clientEncAttr =
-        funcOp->getAttrOfType<mlir::DictionaryAttr>(kClientEncFuncAttrName);
-    auto clientDecAttr =
-        funcOp->getAttrOfType<mlir::DictionaryAttr>(kClientDecFuncAttrName);
+    auto clientEncAttr = getInterfaceAttr(funcOp, kClientEncRole);
+    auto clientDecAttr = getInterfaceAttr(funcOp, kClientDecRole);
 
     if (!clientEncAttr && !clientDecAttr) return WalkResult::advance();
 

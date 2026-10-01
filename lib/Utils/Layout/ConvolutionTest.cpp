@@ -1,5 +1,8 @@
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -8,6 +11,8 @@
 #include "lib/Utils/Layout/ConvolutionTestUtil.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "lib/Utils/MathUtils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
@@ -722,10 +727,10 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
       RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 4096;
+  int64_t minSlotCount = 4096;
 
   auto maybeRel = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, padding, ciphertextSize, false);
+      filterType, dataType, strides, padding, minSlotCount, false);
   ASSERT_TRUE(succeeded(maybeRel));
   IntegerRelation rel = maybeRel.value();
 
@@ -764,10 +769,10 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalizedInterchanged) {
       RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 4096;
+  int64_t minSlotCount = 4096;
 
   auto maybeRel = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, padding, ciphertextSize, true);
+      filterType, dataType, strides, padding, minSlotCount, true);
   ASSERT_TRUE(succeeded(maybeRel));
   IntegerRelation rel = maybeRel.value();
 
@@ -805,11 +810,11 @@ TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedRowInterchange) {
       RankedTensorType::get({1, 1, 8}, IndexType::get(&context));
   int64_t stride = 2;
   int64_t padding = 0;
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
 
   auto distinctDiagonals = [&](bool interchangeRows) {
     auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(
-        filterType, dataType, stride, padding, ciphertextSize, interchangeRows);
+        filterType, dataType, stride, padding, minSlotCount, interchangeRows);
     EXPECT_TRUE(succeeded(maybeRel));
     PointPairCollector collector(/*domainDims=*/3, /*rangeDims=*/2);
     enumeratePoints(maybeRel.value(), collector);
@@ -823,6 +828,337 @@ TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedRowInterchange) {
 
   auto withInterchange = distinctDiagonals(/*interchangeRows=*/true);
   EXPECT_EQ(withInterchange.size(), 3);
+}
+
+// Reference dense expanded Toeplitz matrix for a 1-D multichannel convolution
+// with the given stride and a symmetric zero padding of `padding` on the width
+// dim. Rows are (f, ow) row-major; columns index the *unpadded* data as (c, w)
+// row-major, so a window position that reaches into the padding simply
+// contributes no column.
+std::vector<std::vector<int>> reference1dConvCwFcwMatrix(
+    const std::vector<std::vector<std::vector<int>>>& filter, int64_t dataWidth,
+    int64_t stride, int64_t padding) {
+  int64_t outputChannels = filter.size();
+  int64_t inputChannels = filter[0].size();
+  int64_t filterWidth = filter[0][0].size();
+  int64_t outputWidth = (dataWidth + 2 * padding - filterWidth) / stride + 1;
+
+  std::vector<std::vector<int>> matrix(
+      outputChannels * outputWidth,
+      std::vector<int>(inputChannels * dataWidth, 0));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t ow = 0; ow < outputWidth; ++ow) {
+      for (int64_t c = 0; c < inputChannels; ++c) {
+        for (int64_t fw = 0; fw < filterWidth; ++fw) {
+          int64_t w = ow * stride - padding + fw;
+          if (w < 0 || w >= dataWidth) continue;
+          matrix[f * outputWidth + ow][c * dataWidth + w] = filter[f][c][fw];
+        }
+      }
+    }
+  }
+  return matrix;
+}
+
+// Inverts the squat-diagonal packing applied by diagonalize2dMatrix, which maps
+// (row, col) -> (ct, slot) via `slot % paddedRows == row` and
+// `(ct + slot) % paddedCols == col`. Returns a paddedRows x paddedCols dense
+// matrix so that entries landing outside the logical matrix are visible rather
+// than dropped.
+std::vector<std::vector<int>> undiagonalizeMatrix(
+    const std::vector<std::vector<int>>& packed, int64_t rows, int64_t cols) {
+  int64_t paddedRows = (int64_t)nextPowerOfTwo(rows);
+  int64_t paddedCols = (int64_t)nextPowerOfTwo(cols);
+  std::vector<std::vector<int>> dense(paddedRows,
+                                      std::vector<int>(paddedCols, 0));
+  for (int64_t ct = 0; ct < (int64_t)packed.size(); ++ct) {
+    for (int64_t slot = 0; slot < (int64_t)packed[ct].size(); ++slot) {
+      dense[slot % paddedRows][(ct + slot) % paddedCols] = packed[ct][slot];
+    }
+  }
+  return dense;
+}
+
+// Pads `matrix` out to paddedRows x paddedCols with zeros.
+std::vector<std::vector<int>> padMatrixToPowerOfTwo(
+    const std::vector<std::vector<int>>& matrix) {
+  int64_t paddedRows = (int64_t)nextPowerOfTwo(matrix.size());
+  int64_t paddedCols = (int64_t)nextPowerOfTwo(matrix[0].size());
+  std::vector<std::vector<int>> result(paddedRows,
+                                       std::vector<int>(paddedCols, 0));
+  for (size_t i = 0; i < matrix.size(); ++i) {
+    for (size_t j = 0; j < matrix[i].size(); ++j) {
+      result[i][j] = matrix[i][j];
+    }
+  }
+  return result;
+}
+
+// Checks that get1dConvCwFcwFilterDiagonalizedRelation encodes exactly the
+// reference Toeplitz matrix for the given conv parameters.
+void checkConv1dCwFcwDiagonalized(MLIRContext& context, int64_t outputChannels,
+                                  int64_t inputChannels, int64_t filterWidth,
+                                  int64_t dataWidth, int64_t stride,
+                                  int64_t padding, int64_t ciphertextSize) {
+  SCOPED_TRACE("f=" + std::to_string(outputChannels) +
+               " c=" + std::to_string(inputChannels) + " k=" +
+               std::to_string(filterWidth) + " w=" + std::to_string(dataWidth) +
+               " stride=" + std::to_string(stride) +
+               " padding=" + std::to_string(padding));
+
+  // Deterministic non-zero filter values, so that an entry landing in the wrong
+  // row or column is visible rather than coincidentally zero.
+  std::vector<std::vector<std::vector<int>>> filter(
+      outputChannels, std::vector<std::vector<int>>(
+                          inputChannels, std::vector<int>(filterWidth, 0)));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t c = 0; c < inputChannels; ++c) {
+      for (int64_t k = 0; k < filterWidth; ++k) {
+        filter[f][c][k] = (int)((f * 37 + c * 11 + k * 3) % 17) + 1;
+      }
+    }
+  }
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, filterWidth}, IndexType::get(&context));
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataWidth}, IndexType::get(&context));
+
+  auto expandedType =
+      get1dConvCwFcwFilterExpandedType(filterType, dataType, stride, padding);
+  auto expected =
+      reference1dConvCwFcwMatrix(filter, dataWidth, stride, padding);
+  int64_t rows = expandedType.getDimSize(0);
+  int64_t cols = expandedType.getDimSize(1);
+  ASSERT_EQ(rows, (int64_t)expected.size());
+  ASSERT_EQ(cols, (int64_t)expected[0].size());
+
+  // The non-diagonalized relation must agree with the reference Toeplitz
+  // matrix. evaluateLayout maps (matRow, matCol) directly onto (ct, slot) here,
+  // so the result is the dense matrix -- sized explicitly, since the relation's
+  // own derived bounds are tighter than the expanded type whenever a trailing
+  // data column is never touched by any window.
+  auto expandedRelation =
+      get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
+  EXPECT_EQ(evaluateLayout(expandedRelation, getFilterValueFn,
+                           SmallVector<int64_t>{rows, cols}),
+            expected);
+
+  // diagonalize2dMatrix reads the matrix shape off those derived bounds, while
+  // the Halevi-Shoup kernel is handed get1dConvCwFcwFilterExpandedType. The two
+  // must agree once rounded up to a power of two, or the packed diagonals are
+  // interpreted against the wrong row/column stride.
+  auto rowBound = expandedRelation.getConstantBound64(
+      BoundType::UB, expandedRelation.getVarKindOffset(VarKind::Range));
+  auto colBound = expandedRelation.getConstantBound64(
+      BoundType::UB, expandedRelation.getVarKindOffset(VarKind::Range) + 1);
+  ASSERT_TRUE(rowBound.has_value() && colBound.has_value());
+  EXPECT_EQ(nextPowerOfTwo(rowBound.value() + 1), nextPowerOfTwo(rows));
+  EXPECT_EQ(nextPowerOfTwo(colBound.value() + 1), nextPowerOfTwo(cols));
+
+  // ... and so must the diagonalized relation that production actually uses.
+  auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, padding, ciphertextSize,
+      /*interchangeRows=*/false);
+  ASSERT_TRUE(succeeded(maybeRel));
+  auto packed = evaluateLayout(maybeRel.value(), getFilterValueFn);
+  EXPECT_EQ(undiagonalizeMatrix(packed, rows, cols),
+            padMatrixToPowerOfTwo(expected));
+}
+
+TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedStride2WithPadding) {
+  // padding == 0 is included as a control: it validates the reference matrix
+  // and the un-diagonalization, so a failure only at padding > 0 isolates the
+  // bug to the padded strided path.
+  MLIRContext context;
+  for (int64_t padding : {0, 1, 2}) {
+    checkConv1dCwFcwDiagonalized(context, /*outputChannels=*/2,
+                                 /*inputChannels=*/2, /*filterWidth=*/3,
+                                 /*dataWidth=*/6, /*stride=*/2, padding,
+                                 /*ciphertextSize=*/16);
+  }
+}
+
+TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedPaddingExceedsStride) {
+  // Padding larger than the stride, so the leading windows are mostly
+  // padding and no window starts at data index 0.
+  MLIRContext context;
+  checkConv1dCwFcwDiagonalized(context, /*outputChannels=*/24,
+                               /*inputChannels=*/16, /*filterWidth=*/9,
+                               /*dataWidth=*/48, /*stride=*/2, /*padding=*/4,
+                               /*ciphertextSize=*/1024);
+}
+
+// Checks that the filter layout LayoutPropagation assigns to a 2-D conv
+// encodes exactly the reference Toeplitz matrix for the given conv parameters.
+void checkConv2dChwFchwDiagonalized(
+    MLIRContext& context, int64_t outputChannels, int64_t inputChannels,
+    int64_t filterSize, int64_t dataH, int64_t dataW, int64_t stride,
+    int64_t padding, int64_t ciphertextSize, bool interchangeRows) {
+  SCOPED_TRACE("f=" + std::to_string(outputChannels) +
+               " c=" + std::to_string(inputChannels) +
+               " k=" + std::to_string(filterSize) +
+               " h=" + std::to_string(dataH) + " w=" + std::to_string(dataW) +
+               " stride=" + std::to_string(stride) +
+               " padding=" + std::to_string(padding) +
+               " interchangeRows=" + std::to_string(interchangeRows));
+
+  ConvTensor4D filter = deterministicConvFilter(outputChannels, inputChannels,
+                                                filterSize, filterSize);
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, filterSize, filterSize},
+      IndexType::get(&context));
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataH, dataW}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
+
+  auto expandedType = get2dConvChwFchwFilterExpandedType(
+      filterType, dataType, padding, strides, interchangeRows);
+  auto expected =
+      reference2dConvChwFchwMatrix(filter, dataH, dataW, stride, padding);
+  int64_t rows = expandedType.getDimSize(0);
+  int64_t cols = expandedType.getDimSize(1);
+  // An interchanged layout reserves whole g x g channel blocks, so its matrix
+  // can hold more rows than the reference has: the extra rows belong to the
+  // padding channels and stay zero.
+  int64_t referenceRows = (int64_t)expected.size();
+  ASSERT_GE(rows, referenceRows);
+  ASSERT_EQ(cols, (int64_t)expected[0].size());
+
+  // The non-diagonalized relation must agree with the reference Toeplitz
+  // matrix. It is not interchanged, so it has no padding rows.
+  auto expandedRelation =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+  EXPECT_EQ(evaluateLayout(expandedRelation, getFilterValueFn,
+                           SmallVector<int64_t>{referenceRows, cols}),
+            expected);
+
+  // Row interchange permutes the matrix rows into the pixel-shuffled order the
+  // gapped output layout uses, i.e. the order get2dConvRowInterchangeRelation
+  // assigns: (f, oh, ow) row-major over (outputChannels, outputH, outputW)
+  // becomes (f / g^2, oh * g + (f % g^2) / g, ow * g + f % g) row-major over
+  // (outputChannels / g^2, outputH * g, outputW * g).
+  std::vector<std::vector<int>> expectedRows = expected;
+  if (interchangeRows) {
+    int64_t g = stride;
+    int64_t outputH = convOutputExtent(dataH, filterSize, stride, padding);
+    int64_t outputW = convOutputExtent(dataW, filterSize, stride, padding);
+    int64_t wOut = outputW * g;
+    // Sized to the reserved blocks, so the rows of the padding channels are
+    // present and zero.
+    expectedRows.assign(rows, std::vector<int>(cols, 0));
+    for (int64_t f = 0; f < outputChannels; ++f) {
+      for (int64_t oh = 0; oh < outputH; ++oh) {
+        for (int64_t ow = 0; ow < outputW; ++ow) {
+          int64_t from = (f * outputH + oh) * outputW + ow;
+          int64_t to =
+              ((f / (g * g) * (outputH * g) + oh * g + (f % (g * g)) / g) *
+               wOut) +
+              ow * g + f % g;
+          expectedRows[to] = expected[from];
+        }
+      }
+    }
+  }
+
+  auto maybeRels = get2dConvChwFchwFilterAsSequence(
+      filterType, dataType, strides, padding, ciphertextSize, interchangeRows);
+  ASSERT_TRUE(succeeded(maybeRels));
+  IntegerRelation composed = maybeRels->front();
+  for (const auto& rel : llvm::drop_begin(maybeRels.value())) {
+    composed.compose(rel);
+  }
+  auto packed = evaluateLayout(composed, getFilterValueFn);
+  EXPECT_EQ(undiagonalizeMatrix(packed, rows, cols),
+            padMatrixToPowerOfTwo(expectedRows));
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedStride2WithPadding) {
+  // padding == 0 is included as a control: it validates the reference matrix
+  // and the un-diagonalization, so a failure only at padding > 0 isolates the
+  // bug to the padded strided path.
+  MLIRContext context;
+  for (int64_t padding : {0, 1, 2}) {
+    checkConv2dChwFchwDiagonalized(context, /*outputChannels=*/2,
+                                   /*inputChannels=*/2, /*filterSize=*/3,
+                                   /*dataH=*/6, /*dataW=*/6, /*stride=*/2,
+                                   padding, /*ciphertextSize=*/128,
+                                   /*interchangeRows=*/false);
+  }
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedPaddingExceedsStride) {
+  // Padding larger than the stride, so the leading windows are mostly
+  // padding and no window starts at data index (0, 0).
+  MLIRContext context;
+  checkConv2dChwFchwDiagonalized(context, /*outputChannels=*/4,
+                                 /*inputChannels=*/4, /*filterSize=*/3,
+                                 /*dataH=*/6, /*dataW=*/6, /*stride=*/2,
+                                 /*padding=*/3, /*ciphertextSize=*/256,
+                                 /*interchangeRows=*/false);
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedSamePadding) {
+  // The stride-1 "same" convolution that LayoutPropagation folds a tensor.pad
+  // into: the output keeps the data's spatial extents.
+  MLIRContext context;
+  checkConv2dChwFchwDiagonalized(context, /*outputChannels=*/4,
+                                 /*inputChannels=*/4, /*filterSize=*/3,
+                                 /*dataH=*/4, /*dataW=*/4, /*stride=*/1,
+                                 /*padding=*/1, /*ciphertextSize=*/64,
+                                 /*interchangeRows=*/false);
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedInterchangedPadded) {
+  // LayoutPropagation turns row interchange on exactly when the stride exceeds
+  // 1, so this is the combination a strided conv with a folded tensor.pad
+  // selects. padding == 0 is the control.
+  MLIRContext context;
+  for (int64_t padding : {0, 1}) {
+    checkConv2dChwFchwDiagonalized(context, /*outputChannels=*/4,
+                                   /*inputChannels=*/2, /*filterSize=*/3,
+                                   /*dataH=*/6, /*dataW=*/6, /*stride=*/2,
+                                   padding, /*ciphertextSize=*/128,
+                                   /*interchangeRows=*/true);
+  }
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedInterchangedChannelPadding) {
+  // Output channel counts that are not a multiple of gap^2 = 4. The
+  // interchanged layout reserves a whole block, so the matrix gains zero rows
+  // for the channels that are not there.
+  MLIRContext context;
+  for (int64_t outputChannels : {1, 2, 3, 5, 6, 7}) {
+    checkConv2dChwFchwDiagonalized(context, outputChannels,
+                                   /*inputChannels=*/2, /*filterSize=*/3,
+                                   /*dataH=*/6, /*dataW=*/6, /*stride=*/2,
+                                   /*padding=*/0, /*ciphertextSize=*/128,
+                                   /*interchangeRows=*/true);
+  }
+}
+
+TEST(ConvolutionTest, TestConv2dChwFchwDiagonalizedInterchangedNonSquare) {
+  // A non-square spatial output, where transposing the two row-flattening
+  // extents in the interchanged path silently drops matrix rows. Every other
+  // conv test here is square, which cannot tell the two extents apart.
+  MLIRContext context;
+  for (int64_t padding : {0, 1}) {
+    checkConv2dChwFchwDiagonalized(context, /*outputChannels=*/4,
+                                   /*inputChannels=*/2, /*filterSize=*/3,
+                                   /*dataH=*/6, /*dataW=*/8, /*stride=*/2,
+                                   padding, /*ciphertextSize=*/128,
+                                   /*interchangeRows=*/true);
+  }
 }
 
 }  // namespace

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-cggi=abc-fast=true %s | FileCheck %s
+// RUN: heir-opt --mlir-to-cggi %s | FileCheck %s
 
 // Calculate Variance of i4 elements, returning i32
 // Uses the formula: Var(X) = E[X^2] - (E[X])^2 = (sum_sq / N) - (sum / N)^2

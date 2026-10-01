@@ -14,10 +14,10 @@ func.func @test_rns_leading_term(%coeffs: tensor<4x!rns>) -> !rns {
   // CHECK: %[[INIT:.*]] = arith.constant 3 : index
   // CHECK: %[[DEGREE:.*]] = scf.while (%[[INDEX:.*]] = %[[INIT]]) : (index) -> index {
   // CHECK: %[[COEFF:.*]] = tensor.extract %[[COEFFS]][%[[INDEX]]]
-  // CHECK: %[[RESIDUE0:.*]] = rns.extract_residue %[[COEFF]] {index = 0 : index}
+  // CHECK: %[[RESIDUE0:.*]] = rns.extract_residue %[[COEFF]] <index = 0>
   // CHECK: %[[LIFTED0:.*]] = mod_arith.lift standard %[[RESIDUE0]]
   // CHECK: %[[ZERO0:.*]] = arith.cmpi eq, %[[LIFTED0]], %[[ZERO]]
-  // CHECK: %[[RESIDUE1:.*]] = rns.extract_residue %[[COEFF]] {index = 1 : index}
+  // CHECK: %[[RESIDUE1:.*]] = rns.extract_residue %[[COEFF]] <index = 1>
   // CHECK: %[[LIFTED1:.*]] = mod_arith.lift standard %[[RESIDUE1]]
   // CHECK: %[[ZERO1:.*]] = arith.cmpi eq, %[[LIFTED1]], %[[ZERO]]
   // CHECK: %[[ALL_ZERO:.*]] = arith.andi %[[ZERO0]], %[[ZERO1]]

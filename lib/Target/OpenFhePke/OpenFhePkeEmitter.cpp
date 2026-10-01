@@ -12,13 +12,12 @@
 #include <utility>
 #include <vector>
 
-#include "include/cereal/archives/portable_binary.hpp"  // from @cereal
-#include "include/cereal/cereal.hpp"                    // from @cereal
 #include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
@@ -34,6 +33,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -151,66 +151,6 @@ FailureOr<std::string> printOneDimDenseElementsAttr(DenseElementsAttr attr) {
   return ss.str();
 }
 
-// Adds the given DenseElementsAttr to the weights map.
-LogicalResult addWeightTo(DenseElementsAttr attr, std::string& name,
-                          Weights* weights) {
-  // Only double, float, and int_{8, 16, 32, 64}t are supported.
-  return llvm::TypeSwitch<Type, LogicalResult>(attr.getElementType())
-      .Case<Float32Type>([&](auto type) {
-        std::vector<float> floats;
-        for (auto value : attr.getValues<float>()) {
-          floats.push_back(value);
-        }
-        weights->floats[name] = floats;
-        return success();
-      })
-      .Case<Float64Type>([&](auto type) {
-        std::vector<double> doubles;
-        for (auto value : attr.getValues<double>()) {
-          doubles.push_back(value);
-        }
-        weights->doubles[name] = doubles;
-        return success();
-      })
-      .Case<IntegerType>([&](IntegerType type) {
-        std::vector<int64_t> int64_ts;
-        for (auto value : attr.getValues<APInt>()) {
-          int64_ts.push_back(value.getSExtValue());
-        }
-        switch (type.getWidth()) {
-          case 64:
-            weights->int64_ts[name] = int64_ts;
-            return success();
-          case 32:
-            weights->int32_ts[name] = {int64_ts.begin(), int64_ts.end()};
-            return success();
-          case 16:
-            weights->int16_ts[name] = {int64_ts.begin(), int64_ts.end()};
-            return success();
-          case 8:
-            weights->int8_ts[name] = {int64_ts.begin(), int64_ts.end()};
-            return success();
-          default:
-            return failure();
-        };
-      })
-      .Default([&](auto type) { return failure(); });
-}
-
-FailureOr<std::string> getWeightType(Type type) {
-  auto result = llvm::TypeSwitch<Type, std::string>(type)
-                    .Case<Float32Type>([&](auto type) { return "float"; })
-                    .Case<Float64Type>([&](auto type) { return "double"; })
-                    .Case<IntegerType>([&](auto type) {
-                      return llvm::formatv("int{0}_t", type.getWidth());
-                    })
-                    .Default([&](auto type) { return ""; });
-  if (result.empty()) {
-    return failure();
-  }
-  return result;
-}
-
 }  // namespace
 
 std::string OpenFhePkeEmitter::getConstantOrValue(Value value) {
@@ -220,12 +160,11 @@ std::string OpenFhePkeEmitter::getConstantOrValue(Value value) {
 
 LogicalResult translateToOpenFhePke(Operation* op, llvm::raw_ostream& os,
                                     const OpenfheImportType& importType,
-                                    const std::string& weightsFile,
                                     bool skipVectorResizing) {
   SelectVariableNames variableNames(op);
   ConstQualifierAnalysis constAnalysis(op);
   OpenFhePkeEmitter emitter(os, &variableNames, &constAnalysis, importType,
-                            weightsFile, skipVectorResizing);
+                            skipVectorResizing);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -250,6 +189,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 arith::DivFOp, arith::CmpIOp, arith::CmpFOp, arith::SelectOp,
                 arith::MaxSIOp, arith::MinSIOp>(
               [&](auto op) { return printOperation(op); })
+          .Case<math::SqrtOp>([&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
@@ -257,6 +197,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<cf::AssertOp>([&](auto op) { return printOperation(op); })
           // MemRef ops
           .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp>(
+              [&](auto op) { return printOperation(op); })
+          .Case<preprocessing::LoadResourceOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
@@ -270,10 +212,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
-                BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
-                FastRotationExtOp, FastRotationPrecomputeOp, GenBootstrapKeyOp,
-                GenContextOp, GenMulKeyOp, GenParamsOp, GenRotKeyOp,
-                KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
+                BootstrapOp, DecryptOp, EncryptOp, EvalChebyshevSeriesOp,
+                FastRotationOp, FastRotationExtOp, FastRotationPrecomputeOp,
+                GenBootstrapKeyOp, GenContextOp, GenMulKeyOp, GenParamsOp,
+                GenRotKeyOp, KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
                 LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
                 MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
                 MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
@@ -306,26 +248,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
 
   os << getModulePrelude(scheme, importType_) << "\n";
 
-  if (!weightsFile_.empty()) {
-    os << getWeightsPrelude() << "\n";
-  }
   for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
   }
 
-  // Emit the weights file.
-  if (!weightsFile_.empty()) {
-    std::ofstream file(weightsFile_, std::ios::out | std::ios::binary);
-    if (file.is_open()) {
-      cereal::PortableBinaryOutputArchive archive(file);
-      archive(weightsMap_);
-      file.close();
-    } else {
-      return failure();
-    }
-  }
   return success();
 }
 
@@ -348,11 +276,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
 
   os << " {\n";
   os.indent();
-
-  if (!weightsFile_.empty() && !funcOp.getOps<arith::ConstantOp>().empty()) {
-    os << llvm::formatv("Weights weights = GetWeightModule(\"{0}\");\n",
-                        weightsFile_);
-  }
 
   for (Block& block : funcOp.getBlocks()) {
     for (Operation& op : block.getOperations()) {
@@ -1100,20 +1023,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     if (denseElementsAttr.isSplat()) {
       os << "(" << flattenedElementsAttr.getNumElements() << ", "
          << result.value() << ");\n";
-    } else if (!weightsFile_.empty()) {
-      if (failed(addWeightTo(flattenedElementsAttr, name, &weightsMap_))) {
-        return emitError(
-            op.getLoc(),
-            llvm::formatv("Failed to add weight for type {0}", flattenedType));
-      }
-      auto weightType = getWeightType(flattenedType.getElementType());
-      if (failed(weightType)) {
-        return emitError(op.getLoc(),
-                         llvm::formatv("Failed to get weight type for type {0}",
-                                       flattenedType));
-      }
-      os << llvm::formatv(" = weights.{0}s[\"{1}\"];\n", weightType.value(),
-                          name);
     } else {
       os << " = " << result.value() << ";\n";
     }
@@ -1223,6 +1132,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::TruncFOp op) {
     return op.emitOpError() << "Unsupported truncf op";
   }
   os << ">(" << variableNames->getNameForValue(op.getIn()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(math::SqrtOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << "std::sqrt(" << variableNames->getNameForValue(op.getOperand())
+     << ");\n";
   return success();
 }
 
@@ -1465,6 +1381,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
+
   // std::vector<std::vector<CiphertextT>> result(size);
   RankedTensorType resultType = op.getResult().getType();
   if (failed(emitType(resultType, op->getLoc()))) {
@@ -1792,7 +1711,42 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(
+    ::mlir::heir::preprocessing::LoadResourceOp op) {
+  Value resource = op.getLoadedResource();
+  Type type = resource.getType();
+
+  Type eltType;
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    eltType = tensorType.getElementType();
+  } else if (auto memrefType = dyn_cast<MemRefType>(type)) {
+    eltType = memrefType.getElementType();
+  } else {
+    return op.emitError("unsupported resource type");
+  }
+
+  auto cppEltType = convertType(eltType, op.getLoc());
+  if (failed(cppEltType)) {
+    return failure();
+  }
+
+  int64_t size = 0;
+  if (auto shapedType = dyn_cast<ShapedType>(type)) {
+    size = shapedType.getNumElements();
+  }
+
+  std::string varName = variableNames->getNameForValue(resource);
+
+  os << "static const std::vector<" << cppEltType.value() << "> " << varName
+     << " = load_resource<" << cppEltType.value() << ">(\"" << op.getPath()
+     << "\", " << size << ");\n";
+
+  return success();
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(memref::AllocOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
   auto type = cast<MemRefType>(op.getType());
   if (!type.hasStaticShape()) {
     return emitError(op.getLoc(), "Only static shapes are supported");
@@ -2025,6 +1979,42 @@ LogicalResult OpenFhePkeEmitter::printOperation(EncryptOp op) {
                          {op.getEncryptionKey(), op.getPlaintext()}, "Encrypt");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(EvalChebyshevSeriesOp op) {
+  emitAutoAssignPrefix(op.getResult());
+
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalChebyshevSeries" << "(";
+  os << variableNames->getNameForValue(op.getCiphertext()) << ", ";
+
+  std::vector<std::string> coefs;
+  for (auto attr : op.getCoefficients()) {
+    if (auto floatAttr = llvm::dyn_cast<FloatAttr>(attr)) {
+      auto valOr = printFloatAttr(floatAttr);
+      if (failed(valOr)) {
+        return op.emitError("Failed to print float attribute in coefficients");
+      }
+      coefs.push_back(valOr.value());
+    } else {
+      return op.emitError("coefficients must be an array of float attributes");
+    }
+  }
+  os << "std::vector<double>{" << llvm::join(coefs, ", ") << "}, ";
+
+  auto lowerOr = printFloatAttr(op.getDomainLowerAttr());
+  if (failed(lowerOr)) {
+    return op.emitError("Failed to print domain_lower");
+  }
+  os << lowerOr.value() << ", ";
+
+  auto upperOr = printFloatAttr(op.getDomainUpperAttr());
+  if (failed(upperOr)) {
+    return op.emitError("Failed to print domain_upper");
+  }
+  os << upperOr.value() << ");\n";
+
+  return success();
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(DecryptOp op) {
   // Decrypt asks for a pointer to an outparam for the output plaintext
   os << "PlaintextT " << variableNames->getNameForValue(op.getResult())
@@ -2115,8 +2105,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenContextOp op) {
   os << contextName << "->Enable(PKE);\n";
   os << contextName << "->Enable(KEYSWITCH);\n";
   os << contextName << "->Enable(LEVELEDSHE);\n";
-  if (op.getSupportFHE()) {
+  if (op.getSupportAdvancedSHE() || op.getSupportFHE()) {
     os << contextName << "->Enable(ADVANCEDSHE);\n";
+  }
+  if (op.getSupportFHE()) {
     os << contextName << "->Enable(FHE);\n";
   }
   return success();
@@ -2176,13 +2168,11 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
 OpenFhePkeEmitter::OpenFhePkeEmitter(
     raw_ostream& os, SelectVariableNames* variableNames,
     ConstQualifierAnalysis* constQualifierAnalysis,
-    const OpenfheImportType& importType, const std::string& weightsFile,
-    bool skipVectorResizing)
+    const OpenfheImportType& importType, bool skipVectorResizing)
     : importType_(importType),
       os(os),
       variableNames(variableNames),
       constQualifierAnalysis(constQualifierAnalysis),
-      weightsFile_(weightsFile),
       skipVectorResizing_(skipVectorResizing) {}
 }  // namespace openfhe
 }  // namespace heir

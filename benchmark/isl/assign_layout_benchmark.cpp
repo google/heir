@@ -126,6 +126,56 @@ BENCHMARK(BM_implementAssignLayout_HotwordRelationD)
     ->Arg(static_cast<int64_t>(CodegenStrategy::FOLD_WHEN_POSSIBLE))
     ->Unit(benchmark::kSecond);
 
+static void BM_implementAssignLayout_CriteoLayout4(benchmark::State& state) {
+  BM_implementAssignLayout_helper(state, {512, 13}, 32768, kCriteoLayout4);
+}
+BENCHMARK(BM_implementAssignLayout_CriteoLayout4)
+    ->Arg(static_cast<int64_t>(CodegenStrategy::AUTO))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::NEVER_FOLD))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::FOLD_WHEN_POSSIBLE))
+    ->Unit(benchmark::kSecond);
+
+static void BM_implementAssignLayout_CriteoLayout7(benchmark::State& state) {
+  BM_implementAssignLayout_helper(state, {256, 512}, 32768, kCriteoLayout7);
+}
+BENCHMARK(BM_implementAssignLayout_CriteoLayout7)
+    ->Arg(static_cast<int64_t>(CodegenStrategy::AUTO))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::NEVER_FOLD))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::FOLD_WHEN_POSSIBLE))
+    ->Unit(benchmark::kSecond);
+
+static void BM_implementAssignLayout_CriteoLayout24(benchmark::State& state) {
+  BM_implementAssignLayout_helper(state, {512, 432}, 32768, kCriteoLayout24);
+}
+BENCHMARK(BM_implementAssignLayout_CriteoLayout24)
+    ->Arg(static_cast<int64_t>(CodegenStrategy::AUTO))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::NEVER_FOLD))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::FOLD_WHEN_POSSIBLE))
+    ->Unit(benchmark::kSecond);
+
+static void BM_implementAssignLayout_LolaLayout2(benchmark::State& state) {
+  BM_implementAssignLayout_helper(state, {1, 8, 14, 14}, 2048, kLolaLayout2);
+}
+BENCHMARK(BM_implementAssignLayout_LolaLayout2)
+    ->Arg(static_cast<int64_t>(CodegenStrategy::AUTO))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::NEVER_FOLD))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::FOLD_WHEN_POSSIBLE))
+    ->Unit(benchmark::kSecond);
+
+// LolaLayout12 has 7 existentials and a domain box volume of 156,800.
+// - NEVER_FOLD strategy hangs indefinitely during loop generation (ISL AST
+// build).
+// - AUTO and FOLD_WHEN_POSSIBLE strategies fold the relation, which takes
+//   ~46s in opt mode.
+static void BM_implementAssignLayout_LolaLayout12(benchmark::State& state) {
+  BM_implementAssignLayout_helper(state, {100, 1568}, 2048, kLolaLayout12);
+}
+BENCHMARK(BM_implementAssignLayout_LolaLayout12)
+    ->Arg(static_cast<int64_t>(CodegenStrategy::AUTO))
+    // ->Arg(static_cast<int64_t>(CodegenStrategy::NEVER_FOLD))
+    ->Arg(static_cast<int64_t>(CodegenStrategy::FOLD_WHEN_POSSIBLE))
+    ->Unit(benchmark::kSecond);
+
 }  // namespace heir
 }  // namespace mlir
 

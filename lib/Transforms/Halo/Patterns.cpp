@@ -6,6 +6,7 @@
 #include <string>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
@@ -26,6 +27,7 @@
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 #define DEBUG_TYPE "halo-patterns"
@@ -61,6 +63,23 @@ static bool hasMismatch(ArrayRef<Value> inits, ArrayRef<Value> yieldedValues,
     }
   }
 
+  return false;
+}
+
+static bool isInsideLoopNesting(Operation* op, Block* block) {
+  if (op->getBlock() == block) {
+    return false;
+  }
+  Operation* parent = op->getParentOp();
+  while (parent && parent->getBlock() != block) {
+    if (isa<LoopLikeOpInterface>(parent)) {
+      return true;
+    }
+    parent = parent->getParentOp();
+  }
+  if (parent && isa<LoopLikeOpInterface>(parent)) {
+    return true;
+  }
   return false;
 }
 
@@ -106,12 +125,10 @@ LogicalResult PeelPlaintextAffineForInit::matchAndRewrite(
     forOp.setConstantLowerBound(splitBound);
   });
 
-  rewriter.modifyOpInPlace(firstIteration, [&]() {
-    if (failed(loopUnrollFull(firstIteration))) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Failed to unroll single-iteration affine.for!\n");
-    }
-  });
+  if (failed(loopUnrollFull(firstIteration))) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Failed to unroll single-iteration affine.for!\n");
+  }
   return success();
 }
 
@@ -137,12 +154,9 @@ LogicalResult PeelPlaintextScfForInit::matchAndRewrite(
     return failure();
   }
 
-  rewriter.modifyOpInPlace(firstIteration, [&]() {
-    if (failed(loopUnrollFull(firstIteration))) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Failed to unroll single-iteration affine.for!\n");
-    }
-  });
+  if (failed(loopUnrollFull(firstIteration))) {
+    LLVM_DEBUG(llvm::dbgs() << "Failed to unroll single-iteration scf.for!\n");
+  }
 
   return success();
 }
@@ -281,7 +295,6 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
       levelAfterBootstrap = forceMaxLevel;
       LDBG(2) << "Using forced max level of " << forceMaxLevel;
     } else {
-      // TODO(#2557): consider effective bootstrap level
       levelAfterBootstrap =
           getMaxLevel(forOp->template getParentOfType<func::FuncOp>(), solver);
     }
@@ -300,7 +313,7 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
     }
     LDBG(2) << "Levels used in loop = " << levelsUsedInLoop;
 
-    int unrollFactor = levelAfterBootstrap / levelsUsedInLoop;
+    int unrollFactor = (levelAfterBootstrap - levelStartVal) / levelsUsedInLoop;
     LDBG(2) << "Found unroll factor " << unrollFactor
             << " for iter_arg=" << iterArg
             << "; levelStartVal=" << levelStartVal
@@ -321,6 +334,7 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
   chosenUnrollFactor =
       tripCount < chosenUnrollFactor ? tripCount : chosenUnrollFactor;
   if (chosenUnrollFactor > 1) {
+    Block* block = forOp->getBlock();
     // The function_ref<void(unsigned, Operation *, OpBuilder)> annotateFn that
     // we pass to the loop unroll step ensures that we can tell which bootstrap
     // ops and level_reduce_min ops are safe to remove post-unroll.
@@ -386,7 +400,21 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                   clonedOp, [&]() { clonedOp->removeAttr(specialOpKey); });
             })))
       return failure();
+
+    // Clean up remainder iterations.
+    SmallVector<mgmt::LevelReduceMinOp> opsToRemove;
+    block->walk([&](mgmt::LevelReduceMinOp reduceOp) {
+      if (reduceOp->hasAttr("halo.invariance") &&
+          !isInsideLoopNesting(reduceOp, block)) {
+        opsToRemove.push_back(reduceOp);
+      }
+    });
+    for (auto reduceOp : opsToRemove) {
+      LDBG(2) << "Removing leftover level_reduce_min: " << reduceOp;
+      rewriter.replaceOp(reduceOp, reduceOp.getOperand());
+    }
   }
+
   return success();
 }
 
@@ -472,6 +500,52 @@ LogicalResult RegionBranchOpLevelInvariancePattern::matchAndRewrite(
               rewriter, op.getLoc(), yieldingOperands[j]->get(), diff);
           rewriter.modifyOpInPlace(yieldingOperands[j]->getOwner(), [&]() {
             yieldingOperands[j]->set(reduceOp.getResult());
+          });
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return changed ? success() : failure();
+}
+
+LogicalResult RegionBranchOpScaleInvariancePattern::matchAndRewrite(
+    RegionBranchOpInterface op, PatternRewriter& rewriter) const {
+  bool changed = false;
+
+  mlir::RegionBranchInverseSuccessorMapping inverseMapping;
+  op.getSuccessorInputOperandMapping(inverseMapping);
+  for (int i = 0; i < op->getNumResults(); ++i) {
+    Value result = op->getResult(i);
+    if (!isSecret(result, solver)) continue;
+
+    llvm::SmallVector<mlir::OpOperand*> yieldingOperands;
+    yieldingOperands = inverseMapping.lookup(result);
+
+    if (yieldingOperands.size() < 2) continue;
+
+    SmallVector<int64_t> mulDepths;
+    for (OpOperand* operand : yieldingOperands) {
+      auto* mulDepthLattice =
+          solver->lookupState<MulDepthLattice>(operand->get());
+      if (!mulDepthLattice || !mulDepthLattice->getValue().isInt()) {
+        continue;
+      }
+      mulDepths.push_back(mulDepthLattice->getValue().getMulDepth());
+    }
+
+    // Reconcile mul depths if we have all of them.
+    if (mulDepths.size() == yieldingOperands.size()) {
+      int64_t maxMulDepth = *llvm::max_element(mulDepths);
+      for (int j = 0; j < yieldingOperands.size(); ++j) {
+        if (mulDepths[j] < maxMulDepth) {
+          rewriter.setInsertionPoint(yieldingOperands[j]->getOwner());
+          auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+              rewriter, op.getLoc(), yieldingOperands[j]->get(),
+              rewriter.getI64IntegerAttr((*idCounter)++));
+          rewriter.modifyOpInPlace(yieldingOperands[j]->getOwner(), [&]() {
+            yieldingOperands[j]->set(adjustScaleOp.getResult());
           });
           changed = true;
         }

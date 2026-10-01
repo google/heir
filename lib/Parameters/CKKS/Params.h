@@ -25,7 +25,7 @@ class SchemeParam : public RLWESchemeParam {
   void print(llvm::raw_ostream& os) const override;
 
   static SchemeParam getConcreteSchemeParam(
-      int logFirstMod, int logDefaultScale, int numScaleMod, int slotNumber,
+      int logFirstMod, int logDefaultScale, int numScaleMod, int minSlotCount,
       bool usePublicKey, bool encryptionTechniqueExtended, bool reducedError);
 };
 

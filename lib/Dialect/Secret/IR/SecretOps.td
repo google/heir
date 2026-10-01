@@ -97,7 +97,8 @@ def Secret_RevealOp : Secret_Op<"reveal", [Pure]> {
 def Secret_YieldOp : Secret_Op<"yield", [
     // ReturnLike provides a default implementation of
     // RegionBranchTerminatorOpInterface::getMutableSuccessorOperands
-    Pure, ReturnLike, Terminator, HasParent<"GenericOp">
+    Pure, ReturnLike, Terminator, HasParent<"GenericOp">,
+    RequiresLinearKeyBasisOpInterface
 ]>,
   Arguments<(ins Variadic<AnyType>:$values)> {
   let summary = "Secret yield operation";

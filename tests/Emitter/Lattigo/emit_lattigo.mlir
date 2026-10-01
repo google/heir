@@ -48,7 +48,7 @@ module attributes {scheme.bgv} {
     %mul = lattigo.bgv.mul_new %evaluator, %added, %ct2 : (!evaluator, !ct, !ct) -> !ct
     %relin = lattigo.bgv.relinearize_new %evaluator, %mul : (!evaluator, !ct) -> !ct
     %rescale = lattigo.bgv.rescale_new %evaluator, %relin : (!evaluator, !ct) -> !ct
-    %rotate = lattigo.bgv.rotate_columns_new %evaluator, %rescale {static_shift = 1} : (!evaluator, !ct) -> !ct
+    %rotate = lattigo.bgv.rotate_columns_new %evaluator, %rescale <static_shift = 1> : (!evaluator, !ct) -> !ct
     return %rotate : !ct
   }
 
@@ -89,12 +89,12 @@ module attributes {scheme.bgv} {
   // CHECK: [[value4:[^, ].*]] := [[value3Converted]]
   // CHECK: return [[value4]]
   func.func @test_basic_emitter() -> tensor<4xi32> {
-    %param = lattigo.bgv.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
+    %param = lattigo.bgv.new_parameters_from_literal <paramsLiteral = #paramsLiteral> : () -> !params
     %encoder = lattigo.bgv.new_encoder %param : (!params) -> !encoder
     %kgen = lattigo.rlwe.new_key_generator %param : (!params) -> !key_generator
     %sk, %pk = lattigo.rlwe.gen_key_pair %kgen : (!key_generator) -> (!sk, !pk)
     %rk = lattigo.rlwe.gen_relinearization_key %kgen, %sk : (!key_generator, !sk) -> !rk
-    %gk5 = lattigo.rlwe.gen_galois_key %kgen, %sk {galoisElement = 5} : (!key_generator, !sk) -> !gk5
+    %gk5 = lattigo.rlwe.gen_galois_key %kgen, %sk <galoisElement = 5> : (!key_generator, !sk) -> !gk5
     %eval_key_set = lattigo.rlwe.new_evaluation_key_set %rk, %gk5 : (!rk, !gk5) -> !eval_key_set
     %encryptor = lattigo.rlwe.new_encryptor %param, %pk : (!params, !pk) -> !encryptor
     %encryptor_sk = lattigo.rlwe.new_encryptor %param, %sk : (!params, !sk) -> !encryptor_sk
@@ -196,7 +196,7 @@ module attributes {scheme.bgv} {
   func.func @test_drop_level(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     // CHECK: [[ct1:[^, ]*]] := ct.CopyNew()
     // CHECK: evaluator.DropLevel([[ct1]], 2)
-    %ct1 = lattigo.rlwe.drop_level_new %evaluator, %ct {levelToDrop = 2}: (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    %ct1 = lattigo.rlwe.drop_level_new %evaluator, %ct <levelToDrop = 2>: (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
     return %ct1 : !lattigo.rlwe.ciphertext
   }
 }
@@ -372,5 +372,48 @@ module attributes {scheme.bgv} {
     // CHECK: }
     %0 = arith.floordivsi %arg0, %arg1 : tensor<4xi32>
     return %0 : tensor<4xi32>
+  }
+}
+
+// -----
+
+!pt = !lattigo.rlwe.plaintext
+!encoder = !lattigo.bgv.encoder
+!params = !lattigo.bgv.parameter
+
+module attributes {scheme.bgv, scheme.requested_slot_count = 16 : i64} {
+  // CHECK: func Encode_i64
+  func.func @encode_i64(%params: !params, %encoder: !encoder, %value: tensor<4xi64>) -> !pt {
+    // CHECK: [[pt:[^, ].*]] := bgv.NewPlaintext([[params:[^,]*]], [[params]].MaxLevel())
+    // CHECK: [[packed:[^, ].*]] := make([]int64, 16)
+    // CHECK: for i := range [[packed]] {
+    // CHECK:   [[packed]][i] = int64([[value:[^, ].*]][i % len([[value]])])
+    // CHECK: }
+    // CHECK: [[encoder:.*]].Encode([[packed]], [[pt]])
+    %pt = lattigo.bgv.new_plaintext %params : (!params) -> !pt
+    %res = lattigo.bgv.encode %encoder, %value, %pt <scale = 0> : (!encoder, tensor<4xi64>, !pt) -> !pt
+    return %res : !pt
+  }
+}
+
+// -----
+
+!pt = !lattigo.rlwe.plaintext
+!encoder = !lattigo.ckks.encoder
+!params = !lattigo.ckks.parameter
+
+module attributes {scheme.ckks, scheme.requested_slot_count = 16 : i64} {
+  // CHECK: func Encode_f64
+  func.func @encode_f64(%params: !params, %encoder: !encoder, %value: tensor<4xf64>) -> !pt {
+    // CHECK: [[pt:[^, ].*]] := ckks.NewPlaintext([[params:[^,]*]], [[params]].MaxLevel())
+    // CHECK: [[pt]].LogDimensions = ring.Dimensions{Rows: 0, Cols: 4}
+    // CHECK: [[packed:[^, ].*]] := make([]float64, 16)
+    // CHECK: for i := range [[packed]] {
+    // CHECK:   [[packed]][i] = float64([[value:[^, ].*]][i % len([[value]])])
+    // CHECK: }
+    // CHECK: [[encoder:.*]].Encode([[packed]], [[pt]])
+    %pt = lattigo.ckks.new_plaintext %params : (!params) -> !pt
+    %res = lattigo.ckks.encode %encoder, %value, %pt <scale = 45> : (!encoder, tensor<4xf64>, !pt) -> !pt
+    return %res : !pt
   }
 }

@@ -113,7 +113,7 @@ TEST(RotomTensorExtLayoutLoweringTest, TiledRowMajor4x4Evaluate) {
       {9, 10, 11, 12},
       {13, 14, 15, 16},
   };
-  // dim ids 0 and 1 are each split mixed-radix into two pieces, so the relation
+  // dim ids 0 and 1 are each split into two pieces, so the relation
   // has one domain variable per tensor axis: i0 = row, i1 = col -- the pieces
   // of an axis share its variable rather than each binding their own. The
   // packing itself is plain 2x2-tiled row-major.
@@ -414,6 +414,147 @@ TEST(RotomTensorExtLayoutLoweringTest, UnequalExtentRollReducesModFromSize) {
   EXPECT_EQ(packed, expected);
 }
 
+// An `axis` FROM argument rewrites the whole dim's index, and each piece
+// takes its part of the rolled index: ciphertext (g, b) at slot a holds the
+// iteration point k = (a + 4g + b) mod 16 -- the diagonal index split across
+// two ciphertext pieces (the carry between pieces is what a piece FROM
+// cannot express).
+TEST(RotomTensorExtLayoutLoweringTest, AxisRollOnSplitDim) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr kHi = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/4);
+  DimAttr kLo = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/1);
+  DimAttr i = DimAttr::get(&context, /*dim=*/0, /*size=*/16, /*stride=*/1);
+  // rolls (axis 1, 2): the whole k index is rewritten to (k - i) mod 16;
+  // k_hi emits its floor part, k_lo its mod part.
+  LayoutAttr layout = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {kHi, kLo, i}), /*n=*/16,
+      DenseI64ArrayAttr::get(
+          &context,
+          ArrayRef<int64_t>{rotom::encodeRollArg({/*isAxis=*/true, 1}), 2}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        // f(i, k) = 16*i + k, distinct per iteration point.
+        return 16 * static_cast<int>(domainPoint[0]) +
+               static_cast<int>(domainPoint[1]);
+      });
+  ASSERT_EQ(packed.size(), 16u);
+  for (int g = 0; g < 4; ++g) {
+    for (int b = 0; b < 4; ++b) {
+      for (int a = 0; a < 16; ++a) {
+        const int k = (a + 4 * g + b) % 16;
+        EXPECT_EQ(packed[4 * g + b][a], 16 * a + k)
+            << "ct (" << g << ", " << b << ") slot " << a;
+      }
+    }
+  }
+}
+
+// A piece FROM on a split dim rewrites only that piece's part of the index --
+// nothing carries into the other pieces. Rolling the high piece shifts the
+// axis in strides of 4; rolling the low piece rotates within each block of 4.
+TEST(RotomTensorExtLayoutLoweringTest, PieceRollOnSplitDimRotatesOnePiece) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr repl = DimAttr::get(&context, /*dim=*/-1, /*size=*/4, /*stride=*/1);
+  DimAttr d0Hi = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/4);
+  DimAttr d0Lo = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {repl, d0Hi, d0Lo});
+  std::vector<int> vec(16);
+  for (int i = 0; i < 16; ++i) vec[i] = i + 1;
+  auto evaluate = [&](LayoutAttr layout) {
+    FailureOr<std::string> isl =
+        RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+    EXPECT_TRUE(succeeded(isl));
+    auto relation = getIntegerRelationFromIslStr(*isl);
+    EXPECT_TRUE(succeeded(relation));
+    return evaluateLayout<int>(
+        relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+          return vec[domainPoint[0]];
+        });
+  };
+
+  // roll(1, 0): the high piece shifts by the replica index, so replica d
+  // holds the vector rotated by 4d whole (the low bits ride along
+  // untouched, so no borrow is observable here).
+  LayoutAttr hiRolled = LayoutAttr::get(
+      &context, dims, /*n=*/64,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}));
+  std::vector<std::vector<int>> packed = evaluate(hiRolled);
+  ASSERT_EQ(packed.size(), 1u);
+  ASSERT_EQ(packed[0].size(), 64u);
+  for (int d = 0; d < 4; ++d) {
+    for (int a = 0; a < 16; ++a) {
+      EXPECT_EQ(packed[0][16 * d + a], vec[(a + 4 * d) % 16])
+          << "hi-rolled replica " << d << " slot " << a;
+    }
+  }
+
+  // roll(2, 0): the LOW piece shifts by the replica index -- each block of
+  // 4 rotates independently, with no carry into the high piece (the
+  // whole-axis roll, written `axis 0`, would borrow).
+  LayoutAttr loRolled = LayoutAttr::get(
+      &context, dims, /*n=*/64,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{2, 0}));
+  packed = evaluate(loRolled);
+  ASSERT_EQ(packed.size(), 1u);
+  for (int d = 0; d < 4; ++d) {
+    for (int a = 0; a < 16; ++a) {
+      const int block = a / 4;
+      const int within = (a % 4 + d) % 4;
+      EXPECT_EQ(packed[0][16 * d + a], vec[4 * block + within])
+          << "lo-rolled replica " << d << " slot " << a;
+    }
+  }
+}
+
+// Axis arguments: legal only on a split axis (the piece form is
+// canonical when the axis is one piece), and a roll may not shift an axis by
+// one of its own pieces.
+TEST(RotomTensorExtLayoutLoweringTest, AxisRollArgVerifierRules) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr kHi = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/4);
+  DimAttr kLo = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/1);
+  DimAttr i = DimAttr::get(&context, /*dim=*/0, /*size=*/16, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {kHi, kLo, i});
+  ScopedDiagnosticHandler silence(&context,
+                                  [](Diagnostic&) { return success(); });
+  auto swallow =
+      mlir::detail::getDefaultDiagnosticEmitFn(UnknownLoc::get(&context));
+  const int64_t axisK = rotom::encodeRollArg({/*isAxis=*/true, 1});
+  const int64_t axisI = rotom::encodeRollArg({/*isAxis=*/true, 0});
+  const int64_t axisMissing = rotom::encodeRollArg({/*isAxis=*/true, 5});
+
+  // FROM the split axis, BY the unsplit i piece: legal.
+  EXPECT_TRUE(succeeded(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{axisK, 2}))));
+  // An axis argument on an unsplit axis must use the piece form.
+  EXPECT_TRUE(failed(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{axisI, 0}))));
+  // An axis argument must name an axis present in dims.
+  EXPECT_TRUE(failed(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{axisMissing, 2}))));
+  // An axis may not be shifted by one of its own pieces.
+  EXPECT_TRUE(failed(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{axisK, 0}))));
+  // ... nor may a piece be shifted by its own whole axis.
+  EXPECT_TRUE(failed(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, axisK}))));
+}
+
 TEST(RotomTensorExtLayoutLoweringTest, RollVerifierDimKindRules) {
   MLIRContext context;
   context.loadDialect<RotomDialect>();
@@ -472,6 +613,94 @@ TEST(RotomTensorExtLayoutLoweringTest, RollByGapMaterializesRotations) {
   std::vector<std::vector<int>> expected = {
       {1, 2, 3, 4, 2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3}};
   EXPECT_EQ(packed, expected);
+}
+
+// The axis argument is not sugar for rolling every piece: rolling both
+// pieces of a split axis by the same partner wraps each piece
+// INDEPENDENTLY, while the axis form rewrites the whole index so the shift
+// carries across pieces. No combination of piece rolls expresses the latter,
+// which is the reason `axis N` exists.
+TEST(RotomTensorExtLayoutLoweringTest, AxisRollDiffersFromRollingEveryPiece) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr repl = DimAttr::get(&context, /*dim=*/-1, /*size=*/4, /*stride=*/1);
+  DimAttr hi = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/4);
+  DimAttr lo = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {repl, hi, lo});
+  std::vector<int> vec(16);
+  for (int i = 0; i < 16; ++i) vec[i] = i;
+  auto evaluate = [&](LayoutAttr layout) {
+    FailureOr<std::string> isl =
+        RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+    EXPECT_TRUE(succeeded(isl));
+    auto relation = getIntegerRelationFromIslStr(*isl);
+    EXPECT_TRUE(succeeded(relation));
+    return evaluateLayout<int>(
+        relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+          return vec[domainPoint[0]];
+        });
+  };
+
+  // Whole-axis roll by the replica index: replica d holds (a + d) mod 16.
+  std::vector<std::vector<int>> axisRolled = evaluate(LayoutAttr::get(
+      &context, dims, /*n=*/64,
+      DenseI64ArrayAttr::get(
+          &context,
+          ArrayRef<int64_t>{rotom::encodeRollArg({/*isAxis=*/true, 0}), 0})));
+  // Both pieces rolled by the same replica index.
+  std::vector<std::vector<int>> pieceRolled = evaluate(LayoutAttr::get(
+      &context, dims, /*n=*/64,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0, 2, 0})));
+
+  ASSERT_EQ(axisRolled.size(), 1u);
+  ASSERT_EQ(pieceRolled.size(), 1u);
+  for (int d = 0; d < 4; ++d) {
+    for (int a = 0; a < 16; ++a) {
+      EXPECT_EQ(axisRolled[0][16 * d + a], (a + d) % 16)
+          << "axis-rolled replica " << d << " slot " << a;
+      // Per-piece wrapping: the high piece takes no carry out of the low.
+      EXPECT_EQ(pieceRolled[0][16 * d + a],
+                4 * ((a / 4 + d) % 4) + (a % 4 + d) % 4)
+          << "piece-rolled replica " << d << " slot " << a;
+    }
+  }
+  // Concretely different maps, not just different forms.
+  EXPECT_NE(axisRolled[0], pieceRolled[0]);
+}
+
+// Canonicalization inserts the front gap that fills the slot side, which
+// shifts PIECE arguments at or past the insertion; an axis argument names an
+// axis and must not move. Writing the gap explicitly (with the argument
+// already shifted) must therefore produce the very same attribute.
+TEST(RotomTensorExtLayoutLoweringTest, GapInsertionShiftsOnlyPieceArgs) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  // Slot side holds 16 of 32 slots, so canonicalization inserts [G:2:1].
+  SmallVector<DimAttr> dims = {
+      DimAttr::get(&context, /*dim=*/1, /*size=*/2, /*stride=*/2),
+      DimAttr::get(&context, /*dim=*/1, /*size=*/2, /*stride=*/1),
+      DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1)};
+  const int64_t axisK = rotom::encodeRollArg({/*isAxis=*/true, 1});
+  // roll(axis 1, 2): the whole split k rolled by the i piece at position 2.
+  LayoutAttr inserted = LayoutAttr::getCanonical(&context, dims, /*n=*/32,
+                                                 ArrayRef<int64_t>{axisK, 2});
+  ASSERT_TRUE(inserted);
+
+  SmallVector<DimAttr> withUnitAxis = {
+      DimAttr::get(&context, /*dim=*/-2, /*size=*/2, /*stride=*/1)};
+  withUnitAxis.append(dims.begin(), dims.end());
+  // Same packing written out: the gap is explicit and the piece argument
+  // already accounts for it, while the axis argument is unchanged.
+  LayoutAttr explicitGap = LayoutAttr::getCanonical(
+      &context, withUnitAxis, /*n=*/32, ArrayRef<int64_t>{axisK, 3});
+  ASSERT_TRUE(explicitGap);
+
+  EXPECT_EQ(inserted, explicitGap);
+  ArrayRef<int64_t> rolls = inserted.getRolls().asArrayRef();
+  ASSERT_EQ(rolls.size(), 2u);
+  EXPECT_TRUE(rotom::decodeRollArg(rolls[0]).isAxis);
+  EXPECT_EQ(rotom::decodeRollArg(rolls[0]).index, 1);
+  EXPECT_EQ(rolls[1], 3);
 }
 
 }  // namespace

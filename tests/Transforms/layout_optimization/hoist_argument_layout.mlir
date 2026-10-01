@@ -16,7 +16,7 @@ module {
   func.func @simple_add(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>):
-      %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, tensor_ext.layout = #layout, to_layout = #layout} : tensor<32xi16>
+      %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<32xi16>
       %2 = arith.addi %1, %input1 {tensor_ext.layout = #layout} : tensor<32xi16>
       secret.yield %2 : tensor<32xi16>
     } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
@@ -46,7 +46,7 @@ module {
   func.func @different_conversions(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}, !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>):
-      %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, tensor_ext.layout = #layout, to_layout = #layout} : tensor<32xi16>
+      %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<32xi16>
       %2 = arith.addi %1, %input1 {tensor_ext.layout = #layout} : tensor<32xi16>
       secret.yield %2 : tensor<32xi16>
     } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
@@ -81,13 +81,13 @@ module {
   func.func @same_conversions(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}, !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>):
-      %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, tensor_ext.layout = #layout, to_layout = #layout} : tensor<32xi16>
+      %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<32xi16>
       %2 = arith.addi %1, %input1 {tensor_ext.layout = #layout} : tensor<32xi16>
       secret.yield %2 : tensor<32xi16>
     } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
     %1 = secret.generic(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>):
-      %1 = tensor_ext.convert_layout %input0 {from_layout = #layout1, tensor_ext.layout = #layout, to_layout = #layout} : tensor<32xi16>
+      %1 = tensor_ext.convert_layout %input0 <from_layout = #layout1, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<32xi16>
       %2 = arith.addi %1, %input1 {tensor_ext.layout = #layout} : tensor<32xi16>
       secret.yield %2 : tensor<32xi16>
     } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})

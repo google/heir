@@ -39,6 +39,21 @@ func.func @multiple_broadcast(%arg0: tensor<3xf32>, %arg1: tensor<16xf32>, %arg2
 
 // -----
 
+// CHECK: @broadcast_to_singleton
+func.func @broadcast_to_singleton() -> tensor<1xi64> {
+  %cst = tensor.empty() : tensor<1xi64>
+  // CHECK: arith.constant dense<0> : tensor<1xi64>
+  // CHECK-NOT: linalg
+  %c0_i64 = arith.constant 0 : i64
+  %0 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} outs(%cst : tensor<1xi64>) {
+  ^bb0(%out: i64):
+    linalg.yield %c0_i64 : i64
+  } -> tensor<1xi64>
+  return %0 : tensor<1xi64>
+}
+
+// -----
+
 // CHECK: @single_input_no_broadcast
 func.func @single_input_no_broadcast(%arg0: tensor<3xf32>) -> tensor<3x16xf32> {
   %cst = tensor.empty() : tensor<3x16xf32>
@@ -72,4 +87,26 @@ func.func @reduction_no_broadcast(%arg0: tensor<3x16xf32>) -> tensor<3xf32> {
     linalg.yield %1 : f32
   } -> tensor<3xf32>
   return %0 : tensor<3xf32>
+}
+
+// -----
+
+// CHECK: @broadcast_type_mismatch
+func.func @broadcast_type_mismatch(%arg0: tensor<3xi32>, %arg1: tensor<3x16xf32>) -> tensor<3x16xf32> {
+  %cst = tensor.empty() : tensor<3x16xf32>
+  // CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<3x16xi32>
+  // CHECK: %[[EXPANDED:.*]] = linalg.broadcast ins(%arg0 : tensor<3xi32>) outs(%[[EMPTY]] : tensor<3x16xi32>)
+  // CHECK: %[[SITOFP:.*]] = arith.sitofp %[[EXPANDED]] : tensor<3x16xi32> to tensor<3x16xf32>
+  // CHECK: %[[ADD:.*]] = arith.addf %[[SITOFP]], %arg1 : tensor<3x16xf32>
+  // CHECK: return %[[ADD]]
+  %0 = linalg.generic {
+    indexing_maps = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+    iterator_types = ["parallel", "parallel"]
+  } ins(%arg0, %arg1 : tensor<3xi32>, tensor<3x16xf32>) outs(%cst : tensor<3x16xf32>) {
+  ^bb0(%in: i32, %in_0: f32, %out: f32):
+    %1 = arith.sitofp %in : i32 to f32
+    %2 = arith.addf %1, %in_0 : f32
+    linalg.yield %2 : f32
+  } -> tensor<3x16xf32>
+  return %0 : tensor<3x16xf32>
 }

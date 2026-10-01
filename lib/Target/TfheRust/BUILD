@@ -17,6 +17,7 @@ cc_library(
     deps = [
         ":Utils",
         "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
         "@heir//lib/Utils/Graph",
@@ -38,6 +39,7 @@ cc_library(
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
     deps = [
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@llvm-project//llvm:Support",

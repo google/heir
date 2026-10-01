@@ -56,10 +56,10 @@ namespace {
 // Returns an RLWE RNS ring given the specified number of bits needed and
 // polynomial modulus degree.
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
-    MLIRContext* ctx, const std::vector<int64_t>& primes, int polyModDegree) {
+    MLIRContext* ctx, const std::vector<int64_t>& primes, int minSlotCount) {
   // monomial
   std::vector<polynomial::IntMonomial> monomials;
-  monomials.emplace_back(1, polyModDegree);
+  monomials.emplace_back(1, minSlotCount);
   monomials.emplace_back(1, 0);
   auto result = polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
@@ -100,7 +100,10 @@ class SecretToBGVTypeConverter
         ring(rlweRing),
         plaintextModulus(ptm),
         isBFV(isBFV) {
-    addConversion([](Type type, Attribute attr) { return type; });
+    addConversion([](Type type, Attribute attr) -> std::optional<Type> {
+      if (isa<secret::SecretType>(type)) return std::nullopt;
+      return type;
+    });
     addConversion(
         [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
           // For cases like tensor.empty + mgmt.init, we need to convert this
@@ -217,22 +220,16 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     bool usePublicKey =
         schemeParamAttr.getEncryptionType() == bgv::BGVEncryptionType::pk;
 
-    // NOTE: 2 ** logN != polyModDegree
-    // they have different semantic
-    // auto logN = schemeParamAttr.getLogN();
     auto plaintextModulus = schemeParamAttr.getPlaintextModulus();
-
-    // pass option polyModDegree is actually the number of slots
-    // TODO(#1402): use a proper name for BGV
     auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   polyModDegree);
+                                   1 << schemeParamAttr.getLogN());
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
     // Ensure that all secret types are uniform and have last dimension
-    // matching the ring parameter size. In other words, this asserts that any
-    // data-semantic tensors have been converted to ciphertext-semantic tensors
-    // with the correct shape.
+    // less than or equal to the ring parameter size. In other words, this
+    // asserts that any data-semantic tensors have been converted to
+    // ciphertext-semantic tensors with the correct shape.
     Operation* foundOp = walkAndDetect(module, [&](Operation* op) {
       ValueRange valuesToCheck = op->getOperands();
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
@@ -241,7 +238,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       for (auto value : valuesToCheck) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy && tensorTy.getDimSize(tensorTy.getRank() - 1) !=
+          if (tensorTy && tensorTy.getDimSize(tensorTy.getRank() - 1) >
                               rlweRing.value()
                                   .getPolynomialModulus()
                                   .getPolynomial()
@@ -255,7 +252,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     if (foundOp != nullptr) {
       foundOp->emitError(
           "expected secret types to be tensors with last dimension "
-          "matching ring parameter");
+          "less than or equal to ring parameter");
       signalPassFailure();
       return;
     }

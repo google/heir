@@ -29,16 +29,16 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
 
   func.func @multiple_conceal(%arg0: !ty, %cond: i1) -> (!ty, !ty) {
     %cst = arith.constant dense<4> : tensor<1024xi16>
-    %pt = lwe.rlwe_encode %cst {
+    %pt = lwe.rlwe_encode %cst <
       encoding = #full_crt_packing_encoding,
       ring = #ring_Z65537_i64_1_x32_
-    } : tensor<1024xi16> -> !pt
+    > : tensor<1024xi16> -> !pt
     %4 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index} : !pt -> !ty
     %5 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index} : !pt -> !ty
     return %4, %5 : !ty, !ty
   }
 
-  func.func @enc_helper(%arg0: tensor<32xf32>, %pk: !pkey) attributes {client.enc_func = {func_name = "doctest", index = 0 : i64}} {
+  func.func @enc_helper(%arg0: tensor<32xf32>, %pk: !pkey) attributes {heir.interface = {func_name = "doctest", index = 0 : i64, roles = ["client.encrypt"]}} {
     return
   }
   // CHECK: func @multiple_conceal__encrypt__zero__0(
@@ -54,10 +54,10 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
   // CHECK-DAG: func @multiple_conceal_different_types__encrypt__zero__1(
   func.func @multiple_conceal_different_types(%arg0: !ty, %cond: i1) -> (!ty, !ty2) {
     %cst = arith.constant dense<4> : tensor<1024xi16>
-    %pt = lwe.rlwe_encode %cst {
+    %pt = lwe.rlwe_encode %cst <
       encoding = #full_crt_packing_encoding,
       ring = #ring_Z65537_i64_1_x32_
-    } : tensor<1024xi16> -> !pt
+    > : tensor<1024xi16> -> !pt
     %4 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index} : !pt -> !ty
     %5 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index} : !pt -> !ty2
     return %4, %5 : !ty, !ty2
@@ -73,10 +73,10 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
   // CHECK-DAG: func @multiple_conceal_different_mgmt__encrypt__zero__1(
   func.func @multiple_conceal_different_mgmt(%arg0: !ty, %cond: i1) -> (!ty, !ty) {
     %cst = arith.constant dense<4> : tensor<1024xi16>
-    %pt = lwe.rlwe_encode %cst {
+    %pt = lwe.rlwe_encode %cst <
       encoding = #full_crt_packing_encoding,
       ring = #ring_Z65537_i64_1_x32_
-    } : tensor<1024xi16> -> !pt
+    > : tensor<1024xi16> -> !pt
     %4 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index, mgmt.mgmt = #mgmt.mgmt<level = 0>} : !pt -> !ty
     %5 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index, mgmt.mgmt = #mgmt.mgmt<level = 1>} : !pt -> !ty
     return %4, %5 : !ty, !ty

@@ -1,5 +1,6 @@
 # Lattigo Emitter
 
+load("@heir//lib/Target/CompilationTarget:defs.bzl", "heir_backend_config")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
@@ -19,6 +20,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
@@ -29,10 +31,16 @@ cc_library(
         "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MathDialect",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TranslateLib",
     ],
+)
+
+heir_backend_config(
+    name = "lattigo_backend_config",
+    srcs = ["TargetConfig.td"],
 )

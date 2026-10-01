@@ -15,6 +15,6 @@ func.func public @test_ntt_rns() -> !ntt_poly {
   %coeffsRaw = arith.constant dense<[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8]]> : tensor<8x2xi64>
   %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<8x2xi64> -> tensor<8x!rns>
   %poly = polynomial.from_tensor %coeffs : tensor<8x!rns> -> !poly
-  %res = polynomial.ntt %poly {root = #root} : !poly
+  %res = polynomial.ntt %poly <root = #root> : !poly
   return %res : !ntt_poly
 }

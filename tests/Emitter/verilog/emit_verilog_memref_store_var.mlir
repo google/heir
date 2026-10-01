@@ -8,7 +8,7 @@ module {
   func.func @main(%arg: i4) -> memref<4xi8> {
     %arg_index = arith.index_cast %arg : i4 to index
     %c0 = arith.constant 0 : i8
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<4xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<4xi8>
     affine.store %c0, %alloc[%arg_index] : memref<4xi8>
     return %alloc : memref<4xi8>
   }

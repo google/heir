@@ -1,4 +1,4 @@
-// RUN: heir-opt --add-client-interface="ciphertext-size=1024" --canonicalize %s | FileCheck %s
+// RUN: heir-opt --add-client-interface="min-slot-count=1024" --canonicalize %s | FileCheck %s
 
 // Data is 32x64, being packed into ciphertexts of size 1024 via Halevi-Shoup
 // diagonal layout.

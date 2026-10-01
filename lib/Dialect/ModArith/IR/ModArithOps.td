@@ -16,7 +16,7 @@ def ModQLike : TypeOrValueSemanticsContainer<ModQTypeInterface, "mod_q-like">;
 class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
         Op<ModArith_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::mod_arith";
-  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+  let assemblyFormat = "operands prop-dict attr-dict `:` functional-type(operands, results)";
 }
 
 // type conversion operations
@@ -213,7 +213,7 @@ def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce", [SameOperandsAndRes
     APIntAttr:$modulus
   );
   let results = (outs SignlessIntegerLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input))";
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input))";
 
   let hasVerifier = 1;
 }

@@ -66,8 +66,11 @@ void oneShotBufferize(OpPassManager& manager, bool includeDeallocation) {
   manager.addPass(createCanonicalizerPass());
 }
 
-void mathToPolynomialApproximationBuilder(OpPassManager& pm) {
-  pm.addPass(createPolynomialApproximation());
+void mathToPolynomialApproximationBuilder(OpPassManager& pm,
+                                          bool useCompositeRelu) {
+  PolynomialApproximationOptions polyApproxOptions;
+  polyApproxOptions.useCompositeRelu = useCompositeRelu;
+  pm.addPass(createPolynomialApproximation(polyApproxOptions));
   pm.addPass(createLowerPolynomialEval());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());

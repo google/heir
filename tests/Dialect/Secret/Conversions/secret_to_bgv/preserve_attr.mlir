@@ -18,9 +18,9 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
   // CHECK: func @test_preserve_debug_validate
   func.func @test_preserve_debug_validate(%arg0 : !eui1 {mgmt.mgmt = #mgmt}) {
     secret.generic(%arg0: !eui1) {
-    // CHECK: debug.validate {{.*}} {metadata = "some_metadata", name = "val1", some_dialect.some_attr = 1 : i64}
+    // CHECK: debug.validate {{.*}} <name = "val1", metadata = "some_metadata"> {some_dialect.some_attr = 1 : i64}
       ^bb0(%ARG0 : tensor<1024xi1>):
-        debug.validate %ARG0 {name = "val1", metadata = "some_metadata", some_dialect.some_attr = 1} : tensor<1024xi1>
+        debug.validate %ARG0 <name = "val1", metadata = "some_metadata"> {some_dialect.some_attr = 1} : tensor<1024xi1>
         secret.yield
     }
     return

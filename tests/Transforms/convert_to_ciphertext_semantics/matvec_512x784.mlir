@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics="ciphertext-size=1024 unroll-kernels=false" | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics="min-slot-count=1024 unroll-kernels=false" | FileCheck %s
 //
 // Ensure that the if guards are inserted properly for a non-square matvec kernel
 //
@@ -23,14 +23,18 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 512 = 0 and 0 <= i0 <= 511 and 0 <= slot <= 1023 }">
 #layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 783 and 0 <= slot <= 1023 }">
 #layout2 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 512 = 0 and (-i1 + ct + slot) mod 1024 = 0 and 0 <= i0 <= 511 and 0 <= i1 <= 783 and 0 <= ct <= 511 and 0 <= slot <= 1023 }">
-module attributes {backend.lattigo, scheme.ckks} {
+module attributes {
+  backend.lattigo,
+  backend.config_override = {has_kernel_linear_transform = false},
+  scheme.ckks
+} {
   func.func @matvec(%arg0: !secret.secret<tensor<784xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<512xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<512xf32>
     %cst_0 = arith.constant dense<1.000000e+00> : tensor<512x784xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<784xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<784xf32>):
-      %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<512x784xf32>
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<512xf32>
+      %1 = tensor_ext.assign_layout %cst_0 <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<512x784xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<512xf32>
       %3 = linalg.matvec {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%1, %input0 : tensor<512x784xf32>, tensor<784xf32>) outs(%2 : tensor<512xf32>) -> tensor<512xf32>
       secret.yield %3 : tensor<512xf32>
     } -> (!secret.secret<tensor<512xf32>> {tensor_ext.layout = #layout})

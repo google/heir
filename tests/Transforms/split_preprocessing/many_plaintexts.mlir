@@ -7,12 +7,12 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> !preprocessing.storage<!pt>
-// CHECK-SAME: client.pack_func = {func_name = "multiple"}
+// CHECK-SAME: heir.interface = {entry_arg_indices = array<i64: 1>, func_name = "multiple", roles = ["server.preprocessing"]}
 // CHECK: %[[STORAGE:.*]] = preprocessing.empty
 // CHECK-COUNT-2: lwe.rlwe_encode
 
 // CHECK: func.func @multiple__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<2x1024xf32>, %[[STORAGE:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
-// CHECK-SAME: client.preprocessed_func = {func_name = "multiple"}
+// CHECK-SAME: heir.interface = {func_name = "multiple", roles = ["client.preprocessed", "server.evaluate"]}
 
 // CHECK: func.func @multiple
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]],
@@ -41,8 +41,8 @@
 func.func @multiple(%ct: !ct_L1, %tensorC1: tensor<2x1024xf32>) -> (!ct_L1) {
   %c1 = tensor.extract_slice %tensorC1[0, 0] [1, 1024] [1, 1] : tensor<2x1024xf32> to tensor<1024xf32>
   %c2 = tensor.extract_slice %tensorC1[1, 0] [1, 1024] [1, 1] : tensor<2x1024xf32> to tensor<1024xf32>
-  %pt1 = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
-  %pt2 = lwe.rlwe_encode %c2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt1 = lwe.rlwe_encode %c1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
+  %pt2 = lwe.rlwe_encode %c2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %0 = ckks.add_plain %ct, %pt1 : (!ct_L1, !pt) -> !ct_L1
   %1 = ckks.add_plain %ct, %pt2 : (!ct_L1, !pt) -> !ct_L1
   return %1 : !ct_L1

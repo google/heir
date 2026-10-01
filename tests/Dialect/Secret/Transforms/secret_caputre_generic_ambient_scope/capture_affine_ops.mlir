@@ -8,7 +8,7 @@ module attributes {tf_saved_model.semantics} {
     %0 = memref.get_global @__constant_16x1xi8 : memref<16x1xi8>
     // CHECK: %[[mem:.*]] = secret.generic
     %5 = secret.generic() {
-      %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc = memref.alloc() alignment = 64 : memref<1x16xi8>
       secret.yield %alloc : memref<1x16xi8>
     } -> !secret.secret<memref<1x16xi8>>
     // CHECK: affine.for %[[i:.*]] = 0 to 1
@@ -27,7 +27,7 @@ module attributes {tf_saved_model.semantics} {
     }
     // CHECK: %[[mem1:.*]] = secret.generic
     %7 = secret.generic() {
-      %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc = memref.alloc() alignment = 64 : memref<1x16xi8>
       secret.yield %alloc : memref<1x16xi8>
     } -> !secret.secret<memref<1x16xi8>>
     // CHECK: affine.for %[[j:.*]] = 0 to 16

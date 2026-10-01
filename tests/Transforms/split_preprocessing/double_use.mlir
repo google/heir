@@ -28,7 +28,7 @@
 func.func @constant(%ct: tensor<2x!ct_L1>, %cleartext: tensor<1x1024xf32>) -> (tensor<1x!ct_L1>) {
   %c0 = arith.constant 0 : index
   %slice = tensor.extract_slice %cleartext [%c0, %c0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-  %pt = lwe.rlwe_encode %slice {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt = lwe.rlwe_encode %slice <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %pt_tensor = tensor.from_elements %pt : tensor<1x!pt>
   %ct_slice = tensor.extract_slice %ct [%c0] [1] [1] : tensor<2x!ct_L1> to tensor<1x!ct_L1>
   %0 = ckks.add_plain %ct_slice, %pt_tensor : (tensor<1x!ct_L1>, tensor<1x!pt>) -> tensor<1x!ct_L1>

@@ -3,12 +3,21 @@
 
 #include <functional>
 
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
+
+inline bool isBlockLive(Block* block, DataFlowSolver* solver) {
+  if (!block) return false;
+  if (!solver) return true;
+  auto* pp = solver->getProgramPointBefore(block);
+  auto* live = solver->lookupState<mlir::dataflow::Executable>(pp);
+  return live && live->isLive();
+}
 
 // A generalized version of visitExternalCall that joins all arguments to the
 // func.call op, and then propagates this joined value to all results. This is

@@ -28,19 +28,19 @@ func.func @simple_sum(%arg0: !ty) -> !ty {
   %c1_i16 = arith.constant 1 : i16
   %cst = arith.constant dense<0> : tensor<32xi16>
   %inserted = tensor.insert %c1_i16 into %cst[%c31] : tensor<32xi16>
-  %0 = bgv.rotate_cols %arg0 { static_shift = 16 } : !ty
+  %0 = bgv.rotate_cols %arg0 <static_shift = 16> : !ty
   %1 = bgv.add %arg0, %0 : (!ty, !ty) -> !ty
-  %2 = bgv.rotate_cols %1 { static_shift = 8 } : !ty
+  %2 = bgv.rotate_cols %1 <static_shift = 8> : !ty
   %3 = bgv.add %1, %2 : (!ty, !ty) -> !ty
-  %4 = bgv.rotate_cols %3 { static_shift = 4 } : !ty
+  %4 = bgv.rotate_cols %3 <static_shift = 4> : !ty
   %5 = bgv.add %3, %4 : (!ty, !ty) -> !ty
-  %6 = bgv.rotate_cols %5 { static_shift = 2 } : !ty
+  %6 = bgv.rotate_cols %5 <static_shift = 2> : !ty
   %7 = bgv.add %5, %6 : (!ty, !ty) -> !ty
-  %8 = bgv.rotate_cols %7 { static_shift = 1 } : !ty
+  %8 = bgv.rotate_cols %7 <static_shift = 1> : !ty
   %9 = bgv.add %7, %8 : (!ty, !ty) -> !ty
-  %pt = lwe.rlwe_encode %inserted {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi16> -> !pt
+  %pt = lwe.rlwe_encode %inserted <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_> : tensor<32xi16> -> !pt
   %10 = bgv.mul_plain %9, %pt : (!ty, !pt) -> !ty
-  %11 = bgv.rotate_cols %10 {static_shift = 31 : index} : !ty
+  %11 = bgv.rotate_cols %10 <static_shift = 31 : index> : !ty
   return %11 : !ty
 }
 
@@ -74,11 +74,11 @@ func.func @mixed_test(%arg0: !sk1, %arg1: !ty, %arg2: !ty2) -> (!ty, !ty2) {
   func.call @__heir_debug_0(%arg0, %arg1) : (!sk1, !ty) -> ()
 
   // CHECK: %[[rotate1:.*]] = bgv.rotate_cols %[[arg1]]
-  %0 = bgv.rotate_cols %arg1 { static_shift = 16 } : !ty
+  %0 = bgv.rotate_cols %arg1 <static_shift = 16> : !ty
   // CHECK: call @__heir_debug_0(%[[sk]], %[[rotate1]])
 
   // CHECK: %[[rotate2:.*]] = bgv.rotate_cols %[[arg2]]
-  %1 = bgv.rotate_cols %arg2 { static_shift = 16 } : !ty2
+  %1 = bgv.rotate_cols %arg2 <static_shift = 16> : !ty2
   // CHECK: call @__heir_debug_1(%[[sk]], %[[rotate2]])
 
   return %0, %1 : !ty, !ty2

@@ -7,7 +7,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8_debug_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bfv",
-        "--mlir-to-bfv=ciphertext-degree=8192 annotate-noise-bound=true",
+        "--mlir-to-bfv=min-slot-count=8192 annotate-noise-bound=true",
         "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],
@@ -24,7 +24,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8_default_debug_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bfv",
-        "--mlir-to-bfv=ciphertext-degree=8192 annotate-noise-bound=true",
+        "--mlir-to-bfv=min-slot-count=8192 annotate-noise-bound=true",
         "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],

@@ -27,6 +27,7 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
     ],
@@ -67,6 +68,7 @@ cc_library(
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Utils",
         "@heir//lib/Utils:RotationUtils",
+        "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
@@ -85,6 +87,7 @@ td_library(
     deps = [
         "@heir//lib/Dialect:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:DestinationStyleOpInterfaceTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
     ],

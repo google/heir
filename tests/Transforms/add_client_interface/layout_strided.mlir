@@ -1,4 +1,4 @@
-// RUN: heir-opt --add-client-interface="ciphertext-size=32" --canonicalize --cse %s | FileCheck %s
+// RUN: heir-opt --add-client-interface="min-slot-count=32" --canonicalize --cse %s | FileCheck %s
 
 // Go from 16xi16 -> 1x32xi16 with a layout that strides the input by 2
 !ct_ty = !secret.secret<tensor<1x32xi16>>

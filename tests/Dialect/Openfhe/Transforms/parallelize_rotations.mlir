@@ -29,10 +29,10 @@ module attributes {scheme.ckks} {
     %c3 = arith.constant 3 : index
     %c4 = arith.constant 4 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
-    %res1 = openfhe.fast_rotation %cc, %input1, %c1, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
-    %res2 = openfhe.fast_rotation %cc, %input1, %c2, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
-    %res3 = openfhe.fast_rotation %cc, %input1, %c3, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
-    %res4 = openfhe.fast_rotation %cc, %input1, %c4, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %res1 = openfhe.fast_rotation %cc, %input1, %c1, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %res2 = openfhe.fast_rotation %cc, %input1, %c2, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %res3 = openfhe.fast_rotation %cc, %input1, %c3, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %res4 = openfhe.fast_rotation %cc, %input1, %c4, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
     %sum1 = openfhe.add %cc, %res1, %res2 : (!cc, !ct, !ct) -> !ct
     %sum2 = openfhe.add %cc, %sum1, %res3 : (!cc, !ct, !ct) -> !ct
     %sum3 = openfhe.add %cc, %sum2, %res4 : (!cc, !ct, !ct) -> !ct

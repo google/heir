@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -8,6 +10,8 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/EvalVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
+#include "lib/Utils/RotationUtils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -239,6 +243,125 @@ TEST(RotateAndReduceImplTest, RegressionTest) {
   std::vector<int> expected = runNaive(vector, plaintexts, period, n);
   std::vector<int> actual = runImpl(vector, plaintexts, period, n);
   EXPECT_EQ(expected, actual);
+}
+
+std::vector<int> runBroadcastedReduceImpl(
+    const std::vector<int>& vec, std::optional<std::vector<int>> cleanupMask,
+    int64_t period, int64_t steps, bool unroll = true) {
+  using NodeTy = ArithmeticDagNode<LiteralValue>;
+  using NodePtr = std::shared_ptr<NodeTy>;
+
+  LiteralValue vectorInput(vec);
+  auto vectorDag = NodeTy::leaf(vectorInput);
+
+  std::optional<NodePtr> cleanupMaskDag = std::nullopt;
+  if (cleanupMask.has_value()) {
+    cleanupMaskDag = NodeTy::leaf(LiteralValue(cleanupMask.value()));
+  }
+
+  auto result = implementBroadcastedReduce<LiteralValue>(
+      vectorDag, cleanupMaskDag, period, steps, vec.size(),
+      DagType::intTensor(32, {static_cast<int64_t>(vec.size())}), "arith.addi",
+      unroll);
+
+  return std::get<std::vector<int>>(evalKernel(result)[0].get());
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Natural_PowerOfTwo) {
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7};
+  std::vector<int> expected(8, 28);
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, std::nullopt, 1, 8, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Natural_Stride) {
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7};
+  std::vector<int> expected = {12, 16, 12, 16, 12, 16, 12, 16};
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, std::nullopt, 2, 4, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Masked_Contiguous) {
+  std::vector<int> vector = {0,  1,  2,  3,  4,  5,  6,  7,
+                             10, 11, 12, 13, 14, 15, 16, 17};
+  std::vector<int> mask = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1};
+  std::vector<int> expected = {28,  28,  28,  28,  28,  28,  28,  28,
+                               108, 108, 108, 108, 108, 108, 108, 108};
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, mask, 1, 8, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Masked_Stride) {
+  std::vector<int> vector = {0,  1,  2,  3,  4,  5,  6,  7,
+                             10, 11, 12, 13, 14, 15, 16, 17};
+  std::vector<int> mask = {0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1};
+  std::vector<int> expected = {12, 16, 12, 16, 12, 16, 12, 16,
+                               52, 56, 52, 56, 52, 56, 52, 56};
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, mask, 2, 4, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+void collectRotations(
+    const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& node,
+    llvm::DenseSet<int64_t>& rotations,
+    std::unordered_set<const ArithmeticDagNode<LiteralValue>*>& visited) {
+  if (!node || !visited.insert(node.get()).second) return;
+  if (auto* rotate =
+          std::get_if<LeftRotateNode<LiteralValue>>(&node->node_variant)) {
+    if (auto* scalar =
+            std::get_if<ConstantScalarNode>(&rotate->shift->node_variant)) {
+      rotations.insert(static_cast<int64_t>(scalar->value));
+    }
+    collectRotations(rotate->operand, rotations, visited);
+    collectRotations(rotate->shift, rotations, visited);
+    return;
+  }
+  if (auto* add = std::get_if<AddNode<LiteralValue>>(&node->node_variant)) {
+    collectRotations(add->left, rotations, visited);
+    collectRotations(add->right, rotations, visited);
+    return;
+  }
+}
+
+TEST(RotateAndReduceImplTest, TestPredictorSync) {
+  std::vector<int> dummyVec = {1};
+  LiteralValue val(dummyVec);
+  auto leaf = ArithmeticDagNode<LiteralValue>::leaf(val);
+  auto addReducer = [](std::shared_ptr<ArithmeticDagNode<LiteralValue>> a,
+                       std::shared_ptr<ArithmeticDagNode<LiteralValue>> b) {
+    return ArithmeticDagNode<LiteralValue>::add(a, b);
+  };
+
+  for (int64_t period : {1, 3, 7}) {
+    for (int64_t steps = 1; steps <= 100; ++steps) {
+      auto dag = implementRotateAndReduceAccumulation<LiteralValue>(
+          leaf, period, steps, addReducer);
+      llvm::DenseSet<int64_t> actualRotations;
+      std::unordered_set<const ArithmeticDagNode<LiteralValue>*> visited;
+      collectRotations(dag, actualRotations, visited);
+
+      llvm::DenseSet<int64_t> predicted = rotateAndReduceRotationIndices(
+          period, steps, /*hasPlaintexts=*/false);
+      EXPECT_EQ(actualRotations, predicted)
+          << "Mismatch for period=" << period << ", steps=" << steps;
+    }
+  }
 }
 
 }  // namespace

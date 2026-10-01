@@ -119,7 +119,7 @@ func.func @test_fold_rns_ntt() -> !rns_poly_ev_ty {
   // CHECK: %[[CST:.*]] = polynomial.constant #polynomial<rns_polynomial<dense<{{\[\[}}9, 10{{\]}}, {{\[}}10, 9{{\]\]}}> : tensor<2x2xi32>, eval> : [[TY5:![a-zA-Z0-9_]+]]> : [[TY5]]
   // CHECK: return %[[CST]] : [[TY5]]
   %0 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>> : !rns_poly_ty
-  %1 = polynomial.ntt %0 {root = #root} : !rns_poly_ty
+  %1 = polynomial.ntt %0 <root = #root> : !rns_poly_ty
   return %1 : !rns_poly_ev_ty
 }
 
@@ -129,7 +129,7 @@ func.func @test_fold_rns_intt() -> !rns_poly_ty {
   // CHECK: %[[CST:.*]] = polynomial.constant #polynomial<rns_polynomial<dense<{{\[\[}}10, 2{{\]}}, {{\[}}10, 9{{\]\]}}> : tensor<2x2xi32>> : [[TY6:![a-zA-Z0-9_]+]]> : [[TY6]]
   // CHECK: return %[[CST]] : [[TY6]]
   %0 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>, eval> : !rns_poly_ev_ty
-  %1 = polynomial.intt %0 {root = #root} : !rns_poly_ev_ty
+  %1 = polynomial.intt %0 <root = #root> : !rns_poly_ev_ty
   return %1 : !rns_poly_ty
 }
 
@@ -140,7 +140,7 @@ func.func @test_fold_rns_extract_slice() -> !rns_sliced_poly_ty {
   // CHECK: %[[CST:.*]] = polynomial.constant #polynomial<rns_polynomial<dense<{{\[\[}}3, 4{{\]\]}}> : tensor<1x2xi32>> : [[TY7:![a-zA-Z0-9_]+]]> : [[TY7]]
   // CHECK: return %[[CST]] : [[TY7]]
   %0 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>> : !rns_poly_ty
-  %1 = polynomial.extract_slice %0 {start = 1 : index, size = 1 : index} : !rns_poly_ty -> !rns_sliced_poly_ty
+  %1 = polynomial.extract_slice %0 <start = 1, size = 1> : !rns_poly_ty -> !rns_sliced_poly_ty
   return %1 : !rns_sliced_poly_ty
 }
 
@@ -251,7 +251,7 @@ func.func @test_fold_mod_arith_ntt() -> !mod_poly_ev_ty {
   // CHECK: %[[CST:.*]] = polynomial.constant int<9 + 10x> : [[TY_MOD_NTT:![a-zA-Z0-9_]+]]
   // CHECK: return %[[CST]] : [[TY_MOD_NTT]]
   %0 = polynomial.constant int<1 + 2x> : !mod_poly_ty
-  %1 = polynomial.ntt %0 {root = #mod_root} : !mod_poly_ty
+  %1 = polynomial.ntt %0 <root = #mod_root> : !mod_poly_ty
   return %1 : !mod_poly_ev_ty
 }
 
@@ -261,7 +261,7 @@ func.func @test_fold_mod_arith_intt() -> !mod_poly_ty {
   // CHECK: %[[CST:.*]] = polynomial.constant int<10 + 2x> : [[TY_MOD_INTT:![a-zA-Z0-9_]+]]
   // CHECK: return %[[CST]] : [[TY_MOD_INTT]]
   %0 = polynomial.constant int<1 + 2x> : !mod_poly_ev_ty
-  %1 = polynomial.intt %0 {root = #mod_root} : !mod_poly_ev_ty
+  %1 = polynomial.intt %0 <root = #mod_root> : !mod_poly_ev_ty
   return %1 : !mod_poly_ty
 }
 

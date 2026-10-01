@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 
 // Tests a non-default matvec layout can still be lowered to a matvec kernel.
 
@@ -15,8 +15,8 @@ module {
   func.func @main(%arg0: !secret.secret<tensor<2x5x5xf32>> {tensor_ext.layout = #layout3}) -> (!secret.secret<tensor<1x20xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<20xf32>
     %cst_0 = arith.constant dense_resource<torch_tensor_120_400_torch.float32> : tensor<20x50xf32>
-    %0 = tensor_ext.assign_layout %cst_0 {layout = #layout1, tensor_ext.layout = #layout1} : tensor<20x50xf32>
-    %1 = tensor_ext.assign_layout %cst {layout = #layout2, tensor_ext.layout = #layout2} : tensor<20xf32>
+    %0 = tensor_ext.assign_layout %cst_0 <layout = #layout1> {tensor_ext.layout = #layout1} : tensor<20x50xf32>
+    %1 = tensor_ext.assign_layout %cst <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<20xf32>
     %2 = secret.generic(%arg0: !secret.secret<tensor<2x5x5xf32>> {tensor_ext.layout = #layout3}) {
     ^body(%input0: tensor<2x5x5xf32>):
       %collapsed = tensor.collapse_shape %input0 [[0, 1, 2]] {tensor_ext.layout = #layout4} : tensor<2x5x5xf32> into tensor<50xf32>

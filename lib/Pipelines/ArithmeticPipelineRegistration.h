@@ -16,10 +16,13 @@ namespace mlir::heir {
 // RLWE scheme selector
 enum RLWEScheme { ckksScheme, bgvScheme, bfvScheme };
 
+// Ciphertext management style selector
+enum CiphertextManagementStyle { greedy, orbitIlp };
+
 struct LoopOptions : public PassPipelineOptions<LoopOptions> {
-  PassOptions::Option<bool> experimentalDisableLoopUnroll{
-      *this, "experimental-disable-loop-unroll",
-      llvm::cl::desc("Experimental: disable loop unroll, may break analyses "
+  PassOptions::Option<bool> unrollFheKernelLoops{
+      *this, "unroll-fhe-kernel-loops",
+      llvm::cl::desc("Unroll FHE kernel loops "
                      "(default to false)"),
       llvm::cl::init(false)};
 };
@@ -34,11 +37,10 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
           "If false, skip the arithmetization pipeline and try to directly "
           "lower to RLWE scheme (default to true)"),
       llvm::cl::init(true)};
-  PassOptions::Option<int> ciphertextDegree{
-      *this, "ciphertext-degree",
-      llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
-                     "equivalently, the number of messages that can be packed "
-                     "into a single ciphertext."),
+  PassOptions::Option<int> minSlotCount{
+      *this, "min-slot-count",
+      llvm::cl::desc("The minimum number of slots needed to pack cleartexts; "
+                     "this is a lower bound on the ring degree."),
       llvm::cl::init(1024)};
   PassOptions::Option<bool> usePublicKey{
       *this, "use-public-key",
@@ -48,16 +50,6 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       *this, "encryption-technique-extended",
       llvm::cl::desc("If true, use extended encryption technique (default to "
                      "false)"),
-      llvm::cl::init(false)};
-  PassOptions::Option<bool> modulusSwitchAfterMul{
-      *this, "modulus-switch-after-mul",
-      llvm::cl::desc("Modulus switching after the first multiplication "
-                     "(default to false)"),
-      llvm::cl::init(false)};
-  PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
-      *this, "modulus-switch-before-first-mul",
-      llvm::cl::desc("Modulus switching right before the first multiplication "
-                     "(default to false)"),
       llvm::cl::init(false)};
   PassOptions::Option<int64_t> plaintextModulus{
       *this, "plaintext-modulus",
@@ -85,16 +77,13 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       *this, "bfv-mod-bits",
       llvm::cl::desc("The number of bits for all moduli for B/FV"),
       llvm::cl::init(60)};
-  PassOptions::Option<int> ckksBootstrapWaterline{
-      *this, "ckks-bootstrap-waterline",
-      llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
-                     "(c.f. --secret-insert-mgmt-ckks)"),
-      llvm::cl::init(10)};
-  PassOptions::Option<int> levelBudget{
-      *this, "level-budget",
-      llvm::cl::desc(
-          "The level budget excluding levels required for bootstrap"),
-      llvm::cl::init(10)};
+  PassOptions::Option<bool> useCompositeRelu{
+      *this, "use-composite-relu",
+      llvm::cl::desc("Approximate ReLU with the composite-sign method "
+                     "(x*step(x/B), 3 chained minimax Chebyshev polys) "
+                     "instead of a single-polynomial max(x,0) fit. More "
+                     "accurate for deep nets; needs more depth/bootstrapping."),
+      llvm::cl::init(false)};
   PassOptions::Option<bool> debug{
       *this, "debug",
       llvm::cl::desc("Insert debug ports after every secret operation."),
@@ -120,6 +109,69 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
           clEnumValN(CodegenStrategy::FOLD_WHEN_POSSIBLE, "fold-when-possible",
                      "Fold constants when possible")),
       llvm::cl::init(CodegenStrategy::AUTO)};
+
+  // Ciphertext management options
+  PassOptions::Option<CiphertextManagementStyle> ciphertextManagementStyle{
+      *this, "ciphertext-management-style",
+      llvm::cl::desc(
+          "Strategy for ciphertext management and bootstrap placement"),
+      llvm::cl::values(
+          clEnumValN(CiphertextManagementStyle::greedy, "greedy",
+                     "Greedy waterline-based management"),
+          clEnumValN(CiphertextManagementStyle::orbitIlp, "orbit-ilp",
+                     "ILP-based Orbit-style management")),
+      llvm::cl::init(CiphertextManagementStyle::greedy)};
+
+  // Greedy-specific options
+  PassOptions::Option<bool> greedyModulusSwitchAfterMul{
+      *this, "greedy-modulus-switch-after-mul",
+      llvm::cl::desc(
+          "Modulus switching after the first multiplication (greedy style)"),
+      llvm::cl::init(false)};
+  PassOptions::Option<bool> greedyModulusSwitchBeforeFirstMul{
+      *this, "greedy-modulus-switch-before-first-mul",
+      llvm::cl::desc("Modulus switching right before the first multiplication "
+                     "(greedy style)"),
+      llvm::cl::init(false)};
+  PassOptions::Option<int> greedyLevelBudget{
+      *this, "greedy-level-budget",
+      llvm::cl::desc("Maximum bound on the level for greedy management "
+                     "(excluding bootstrap levels)"),
+      llvm::cl::init(10)};
+  PassOptions::Option<int> greedyBootstrapWaterline{
+      *this, "greedy-bootstrap-waterline",
+      llvm::cl::desc("The number of remaining levels a ciphertext must have to "
+                     "initiate a bootstrap (relative headroom)"),
+      llvm::cl::init(0)};
+
+  // Orbit-ILP-specific options
+  PassOptions::Option<int> orbitBootstrapWaterline{
+      *this, "orbit-bootstrap-waterline",
+      llvm::cl::desc("Bootstrap waterline (max level) for Orbit ILP"),
+      llvm::cl::init(3)};
+  PassOptions::Option<int> orbitScaleWaterline{
+      *this, "orbit-scale-waterline",
+      llvm::cl::desc("Orbit waterline/base scale bits (Sw)"),
+      llvm::cl::init(40)};
+  PassOptions::Option<int> orbitScaleFactorBits{
+      *this, "orbit-scale-factor-bits",
+      llvm::cl::desc("Orbit rescale factor bits (Sf)"), llvm::cl::init(51)};
+  PassOptions::Option<int> orbitBootstrapLevelLowerBound{
+      *this, "orbit-bootstrap-level-lower-bound",
+      llvm::cl::desc("Minimum input level for bootstrap in Orbit constraints"),
+      llvm::cl::init(0)};
+  PassOptions::Option<std::string> orbitCostModel{
+      *this, "orbit-cost-model",
+      llvm::cl::desc("Path to JSON cost model for Orbit ILP"),
+      llvm::cl::init("")};
+  PassOptions::Option<int> orbitBootstrapCost{
+      *this, "orbit-bootstrap-cost",
+      llvm::cl::desc("Cost of one bootstrap in ILP objective"),
+      llvm::cl::init(69320650)};
+  PassOptions::Option<int> orbitRescaleCost{
+      *this, "orbit-rescale-cost",
+      llvm::cl::desc("Cost of one rescale in ILP objective"),
+      llvm::cl::init(40988)};
 };
 
 struct PlaintextBackendOptions
@@ -139,6 +191,10 @@ struct PlaintextBackendOptions
       llvm::cl::desc("The size of the plaintexts; i.e., the number of slots "
                      "to use for packing."),
       llvm::cl::init(1024)};
+  PassOptions::Option<bool> unrollFheKernelLoops{
+      *this, "unroll-fhe-kernel-loops",
+      llvm::cl::desc("Unroll FHE kernel loops (default to false)"),
+      llvm::cl::init(false)};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {

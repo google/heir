@@ -13,8 +13,8 @@
 // CHECK: @extract_slice
 // CHECK-SAME: (%[[ARG:.*]]: tensor<4096x!{{.*}}>)
 func.func @extract_slice(%arg0: !poly) -> !poly0 {
-  // CHECK: %[[SLICE:.*]] = rns.extract_slice %[[ARG]] {size = 1 : index, start = 0 : index}
-  %slice = polynomial.extract_slice %arg0 {start = 0 : index, size = 1 : index} : !poly -> !poly0
+  // CHECK: %[[SLICE:.*]] = rns.extract_slice %[[ARG]] <start = 0, size = 1>
+  %slice = polynomial.extract_slice %arg0 <start = 0, size = 1> : !poly -> !poly0
   // CHECK: return %[[SLICE]]
   return %slice : !poly0
 }

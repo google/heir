@@ -31,6 +31,9 @@ ChebyshevPolynomial caratheodoryFejerApproximationUnitInterval(
   interpolateChebyshevWithSmartDegreeSelection(func, chebCoeffs);
   size_t chebDegree = chebCoeffs.size() - 1;
   if (chebDegree <= degree) return ChebyshevPolynomial(chebCoeffs);
+  for (const auto& c : chebCoeffs) {
+    if (!c.isFinite()) return ChebyshevPolynomial(chebCoeffs);
+  }
 
   // Use the tail coefficients to construct a Hankel matrix
   // where A[i, j] = c[i+j]

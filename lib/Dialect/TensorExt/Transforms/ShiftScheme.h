@@ -85,8 +85,8 @@ namespace tensor_ext {
 // An arbitrary mapping on the slots of a set of ciphertexts.
 class Mapping {
  public:
-  Mapping(int64_t ciphertextSize = 1, int64_t numCiphertexts = 1)
-      : ciphertextSize(ciphertextSize), numCiphertexts(numCiphertexts) {}
+  Mapping(int64_t minSlotCount = 1, int64_t numCiphertexts = 1)
+      : minSlotCount(minSlotCount), numCiphertexts(numCiphertexts) {}
 
   size_t size() const { return targetToSource.size(); }
 
@@ -108,18 +108,18 @@ class Mapping {
 
   DenseMap<CtSlot, CtSlot> getTargetToSource() const { return targetToSource; }
 
-  int64_t getCiphertextSize() const { return ciphertextSize; }
+  int64_t getCiphertextSize() const { return minSlotCount; }
   int64_t getNumCiphertexts() const { return numCiphertexts; }
 
  private:
-  int64_t ciphertextSize;
+  int64_t minSlotCount;
   int64_t numCiphertexts;
   // Map from target to source to ensure only a single source is mapped to any
   // target.
   DenseMap<CtSlot, CtSlot> targetToSource;
 
   int64_t getVirtualDistance(const CtSlot& lhs, const CtSlot& rhs) {
-    return std::abs(lhs.ct - rhs.ct) * ciphertextSize +
+    return std::abs(lhs.ct - rhs.ct) * minSlotCount +
            std::abs(lhs.slot - rhs.slot);
   }
 };
@@ -165,14 +165,14 @@ class ShiftStrategy {
  public:
   ShiftStrategy() : ShiftStrategy(1, 1) {}
 
-  ShiftStrategy(int64_t ciphertextSize, int64_t numCiphertexts = 1,
+  ShiftStrategy(int64_t minSlotCount, int64_t numCiphertexts = 1,
                 ArrayRef<int64_t> shiftOrder = {})
-      : ciphertextSize(ciphertextSize),
-        virtualCiphertextSize(numCiphertexts * ciphertextSize),
+      : minSlotCount(minSlotCount),
+        virtualCiphertextSize(numCiphertexts * minSlotCount),
         shiftOrder(shiftOrder.empty()
-                       ? defaultShiftOrder(numCiphertexts * ciphertextSize)
+                       ? defaultShiftOrder(numCiphertexts * minSlotCount)
                        : shiftOrder) {
-    assert(isPowerOfTwo(ciphertextSize) &&
+    assert(isPowerOfTwo(minSlotCount) &&
            "ciphertext size must be a power of two");
   }
 
@@ -185,7 +185,7 @@ class ShiftStrategy {
   void evaluate(const Mapping& mapping);
 
  private:
-  int64_t ciphertextSize;
+  int64_t minSlotCount;
   int64_t virtualCiphertextSize;
   SmallVector<int64_t> shiftOrder;
   SmallVector<ShiftRound> rounds;

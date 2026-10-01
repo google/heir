@@ -18,7 +18,7 @@ module {
     %cst_0 = arith.constant dense<2.500000e-01> : tensor<4x1x2x2xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<4x1x2x2xf32>> {tensor_ext.layout = #layout2}) {
     ^body(%input0: tensor<4x1x2x2xf32>):
-      %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<4x1x2x2xf32>
+      %1 = tensor_ext.assign_layout %cst_0 <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<4x1x2x2xf32>
       %2 = arith.addf %input0, %1 {tensor_ext.layout = #layout2} : tensor<4x1x2x2xf32>
       secret.yield %2 : tensor<4x1x2x2xf32>
     } -> (!secret.secret<tensor<4x1x2x2xf32>> {tensor_ext.layout = #layout2})

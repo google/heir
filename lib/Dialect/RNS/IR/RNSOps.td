@@ -26,7 +26,7 @@ def RNS_ExtractSliceOp : RNS_Op<"extract_slice", [Pure, ElementwiseMappable, Dec
   }];
   let arguments = (ins RNSLike:$input, IndexAttr:$start, IndexAttr:$size);
   let results = (outs RNSLike:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 
@@ -42,7 +42,7 @@ def RNS_ExtractResidueOp : RNS_Op<"extract_residue", [Pure, ElementwiseMappable,
   }];
   let arguments = (ins RNSLike:$input, IndexAttr:$index);
   let results = (outs RNSBasisTypeInterfaceLike:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 
@@ -107,7 +107,7 @@ def RNS_ConvertBasisOp : RNS_Op<"convert_basis", [Pure, DeclareOpInterfaceMethod
   let results = (outs
     RNS:$output
   );
-  let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
+  let assemblyFormat = "$value prop-dict attr-dict `:` type($value) `->` type($output)";
 }
 
 

@@ -28,6 +28,6 @@ func.func @convert_basis(%arg0: !src) -> !target {
   // CHECK: mod_arith.mac
   // CHECK: rns.pack
   // CHECK-NOT: rns.convert_basis
-  %0 = rns.convert_basis %arg0 {targetBasis = !target} : !src -> !target
+  %0 = rns.convert_basis %arg0 <targetBasis = !target> : !src -> !target
   return %0 : !target
 }

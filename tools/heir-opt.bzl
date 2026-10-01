@@ -20,6 +20,19 @@ def _heir_opt_impl(ctx):
     args.add_all(pass_flags_location_expanded)
     args.add_all(["-o", generated_file.path])
     args.add(ctx.file.src)
+
+    outputs = [generated_file]
+    res_dir = None
+    if ctx.attr.externalize_constants:
+        output_dir = ctx.attr.ext_const_output_dir
+        if not output_dir:
+            output_dir = ctx.label.name + "_resources"
+        res_dir = ctx.actions.declare_directory(output_dir)
+        outputs.append(res_dir)
+        args.add("--ext-const-output-dir=" + res_dir.path)
+        runtime_path = res_dir.short_path
+        args.add("--ext-const-runtime-load-dir=" + runtime_path)
+
     env_vars = {}
     if ctx.attr.HEIR_YOSYS:
         # https://bazel.build/remote/output-directories#layout-diagram
@@ -34,13 +47,18 @@ def _heir_opt_impl(ctx):
         inputs = ctx.attr.src.files,
         mnemonic = "HeirOpt",
         tools = ctx.files.data,
-        outputs = [generated_file],
+        outputs = outputs,
         arguments = [args],
         env = env_vars,
         executable = ctx.executable._heir_opt_binary,
     )
+    runfiles = ctx.runfiles(files = [res_dir] if res_dir else [])
+    runfiles = runfiles.merge(ctx.runfiles(collect_default = True))
     return [
-        DefaultInfo(files = depset([generated_file, ctx.file.src])),
+        DefaultInfo(
+            files = depset([generated_file, ctx.file.src]),
+            runfiles = runfiles,
+        ),
     ]
 
 heir_opt = rule(
@@ -75,6 +93,18 @@ heir_opt = rule(
             The flag sets the environment variables needed for Yosys and ABC when True.
             """,
             default = False,
+        ),
+        "externalize_constants": attr.bool(
+            doc = """
+            Whether to externalize constants.
+            """,
+            default = True,
+        ),
+        "ext_const_output_dir": attr.string(
+            doc = """
+            If set, externalize constants to this directory. Defaults to <target_name>_resources.
+            """,
+            default = "",
         ),
         "_heir_opt_binary": executable_attr(_HEIR_OPT),
     },

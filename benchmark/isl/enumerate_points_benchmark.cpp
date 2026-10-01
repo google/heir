@@ -44,6 +44,16 @@ static void BM_EnumeratePoints_Relation3(benchmark::State& state) {
 }
 BENCHMARK(BM_EnumeratePoints_Relation3)->Unit(benchmark::kSecond);
 
+static void BM_EnumeratePoints_LolaLayout2(benchmark::State& state) {
+  BM_EnumeratePoints_helper(state, kLolaLayout2);
+}
+BENCHMARK(BM_EnumeratePoints_LolaLayout2)->Unit(benchmark::kSecond);
+
+static void BM_EnumeratePoints_LolaLayout12(benchmark::State& state) {
+  BM_EnumeratePoints_helper(state, kLolaLayout12);
+}
+BENCHMARK(BM_EnumeratePoints_LolaLayout12)->Unit(benchmark::kSecond);
+
 }  // namespace heir
 }  // namespace mlir
 

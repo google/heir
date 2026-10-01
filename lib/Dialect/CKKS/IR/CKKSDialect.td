@@ -21,6 +21,7 @@ def CKKS_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::ckks";
 
   let useDefaultAttributePrinterParser = 1;
+  let useStrictPropertiesInAssemblyFormat = 1;
 }
 
 #endif  // LIB_DIALECT_CKKS_IR_CKKSDIALECT_TD_

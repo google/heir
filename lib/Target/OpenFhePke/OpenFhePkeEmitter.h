@@ -7,22 +7,17 @@
 #include <string_view>
 #include <vector>
 
-// IWYU pragma: begin_keep
-#include "include/cereal/cereal.hpp"        // from @cereal
-#include "include/cereal/types/map.hpp"     // from @cereal
-#include "include/cereal/types/string.hpp"  // from @cereal
-#include "include/cereal/types/vector.hpp"  // from @cereal
-// IWYU pragma: end_keep
-
 #include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -44,32 +39,14 @@ namespace openfhe {
 ::mlir::LogicalResult translateToOpenFhePke(::mlir::Operation* op,
                                             llvm::raw_ostream& os,
                                             const OpenfheImportType& importType,
-                                            const std::string& weightsFile,
                                             bool skipVectorResizing);
-
-// A map from the SSA value name of a 1-D dense element constants to its value.
-// Note that multidimensional shapes are handled as flattened 1-D vectors.
-struct Weights {
-  std::map<std::string, std::vector<float>> floats;
-  std::map<std::string, std::vector<double>> doubles;
-  std::map<std::string, std::vector<int64_t>> int64_ts;
-  std::map<std::string, std::vector<int32_t>> int32_ts;
-  std::map<std::string, std::vector<int16_t>> int16_ts;
-  std::map<std::string, std::vector<int8_t>> int8_ts;
-
-  template <class Archive>
-  void serialize(Archive& archive) {
-    archive(CEREAL_NVP(floats), CEREAL_NVP(doubles), CEREAL_NVP(int64_ts),
-            CEREAL_NVP(int32_ts), CEREAL_NVP(int16_ts), CEREAL_NVP(int8_ts));
-  }
-};
 
 class OpenFhePkeEmitter {
  public:
   OpenFhePkeEmitter(raw_ostream& os, SelectVariableNames* variableNames,
                     ConstQualifierAnalysis* constQualifierAnalysis,
                     const OpenfheImportType& importType,
-                    const std::string& weightsFile, bool skipVectorResizing);
+                    bool skipVectorResizing);
 
   LogicalResult translate(::mlir::Operation& operation);
 
@@ -89,11 +66,6 @@ class OpenFhePkeEmitter {
 
   /// Set of values that are mutable and don't need assign prefixes.
   llvm::DenseSet<::mlir::Value> mutableValues;
-
-  // Module containing global weights
-  Weights weightsMap_;
-
-  const std::string& weightsFile_;
 
   // Whether to skip resizing vectors to ring dimension / 2
   bool skipVectorResizing_;
@@ -126,6 +98,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::SubFOp op);
   LogicalResult printOperation(::mlir::arith::DivFOp op);
   LogicalResult printOperation(::mlir::arith::TruncFOp op);
+  LogicalResult printOperation(::mlir::math::SqrtOp op);
   LogicalResult printOperation(::mlir::scf::IfOp op);
   LogicalResult printOperation(::mlir::scf::ForOp op);
   LogicalResult printOperation(::mlir::scf::ForallOp op);
@@ -146,6 +119,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::memref::AllocOp op);
   LogicalResult printOperation(::mlir::memref::LoadOp op);
   LogicalResult printOperation(::mlir::memref::StoreOp op);
+  LogicalResult printOperation(::mlir::heir::preprocessing::LoadResourceOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
@@ -159,6 +133,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(DecodeOp op);
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
+  LogicalResult printOperation(EvalChebyshevSeriesOp op);
   LogicalResult printOperation(FastRotationOp op);
   LogicalResult printOperation(FastRotationExtOp op);
   LogicalResult printOperation(FastRotationPrecomputeOp op);

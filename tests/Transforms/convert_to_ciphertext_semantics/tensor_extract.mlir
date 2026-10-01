@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=16 | FileCheck %s
 
 // Tensor is repeated twice, so the packed cleartext should use two nonzero slots
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (slot - i0) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 15 }">
@@ -14,7 +14,7 @@
 // CHECK: ^body([[ARG0_INNER:%.+]]: tensor<1x16xi16>):
 // CHECK: [[INSERTED:%.+]] = tensor.insert [[C1]] into [[CST]]{{\[}}[[C0]], [[C3]]] : tensor<1x16xi16>
 // CHECK: [[MUL:%.+]] = arith.muli [[INSERTED]], [[ARG0_INNER]] : tensor<1x16xi16>
-// CHECK: [[PERMUTED:%.+]] = tensor_ext.remap [[MUL]] {permutation = {{.*}}} : tensor<1x16xi16>
+// CHECK: [[PERMUTED:%.+]] = tensor_ext.remap [[MUL]] <permutation = {{.*}}> : tensor<1x16xi16>
 // CHECK: secret.yield [[PERMUTED]] : tensor<1x16xi16>
 // CHECK: return [[RESULT]] : !secret.secret<tensor<1x16xi16>>
 

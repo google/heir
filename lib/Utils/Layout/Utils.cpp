@@ -4,7 +4,9 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -13,10 +15,14 @@
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"       // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
@@ -91,128 +97,19 @@ unsigned int addModConstraint(IntegerRelation& result, ArrayRef<int64_t> exprs,
   return modIndex;
 }
 
-bool sameRangeForDomainPoint(const std::vector<int64_t>& domainPoint,
-                             const presburger::IntegerRelation& rel1,
-                             const presburger::IntegerRelation& rel2) {
-  IntegerRelation fixedRel1 = fixDomainVars(rel1, domainPoint);
-  IntegerRelation fixedRel2 = fixDomainVars(rel2, domainPoint);
-
-  if (fixedRel1.computeVolume() != fixedRel1.computeVolume()) return false;
-
-  // If this is still too slow, would it be faster to sample or enumerate range
-  // points?
-  return fixedRel1.isEqual(fixedRel2);
-}
-
-bool sameDomainForRangePoint(const std::vector<int64_t>& rangePoint,
-                             const presburger::IntegerRelation& rel1,
-                             const presburger::IntegerRelation& rel2) {
-  IntegerRelation fixedRel1 = fixRangeVars(rel1, rangePoint);
-  IntegerRelation fixedRel2 = fixRangeVars(rel2, rangePoint);
-
-  if (fixedRel1.computeVolume() != fixedRel1.computeVolume()) return false;
-
-  // If this is still too slow, would it be faster to sample or enumerate range
-  // points?
-  return fixedRel1.isEqual(fixedRel2);
-}
-
-LogicalResult tryProveUnequal(const presburger::IntegerRelation& layout1,
-                              const presburger::IntegerRelation& layout2) {
-  int64_t numDomain = layout1.getNumDomainVars();
-  int64_t numRange = layout1.getNumRangeVars();
-
-  if (numDomain != layout2.getNumDomainVars()) {
-    return success();
-  }
-  if (numRange != layout2.getNumRangeVars()) {
+// Proves inequality from variable ranks and bounding-box volume alone.
+// computeVolume() overapproximates the integer point count, so a volume
+// mismatch is a proof of inequality.
+LogicalResult tryProveUnequalByVolume(
+    const presburger::IntegerRelation& layout1,
+    const presburger::IntegerRelation& layout2) {
+  if (layout1.getNumDomainVars() != layout2.getNumDomainVars() ||
+      layout1.getNumRangeVars() != layout2.getNumRangeVars()) {
     return success();
   }
 
   if (layout1.computeVolume() != layout2.computeVolume()) {
     return success();
-  }
-
-  std::vector<int64_t> domainVarBounds;
-  for (int i = layout1.getVarKindOffset(VarKind::Domain);
-       i < layout1.getVarKindEnd(VarKind::Domain); ++i) {
-    auto layout1Bound = layout1.getConstantBound64(BoundType::UB, i);
-    auto layout2Bound = layout2.getConstantBound64(BoundType::UB, i);
-    if (layout1Bound != layout2Bound) {
-      return success();
-    }
-
-    if (!layout1Bound.has_value() || !layout2Bound.has_value()) {
-      return failure();
-    }
-
-    domainVarBounds.push_back(*layout1Bound);
-  }
-
-  std::vector<int64_t> rangeVarBounds;
-  for (int i = layout1.getVarKindOffset(VarKind::Range);
-       i < layout1.getVarKindEnd(VarKind::Range); ++i) {
-    auto layout1Bound = layout1.getConstantBound64(BoundType::UB, i);
-    auto layout2Bound = layout2.getConstantBound64(BoundType::UB, i);
-    if (layout1Bound != layout2Bound) {
-      return success();
-    }
-
-    if (!layout1Bound.has_value() || !layout2Bound.has_value()) {
-      return failure();
-    }
-
-    rangeVarBounds.push_back(*layout1Bound);
-  }
-
-  // Since these are layouts mapping data tensors to ciphertext-semantic
-  // tensors, both the domain and range spaces are simple grids from (0, 0, ...,
-  // 0) to (bound0, bound1, ..., boundK). We can sample this grid however we
-  // like, but it should suffice for most cases to check some corners and a few
-  // interior points.
-
-  std::vector<std::vector<int64_t>> domainPointsToTest;
-  std::vector<int64_t> zeroDomain(0, numDomain);
-  // a point on the diagonal, 1/3 along
-  std::vector<int64_t> domainInterior1(0, numDomain);
-  // a point on an anti-diagonal, 1/3 along
-  std::vector<int64_t> domainInterior2(0, numDomain);
-  for (int i = 0; i < numDomain; ++i) {
-    domainInterior1.push_back(domainVarBounds[i] / 3);
-    domainInterior2.push_back(i < numDomain / 2 ? domainVarBounds[i] / 3
-                                                : 2 * domainVarBounds[i] / 3);
-  }
-  domainPointsToTest.push_back(std::move(zeroDomain));
-  domainPointsToTest.push_back(domainVarBounds);
-  domainPointsToTest.push_back(domainInterior1);
-  domainPointsToTest.push_back(domainInterior2);
-
-  std::vector<std::vector<int64_t>> rangePointsToTest;
-  std::vector<int64_t> zeroRange(0, numRange);
-  // a point on the diagonal, 1/3 along
-  std::vector<int64_t> rangeInterior1(0, numRange);
-  // a point on an anti-diagonal, 1/3 along
-  std::vector<int64_t> rangeInterior2(0, numRange);
-  for (int i = 0; i < numRange; ++i) {
-    rangeInterior1.push_back(rangeVarBounds[i] / 3);
-    rangeInterior2.push_back(i < numRange / 2 ? rangeVarBounds[i] / 3
-                                              : 2 * rangeVarBounds[i] / 3);
-  }
-  rangePointsToTest.push_back(std::move(zeroRange));
-  rangePointsToTest.push_back(rangeVarBounds);
-  rangePointsToTest.push_back(rangeInterior1);
-  rangePointsToTest.push_back(rangeInterior2);
-
-  for (const auto& domainPt : domainPointsToTest) {
-    if (!sameRangeForDomainPoint(domainPt, layout1, layout2)) {
-      return success();
-    }
-  }
-
-  for (const auto& rangePt : rangePointsToTest) {
-    if (!sameDomainForRangePoint(rangePt, layout1, layout2)) {
-      return success();
-    }
   }
 
   return failure();
@@ -233,7 +130,7 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
             std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
   addBounds(result, rangeOffset + 1, 0, numSlots - 1);
 
-  // 0 = (flattened_expr) floordiv ciphertextSize - ct
+  // 0 = (flattened_expr) floordiv minSlotCount - ct
   // We first need to add a local var q to represent the floordiv and then add
   // the equality with ct to compute the ciphertext index.
   // Get row-major layout expression.
@@ -287,14 +184,14 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 }
 
 presburger::IntegerRelation getDiagonalLayoutRelation(
-    RankedTensorType matrixType, int64_t ciphertextSize) {
+    RankedTensorType matrixType, int64_t minSlotCount) {
   unsigned int rows = matrixType.getDimSize(0);
   unsigned int cols = matrixType.getDimSize(1);
 
   // The diagonals of the result must be able to fit an entire diagonal of the
   // matrix, so ensure that the diagonal size is less than
   // the result's columns.
-  assert(std::max(rows, cols) <= ciphertextSize);
+  assert(std::max(rows, cols) <= minSlotCount);
 
   // The number of rows must divide the number of columns.
   int64_t paddedCols = isPowerOfTwo(cols) ? cols : nextPowerOfTwo(cols);
@@ -314,7 +211,7 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   }
   int64_t numDiagonals = std::min(paddedRows, paddedCols);
   result.addBound(BoundType::UB, rangeOffset, numDiagonals - 1);
-  result.addBound(BoundType::UB, rangeOffset + 1, ciphertextSize - 1);
+  result.addBound(BoundType::UB, rangeOffset + 1, minSlotCount - 1);
 
   // Add diagonal layout constraints:
   // slot % padded_rows = row
@@ -341,79 +238,149 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
-    int64_t ciphertextSize) {
-  // Get size of the matrix.
-  auto rowBound = relation.getConstantBound64(
-      BoundType::UB, relation.getVarKindOffset(VarKind::Range));
-  auto colBound = relation.getConstantBound64(
-      BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
-  if (!rowBound.has_value() || !colBound.has_value()) {
-    return failure();
+    int64_t minSlotCount, ArrayRef<int64_t> matrixShape) {
+  SmallVector<int64_t> shape(matrixShape);
+  if (shape.empty()) {
+    // Get size of the matrix.
+    auto rowBound = relation.getConstantBound64(
+        BoundType::UB, relation.getVarKindOffset(VarKind::Range));
+    auto colBound = relation.getConstantBound64(
+        BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
+    if (!rowBound.has_value() || !colBound.has_value()) {
+      return failure();
+    }
+    shape = {rowBound.value() + 1, colBound.value() + 1};
   }
   RankedTensorType matrixType =
-      RankedTensorType::get({rowBound.value() + 1, colBound.value() + 1},
-                            originalType.getElementType());
-  auto diagonalRelation = getDiagonalLayoutRelation(matrixType, ciphertextSize);
+      RankedTensorType::get(shape, originalType.getElementType());
+  auto diagonalRelation = getDiagonalLayoutRelation(matrixType, minSlotCount);
 
   // Compose these relations.
   relation.compose(diagonalRelation);
   return relation;
 }
 
+presburger::IntegerRelation getCyclicLayoutRelation(RankedTensorType type,
+                                                    int64_t numSlots) {
+  assert(type && type.getRank() >= 1 &&
+         "cyclic layout expects a tensor of rank >= 1");
+  // Cyclic layout maps tensor coordinates (i_0, ..., i_{rank-1})
+  // to ciphertext slot indices via modular projection:
+  //   i_d = (ct * numSlots + slot) % dimSize(d)
+  // When dimensions are pairwise coprime, this defines an injective packing.
+  int64_t rank = type.getRank();
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      rank, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
+
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int ctVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  // Add coordinate and slot bounds:
+  //   0 <= i_d < dimSize(d)
+  //   0 <= slot < numSlots
+  for (int64_t i = 0; i < rank; ++i) {
+    addBounds(result, domainOffset + i, 0, type.getDimSize(i) - 1);
+  }
+  addBounds(result, ctVarIndex, 0,
+            std::ceil((float)type.getNumElements() / numSlots) - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  // Enforce i_d == (ct * numSlots + slot) % dimSize(d) for each dimension.
+  for (int64_t i = 0; i < rank; ++i) {
+    int64_t dim = type.getDimSize(i);
+    SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
+    kCoeffs[ctVarIndex] = numSlots;
+    kCoeffs[slotVarIndex] = 1;
+    auto kModDim = addModConstraint(result, kCoeffs, dim);
+
+    SmallVector<int64_t> dimEquality(result.getNumCols(), 0);
+    dimEquality[domainOffset + i] = 1;
+    dimEquality[kModDim] = -1;
+    result.addEquality(dimEquality);
+  }
+
+  return result;
+}
+
 presburger::IntegerRelation getBicyclicLayoutRelation(
     RankedTensorType matrixType, int64_t numSlots) {
-  unsigned int rows = matrixType.getDimSize(0);
-  unsigned int cols = matrixType.getDimSize(1);
+  assert(matrixType.getRank() == 2 && "bicyclic layout expects a 2-D tensor");
+  return getCyclicLayoutRelation(matrixType, numSlots);
+}
 
-  assert(std::gcd(rows, cols) == 1 &&
-         "bicyclic layout requires coprime dimensions");
+presburger::IntegerRelation getBicyclicDiagonalRelation(
+    RankedTensorType matrixType, int64_t contractionDim, int64_t stride,
+    int64_t numSlots) {
+  int64_t freeDim = 1 - contractionDim;
+  int64_t n = matrixType.getDimSize(contractionDim);
+  int64_t p = matrixType.getDimSize(freeDim);
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       matrixType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
       /*numLocals=*/0));
 
-  // Add bounds for the data matrix dimensions.
+  // Setup var indices
   int domainOffset = result.getVarKindOffset(VarKind::Domain);
   int rangeOffset = result.getVarKindOffset(VarKind::Range);
-  int rowVarIndex = domainOffset;
-  int colVarIndex = domainOffset + 1;
-  int ctVarIndex = rangeOffset;
+  int yIdx = domainOffset;
+  int xIdx = domainOffset + 1;
+  int diagVarIndex = rangeOffset;
   int slotVarIndex = rangeOffset + 1;
 
-  addBounds(result, rowVarIndex, 0, rows - 1);
-  addBounds(result, colVarIndex, 0, cols - 1);
-  addBounds(result, ctVarIndex, 0,
-            std::ceil((float)matrixType.getNumElements() / numSlots) - 1);
+  addBounds(result, diagVarIndex, 0, n - 1);
   addBounds(result, slotVarIndex, 0, numSlots - 1);
 
-  // Let k = ct * numSlots + slot.
-  // We need to add constraints for:
-  // row = k % rows
-  // col = k % cols
+  if (contractionDim == 0) {
+    addBounds(result, yIdx, 0, n - 1);
+    addBounds(result, xIdx, 0, p - 1);
 
-  // k_mod_rows = (ct * numSlots + slot) % rows
-  SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModRows = addModConstraint(result, kCoeffs, rows);
+    // y (contraction) = (slot + diag * stride) mod n
+    SmallVector<int64_t> contractionCoeffs(result.getNumCols(), 0);
+    contractionCoeffs[slotVarIndex] = 1;
+    contractionCoeffs[diagVarIndex] = stride;
+    auto contractionMod = addModConstraint(result, contractionCoeffs, n);
 
-  // row = k_mod_rows
-  SmallVector<int64_t> rowEquality(result.getNumCols(), 0);
-  rowEquality[rowVarIndex] = 1;
-  rowEquality[kModRows] = -1;
-  result.addEquality(rowEquality);
+    SmallVector<int64_t> contractionEquality(result.getNumCols(), 0);
+    contractionEquality[yIdx] = 1;
+    contractionEquality[contractionMod] = -1;
+    result.addEquality(contractionEquality);
 
-  // k_mod_cols = (ct * numSlots + slot) % cols
-  kCoeffs.resize(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModCols = addModConstraint(result, kCoeffs, cols);
+    // x (free) = slot mod p
+    SmallVector<int64_t> freeCoeffs(result.getNumCols(), 0);
+    freeCoeffs[slotVarIndex] = 1;
+    auto freeMod = addModConstraint(result, freeCoeffs, p);
 
-  // col = k_mod_cols
-  SmallVector<int64_t> colEquality(result.getNumCols(), 0);
-  colEquality[colVarIndex] = 1;
-  colEquality[kModCols] = -1;
-  result.addEquality(colEquality);
+    SmallVector<int64_t> freeEquality(result.getNumCols(), 0);
+    freeEquality[xIdx] = 1;
+    freeEquality[freeMod] = -1;
+    result.addEquality(freeEquality);
+  } else {
+    addBounds(result, yIdx, 0, p - 1);
+    addBounds(result, xIdx, 0, n - 1);
+
+    // x (contraction) = (slot + diag * stride) mod n
+    SmallVector<int64_t> contractionCoeffs(result.getNumCols(), 0);
+    contractionCoeffs[slotVarIndex] = 1;
+    contractionCoeffs[diagVarIndex] = stride;
+    auto contractionMod = addModConstraint(result, contractionCoeffs, n);
+
+    SmallVector<int64_t> contractionEquality(result.getNumCols(), 0);
+    contractionEquality[xIdx] = 1;
+    contractionEquality[contractionMod] = -1;
+    result.addEquality(contractionEquality);
+
+    // y (free) = slot mod freeSize
+    SmallVector<int64_t> freeCoeffs(result.getNumCols(), 0);
+    freeCoeffs[slotVarIndex] = 1;
+    auto freeMod = addModConstraint(result, freeCoeffs, p);
+
+    SmallVector<int64_t> freeEquality(result.getNumCols(), 0);
+    freeEquality[yIdx] = 1;
+    freeEquality[freeMod] = -1;
+    result.addEquality(freeEquality);
+  }
 
   return result;
 }
@@ -428,83 +395,51 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
 presburger::IntegerRelation getTricyclicLayoutRelation(
     RankedTensorType tensorType, int64_t numSlots) {
   assert(tensorType.getRank() == 3 && "tricyclic layout expects a 3-D tensor");
+  return getCyclicLayoutRelation(tensorType, numSlots);
+}
 
-  int64_t h = tensorType.getDimSize(0);
-  int64_t m = tensorType.getDimSize(1);
-  int64_t n = tensorType.getDimSize(2);
+presburger::IntegerRelation getPeriodicReplicationRelation(
+    int64_t numCiphertexts, int64_t numSlots, int64_t period) {
+  assert(numCiphertexts == 1 && "only support single ciphertext layout");
+  assert(period > 0 && period <= numSlots &&
+         "period must be positive and at most numSlots");
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
-      tensorType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
+      /*numDomain=*/2, /*numRange=*/2, /*numSymbol=*/0,
       /*numLocals=*/0));
 
-  // Setup var indices
   int domainOffset = result.getVarKindOffset(VarKind::Domain);
   int rangeOffset = result.getVarKindOffset(VarKind::Range);
-  int hVarIndex = domainOffset;
-  int mVarIndex = domainOffset + 1;
-  int nVarIndex = domainOffset + 2;
-  int ctVarIndex = rangeOffset;
-  int slotVarIndex = rangeOffset + 1;
+  int sourceCtIndex = domainOffset;
+  int sourceSlotIndex = domainOffset + 1;
+  int targetCtIndex = rangeOffset;
+  int targetSlotIndex = rangeOffset + 1;
 
-  // Add bounds for domain and range variables.
-  addBounds(result, hVarIndex, 0, h - 1);
-  addBounds(result, mVarIndex, 0, m - 1);
-  addBounds(result, nVarIndex, 0, n - 1);
-  addBounds(result, ctVarIndex, 0,
-            std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
-  addBounds(result, slotVarIndex, 0, numSlots - 1);
+  addBounds(result, sourceCtIndex, 0, numCiphertexts - 1);
+  addBounds(result, sourceSlotIndex, 0, period - 1);
+  addBounds(result, targetSlotIndex, 0, numSlots - 1);
 
-  // Let k = ct * numSlots + slot.
-  // We need constraints:
-  //   h_idx = k % h
-  //   m_idx = k % m
-  //   n_idx = k % n
+  addConstraint(result, {{sourceCtIndex, 1}, {targetCtIndex, -1}},
+                /*equality=*/true);
 
-  // k_mod_h = (ct * numSlots + slot) % h
-  SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModH = addModConstraint(result, kCoeffs, h);
-
-  // h_idx = k_mod_h
-  SmallVector<int64_t> hEquality(result.getNumCols(), 0);
-  hEquality[hVarIndex] = 1;
-  hEquality[kModH] = -1;
-  result.addEquality(hEquality);
-
-  // k_mod_m = (ct * numSlots + slot) % m
-  kCoeffs.assign(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModM = addModConstraint(result, kCoeffs, m);
-
-  // m_idx = k_mod_m
-  SmallVector<int64_t> mEquality(result.getNumCols(), 0);
-  mEquality[mVarIndex] = 1;
-  mEquality[kModM] = -1;
-  result.addEquality(mEquality);
-
-  // k_mod_n = (ct * numSlots + slot) % n
-  kCoeffs.assign(result.getNumCols(), 0);
-  kCoeffs[ctVarIndex] = numSlots;
-  kCoeffs[slotVarIndex] = 1;
-  auto kModN = addModConstraint(result, kCoeffs, n);
-
-  // n_idx = k_mod_n
-  SmallVector<int64_t> nEquality(result.getNumCols(), 0);
-  nEquality[nVarIndex] = 1;
-  nEquality[kModN] = -1;
-  result.addEquality(nEquality);
+  // source_slot = target_slot % period
+  SmallVector<int64_t> targetSlotCoeffs(result.getNumCols(), 0);
+  targetSlotCoeffs[targetSlotIndex] = 1;
+  auto targetSlotMod = addModConstraint(result, targetSlotCoeffs, period);
+  SmallVector<int64_t> sourceEquality(result.getNumCols(), 0);
+  sourceEquality[sourceSlotIndex] = 1;
+  sourceEquality[targetSlotMod] = -1;
+  result.addEquality(sourceEquality);
 
   return result;
 }
 
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
-                                                    int64_t ciphertextSize) {
+                                                    int64_t minSlotCount) {
   auto domainSize = matrixType.getRank();
   assert(domainSize == 2 && "expected 2-D matrix");
-  assert(matrixType.getDimSize(1) <= ciphertextSize &&
-         "expected ciphertextSize >= matrixType.getDimSize(1)");
+  assert(matrixType.getDimSize(1) <= minSlotCount &&
+         "expected minSlotCount >= matrixType.getDimSize(1)");
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
@@ -516,7 +451,7 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   // Number of ciphertexts is the number of rows.
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
   addBounds(result, rangeOffset, 0, matrixType.getDimSize(0) - 1);
-  addBounds(result, rangeOffset + 1, 0, ciphertextSize - 1);
+  addBounds(result, rangeOffset + 1, 0, minSlotCount - 1);
 
   // 0 = -rows + ct
   addConstraint(result,
@@ -539,52 +474,184 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   return result;
 }
 
-bool isRelationSquatDiagonal(RankedTensorType matrixType,
-                             int64_t ciphertextSize,
+presburger::IntegerRelation getTricyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t ctStride,
+    int64_t numSlots) {
+  int64_t rank = weightType.getRank();
+  assert(rank == 3 && "tricyclic diagonal relation requires a rank-3 weight");
+  assert(
+      (contractionDim == 1 || contractionDim == 2) &&
+      "contractionDim must be 1 (ct-pt, RHS weight) or 2 (pt-ct, LHS weight)");
+  int64_t h = weightType.getDimSize(0);
+  int64_t freeDim = (contractionDim == 1) ? 2 : 1;
+  int64_t n = weightType.getDimSize(contractionDim);
+  int64_t p = weightType.getDimSize(freeDim);
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      rank, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
+
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int contractionVarIndex = domainOffset + contractionDim;
+  int freeVarIndex = domainOffset + freeDim;
+  int diagVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  addBounds(result, domainOffset, 0, h - 1);
+  addBounds(result, contractionVarIndex, 0, n - 1);
+  addBounds(result, freeVarIndex, 0, p - 1);
+  addBounds(result, diagVarIndex, 0, n - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  // contractionIdx = (slot + diag * h * ctStride) mod n
+  SmallVector<int64_t> nCoeffs(result.getNumCols(), 0);
+  nCoeffs[slotVarIndex] = 1;
+  nCoeffs[diagVarIndex] = h * ctStride;
+  auto nMod = addModConstraint(result, nCoeffs, n);
+  addConstraint(result, {{nMod, 1}, {contractionVarIndex, -1}},
+                /*equality=*/true);
+
+  // freeIdx = slot mod p
+  SmallVector<int64_t> pCoeffs(result.getNumCols(), 0);
+  pCoeffs[slotVarIndex] = 1;
+  auto pMod = addModConstraint(result, pCoeffs, p);
+  addConstraint(result, {{pMod, 1}, {freeVarIndex, -1}}, /*equality=*/true);
+
+  // hIdx = slot mod h
+  SmallVector<int64_t> hCoeffs(result.getNumCols(), 0);
+  hCoeffs[slotVarIndex] = 1;
+  auto hMod = addModConstraint(result, hCoeffs, h);
+  addConstraint(result, {{hMod, 1}, {domainOffset, -1}}, /*equality=*/true);
+
+  return result;
+}
+
+bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,
                              const presburger::IntegerRelation& relation) {
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSize);
-  return relation.isEqual(diagonalRelation);
+      getDiagonalLayoutRelation(matrixType, minSlotCount);
+  return isRelationEqual(relation, diagonalRelation);
 }
 
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
                         const presburger::IntegerRelation& relation) {
   IntegerRelation rowMajorRelation =
       getRowMajorLayoutRelation(vectorType, numSlots);
-  return relation.isEqual(rowMajorRelation);
+  return isRelationEqual(relation, rowMajorRelation);
 }
 
-bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
+bool isOneToOneSingleCiphertextPacking(
+    const presburger::IntegerRelation& relation) {
+  if (relation.getNumDomainVars() != 1 || relation.getNumRangeVars() != 2)
+    return false;
+
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* map = convertRelationToBasicMap(relation, ctx);
+  if (!map) {
+    isl_ctx_free(ctx);
+    return false;
+  }
+
+  isl_val* ct =
+      isl_basic_map_plain_get_val_if_fixed(map, isl_dim_out, /*pos=*/0);
+  bool singleCiphertext = ct && isl_val_is_zero(ct) == isl_bool_true;
+  isl_val_free(ct);
+
+  isl_basic_map* slots = isl_basic_map_project_out(
+      isl_basic_map_copy(map), isl_dim_out, /*first=*/0, /*n=*/1);
+  isl_map* slotMap = isl_map_from_basic_map(slots);
+  isl_bool oneToOne = isl_map_is_bijective(slotMap);
+  isl_map_free(slotMap);
+  isl_basic_map_free(map);
+  isl_ctx_free(ctx);
+  return singleCiphertext && oneToOne == isl_bool_true;
+}
+
+void prependPassthroughDim(IntegerRelation& relation, std::optional<int64_t> lb,
+                           std::optional<int64_t> ub) {
+  relation.insertVar(VarKind::Domain, 0, 1);
+  relation.insertVar(VarKind::Range, 0, 1);
+  int64_t domainDim = relation.getVarKindOffset(VarKind::Domain);
+  int64_t rangeDim = relation.getVarKindOffset(VarKind::Range);
+  // The new domain var equals the new range var, so it is carried through.
+  addConstraint(relation, {{domainDim, 1}, {rangeDim, -1}}, /*equality=*/true);
+  if (lb.has_value()) {
+    relation.addBound(BoundType::LB, domainDim, lb.value());
+    relation.addBound(BoundType::LB, rangeDim, lb.value());
+  }
+  if (ub.has_value()) {
+    relation.addBound(BoundType::UB, domainDim, ub.value());
+    relation.addBound(BoundType::UB, rangeDim, ub.value());
+  }
+}
+
+IntegerRelation foldVectorPermutationIntoMatrixLayout(
+    const IntegerRelation& vectorPermutation,
+    const IntegerRelation& matrixLayout) {
+  // vectorPermutation maps a vector index [col] -> [ct, slot] as a
+  // single-ciphertext permutation (ct is fixed to zero). Drop the constant ct
+  // output, leaving the pure index-to-slot permutation [col] -> [slot].
+  IntegerRelation result(vectorPermutation);
+  result.projectOut(result.getVarKindOffset(VarKind::Range), 1);
+
+  // Lift the permutation to a matrix domain by prepending a passthrough row
+  // dimension to both sides (row_in == row_out), giving
+  // [row, col] -> [row, slot].
+  prependPassthroughDim(result);
+
+  // Compose with the matrix layout (result;matrixLayout): the permutation's
+  // [row, slot] output feeds the matrix layout's [row, col] input, so the
+  // vector permutation is absorbed into the matrix's column indexing, yielding
+  // the folded matrix layout [row, col] -> [ct, slot].
+  result.compose(matrixLayout);
+  result.removeRedundantConstraints();
+  result.simplify();
+  return result;
+}
+
+bool isRelationPerRow(RankedTensorType matrixType, int64_t minSlotCount,
                       presburger::IntegerRelation relation) {
   IntegerRelation perRowRelation =
-      getPerRowLayoutRelation(matrixType, ciphertextSize);
-  return relation.isEqual(perRowRelation);
+      getPerRowLayoutRelation(matrixType, minSlotCount);
+  return isRelationEqual(relation, perRowRelation);
+}
+
+bool isRelationCyclic(RankedTensorType type, int64_t numSlots,
+                      const presburger::IntegerRelation& relation) {
+  if (!type || type.getRank() < 1) return false;
+  if (relation.getNumDomainVars() != type.getRank()) return false;
+
+  int64_t totalElements = 1;
+  int64_t rank = type.getRank();
+  for (int64_t i = 0; i < rank; ++i) {
+    int64_t dim = type.getDimSize(i);
+    // Reject degenerate dimensions.
+    if (dim <= 1) return false;
+    if (totalElements > numSlots / dim) return false;
+    totalElements *= dim;
+  }
+  for (int64_t i = 0; i < rank; ++i) {
+    for (int64_t j = i + 1; j < rank; ++j) {
+      if (std::gcd(type.getDimSize(i), type.getDimSize(j)) != 1) {
+        return false;
+      }
+    }
+  }
+
+  IntegerRelation cyclicRelation = getCyclicLayoutRelation(type, numSlots);
+  return isRelationEqual(relation, cyclicRelation);
 }
 
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
                         const presburger::IntegerRelation& relation) {
-  // Reject non-co-prime dimensions.
   if (matrixType.getRank() != 2) return false;
-  unsigned int rows = matrixType.getDimSize(0);
-  unsigned int cols = matrixType.getDimSize(1);
-  if (std::gcd(rows, cols) != 1) return false;
-  IntegerRelation bicyclicRelation =
-      getBicyclicLayoutRelation(matrixType, numSlots);
-  return relation.isEqual(bicyclicRelation);
+  return isRelationCyclic(matrixType, numSlots, relation);
 }
 
 bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
                          const presburger::IntegerRelation& relation) {
-  // Reject non-co-prime dimensions.
   if (tensorType.getRank() != 3) return false;
-  int64_t h = tensorType.getDimSize(0);
-  int64_t m = tensorType.getDimSize(1);
-  int64_t n = tensorType.getDimSize(2);
-  if (std::gcd(h, m) != 1 || std::gcd(m, n) != 1 || std::gcd(h, n) != 1)
-    return false;
-  IntegerRelation tricyclicRelation =
-      getTricyclicLayoutRelation(tensorType, numSlots);
-  return relation.isEqual(tricyclicRelation);
+  return isRelationCyclic(tensorType, numSlots, relation);
 }
 
 presburger::IntegerRelation collapseDimensions(
@@ -707,42 +774,247 @@ void getRangePoints(const presburger::IntegerRelation& relation,
   isl_set_free(set);
 }
 
-isl_stat pointPairCallback(__isl_take isl_point* pnt, void* user) {
-  PointPairCollector* collector = static_cast<PointPairCollector*>(user);
+namespace {
+// Extract the first `n` set coordinates of `pnt` into `out`.
+void extractCoords(__isl_keep isl_point* pnt, int n,
+                   std::vector<int64_t>& out) {
+  for (int i = 0; i < n; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
+    if (isl_val_is_int(coord)) {
+      out[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+}
 
-  std::vector<int64_t> domainPoint(collector->domainDims);
-  std::vector<int64_t> rangePoint(collector->rangeDims);
+// Computes each domain variable's box bounds [lb, ub].
+//
+// It first tries a quick scan for single-variable equality/inequality rows of
+// `rel` (e.g. `c = 0`, `f >= 0`, `7 - f >= 0`), which the layout construction
+// adds for the data-tensor index space. This avoids
+// IntegerRelation::getConstantBound64, which derives bounds via Fourier-Motzkin
+// elimination over every other variable and blows up on the relation's
+// mod/floordiv existentials. For any bound the quick scan cannot determine, it
+// falls back to getConstantBound64 for that single bound.
+void getDomainBox(const presburger::IntegerRelation& rel,
+                  SmallVector<int64_t>& lb, SmallVector<int64_t>& ub) {
+  unsigned numDomain = rel.getNumDomainVars();
+  unsigned numVars = rel.getNumVars();
+  unsigned constCol = rel.getNumCols() - 1;
+  unsigned numIneqs = rel.getNumInequalities();
+  lb.assign(numDomain, std::numeric_limits<int64_t>::min());
+  ub.assign(numDomain, std::numeric_limits<int64_t>::max());
 
-  // Extract domain coordinates
-  for (int i = 0; i < collector->domainDims; i++) {
+  // Single pass over every constraint (inequalities then equalities, per
+  // atConstraint64's indexing). A constraint bounds a domain variable only if
+  // it has exactly one nonzero variable coefficient and that variable is a
+  // domain variable. Inequalities (coeff*v + c >= 0) give one bound by sign;
+  // equalities (coeff*v + c = 0) pin both bounds.
+  for (unsigned r = 0, e = rel.getNumConstraints(); r < e; ++r) {
+    unsigned v = 0, nonzeros = 0;
+    for (unsigned j = 0; j < numVars; ++j) {
+      if (rel.atConstraint64(r, j) == 0) continue;
+      v = j;
+      if (++nonzeros > 1) break;
+    }
+    if (nonzeros != 1 || v >= numDomain) continue;
+
+    int64_t coeff = rel.atConstraint64(r, v);
+    int64_t c = rel.atConstraint64(r, constCol);
+    if (r < numIneqs) {
+      if (coeff > 0) {
+        // v >= ceil(-c/coeff)
+        lb[v] = std::max(lb[v], llvm::divideCeilSigned(-c, coeff));
+      } else {
+        // v <= floor(c/-coeff)
+        ub[v] = std::min(ub[v], llvm::divideFloorSigned(c, -coeff));
+      }
+    } else {
+      // A single-variable equality coeff*v + c = 0 has an integer solution
+      // only if coeff divides c; otherwise the relation is infeasible.
+      assert((-c) % coeff == 0 && "non-integer single-variable equality bound");
+      int64_t val = -c / coeff;
+      lb[v] = std::max(lb[v], val);
+      ub[v] = std::min(ub[v], val);
+    }
+  }
+
+  // Fall back to the general (but expensive) constant-bound computation for any
+  // domain variable the quick single-variable scan left undetermined. This uses
+  // Fourier-Motzkin elimination over the other variables, so we only reach it
+  // when the cheap method is insufficient.
+  auto resolve = [&](BoundType type, int64_t sentinel, int64_t& slot,
+                     unsigned i, const char* err) {
+    if (slot != sentinel) return;
+    std::optional<int64_t> b = rel.getConstantBound64(type, i);
+    if (!b) llvm::report_fatal_error(err);
+    slot = *b;
+  };
+  for (unsigned i = 0; i < numDomain; ++i) {
+    resolve(BoundType::LB, std::numeric_limits<int64_t>::min(), lb[i], i,
+            "getDomainBox: domain variable has no constant lower bound");
+    resolve(BoundType::UB, std::numeric_limits<int64_t>::max(), ub[i], i,
+            "getDomainBox: domain variable has no constant upper bound");
+  }
+}
+
+// isl_set_foreach_point takes a plain C callback and a void* cookie. This
+// bridges that callback back to a richer llvm::function_ref, carrying along the
+// domain point currently being imaged, and frees the (owned) point afterwards.
+struct ImageCtx {
+  llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
+      onImagePoint;
+  ArrayRef<int64_t> domainPoint;
+};
+isl_stat imagePointTrampoline(__isl_take isl_point* pnt, void* user) {
+  auto* imageCtx = static_cast<ImageCtx*>(user);
+  imageCtx->onImagePoint(imageCtx->domainPoint, pnt);
+  isl_point_free(pnt);
+  return isl_stat_ok;
+}
+
+// Mutate `point` to hold the next point of a multi-dimensional coordinate grid
+// over the bounding box [lbs, ubs]. Returns false once the space is fully
+// traversed.
+bool nextGridPoint(SmallVectorImpl<int64_t>& point, ArrayRef<int64_t> lbs,
+                   ArrayRef<int64_t> ubs) {
+  for (int d = static_cast<int>(point.size()) - 1; d >= 0; --d) {
+    if (++point[d] <= ubs[d]) return true;
+    point[d] = lbs[d];
+  }
+  return false;
+}
+
+// Enumerates the domain box [lb, ub] explicitly and, for each concrete domain
+// point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
+// that domain point's image. `imagePoint` is borrowed (freed by this function).
+// Between domain points `shouldStop` is polled (when non-null); returning true
+// halts enumeration early.
+//
+// Fixing the domain to concrete integers collapses the relation's mod/floordiv
+// existentials into a non-parametric feasibility problem that isl resolves
+// cheaply. We deliberately do NOT ask isl to enumerate the domain set
+// (isl_set_foreach_point over isl_basic_map_domain): projecting the range out
+// leaves those existentials in the domain set, making that scan itself an
+// expensive parametric-ILP solve -- the very cost we are avoiding.
+void forEachDomainImagePoint(
+    __isl_keep isl_basic_map* bmap, ArrayRef<int64_t> lb, ArrayRef<int64_t> ub,
+    llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
+        onImagePoint,
+    llvm::function_ref<bool()> shouldStop = nullptr) {
+  isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
+  unsigned numDomain = lb.size();
+
+  // Fix the domain to `point`, then invoke onImagePoint for every point of the
+  // resulting (now fully concrete) range.
+  auto processImageOfPoint = [&](ArrayRef<int64_t> point) {
+    isl_basic_map* fixed = isl_basic_map_copy(bmap);
+    for (unsigned i = 0; i < numDomain; ++i) {
+      fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i,
+                                    isl_val_int_from_si(ctx, point[i]));
+    }
+    isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+    ImageCtx imageCtx{onImagePoint, point};
+    isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
+    isl_set_free(image);
+  };
+
+  // An empty box (some lb > ub) contains no points.
+  for (unsigned i = 0; i < numDomain; ++i)
+    if (lb[i] > ub[i]) return;
+
+  SmallVector<int64_t> point(lb.begin(), lb.end());
+  do {
+    processImageOfPoint(point);
+    if (shouldStop && shouldStop()) break;
+  } while (nextGridPoint(point, lb, ub));
+}
+}  // namespace
+
+struct WrapCallbackCtx {
+  PointPairCollector* collector;
+  int numDomain;
+  int numRange;
+};
+
+static isl_stat enumeratePointsCallback(__isl_take isl_point* pnt, void* user) {
+  auto* ctx = static_cast<WrapCallbackCtx*>(user);
+  std::vector<int64_t> domainPoint(ctx->numDomain);
+  std::vector<int64_t> rangePoint(ctx->numRange);
+  for (int i = 0; i < ctx->numDomain; i++) {
     isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
     if (isl_val_is_int(coord)) {
       domainPoint[i] = isl_val_get_num_si(coord);
     }
     isl_val_free(coord);
   }
-
-  // Extract range coordinates
-  for (int i = 0; i < collector->rangeDims; i++) {
-    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set,
-                                                  collector->domainDims + i);
+  for (int i = 0; i < ctx->numRange; i++) {
+    isl_val* coord =
+        isl_point_get_coordinate_val(pnt, isl_dim_set, ctx->numDomain + i);
     if (isl_val_is_int(coord)) {
       rangePoint[i] = isl_val_get_num_si(coord);
     }
     isl_val_free(coord);
   }
-
-  collector->points.emplace_back(domainPoint, rangePoint);
+  ctx->collector->points.emplace_back(std::move(domainPoint),
+                                      std::move(rangePoint));
   isl_point_free(pnt);
   return isl_stat_ok;
 }
 
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
-  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
-  isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
-  isl_set_foreach_point(set, &pointPairCallback, &collector);
-  isl_set_free(set);
+  assert(relation.getNumDomainVars() ==
+             static_cast<unsigned>(collector.domainDims) &&
+         "collector domainDims must match the relation's domain rank");
+  assert(relation.getNumRangeVars() ==
+             static_cast<unsigned>(collector.rangeDims) &&
+         "collector rangeDims must match the relation's range rank");
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+
+  SmallVector<int64_t> lb, ub;
+  getDomainBox(relation, lb, ub);
+  int64_t volume = 1;
+  bool overflow = false;
+  for (size_t i = 0; i < lb.size(); ++i) {
+    int64_t diff = ub[i] - lb[i] + 1;
+    if (diff <= 0) {
+      volume = 0;
+      break;
+    }
+    if (volume > INT64_MAX / diff) {
+      overflow = true;
+      break;
+    }
+    volume *= diff;
+  }
+
+  // If the domain box is small enough, use the box-looping method.
+  bool useBoxLoop = false;
+  if (!overflow) {
+    if (volume <= 200000) {
+      useBoxLoop = true;
+    }
+  }
+
+  if (useBoxLoop) {
+    forEachDomainImagePoint(
+        bmap, lb, ub,
+        [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
+          std::vector<int64_t> rangePoint(collector.rangeDims);
+          extractCoords(imagePoint, collector.rangeDims, rangePoint);
+          collector.points.emplace_back(
+              std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+              std::move(rangePoint));
+        });
+    isl_basic_map_free(bmap);
+  } else {
+    isl_basic_set* bset = isl_basic_map_wrap(bmap);
+    isl_set* set = isl_set_from_basic_set(bset);
+    WrapCallbackCtx ctx{&collector, collector.domainDims, collector.rangeDims};
+    isl_set_foreach_point(set, enumeratePointsCallback, &ctx);
+    isl_set_free(set);
+  }
 }
 
 std::vector<int64_t> anyRangePoint(
@@ -783,23 +1055,34 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
 
   int64_t numCts = outputType.getDimSize(0);
 
-  isl_ctx* ctx = isl_ctx_alloc();
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
+  SmallVector<int64_t> lb, ub;
+  getDomainBox(relation, lb, ub);
 
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+
+  // Mark which ct indices (range var 0) actually appear in the range. See
+  // forEachDomainImagePoint for why we enumerate the domain rather than probe
+  // each ct with isl_basic_map_is_empty. Once every ct is accounted for we can
+  // stop early instead of scanning the rest of a large domain.
   std::vector<bool> seen(numCts, false);
-  for (int64_t ct = 0; ct < numCts; ++ct) {
-    isl_val* v = isl_val_int_from_si(ctx, ct);
-    // Copy bmap because fix_val consumes it.
-    isl_basic_map* fixedBmap =
-        isl_basic_map_fix_val(isl_basic_map_copy(bmap), isl_dim_out, 0, v);
-    isl_bool isEmpty = isl_basic_map_is_empty(fixedBmap);
-    isl_basic_map_free(fixedBmap);
-    if (isEmpty == isl_bool_false) {
-      seen[ct] = true;
-    }
-  }
+  int64_t seenCount = 0;
+  forEachDomainImagePoint(
+      bmap, lb, ub,
+      [&](ArrayRef<int64_t> /*domainPoint*/, __isl_keep isl_point* imagePoint) {
+        isl_val* coord =
+            isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
+        if (isl_val_is_int(coord)) {
+          int64_t ct = isl_val_get_num_si(coord);
+          if (ct >= 0 && ct < numCts && !seen[ct]) {
+            seen[ct] = true;
+            ++seenCount;
+          }
+        }
+        isl_val_free(coord);
+      },
+      /*shouldStop=*/[&]() { return seenCount == numCts; });
+
   isl_basic_map_free(bmap);
-  isl_ctx_free(ctx);
 
   // The complement is every ct index in [0, numCts) that never appeared,
   // emitted in ascending order.
@@ -915,6 +1198,44 @@ presburger::IntegerRelation shiftVar(
   return *shiftedRelation;
 }
 
+presburger::IntegerRelation getPaddingRelation(RankedTensorType paddedType,
+                                               RankedTensorType unpaddedType,
+                                               ArrayRef<int64_t> lowPadding) {
+  auto rank = paddedType.getRank();
+  assert(rank == unpaddedType.getRank() &&
+         "padded and unpadded types must have the same rank");
+  assert(lowPadding.size() == rank &&
+         "lowPadding must have the same size as the rank");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      /*numDomain=*/rank, /*numRange=*/rank, /*numSymbol=*/0, /*numLocals=*/0));
+
+  auto domainOffset = result.getVarKindOffset(VarKind::Domain);
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+
+  // Domain bounds: 0 <= P_i < padded_shape[i]
+  for (int i = 0; i < rank; ++i) {
+    addBounds(result, domainOffset + i, 0, paddedType.getDimSize(i) - 1);
+  }
+
+  // Range bounds: 0 <= S_i < unpadded_shape[i]
+  for (int i = 0; i < rank; ++i) {
+    addBounds(result, rangeOffset + i, 0, unpaddedType.getDimSize(i) - 1);
+  }
+
+  // Constraint: P_i - S_i = L_i
+  auto constOffset = result.getNumCols() - 1;
+  for (int i = 0; i < rank; ++i) {
+    addConstraint(result,
+                  {{domainOffset + i, 1},
+                   {rangeOffset + i, -1},
+                   {constOffset, -lowPadding[i]}},
+                  /*equality=*/true);
+  }
+
+  return result;
+}
+
 FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     RankedTensorType sourceType, RankedTensorType resultType,
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
@@ -964,26 +1285,111 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
   return result;
 }
 
+// Returns nullopt if isl could not answer, either because a relation failed to
+// convert or because isl_map_is_equal itself errored.
+static std::optional<bool> tryIslEqual(
+    const presburger::IntegerRelation& relation1,
+    const presburger::IntegerRelation& relation2) {
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_ctx_set_max_operations(ctx, 100000);
+  isl_map* map1 =
+      isl_map_from_basic_map(convertRelationToBasicMap(relation1, ctx));
+  isl_map* map2 =
+      isl_map_from_basic_map(convertRelationToBasicMap(relation2, ctx));
+
+  isl_bool equal =
+      (map1 && map2) ? isl_map_is_equal(map1, map2) : isl_bool_error;
+
+  isl_map_free(map1);
+  isl_map_free(map2);
+  isl_ctx_free(ctx);
+
+  if (equal == isl_bool_error) return std::nullopt;
+  return equal == isl_bool_true;
+}
+
+presburger::IntegerRelation getTransposedRelation(
+    const presburger::IntegerRelation& relation,
+    ArrayRef<int64_t> permutation) {
+  assert(permutation.size() == relation.getNumDomainVars() &&
+         "permutation size must match relation domain rank");
+  presburger::IntegerRelation result = relation;
+  unsigned domainOffset = result.getVarKindOffset(presburger::VarKind::Domain);
+  unsigned numDomain = permutation.size();
+
+  SmallVector<int64_t> posToElem(numDomain);
+  SmallVector<int64_t> elemToPos(numDomain);
+  for (unsigned i = 0; i < numDomain; ++i) {
+    posToElem[i] = i;
+    elemToPos[i] = i;
+  }
+  for (unsigned targetIdx = 0; targetIdx < numDomain; ++targetIdx) {
+    int64_t targetElem = permutation[targetIdx];
+    int64_t curPos = elemToPos[targetElem];
+    if (curPos != static_cast<int64_t>(targetIdx)) {
+      result.swapVar(domainOffset + targetIdx, domainOffset + curPos);
+      int64_t elemAtTarget = posToElem[targetIdx];
+      posToElem[targetIdx] = targetElem;
+      posToElem[curPos] = elemAtTarget;
+      elemToPos[targetElem] = targetIdx;
+      elemToPos[elemAtTarget] = curPos;
+    }
+  }
+  return result;
+}
+
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2) {
-  bool fastCheck = relation1.isObviouslyEqual(relation2);
-  if (fastCheck) return true;
+  // Structural equality, in a few nanoseconds.
+  if (relation1.isObviouslyEqual(relation2)) return true;
 
-  LogicalResult inequalityTest = tryProveUnequal(relation2, relation1);
-  if (succeeded(inequalityTest)) return false;
+  // Ranks and bounding-box volume, in 0.021ms to 0.029ms. Every unequal pair in
+  // benchmark/isl:relation_equality_benchmark is settled here rather than by
+  // the isl call below, which would need 4.9ms to 11.5ms to reach the same
+  // answer.
+  if (succeeded(tryProveUnequalByVolume(relation1, relation2))) return false;
 
-  bool slowCheck = relation1.isEqual(relation2);
-  return slowCheck;
+  std::optional<bool> islResult = tryIslEqual(relation1, relation2);
+  return islResult.value_or(false);
 }
 
 bool isDenseLayout(const presburger::IntegerRelation& relation,
                    RankedTensorType type) {
   isl_ctx* ctx = isl_ctx_alloc();
+  isl_ctx_set_max_operations(ctx, 100000);
   isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
   if (!bmap) {
     isl_ctx_free(ctx);
     return false;
+  }
+
+  isl_map* map = isl_map_from_basic_map(isl_basic_map_copy(bmap));
+  bool isSingleValued = isl_map_is_single_valued(map) == isl_bool_true;
+  isl_map_free(map);
+
+  if (isSingleValued) {
+    SmallVector<int64_t> lb, ub;
+    getDomainBox(relation, lb, ub);
+    int64_t domainVolume = 1;
+    bool overflow = false;
+    for (size_t i = 0; i < lb.size(); ++i) {
+      int64_t diff = ub[i] - lb[i] + 1;
+      if (diff <= 0) {
+        domainVolume = 0;
+        break;
+      }
+      if (domainVolume > INT64_MAX / diff) {
+        overflow = true;
+        break;
+      }
+      domainVolume *= diff;
+    }
+    if (!overflow && domainVolume < type.getNumElements()) {
+      isl_basic_map_free(bmap);
+      isl_ctx_free(ctx);
+      return false;
+    }
   }
 
   // Get the range set from the basic_map of the relation
@@ -1021,6 +1427,7 @@ bool isDenseLayout(const presburger::IntegerRelation& relation,
 
 int64_t relationSize(const IntegerRelation& rel) {
   isl_ctx* ctx = isl_ctx_alloc();
+  isl_ctx_set_max_operations(ctx, 5000000);
   isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
   isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
 
@@ -1031,6 +1438,13 @@ int64_t relationSize(const IntegerRelation& rel) {
   }
 
   isl_val* card = isl_set_count_val(set);
+
+  if (isl_ctx_last_error(ctx) == isl_error_quota) {
+    if (card) isl_val_free(card);
+    isl_set_free(set);
+    isl_ctx_free(ctx);
+    return -1;
+  }
 
   if (!card || isl_val_is_nan(card)) {
     if (card) isl_val_free(card);

@@ -21,9 +21,8 @@ func.func @test_eval_for_paterson() -> f64 {
 // CHECK-NEXT: [[V1:%.+]] = arith.mulf [[CST_2]], [[CST]]
 // CHECK-NEXT: [[V2:%.+]] = arith.addf [[V0]], [[V1]]
 // CHECK-NEXT: [[CST_3:%.+]] = arith.constant 0.177
-// CHECK-NEXT: [[CST_4:%.+]] = arith.constant 2.0
 // CHECK-NEXT: [[V3:%.+]] = arith.mulf [[CST]], [[CST]]
-// CHECK-NEXT: [[V4:%.+]] = arith.mulf [[CST_4]], [[V3]]
+// CHECK-NEXT: [[V4:%.+]] = arith.addf [[V3]], [[V3]]
 // CHECK-NEXT: [[CST_5:%.+]] = arith.constant 1.0
 // CHECK-NEXT: [[V5:%.+]] = arith.subf [[V4]], [[CST_5]]
 // CHECK-NEXT: [[V6:%.+]] = arith.mulf [[CST_3]], [[V5]]
@@ -33,9 +32,8 @@ func.func @test_eval_for_paterson() -> f64 {
 // CHECK-NEXT: [[CST_7:%.+]] = arith.constant 0.0042
 // CHECK-NEXT: [[V9:%.+]] = arith.mulf [[CST_7]], [[V5]]
 // CHECK-NEXT: [[V10:%.+]] = arith.addf [[V8]], [[V9]]
-// CHECK-NEXT: [[CST_8:%.+]] = arith.constant 2.0
 // CHECK-NEXT: [[V11:%.+]] = arith.mulf [[V5]], [[V5]]
-// CHECK-NEXT: [[V12:%.+]] = arith.mulf [[CST_8]], [[V11]]
+// CHECK-NEXT: [[V12:%.+]] = arith.addf [[V11]], [[V11]]
 // CHECK-NEXT: [[CST_9:%.+]] = arith.constant 1.0
 // CHECK-NEXT: [[V13:%.+]] = arith.subf [[V12]], [[CST_9]]
 // CHECK-NEXT: [[V14:%.+]] = arith.mulf [[V10]], [[V13]]
@@ -65,9 +63,8 @@ func.func @test_eval_shift() -> f64 {
 // CHECK: [[CST_2:%.+]] = arith.constant 5.0{{0*}}e-01
 // CHECK: [[V1:%.+]] = arith.mulf [[CST_2]], [[VAL]]
 // CHECK: [[V2:%.+]] = arith.addf [[V0]], [[V1]]
-// CHECK-DAG: [[CST_4:%.+]] = arith.constant 2.0
 // CHECK: [[V3:%.+]] = arith.mulf [[VAL]], [[VAL]]
-// CHECK: [[V4:%.+]] = arith.mulf [[CST_4]], [[V3]]
+// CHECK: [[V4:%.+]] = arith.addf [[V3]], [[V3]]
   %x = arith.constant 1.4 : f64
   %0 = polynomial.eval #poly, %x {domain_lower = 0.0 : f64, domain_upper = 2.0 : f64} : f64
   return %0 : f64

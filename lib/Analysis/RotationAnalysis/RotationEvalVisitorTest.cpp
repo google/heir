@@ -36,6 +36,27 @@ TEST(RotationEvalVisitorTest, TestSimpleLoop) {
   EXPECT_THAT(evalRotations(loop), UnorderedElementsAre(0, 2, 4, 6, 8));
 }
 
+// A loop that rotates by both the induction variable and by
+// inductionVar + constant. This is the shape a rolled convolution emits, and
+// the offset rotations are the ones whose Galois keys went missing (a rotation
+// by 65 = 1 + 64 aborted lattigo with "GaloisKey[39685] is nil").
+TEST(RotationEvalVisitorTest, TestLoopWithOffsetRotation) {
+  LiteralValue inputVector({1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+  auto x = Node::leaf(inputVector);
+  auto four = Node::constantScalar(4, DagType::index());
+  auto loop = Node::loop(x, {DagType::intTensor(32, {10})}, 1, 6, 1,
+                         [&](NodePtr iv, NodePtr iterArg) {
+                           NodePtr plain = Node::leftRotate(iterArg, iv);
+                           NodePtr offset = Node::add(iv, four);
+                           NodePtr shifted = Node::leftRotate(plain, offset);
+                           return Node::yield({shifted});
+                         });
+  // iv runs 1..5, so the plain rotations are 1..5 and the offset rotations are
+  // 5..9; normalized modulo the 10-slot dimension they stay distinct.
+  EXPECT_THAT(evalRotations(loop),
+              UnorderedElementsAre(1, 2, 3, 4, 5, 6, 7, 8, 9));
+}
+
 class RollUnrollTest : public testing::TestWithParam<bool> {};
 
 TEST_P(RollUnrollTest, RotateAndReduceKernel) {

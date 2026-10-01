@@ -50,7 +50,7 @@ module {
     // coeff-only consumer of %prod
     %out = polynomial.apply_coefficientwise (%prod : !poly_ty_2) {
     ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
-      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      %reduced = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
       polynomial.yield %reduced : !rns.rns<!Zq0>
     } -> !poly_ty_1
     return %out, %x_t, %shift_t : !poly_ty_1, tensor<1024x!rns.rns<!Zq0, !Zq1>>, tensor<1024x!rns.rns<!Zq0, !Zq1>>
@@ -61,18 +61,18 @@ module {
   // %x in coeff form and inserts two cheaper one-limb NTTs on the slices.
   // CHECK: func.func @weighted_extract_slice_ntt_placement([[x:%.+]]: [[poly_ty_3:![^ ]+]]) -> ([[ntt_poly_ty_1:![^ ]+]], [[ntt_poly_ty_4:![^ ]+]], tensor<1024x[[RNS3:![^ ]+]]>) {
   // CHECK-NOT: polynomial.ntt
-  // CHECK: [[a:%.+]] = polynomial.extract_slice [[x]] {size = 1 : index, start = 0 : index} : [[poly_ty_3]] -> [[poly_ty_1:![^ ]+]]
+  // CHECK: [[a:%.+]] = polynomial.extract_slice [[x]] <start = 0, size = 1> : [[poly_ty_3]] -> [[poly_ty_1:![^ ]+]]
   // CHECK: [[a_ntt:%.+]] = polynomial.ntt [[a]] : [[poly_ty_1]]
-  // CHECK: [[b:%.+]] = polynomial.extract_slice [[x]] {size = 1 : index, start = 1 : index} : [[poly_ty_3]] -> [[poly_ty_4:![^ ]+]]
+  // CHECK: [[b:%.+]] = polynomial.extract_slice [[x]] <start = 1, size = 1> : [[poly_ty_3]] -> [[poly_ty_4:![^ ]+]]
   // CHECK: [[b_ntt:%.+]] = polynomial.ntt [[b]] : [[poly_ty_4]]
   // CHECK: [[ma:%.+]] = polynomial.mul [[a_ntt]], [[a_ntt]] : [[ntt_poly_ty_1]]
   // CHECK: [[mb:%.+]] = polynomial.mul [[b_ntt]], [[b_ntt]] : [[ntt_poly_ty_4]]
   // CHECK: [[x_t:%.+]] = polynomial.to_tensor [[x]] : [[poly_ty_3]] -> tensor<1024x[[RNS3]]>
   // CHECK: return [[ma]], [[mb]], [[x_t]] : [[ntt_poly_ty_1]], [[ntt_poly_ty_4]], tensor<1024x[[RNS3]]>
   func.func @weighted_extract_slice_ntt_placement(%x: !poly_ty_3) -> (!poly_ty_1, !poly_ty_4, tensor<1024x!rns.rns<!Zq0, !Zq1, !Zq2>>) {
-    %a = polynomial.extract_slice %x {start = 0 : index, size = 1 : index}
+    %a = polynomial.extract_slice %x <start = 0, size = 1>
         : !poly_ty_3 -> !poly_ty_1
-    %b = polynomial.extract_slice %x {start = 1 : index, size = 1 : index}
+    %b = polynomial.extract_slice %x <start = 1, size = 1>
         : !poly_ty_3 -> !poly_ty_4
     %ma = polynomial.mul %a, %a : !poly_ty_1
     %mb = polynomial.mul %b, %b : !poly_ty_4

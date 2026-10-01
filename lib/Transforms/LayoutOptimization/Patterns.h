@@ -2,9 +2,10 @@
 #define LIB_TRANSFORMS_LAYOUTOPTIMIZATION_LAYOUTPATTERNS_H_
 
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -20,6 +21,14 @@ struct FoldLayoutConversions
 
  public:
   LogicalResult matchAndRewrite(tensor_ext::ConvertLayoutOp op,
+                                PatternRewriter& rewriter) const override;
+};
+
+struct FoldMatvecInputConversionIntoPlaintext
+    : public OpRewritePattern<linalg::MatvecOp> {
+  using OpRewritePattern<linalg::MatvecOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(linalg::MatvecOp op,
                                 PatternRewriter& rewriter) const override;
 };
 

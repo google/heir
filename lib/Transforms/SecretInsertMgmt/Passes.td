@@ -52,7 +52,7 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
            /*default=*/"false", "Modulus switching after each multiplication (default to false)">,
     Option<"beforeMulIncludeFirstMul", "before-mul-include-first-mul", "bool",
            /*default=*/"false", "Modulus switching before each multiplication, including the first multiplication (default to false)">,
-    Option<"levelBudget", "level-budget", "int", /*default=*/"0",
+    Option<"levelBudget", "level-budget", "int", /*default=*/"-1",
            "An optional maximum level budget for the pipeline to assume">,
   ];
 }
@@ -110,11 +110,11 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
            /*default=*/"false", "Modulus switching after each multiplication (default to false)">,
     Option<"beforeMulIncludeFirstMul", "before-mul-include-first-mul", "bool",
            /*default=*/"false", "Modulus switching before each multiplication, including the first multiplication (default to false)">,
-    Option<"slotNumber", "slot-number", "int",
-           /*default=*/"1024", "Default number of slots use for ciphertext space.">,
+    Option<"minSlotCount", "min-slot-count", "int",
+           /*default=*/"1024", "Minimum number of slots to use for packing messages in ciphertexts.">,
     Option<"bootstrapWaterline", "bootstrap-waterline", "int",
-           /*default=*/"10", "Waterline for insert bootstrap op">,
-    Option<"levelBudget", "level-budget", "int", /*default=*/"0",
+           /*default=*/"0", "The number of remaining levels a ciphertext must have to initiate a bootstrap (relative headroom)">,
+    Option<"levelBudget", "level-budget", "int", /*default=*/"-1",
            "An optional maximum level budget for the pipeline to assume">,
   ];
 }
@@ -132,9 +132,27 @@ def AnnotateBootstrapWaterline : Pass<"annotate-bootstrap-waterline", "ModuleOp"
 
   let options = [
     Option<"bootstrapWaterline", "bootstrap-waterline", "int",
-           /*default=*/"2", "Waterline for insert bootstrap op">,
-    Option<"levelBudget", "level-budget", "int", /*default=*/"40",
+           /*default=*/"0", "The number of remaining levels a ciphertext must have to initiate a bootstrap (relative headroom)">,
+    Option<"levelBudget", "level-budget", "int", /*default=*/"0",
            "An optional maximum level budget for the pipeline to assume">,
+  ];
+}
+
+def EarlyBootstrapPlacement : Pass<"early-bootstrap-placement", "ModuleOp"> {
+  let summary = "Place bootstraps early on linalg and kernel ops";
+  let description = [{
+    Analyzes the level consumption of linalg and kernel ops inside secret.generic
+    and inserts mgmt.bootstrap ops to ensure levels do not drop below zero.
+    This runs when linalg ops are still present.
+  }];
+  let options = [
+    Option<"levelBudget", "level-budget", "int", /*default=*/"10", "Level budget">,
+    Option<"bootstrapWaterline", "bootstrap-waterline", "int", /*default=*/"0", "Bootstrap waterline">,
+  ];
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::heir::mgmt::MgmtDialect",
+    "mlir::scf::SCFDialect"
   ];
 }
 

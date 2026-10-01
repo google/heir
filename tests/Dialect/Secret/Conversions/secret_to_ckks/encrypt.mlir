@@ -9,7 +9,7 @@ module @jit_func attributes {ckks.schemeParam = #ckks.scheme_param<logN = 15, Q 
   }
   // CHECK: func.func @main__encrypt__arg4
   // CHECK: return %[[from_elements:.*]] : tensor<1x![[ct_ty]]>
-  func.func @main__encrypt__arg4(%arg0: tensor<1x784xf32>) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 7, scale = 45>}) attributes {client.enc_func = {func_name = "main", index = 4 : i64}} {
+  func.func @main__encrypt__arg4(%arg0: tensor<1x784xf32>) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 7, scale = 45>}) attributes {heir.interface = {func_name = "main", index = 4 : i64, roles = ["client.encrypt"]}} {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index

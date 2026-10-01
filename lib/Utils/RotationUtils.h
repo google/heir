@@ -20,7 +20,7 @@ inline int64_t normalizeRotation(int64_t rot, int64_t slots) {
 /// Mirrors Lattigo's lintrans.FindBestBSGSRatio.
 inline int64_t findBestBSGSRatio(llvm::ArrayRef<int32_t> diags, int64_t slots,
                                  int64_t logMaxRatio) {
-  int64_t maxRatio = 1LL << logMaxRatio;
+  double maxRatio = static_cast<double>(1LL << logMaxRatio);
   for (int64_t n1 = 1; n1 < slots; n1 <<= 1) {
     llvm::DenseSet<int64_t> rotN1Set, rotN2Set;
     for (auto rot : diags) {
@@ -28,12 +28,12 @@ inline int64_t findBestBSGSRatio(llvm::ArrayRef<int32_t> diags, int64_t slots,
       rotN1Set.insert(normalizeRotation((r / n1) * n1, slots));
       rotN2Set.insert(r % n1);
     }
-    int64_t nbN1 = static_cast<int64_t>(rotN1Set.size()) - 1;
-    int64_t nbN2 = static_cast<int64_t>(rotN2Set.size()) - 1;
-    if (nbN1 > 0) {
-      if (nbN2 == maxRatio * nbN1) return n1;
-      if (nbN2 > maxRatio * nbN1) return n1 / 2;
-    }
+    double nbN1 = static_cast<double>(rotN1Set.size()) - 1;
+    double nbN2 = static_cast<double>(rotN2Set.size()) - 1;
+    // Float division without a nonzero guard, as Lattigo does it.
+    double ratio = nbN2 / nbN1;
+    if (ratio == maxRatio) return n1;
+    if (ratio > maxRatio) return n1 / 2;
   }
   return 1;
 }
@@ -57,14 +57,20 @@ inline llvm::DenseSet<int64_t> lintransRotationIndices(
 
 /// Returns the ciphertext rotation indices needed by a rotate-and-reduce op.
 ///
-/// Without plaintexts: log-reduction halving shifts.
+/// Without plaintexts: binary span-doubling shifts.
 /// With plaintexts: BSGS, using ceil(sqrt(steps)) as the split.
 inline llvm::DenseSet<int64_t> rotateAndReduceRotationIndices(
     int64_t period, int64_t steps, bool hasPlaintexts) {
   llvm::DenseSet<int64_t> result;
   if (!hasPlaintexts) {
     // Matches implementRotateAndReduceAccumulation
-    for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
+    int64_t offset = 0;
+    for (int64_t shiftSize = 1; shiftSize <= steps; shiftSize *= 2) {
+      if (steps & shiftSize) {
+        if (offset != 0) result.insert(offset * period);
+        offset += shiftSize;
+        if (offset == steps) break;
+      }
       result.insert(shiftSize * period);
     }
     return result;

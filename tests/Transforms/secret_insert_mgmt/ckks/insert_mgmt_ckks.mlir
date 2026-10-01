@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks=slot-number=8 %s
+// RUN: heir-opt --secret-insert-mgmt-ckks=min-slot-count=8 %s
 
 #scalar_layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 7 }">
 #scalar_original_type = #tensor_ext.original_type<originalType = f32, layout = #scalar_layout>

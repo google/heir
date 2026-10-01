@@ -6,6 +6,7 @@
 #include <cstring>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
@@ -28,17 +29,19 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AsmState.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/DialectResourceBlobManager.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 
 #define DEBUG_TYPE "convert-to-ciphertext-semantics"
 
@@ -65,8 +68,27 @@ static FailureOr<Value> implementUnpackOpStep(
 
   RankedTensorType unpackedTensorType = dyn_cast<RankedTensorType>(targetType);
 
-  if (!unpackedTensorType) {
-    // it's a scalar, so we can extract from any slot in the mapping
+  // Restrict the layout relation's domain bounds to the valid elements
+  // [0, dimSize - 1] of targetType. This has to happen before any use of `rel`
+  // below, including the single-element shortcut: that shortcut samples an
+  // arbitrary point from the relation's range, and with an unrestricted domain
+  // the sample can be the slot belonging to a different element.
+  if (unpackedTensorType) {
+    for (unsigned i = 0; i < unpackedTensorType.getRank(); ++i) {
+      if (unpackedTensorType.isDynamicDim(i)) continue;
+      rel.addBound(presburger::BoundType::UB,
+                   rel.getVarKindOffset(presburger::VarKind::Domain) + i,
+                   unpackedTensorType.getDimSize(i) - 1);
+    }
+  }
+
+  bool isSingleElementTensor = unpackedTensorType &&
+                               unpackedTensorType.hasStaticShape() &&
+                               unpackedTensorType.getNumElements() == 1;
+  bool isScalar = !unpackedTensorType;
+
+  if (isScalar || isSingleElementTensor) {
+    // Extract the lone element from any slot in the mapping.
     std::vector<int64_t> point = anyRangePoint(rel);
     if (point.empty()) {
       return builder.emitError()
@@ -80,15 +102,16 @@ static FailureOr<Value> implementUnpackOpStep(
     }
     auto extractOp = tensor::ExtractOp::create(builder, input, indices);
     createdOpCallback(extractOp);
-    return extractOp.getResult();
-  }
 
-  // Restrict the layout relation's domain bounds to the valid elements
-  // [0, dimSize - 1] of targetType.
-  for (unsigned i = 0; i < unpackedTensorType.getRank(); ++i) {
-    if (unpackedTensorType.isDynamicDim(i)) continue;
-    rel.addBound(presburger::BoundType::UB, i,
-                 unpackedTensorType.getDimSize(i) - 1);
+    if (isScalar) {
+      return extractOp.getResult();
+    }
+
+    // isSingleElementTensor -> wrap back into single-element tensor.
+    auto fromElementsOp = tensor::FromElementsOp::create(
+        builder, unpackedTensorType, ValueRange{extractOp.getResult()});
+    createdOpCallback(fromElementsOp);
+    return fromElementsOp.getResult();
   }
 
   SmallVector<int> domainSchedule;
@@ -230,7 +253,7 @@ static FailureOr<Type> getIntermediateTargetType(
   return RankedTensorType::get(targetShape, elementType);
 }
 
-static FailureOr<Value> implementCrtAssignLayoutStep(
+static FailureOr<Value> implementCyclicAssignLayoutStep(
     Value input, RankedTensorType inputType, RankedTensorType targetType,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
@@ -331,23 +354,16 @@ static FailureOr<Value> implementAssignLayoutStep(
     return emptyCiphertextOp.getResult();
   }
 
-  // If the input has a bicyclic or tricyclic CRT layout, we directly compute
-  // logical coordinates via modular remainder operations (arith.remsi) to
-  // avoid ISL codegen overhead.
-  int64_t numSlots = targetType.getShape().back();
-  if (dataSemanticType &&
-      (isRelationBicyclic(dataSemanticType, numSlots, rel) ||
-       isRelationTricyclic(dataSemanticType, numSlots, rel))) {
-    return implementCrtAssignLayoutStep(input, dataSemanticType, targetType,
-                                        builder, createdOpCallback);
-  }
-
   // The result can be simplified if the layout is dense in the ciphertext type,
-  // and the input is a scalar or a constant splat.
+  // and the input is a scalar, a constant splat, or a single-element tensor
+  // (whose dense packing is a broadcast of its lone element).
   SplatElementsAttr splatAttr;
   bool inputIsScalar = !dataSemanticType;
   bool inputIsSplatConstant = matchPattern(input, m_Constant(&splatAttr));
-  if ((inputIsScalar || inputIsSplatConstant) &&
+  bool inputIsSingleElementTensor = dataSemanticType &&
+                                    dataSemanticType.hasStaticShape() &&
+                                    dataSemanticType.getNumElements() == 1;
+  if ((inputIsScalar || inputIsSplatConstant || inputIsSingleElementTensor) &&
       isDenseLayout(rel, targetType)) {
     // Regardless of being constant or not, a scalar can be splat into the
     // ciphertext tensor.
@@ -356,33 +372,47 @@ static FailureOr<Value> implementAssignLayoutStep(
       createdOpCallback(splatOp);
       return splatOp.getResult();
     }
-    auto constantOp = arith::ConstantOp::create(
-        builder, targetType,
-        SplatElementsAttr::get(targetType,
-                               splatAttr.getSplatValue<TypedAttr>()));
-    createdOpCallback(constantOp);
-    return constantOp.getResult();
+    if (inputIsSplatConstant) {
+      auto constantOp = arith::ConstantOp::create(
+          builder, targetType,
+          SplatElementsAttr::get(targetType,
+                                 splatAttr.getSplatValue<TypedAttr>()));
+      createdOpCallback(constantOp);
+      return constantOp.getResult();
+    }
+    // A non-constant single-element tensor: the loop-generator path below
+    // handles it correctly, but emits one iteration per slot whose body is
+    // loop-invariant; extract the element once and splat it instead.
+    auto zero = arith::ConstantIndexOp::create(builder, 0);
+    createdOpCallback(zero);
+    SmallVector<Value> zeroIndices(dataSemanticType.getRank(),
+                                   zero.getResult());
+    auto extractOp = tensor::ExtractOp::create(builder, input, zeroIndices);
+    createdOpCallback(extractOp);
+    auto splatOp =
+        tensor::SplatOp::create(builder, targetType, extractOp.getResult());
+    createdOpCallback(splatOp);
+    return splatOp.getResult();
   }
 
   DenseElementsAttr constantAttr;
-  bool shouldFold = false;
-  if (matchPattern(input, m_Constant(&constantAttr)) && dataSemanticType &&
-      isLast) {
-    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE) {
-      shouldFold = true;
-    } else if (strategy == CodegenStrategy::AUTO) {
-      int64_t relSize = relationSize(rel);
-      if (relSize <= 16384) {
-        shouldFold = true;
-      } else {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "Relation size " << relSize
-                   << " exceeds threshold 16384, skipping constant folding\n");
+  DenseResourceElementsAttr resourceAttr;
+  ArrayRef<char> resourceRaw;
+  bool isDenseConstant = matchPattern(input, m_Constant(&constantAttr));
+  if (!isDenseConstant) {
+    if (auto cstOp =
+            dyn_cast_or_null<arith::ConstantOp>(input.getDefiningOp())) {
+      if ((resourceAttr =
+               dyn_cast<DenseResourceElementsAttr>(cstOp.getValue()))) {
+        resourceRaw = resourceAttr.getData();
       }
     }
   }
-
-  if (shouldFold) {
+  bool isResourceConstant = !resourceRaw.empty() &&
+                            elementType.isIntOrFloat() &&
+                            elementType.getIntOrFloatBitWidth() % 8 == 0;
+  auto tryFolding = [&]() -> FailureOr<Value> {
+    if (!dataSemanticType) return failure();
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
     int64_t numTargetElements = targetType.getNumElements();
 
@@ -406,7 +436,7 @@ static FailureOr<Value> implementAssignLayoutStep(
       for (size_t i = 0; i < point.size(); ++i) flat += point[i] * strides[i];
       return flat;
     };
-    bool srcIsSplat = constantAttr.isSplat();
+    bool srcIsSplat = isDenseConstant && constantAttr.isSplat();
 
     // Fast path: for byte-aligned int/float element types, pack directly into a
     // raw byte buffer rather than building an N-element SmallVector<Attribute>
@@ -414,21 +444,47 @@ static FailureOr<Value> implementAssignLayoutStep(
     if (elementType.isIntOrFloat() &&
         elementType.getIntOrFloatBitWidth() % 8 == 0) {
       unsigned byteWidth = elementType.getIntOrFloatBitWidth() / 8;
-      ArrayRef<char> srcRaw = constantAttr.getRawData();
+      ArrayRef<char> srcRaw =
+          isDenseConstant ? constantAttr.getRawData() : resourceRaw;
       std::vector<char> rawBuffer(
           static_cast<size_t>(numTargetElements) * byteWidth, 0);
 
+      std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
       for (const auto& [domainPoint, rangePoint] : collector.points) {
         int64_t dstFlat = flatten(rangePoint, dstStrides);
         if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
         int64_t srcFlat = srcIsSplat ? 0 : flatten(domainPoint, srcStrides);
+        if (!srcIsSplat && written[dstFlat] &&
+            std::memcmp(
+                rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
+                srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
+                byteWidth) != 0) {
+          return builder.emitError()
+                 << "layout maps two distinct data values to the same slot "
+                 << dstFlat << "; a non-replicated value cannot be packed "
+                 << "into this (non-injective) layout";
+        }
+        if (!srcIsSplat) written[dstFlat] = true;
         std::memcpy(rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
                     srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
                     byteWidth);
       }
 
-      auto packedConstantAttr = DenseElementsAttr::getFromRawBuffer(
-          targetType, ArrayRef<char>(rawBuffer.data(), rawBuffer.size()));
+      TypedAttr packedConstantAttr;
+      ArrayRef<char> packedRaw(rawBuffer.data(), rawBuffer.size());
+      if (isResourceConstant) {
+        std::string resourceName = resourceAttr.getRawHandle().getKey().str();
+        resourceName += "_packed";
+        auto packedBlob = HeapAsmResourceBlob::allocateAndCopyWithAlign(
+            packedRaw,
+            resourceAttr.getRawHandle().getBlob()->getDataAlignment(),
+            /*dataIsMutable=*/false);
+        packedConstantAttr = DenseResourceElementsAttr::get(
+            targetType, resourceName, std::move(packedBlob));
+      } else {
+        packedConstantAttr =
+            DenseElementsAttr::getFromRawBuffer(targetType, packedRaw);
+      }
       auto constantOp = arith::ConstantOp::create(builder, builder.getLoc(),
                                                   packedConstantAttr);
       createdOpCallback(constantOp);
@@ -442,13 +498,21 @@ static FailureOr<Value> implementAssignLayoutStep(
     Attribute splatValue =
         srcIsSplat ? constantAttr.getSplatValue<Attribute>() : Attribute();
     auto srcValues = constantAttr.getValues<Attribute>();
+    std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
     for (const auto& [domainPoint, rangePoint] : collector.points) {
       int64_t dstFlat = flatten(rangePoint, dstStrides);
       if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
-      packedValues[dstFlat] = srcIsSplat
-                                  ? splatValue
-                                  : srcValues[static_cast<size_t>(
-                                        flatten(domainPoint, srcStrides))];
+      Attribute val = srcIsSplat ? splatValue
+                                 : srcValues[static_cast<size_t>(
+                                       flatten(domainPoint, srcStrides))];
+      if (!srcIsSplat && written[dstFlat] && packedValues[dstFlat] != val) {
+        return builder.emitError()
+               << "layout maps two distinct data values to the same slot "
+               << dstFlat << "; a non-replicated value cannot be packed "
+               << "into this (non-injective) layout";
+      }
+      if (!srcIsSplat) written[dstFlat] = true;
+      packedValues[dstFlat] = val;
     }
 
     auto packedConstantAttr =
@@ -457,6 +521,52 @@ static FailureOr<Value> implementAssignLayoutStep(
                                                 packedConstantAttr);
     createdOpCallback(constantOp);
     return constantOp.getResult();
+  };
+
+  bool shouldFold = false;
+  if ((isDenseConstant || isResourceConstant) && dataSemanticType) {
+    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE ||
+        (strategy == CodegenStrategy::AUTO && isResourceConstant)) {
+      shouldFold = true;
+    } else if (strategy == CodegenStrategy::AUTO) {
+      if (rel.getNumLocalVars() > 5) {
+        LLVM_DEBUG(
+            llvm::dbgs()
+            << "Relation has many existentials, folding constant to avoid "
+               "loop generation hangs\n");
+        shouldFold = true;
+      } else {
+        int64_t relSize = relationSize(rel);
+        if (relSize >= 0 && relSize <= 16384) {
+          shouldFold = true;
+        } else {
+          LLVM_DEBUG(
+              llvm::dbgs()
+              << "Relation size " << relSize
+              << " exceeds threshold 16384, skipping constant folding\n");
+        }
+      }
+    }
+  }
+
+  if (shouldFold) {
+    auto folded = tryFolding();
+    if (succeeded(folded)) {
+      return folded.value();
+    }
+    return failure();
+  }
+
+  // If the input has a (multi-dimensional) cyclic CRT layout, we directly
+  // compute logical coordinates via modular remainder operations (arith.remsi)
+  // to avoid ISL codegen overhead.
+  // We require at least 2 dimensions to avoid interrupting `elementwise_layout`
+  // test.
+  int64_t numSlots = targetType.getShape().back();
+  if (dataSemanticType && dataSemanticType.getRank() >= 2 &&
+      isRelationCyclic(dataSemanticType, numSlots, rel)) {
+    return implementCyclicAssignLayoutStep(input, dataSemanticType, targetType,
+                                           builder, createdOpCallback);
   }
 
   auto zeroOp = arith::ConstantOp::create(builder, targetType,
@@ -526,7 +636,7 @@ static FailureOr<Value> implementAssignLayoutStep(
 }
 
 FailureOr<Value> implementAssignLayout(
-    Value input, Attribute layout, int64_t ciphertextSize,
+    Value input, Attribute layout, int64_t minSlotCount,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback,
     ArrayRef<int64_t> domainSchedule, CodegenStrategy strategy) {
@@ -544,7 +654,7 @@ FailureOr<Value> implementAssignLayout(
       Type targetType;
       auto elementType = getElementTypeOrSelf(currentInput.getType());
       if (isLast) {
-        targetType = materializeLayout(elementType, layoutAttr, ciphertextSize);
+        targetType = materializeLayout(elementType, layoutAttr, minSlotCount);
       } else {
         auto intermediateType =
             getIntermediateTargetType(elementType, layoutAttr, builder);
@@ -565,15 +675,14 @@ FailureOr<Value> implementAssignLayout(
 
   if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
     auto elementType = getElementTypeOrSelf(input.getType());
-    Type targetType =
-        materializeLayout(elementType, layoutAttr, ciphertextSize);
+    Type targetType = materializeLayout(elementType, layoutAttr, minSlotCount);
     return implementAssignLayoutStep(input, layoutAttr, targetType, builder,
                                      createdOpCallback, /*isLast=*/true,
                                      domainSchedule, strategy);
   } else if (DenseIntElementsAttr elementAttr =
                  dyn_cast<DenseIntElementsAttr>(layout)) {
     Type targetType = materializePermutationLayout(input.getType(), elementAttr,
-                                                   ciphertextSize);
+                                                   minSlotCount);
     return implementAssignLayoutPermutation(input, elementAttr, targetType,
                                             builder, createdOpCallback);
   }

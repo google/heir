@@ -15,7 +15,10 @@ class Mgmt_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::mgmt";
 }
 
-def Mgmt_ModReduceOp : Mgmt_Op<"modreduce", [ReducesLevelOpInterface]> {
+def Mgmt_ModReduceOp : Mgmt_Op<"modreduce", [
+  ReducesLevelOpInterface,
+  RequiresLinearKeyBasisOpInterface
+]> {
   let summary = "Modulus switch the input ciphertext down by one limb (RNS assumed)";
 
   let description = [{
@@ -56,7 +59,7 @@ def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce",
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
   let results = (outs AnyType:$output);
-  let assemblyFormat = "operands attr-dict `:` type($output)";
+  let assemblyFormat = "operands prop-dict attr-dict `:` type($output)";
 
   let hasCanonicalizer = 1;
 }
@@ -145,7 +148,7 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale", [IncreasesMulDepthOpInterface]>
 
   let arguments = (ins AnyType:$input, I64Attr:$id);
   let results = (outs AnyType:$output);
-  let assemblyFormat = "operands attr-dict `:` type($output)";
+  let assemblyFormat = "operands prop-dict attr-dict `:` type($output)";
   let hasCanonicalizer = 1;
 }
 

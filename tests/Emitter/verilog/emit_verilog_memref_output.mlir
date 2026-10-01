@@ -10,7 +10,7 @@ module {
     %c1 = arith.constant 1 : index
     %c2 = arith.constant 2 : index
     %c3 = arith.constant 3 : index
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x4xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<1x4xi8>
     affine.store %arg0, %alloc[%c0, %c0] : memref<1x4xi8>
     %1 = arith.addi %arg0, %arg0 : i8
     affine.store %1, %alloc[%c0, %c1] : memref<1x4xi8>

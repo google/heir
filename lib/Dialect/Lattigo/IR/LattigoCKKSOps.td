@@ -19,9 +19,14 @@ def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext"> {
   let summary = "Create a new plaintext in the Lattigo CKKS dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo CKKS dialect.
+
+    The optional `level` attribute is the level to allocate the plaintext at.
+     When absent, the
+    plaintext is allocated at `params.MaxLevel()`.
   }];
   let arguments = (ins
-    Lattigo_CKKSParameter:$params
+    Lattigo_CKKSParameter:$params,
+    OptionalAttr<ConfinedAttr<I64Attr, [IntNonNegative]>>:$level
   );
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }
@@ -236,7 +241,7 @@ def Lattigo_CKKSRelinearizeNewOp : Lattigo_CKKSUnaryOp<"relinearize_new"> {
 }
 
 def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{
@@ -292,7 +297,7 @@ def Lattigo_CKKSRelinearizeOp : Lattigo_CKKSUnaryInPlaceOp<"relinearize"> {
 }
 
 def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInPlaceOp<"rescale", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{
@@ -360,12 +365,18 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
     This operation applies a linear transform on a CKKS ciphertext using
     the provided float diagonals.
 
+    The transform is built at the input ciphertext's own level, so evaluating
+    it technically consumes no level: the result comes back at the input's level
+    but with a multiplied scale (requiring a separate rescale afterwards).
+
     The linear transform is defined by a set of diagonals, where each diagonal
     represents a specific shift and scaling of the input ciphertext slots.
 
     The `diagonals` input is a 2D tensor where each row represents one non-zero
-    diagonal of the square matrix to evaluate. The diagonal values are floats
-    that will be encoded into plaintexts during code generation.
+    diagonal of the square matrix to evaluate. Row i of the `diagonals` holds
+    the generalized diagonal named by `diagonal_indices[i]`. The diagonal
+    values are floats that will be encoded into plaintexts during code
+    generation.
 
     The `levelQ` attribute specifies the modulus level at which the operation
     should be performed.
@@ -406,6 +417,59 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
+def Lattigo_CKKSPrepareLinearTransformOp : Lattigo_CKKSOp<"prepare_linear_transform", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
+  let summary = "Prepare (encode) a linear transform for evaluation";
+  let description = [{
+    Builds and encodes a lintrans.LinearTransformation from the given float
+    diagonals. Row i of the `diagonals` holds the generalized diagonal named by
+    `diagonal_indices[i]`. If `source_row_indices` is present, that diagonal is
+    instead read from row `source_row_indices[i]`.
+
+    All of lintrans.Parameters are determined here at compile time: `levelQ`
+    names the modulus level (the encoding scale is the backend's scale for
+    that level), `logSlots` the encoded slot count, and
+    `logBabyStepGiantStepRatio` the BSGS split. The op needs no ciphertext, so
+    it can run entirely ahead of any inference.
+
+    The op implements RotationOpInterface. The Galois keys needed are a
+    function of the diagonal indices, slot count, and BSGS split.
+    RotationOpInterface is used only for analysis purposes to determine what
+    rotation keys are needed.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSParameter:$params,
+    Lattigo_CKKSEncoder:$encoder,
+    ConfinedType<TensorOrMemRef<[AnyFloat]>, [HasAnyRankOfPred<[2]>]>:$diagonals,
+    DenseI32ArrayAttr:$diagonal_indices,
+    OptionalAttr<DenseI32ArrayAttr>:$source_row_indices,
+    Builtin_IntegerAttr:$levelQ,
+    Builtin_IntegerAttr:$logSlots,
+    Builtin_IntegerAttr:$logBabyStepGiantStepRatio
+  );
+  let results = (outs Lattigo_CKKSLinearTransformation:$transformation);
+  let hasVerifier = 1;
+}
+
+
+def Lattigo_CKKSApplyLinearTransformOp : Lattigo_CKKSOp<"apply_linear_transform"> {
+  let summary = "Apply a prepared linear transform to a ciphertext";
+  let description = [{
+    Evaluates a transformation prepared by
+    lattigo.ckks.prepare_linear_transform on a ciphertext. The ciphertext must
+    be at the level the transformation was prepared for. Evaluation preserves
+    that level, so we must emit a rescale op after this op.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    Lattigo_CKKSLinearTransformation:$transformation
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+
 def Lattigo_CKKSNewPolynomialEvaluatorOp : Lattigo_CKKSOp<"new_polynomial_evaluator"> {
   let summary = "Create a new polynomial evaluator in the Lattigo CKKS dialect";
   let description = [{
@@ -420,7 +484,10 @@ def Lattigo_CKKSNewPolynomialEvaluatorOp : Lattigo_CKKSOp<"new_polynomial_evalua
 }
 
 
-def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphertext", "output"]>]> {
+def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [
+  AllTypesMatch<["ciphertext", "output"]>,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>
+]> {
   let summary = "Evaluate a chebyshev polynomial on a lattigo CKKS ciphertext";
   let description = [{
     This operation evaluates a chebyshev polynomial on a CKKS ciphertext using

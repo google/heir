@@ -18,7 +18,7 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
   // CHECK: func @doctest
   // CHECK-SAME: ([[arg0:%[^ :]*]]: [[ct_ty:![^,]*]],
   // CHECK-SAME: [[cond:%[^ :]*]]: i1
-  // CHECK-SAME: [[new_arg:%[^ :]*]]: [[ct_ty]] {client.enc_zero_arg}
+  // CHECK-SAME: [[new_arg:%[^ :]*]]: [[ct_ty]] {client.enc_zero_arg = {func_name = "doctest", index = 0 : i64}}
   // CHECK: [[cst:%[^ ]*]] = arith.constant dense<4>
   // CHECK: scf.if
   // CHECK:   lwe.radd
@@ -35,10 +35,10 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
       %1 = lwe.radd %arg0, %arg0 : (!ty, !ty) -> !ty
       scf.yield %1 : !ty
     } else {
-      %pt = lwe.rlwe_encode %cst {
+      %pt = lwe.rlwe_encode %cst <
         encoding = #full_crt_packing_encoding,
         ring = #ring_Z65537_i64_1_x32_
-      } : tensor<1024xi16> -> !pt
+      > : tensor<1024xi16> -> !pt
       %4 = lwe.trivial_encrypt %pt {ciphertext_bits = 64 : index} : !pt -> !ty
       scf.yield %4 : !ty
     }
@@ -48,7 +48,7 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
   // This is usually auto-generated, but needed in this example test so that
   // the new encryption helper knows what encryption key type to use
   // (secret/public).
-  func.func @enc_helper(%arg0: tensor<32xf32>, %pk: !pkey) attributes {client.enc_func = {func_name = "doctest", index = 0 : i64}} {
+  func.func @enc_helper(%arg0: tensor<32xf32>, %pk: !pkey) attributes {heir.interface = {func_name = "doctest", index = 0 : i64, roles = ["client.encrypt"]}} {
     return
   }
 

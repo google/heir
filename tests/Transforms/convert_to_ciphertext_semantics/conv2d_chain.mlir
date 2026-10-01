@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=4096 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=4096 | FileCheck %s
 
 // Check the diagonalized filters shape and the row stride of the second
 // convolution is 3 since the gap factor is 1.
@@ -42,11 +42,11 @@ module attributes {backend.lattigo, scheme.ckks} {
     %1 = tensor.empty() : tensor<1x1x2x3xf32>
     %2 = secret.generic(%arg0: !secret.secret<tensor<1x1x4x4xf32>> {heir.kernel_info = {gap_factor = 1 : i64, input_shape = array<i64>, result_shape = array<i64: 1, 1, 4, 4>}, tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<1x1x4x4xf32>):
-      %3 = tensor_ext.assign_layout %0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<1x1x3x3xf32>
-      %4 = tensor_ext.assign_layout %cst_0 {layout = [#layout3, #layout4, #layout5, #layout6], tensor_ext.layout = #layout7} : tensor<1x1x2x2xf32>
+      %3 = tensor_ext.assign_layout %0 <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<1x1x3x3xf32>
+      %4 = tensor_ext.assign_layout %cst_0 <layout = [#layout3, #layout4, #layout5, #layout6]> {tensor_ext.layout = #layout7} : tensor<1x1x2x2xf32>
       %5 = linalg.conv_2d_nchw_fchw {heir.kernel_info = {gap_factor = 1 : i64, input_shape = array<i64: 1, 1, 4, 4>, result_shape = array<i64: 1, 1, 3, 3>}, secret.kernel = #kernel, strides = dense<1> : vector<2xi64>, tensor_ext.layout = #layout2} ins(%input0, %4 : tensor<1x1x4x4xf32>, tensor<1x1x2x2xf32>) outs(%3 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
-      %6 = tensor_ext.assign_layout %1 {layout = #layout, tensor_ext.layout = #layout} : tensor<1x1x2x3xf32>
-      %7 = tensor_ext.assign_layout %cst {layout = [#layout8, #layout9, #layout10, #layout11], tensor_ext.layout = #layout12} : tensor<1x1x2x1xf32>
+      %6 = tensor_ext.assign_layout %1 <layout = #layout> {tensor_ext.layout = #layout} : tensor<1x1x2x3xf32>
+      %7 = tensor_ext.assign_layout %cst <layout = [#layout8, #layout9, #layout10, #layout11]> {tensor_ext.layout = #layout12} : tensor<1x1x2x1xf32>
       %8 = linalg.conv_2d_nchw_fchw {heir.kernel_info = {gap_factor = 1 : i64, input_shape = array<i64: 1, 1, 3, 3>, result_shape = array<i64: 1, 1, 2, 3>}, secret.kernel = #kernel, strides = dense<1> : vector<2xi64>, tensor_ext.layout = #layout} ins(%5, %7 : tensor<1x1x3x3xf32>, tensor<1x1x2x1xf32>) outs(%6 : tensor<1x1x2x3xf32>) -> tensor<1x1x2x3xf32>
       secret.yield %8 : tensor<1x1x2x3xf32>
     } -> (!secret.secret<tensor<1x1x2x3xf32>> {tensor_ext.layout = #layout})

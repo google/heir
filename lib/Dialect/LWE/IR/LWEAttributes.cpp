@@ -40,6 +40,7 @@ int64_t inferMulOpScalingFactor(Attribute xEncoding, Attribute yEncoding,
                                 int64_t plaintextModulus) {
   int64_t xScale = getScalingFactorFromEncodingAttr(xEncoding);
   int64_t yScale = getScalingFactorFromEncodingAttr(yEncoding);
+  if (xScale == -1 || yScale == -1) return -1;
   return llvm::TypeSwitch<Attribute, int64_t>(xEncoding)
       .Case<FullCRTPackingEncodingAttr>(
           // Use 128-bit int in case of large ptm.
@@ -56,6 +57,7 @@ int64_t inferModulusSwitchOrRescaleOpScalingFactor(Attribute xEncoding,
                                                    APInt dividedModulus,
                                                    int64_t plaintextModulus) {
   int64_t xScale = getScalingFactorFromEncodingAttr(xEncoding);
+  if (xScale == -1) return -1;
   return llvm::TypeSwitch<Attribute, int64_t>(xEncoding)
       .Case<FullCRTPackingEncodingAttr>([&](auto attr) {
         // Use 128-bit int in case of large ptm.

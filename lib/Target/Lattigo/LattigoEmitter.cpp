@@ -18,6 +18,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
@@ -26,6 +28,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/CommandLine.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
@@ -34,6 +37,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -56,6 +60,7 @@
 #include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace mlir {
@@ -142,6 +147,10 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
                 memref::ReinterpretCastOp, memref::SubViewOp,
                 memref::ExtractStridedMetadataOp, memref::DimOp>(
               [&](auto op) { return printOperation(op); })
+          .Case<preprocessing::LoadResourceOp>(
+              [&](auto op) { return printOperation(op); })
+          // Math ops
+          .Case<math::SqrtOp>([&](auto op) { return printOperation(op); })
 
           // Lattigo ops
           .Case<
@@ -178,11 +187,186 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
     return emitError(op.getLoc(),
                      llvm::formatv("Failed to translate op {0}", op.getName()));
   }
+  // Most value-producing ops declare a Go variable for each result (either
+  // `name := ...` or `name, err := ...`). Several emit that declaration
+  // directly via `os <<` and never record the name in declaredVars. When
+  // SelectVariableNames maps a later value to the same Go name (buffer reuse),
+  // a single-assignment site (emitAssignment, e.g. the CopyNew for a
+  // DropLevel/NegateNew) would then redeclare it with `:=` -> a Go
+  // "no new variables on left side of :=" compile error. Record every
+  // result name here so such a reuse correctly emits `=` instead.
+  for (Value result : op.getResults()) {
+    if (variableNames->contains(result)) {
+      declaredVars.insert(getName(result));
+    }
+  }
   return success();
+}
+
+// Bytes per element as externalize-constants writes them. DenseElementsAttr
+// pads sub-byte elements out to a byte, and i1 is written unpacked as one
+// byte per element, so anything at or below 8 bits occupies a single byte.
+static int64_t storedByteWidth(Type eltType) {
+  unsigned bitWidth = eltType.getIntOrFloatBitWidth();
+  return bitWidth <= 8 ? 1 : bitWidth / 8;
+}
+
+// Bytes per element that the generated Go loader reads for a scalar Go type.
+static FailureOr<int64_t> goScalarByteWidth(StringRef goType) {
+  if (goType == "bool" || goType == "int8" || goType == "uint8") return 1;
+  if (goType == "int16" || goType == "uint16") return 2;
+  if (goType == "int32" || goType == "uint32" || goType == "float32") return 4;
+  if (goType == "int64" || goType == "uint64" || goType == "float64") return 8;
+  return failure();
+}
+
+FailureOr<bool> LattigoEmitter::collectResourcesToLoad(ModuleOp moduleOp) {
+  bool hasResources = false;
+  LogicalResult prepassResult = success();
+  moduleOp.walk([&](preprocessing::LoadResourceOp op) {
+    hasResources = true;
+    Value resource = op.getLoadedResource();
+    // These globals are emitted once at module scope, so they cannot be named
+    // after the SSA value: SelectVariableNames restarts its numbering in each
+    // function, and two functions would produce the same global. Index into
+    // `resources` instead, which is module-wide.
+    std::string globalName = "g_resource" + std::to_string(resources.size());
+    resourceGlobals[resource] = globalName;
+
+    auto type = resource.getType();
+    auto typeString = convertType(type);
+    if (failed(typeString)) {
+      prepassResult = failure();
+      return WalkResult::interrupt();
+    }
+
+    Type eltType;
+    if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+      eltType = tensorType.getElementType();
+    } else if (auto memrefType = dyn_cast<MemRefType>(type)) {
+      eltType = memrefType.getElementType();
+    } else {
+      op.emitError("unsupported resource type");
+      prepassResult = failure();
+      return WalkResult::interrupt();
+    }
+    auto eltTypeString = convertType(eltType);
+    if (failed(eltTypeString)) {
+      prepassResult = failure();
+      return WalkResult::interrupt();
+    }
+
+    // The loader reads size * sizeof(goType) bytes, so the Go type has to be
+    // exactly as wide as the element is on disk.
+    if (isa<IntegerType, FloatType>(eltType)) {
+      int64_t storedBytes = storedByteWidth(eltType);
+      FailureOr<int64_t> goBytes = goScalarByteWidth(eltTypeString.value());
+      if (failed(goBytes) || *goBytes != storedBytes) {
+        op.emitError() << "resource element type " << eltType
+                       << " is stored as " << storedBytes
+                       << " bytes per element, but the generated loader reads "
+                       << eltTypeString.value();
+        prepassResult = failure();
+        return WalkResult::interrupt();
+      }
+    }
+
+    int64_t size = 0;
+    if (auto shapedType = dyn_cast<ShapedType>(type)) {
+      size = shapedType.getNumElements();
+    }
+
+    ResourceInfo info{globalName, typeString.value(), eltTypeString.value(),
+                      op.getPath().str(), size};
+    resources.push_back(info);
+    resourceEltTypes.insert(eltTypeString.value());
+    return WalkResult::advance();
+  });
+
+  if (failed(prepassResult)) {
+    return failure();
+  }
+
+  return hasResources;
 }
 
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   prelude = "package " + packageName + "\n";
+
+  FailureOr<bool> maybeHasResources = collectResourcesToLoad(moduleOp);
+  if (failed(maybeHasResources)) {
+    return failure();
+  }
+
+  if (*maybeHasResources) {
+    imports.insert("\"os\"");
+    imports.insert("\"encoding/binary\"");
+    imports.insert("\"path/filepath\"");
+
+    std::string globals;
+    llvm::raw_string_ostream globalsOs(globals);
+    for (const auto& res : resources) {
+      globalsOs << llvm::formatv("  {0} {1}\n", res.globalName, res.goType);
+    }
+
+    std::string initBody;
+    llvm::raw_string_ostream initBodyOs(initBody);
+    for (const auto& res : resources) {
+      initBodyOs << llvm::formatv(
+          R"(  {0}, err = loadResource_{1}("{2}", {3})
+  if err != nil {{
+    panic(err)
+  }
+)",
+          res.globalName, res.goEltType, res.path, res.size);
+    }
+
+    std::string helpers;
+    llvm::raw_string_ostream helpersOs(helpers);
+    for (const auto& eltType : resourceEltTypes) {
+      helpersOs << llvm::formatv(
+          R"(func loadResource_{0}(path string, size int) ([]{0}, error) {{
+  resolvedPath := heirResolvePath(path)
+  file, err := os.Open(resolvedPath)
+  if err != nil {{
+    return nil, err
+  }
+  defer file.Close()
+
+  data := make([]{0}, size)
+  err = binary.Read(file, binary.LittleEndian, &data)
+  if err != nil {{
+    return nil, err
+  }
+  return data, nil
+}
+
+)",
+          eltType);
+    }
+
+    helpersOs << R"(func heirResolvePath(path string) string {
+  if srcDir := os.Getenv("TEST_SRCDIR"); srcDir != "" {
+    if workspace := os.Getenv("TEST_WORKSPACE"); workspace != "" {
+      return filepath.Join(srcDir, workspace, path)
+    }
+  }
+  return path
+}
+
+)";
+
+    os << llvm::formatv(R"(// Package-level globals for external resources
+var (
+{0})
+
+func init() {{
+  var err error
+{1}}
+
+{2})",
+                        globalsOs.str(), initBodyOs.str(), helpersOs.str());
+  }
 
   for (Operation& op : moduleOp) {
     if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
@@ -300,7 +484,7 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
   if (!isDebugPort(callee)) {
     calleeName = toExportName(calleeName);
   }
-  if (calleeOp && calleeOp->hasAttr(kClientPackFuncAttrName)) {
+  if (calleeOp && isPreprocessingHelper(calleeOp)) {
     if (funcFilter && !funcFilter(calleeOp)) {
       calleeName = packageName + "_utils." + calleeName;
       extraImportsUsed = true;
@@ -891,6 +1075,28 @@ LogicalResult LattigoEmitter::printOperation(arith::XOrIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "^");
 }
 
+LogicalResult LattigoEmitter::printOperation(math::SqrtOp op) {
+  imports.insert("\"math\"");
+  Type type = op.getOperand().getType();
+  auto typeStringResult = convertType(type);
+  if (failed(typeStringResult)) return failure();
+  std::string typeString = typeStringResult.value();
+
+  std::string operandName = getName(op.getOperand());
+  std::string resultName = getName(op.getResult());
+
+  if (typeString == "float32") {
+    os << resultName << " := float32(math.Sqrt(float64(" << operandName
+       << ")))\n";
+  } else if (typeString == "float64") {
+    os << resultName << " := math.Sqrt(" << operandName << ")\n";
+  } else {
+    return op.emitOpError("Unsupported float type for math.sqrt: ")
+           << typeString;
+  }
+  return success();
+}
+
 LogicalResult LattigoEmitter::printOperation(arith::RemSIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "%");
 }
@@ -1079,6 +1285,8 @@ LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(memref::AllocOp op) {
+  if (preprocessing::LoadResourceOp::getForDestination(op.getResult()))
+    return success();
   MemRefType type = op.getType();
   auto eltTypeStr = convertType(type.getElementType());
   if (failed(eltTypeStr)) return failure();
@@ -1448,6 +1656,48 @@ const auto* negateTemplate = R"GO(
     {2}.GetRLWEParameters().RingQ().AtLevel({1}.LevelQ()).Neg({1}.Value[{0}], {1}.Value[{0}])
   }
 )GO";
+
+// Return the number of moduli in the Q chain the parameters declare, or nullopt
+// when the module holds no parameters literal
+template <typename ParamsLiteralAttr, typename NewParamsOp>
+std::optional<int64_t> getQChainLength(Operation* op) {
+  auto module = op->getParentOfType<ModuleOp>();
+  if (!module) return std::nullopt;
+
+  std::optional<int64_t> length;
+  module.walk([&](NewParamsOp paramsOp) {
+    ParamsLiteralAttr literal = paramsOp.getParamsLiteral();
+    if (auto q = literal.getQ()) {
+      length = q.size();
+    } else if (auto logQ = literal.getLogQ()) {
+      length = logQ.size();
+    }
+    // Several parameter sets in one module would each bound their own
+    // plaintexts, which this lookup cannot tell apart. Decline to guess.
+    return length ? WalkResult::interrupt() : WalkResult::advance();
+  });
+  return length;
+}
+
+// Render the level argument of a {bgv,ckks}.NewPlaintext call. Fails when the
+// requested level is past the top of the modulus chain:
+template <typename ParamsLiteralAttr, typename NewParamsOp,
+          typename NewPlaintextOp>
+FailureOr<std::string> getPlaintextLevel(NewPlaintextOp op,
+                                         StringRef paramsName) {
+  std::optional<int64_t> level = op.getLevel();
+  if (!level) return (paramsName + ".MaxLevel()").str();
+
+  std::optional<int64_t> qChainLength =
+      getQChainLength<ParamsLiteralAttr, NewParamsOp>(op);
+  if (qChainLength && *level >= *qChainLength) {
+    return op.emitOpError()
+           << "level " << *level << " is past the top of the modulus chain, "
+           << "which has " << *qChainLength << " moduli and so a maximum level "
+           << "of " << (*qChainLength - 1);
+  }
+  return std::to_string(*level);
+}
 }  // namespace
 
 LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
@@ -1497,15 +1747,27 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
   os << ", ";
   os << (op.getScaleInvariant() ? "true" : "false");
   os << ")\n";
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
+  FailureOr<std::string> level =
+      getPlaintextLevel<BGVParametersLiteralAttr,
+                        BGVNewParametersFromLiteralOp>(op,
+                                                       getName(op.getParams()));
+  if (failed(level)) return failure();
+
   std::string resultName = getName(op.getResult());
   os << resultName << " := bgv.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
-  os << getName(op.getParams()) << ".MaxLevel()";
+  os << *level;
   os << ")\n";
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -1525,31 +1787,27 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
   }
 
-  std::string packedName = valueName;
-  // EncodeOp requires its argument to be a slice of int64 so we emit a loop
-  // implementing type conversion if needed.
-  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
-      64) {
-    packedName = valueName + "_" + plaintextName + "_packed";
-    os << packedName << " := make([]int64, ";
-    os << maxSlotsName << ")\n";
-    os << "for i := range " << packedName << " {\n";
+  std::string packedName = valueName + "_" + plaintextName + "_packed";
+  // EncodeOp requires its argument to be a slice of int64, and we emit a loop
+  // for cyclic repetition and type conversion.
+  os << packedName << " := make([]int64, ";
+  os << maxSlotsName << ")\n";
+  os << "for i := range " << packedName << " {\n";
 
-    // packedName[i] = int64(value[i])
-    auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
-    auto packedNameAtI = packedName + "[i]";
-    os.indent();
-    if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
-        1) {
-      emitIf(
-          valueNameAtI, [&]() { os << packedNameAtI << " = int64(1)\n"; },
-          [&]() { os << packedNameAtI << " = int64(0)\n"; });
-    } else {
-      os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
-    }
-    os.unindent();
-    os << "}\n";
+  // packedName[i] = int64(value[i % len(value)])
+  auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
+  auto packedNameAtI = packedName + "[i]";
+  os.indent();
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+      1) {
+    emitIf(
+        valueNameAtI, [&]() { os << packedNameAtI << " = int64(1)\n"; },
+        [&]() { os << packedNameAtI << " = int64(0)\n"; });
+  } else {
+    os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
   }
+  os.unindent();
+  os << "}\n";
 
   // set the scale of plaintext
   auto scale = op.getScale();
@@ -1779,6 +2037,9 @@ LogicalResult LattigoEmitter::printOperation(
   os << resultName << ", _, " << errName << " := " << getName(op.getParams())
      << ".GenEvaluationKeys(" << getName(op.getSk()) << ")\n";
   printErrPanic(errName);
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -1789,11 +2050,20 @@ LogicalResult LattigoEmitter::printOperation(
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSNewPlaintextOp op) {
+  FailureOr<std::string> level =
+      getPlaintextLevel<CKKSParametersLiteralAttr,
+                        CKKSNewParametersFromLiteralOp>(
+          op, getName(op.getParams()));
+  if (failed(level)) return failure();
+
   std::string resultName = getName(op.getResult());
   os << resultName << " := ckks.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
-  os << getName(op.getParams()) << ".MaxLevel()";
+  os << *level;
   os << ")\n";
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -1818,37 +2088,33 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
        << "}\n";
   }
 
-  std::string packedName = valueName;
-  // EncodeOp requires its argument to be a slice of int64 so we emit a loop
-  // implementing type conversion if needed.
-  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
-      64) {
-    packedName = valueName + "_" + plaintextName + "_packed";
-    os << packedName << " := make([]float64, ";
-    os << maxSlotsName << ")\n";
-    os << "for i := range " << packedName << " {\n";
-    // packedName[i] = float64(value[i])
-    auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
-    auto packedNameAtI = packedName + "[i]";
-    os.indent();
-    if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
-        1) {
-      const auto* boolToFloat64Template = R"GO(
+  std::string packedName = valueName + "_" + plaintextName + "_packed";
+  // EncodeOp requires its argument to be a slice of float64, and we emit a loop
+  // for cyclic repetition and type conversion.
+  os << packedName << " := make([]float64, ";
+  os << maxSlotsName << ")\n";
+  os << "for i := range " << packedName << " {\n";
+  // packedName[i] = float64(value[i % len(value)])
+  auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
+  auto packedNameAtI = packedName + "[i]";
+  os.indent();
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+      1) {
+    const auto* boolToFloat64Template = R"GO(
       if {0} {
         {1} = 1.0
       } else {
         {1} = 0.0
       }
     )GO";
-      auto res =
-          llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
-      os << res;
-    } else {
-      os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
-    }
-    os.unindent();
-    os << "}\n";
+    auto res =
+        llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
+    os << res;
+  } else {
+    os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
   }
+  os.unindent();
+  os << "}\n";
 
   // set the scale of plaintext
   imports.insert(std::string(kMathImport));
@@ -2009,7 +2275,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
 
   std::string resultName = getName(op.getResult());
   emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
-                                        getName(op.getInput()) + ")");
+                                        getName(op.getInput()) + ".CopyNew())");
   return success();
 }
 
@@ -2030,6 +2296,13 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   }
 
   int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
+  Type elementType = diagonalsType.getElementType();
+  bool isF64 = false;
+  if (auto floatType = dyn_cast<FloatType>(elementType)) {
+    if (floatType.getWidth() == 64) {
+      isF64 = true;
+    }
+  }
 
   // Generate unique variable names
   std::string diagonalsMapName = outputName + "_diags";
@@ -2038,14 +2311,28 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   std::string ltName = outputName + "_lt";
   std::string ltEvalName = outputName + "_lteval";
   std::string errName = getErrName();
+  std::string slotsName = outputName + "_slots";
 
   os << diagonalIndices
      << " := " << printDenseI32ArrayAttr(op.getDiagonalIndicesAttr()) << "\n";
+  os << slotsName << " := 1 << " << inputName << ".LogDimensions.Cols\n";
   os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
   os << "for i, diagIndex := range " << diagonalIndices << " {\n";
   os.indent();
-  os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "[i*"
-     << slotsPerDiagonal << ":(i+1)*" << slotsPerDiagonal << "]\n";
+  if (isF64) {
+    os << diagonalsMapName << "[diagIndex] = " << diagonalsName << "[i*"
+       << slotsPerDiagonal << ":i*" << slotsPerDiagonal << " + " << slotsName
+       << "]\n";
+  } else {
+    os << "diag := make([]float64, " << slotsName << ")\n";
+    os << "for j := 0; j < " << slotsName << "; j++ {\n";
+    os.indent();
+    os << "diag[j] = float64(" << diagonalsName << "[i*" << slotsPerDiagonal
+       << " + j])\n";
+    os.unindent();
+    os << "}\n";
+    os << diagonalsMapName << "[diagIndex] = diag\n";
+  }
   os.unindent();
   os << "}\n";
 
@@ -2053,10 +2340,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   os.indent();
   os << "DiagonalsIndexList: " << diagonalsMapName
      << ".DiagonalsIndexList(),\n";
-  os << "LevelQ: " << op.getLevelQ().getInt() << ",\n";
+  os << "LevelQ: " << inputName << ".Level(),\n";
   os << "LevelP: " << evaluatorName << ".GetRLWEParameters().MaxLevelP(),\n";
   os << "Scale: rlwe.NewScale(" << evaluatorName << ".GetRLWEParameters().Q()["
-     << op.getLevelQ().getInt() << "]),\n";
+     << inputName << ".Level()]),\n";
   os << "LogDimensions: " << inputName << ".LogDimensions,\n";
   os << "LogBabyStepGiantStepRatio: "
      << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
@@ -2075,7 +2362,9 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
      << ".EvaluateNew(";
   os << inputName << ", " << ltName << ")\n";
   printErrPanic(errName);
-
+  if (outputName != "_") {
+    declaredVars.insert(outputName);
+  }
   return success();
 }
 
@@ -2104,6 +2393,9 @@ LogicalResult LattigoEmitter::printOperation(
   os.unindent();
   os << "})\n";
   printErrPanic(errName);
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -2113,8 +2405,6 @@ LogicalResult LattigoEmitter::printOperation(
   auto btParams = op.getBtParamsLiteral();
   auto paramName = getName(op.getParams());
   auto errName = getErrName();
-  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
   std::string resultName = getName(op.getResult());
   os << resultName << ", " << errName
      << " := bootstrapping.NewParametersFromLiteral(";
@@ -2122,14 +2412,18 @@ LogicalResult LattigoEmitter::printOperation(
   os << "bootstrapping.ParametersLiteral{\n";
   os.indent();
   os << "LogN: utils.Pointy(" << btParams.getLogN() << "),\n";
-  if (numSlotsAttr) {
-    int numSlots = numSlotsAttr.getInt();
-    int logNumSlots = (int)log2(numSlots);
-    os << "LogSlots: utils.Pointy(" << logNumSlots << "),\n";
-  }
+  // Deliberately no LogSlots: leave it at lattigo's default of LogN-1.
+  //
+  // LogSlots is documented as "the maximum number of slots of the ciphertext"
+  // and only sizes the CoeffsToSlots/SlotsToCoeffs matrices; the bootstrapping
+  // ring is built from LogN alone, so its LogMaxDimensions stays at LogN-1
+  // whatever LogSlots says.
   os.unindent();
   os << "})\n";
   printErrPanic(errName);
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -2141,7 +2435,9 @@ LogicalResult LattigoEmitter::printOperation(CKKSNewPolynomialEvaluatorOp op) {
   os << resultName << " := polynomial.NewEvaluator(";
   os << getName(op.getParams()) << ", ";
   os << getName(op.getEvaluator()) << ")\n";
-
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -2181,12 +2477,48 @@ LogicalResult LattigoEmitter::printOperation(CKKSChebyshevOp op) {
   os << bignumPoly << " := bignum.NewPolynomial(bignum.Chebyshev, "
      << polyCoeffs << ", " << intervalArg << ")\n";
   std::string resultName = getName(op.getOutput());
+  std::string inputCiphertext = getName(op.getCiphertext());
+  bool isIdentityDomain = false;
+  if (DenseF64ArrayAttr domainAttr = op.getDomainAttr()) {
+    ArrayRef<double> domain = domainAttr.asArrayRef();
+    if (domain.size() == 2 && domain[0] == -1.0 && domain[1] == 1.0) {
+      isIdentityDomain = true;
+    }
+  }
+  if (op.getDomainAttr() && !isIdentityDomain) {
+    std::string transformedCiphertext = resultName + "_transformed";
+    std::string scalarName = resultName + "_scalar";
+    std::string constantName = resultName + "_constant";
+
+    os << scalarName << ", " << constantName << " := " << bignumPoly
+       << ".ChangeOfBasis()\n";
+
+    os << transformedCiphertext << ", " << errName
+       << " := " << getName(op.getEvaluator()) << ".MulNew(" << inputCiphertext
+       << ", " << scalarName << ")\n";
+    printErrPanic(errName);
+
+    os << errName << " = " << getName(op.getEvaluator()) << ".Add("
+       << transformedCiphertext << ", " << constantName << ", "
+       << transformedCiphertext << ")\n";
+    printErrPanic(errName);
+
+    os << errName << " = " << getName(op.getEvaluator()) << ".Rescale("
+       << transformedCiphertext << ", " << transformedCiphertext << ")\n";
+    printErrPanic(errName);
+
+    inputCiphertext = transformedCiphertext;
+  }
+
   os << resultName << ", " << errName << " := ";
   os << getName(op.getEvaluator()) << ".Evaluate(";
-  os << getName(op.getCiphertext()) << ", ";
+  os << inputCiphertext << ", ";
   os << bignumPoly << ", ";
   os << "rlwe.NewScale(" << op.getTargetScale().getInt() << "))\n";
   printErrPanic(errName);
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -2404,11 +2736,18 @@ struct TranslateOptions {
   llvm::cl::opt<std::string> packageName{
       "package-name",
       llvm::cl::desc("The name to use for the package declaration in the "
-                     "generated golang file.")};
+                     "generated golang file."),
+      // Go has no unnamed package, so an empty default would emit "package "
+      // and fail to compile.
+      llvm::cl::init("main")};
   llvm::cl::list<std::string> extraImports{
       "extra-imports", llvm::cl::desc("Additional import paths")};
 };
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
+
+LogicalResult LattigoEmitter::printOperation(preprocessing::LoadResourceOp op) {
+  return success();
+}
 
 void registerTranslateOptions() {
   // Forces initialization of options.
@@ -2424,11 +2763,12 @@ void registerToLattigoTranslation() {
                                   translateOptions->extraImports);
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, memref::MemRefDialect,
-                        mgmt::MgmtDialect, scf::SCFDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
       });
 }
 
@@ -2439,16 +2779,16 @@ void registerToLattigoPreprocessingTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
-              return funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) { return isPreprocessingHelper(funcOp); });
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, memref::MemRefDialect,
-                        mgmt::MgmtDialect, scf::SCFDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
       });
 }
 
@@ -2459,16 +2799,16 @@ void registerToLattigoPreprocessedTranslation() {
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(
             op, output, translateOptions->packageName,
-            translateOptions->extraImports, [](func::FuncOp funcOp) {
-              return !funcOp->hasAttr(kClientPackFuncAttrName);
-            });
+            translateOptions->extraImports,
+            [](func::FuncOp funcOp) { return !isPreprocessingHelper(funcOp); });
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, memref::MemRefDialect,
-                        mgmt::MgmtDialect, scf::SCFDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    memref::MemRefDialect, mgmt::MgmtDialect, scf::SCFDialect,
+                    preprocessing::PreprocessingDialect, math::MathDialect>();
       });
 }
 

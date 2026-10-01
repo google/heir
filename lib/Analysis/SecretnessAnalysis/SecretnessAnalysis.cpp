@@ -234,7 +234,7 @@ void annotateSecretness(Operation* top, DataFlowSolver* solver, bool verbose) {
   });
 }
 
-bool isSecret(Value value, DataFlowSolver* solver) {
+bool isSecret(Value value, const DataFlowSolver* solver) {
   auto* lattice = solver->lookupState<SecretnessLattice>(value);
   return isSecret(lattice);
 }
@@ -249,7 +249,7 @@ bool isSecret(const SecretnessLattice* lattice) {
   return lattice->getValue().getSecretness();
 }
 
-bool isSecret(ValueRange values, DataFlowSolver* solver) {
+bool isSecret(ValueRange values, const DataFlowSolver* solver) {
   if (values.empty()) {
     return false;
   }

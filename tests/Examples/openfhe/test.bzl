@@ -2,10 +2,9 @@
 
 load("@heir//bazel/openfhe:copts.bzl", "OPENMP_COPTS", "OPENMP_LINKOPTS")
 load("@heir//tools:heir-openfhe.bzl", "openfhe_lib")
-load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
-def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], data = [], size = "small", tags = [], deps = [], generate_debug_helper = False, **kwargs):
+def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], externalize_constants = True, ext_const_output_dir = "", data = [], size = "small", tags = [], deps = [], generate_debug_helper = False, **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -16,6 +15,8 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         because it needs to be manually #include'd in the test_src file)
       heir_opt_flags: Flags to pass to heir-opt before heir-translate
       heir_translate_flags: Flags to pass to heir-translate
+      externalize_constants: If True, externalize constants.
+      ext_const_output_dir: If set, externalize constants to this directory.
       data: Data dependencies to be passed to cc_test/heir_opt
       size: Size to pass to cc_test
       tags: Tags to pass to cc_test
@@ -24,7 +25,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
     """
     cc_lib_target_name = "%s_cc_lib" % name
-    openfhe_lib(name = name, mlir_src = mlir_src, generated_lib_header = generated_lib_header, cc_lib_target_name = cc_lib_target_name, heir_opt_flags = heir_opt_flags, heir_translate_flags = heir_translate_flags, data = data, tags = tags, deps = deps, generate_debug_helper = generate_debug_helper, **kwargs)
+    openfhe_lib(name = name, mlir_src = mlir_src, generated_lib_header = generated_lib_header, cc_lib_target_name = cc_lib_target_name, heir_opt_flags = heir_opt_flags, heir_translate_flags = heir_translate_flags, externalize_constants = externalize_constants, ext_const_output_dir = ext_const_output_dir, data = data, tags = tags, deps = deps, generate_debug_helper = generate_debug_helper, **kwargs)
     cc_test(
         name = name,
         srcs = [test_src],
@@ -38,53 +39,6 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         data = data,
         size = size,
         copts = OPENMP_COPTS,
-        linkopts = OPENMP_LINKOPTS,
-        **kwargs
-    )
-
-def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filename = "", heir_opt_flags = [], data = [], tags = [], deps = [], copts = [], timeout = "moderate", **kwargs):
-    """A rule for running generating OpenFHE dialect and exposing it to an interpreter.
-
-    Args:
-      name: The name of the cc_test target and the generated .cc file basename.
-      mlir_src: The source mlir file to run through heir-translate
-      test_src: The C++ test harness source file.
-      heir_opt_flags: Flags to pass to heir-opt before heir-translate
-      generated_heir_opt_filename: The filename of the file output by heir-opt
-      data: Data dependencies to be passed to cc_test/heir_opt
-      tags: Tags to pass to cc_test
-      deps: Deps to pass to cc_test
-      copts: Additional copts to pass to cc_test
-      timeout: Timeout to pass to cc_test
-      **kwargs: Keyword arguments to pass to cc_test.
-    """
-    heir_opt_name = "%s_heir_opt" % name
-    if not generated_heir_opt_filename:
-        generated_heir_opt_filename = "%s_heir_opt.mlir" % name
-
-    heir_opt(
-        name = heir_opt_name,
-        src = mlir_src,
-        pass_flags = heir_opt_flags,
-        generated_filename = generated_heir_opt_filename,
-        data = data,
-    )
-
-    cc_test(
-        name = name,
-        srcs = [test_src],
-        deps = deps + [
-            "@heir//lib/Target/OpenFhePke:Interpreter",
-            "@openfhe//:pke",
-            "@openfhe//:core",
-            "@googletest//:gtest_main",
-            # for mlir source file parsing
-            "@llvm-project//mlir:Support",
-        ],
-        timeout = timeout,
-        tags = tags + ["manual", "notap"],
-        data = data + [":" + generated_heir_opt_filename],
-        copts = OPENMP_COPTS + copts,
         linkopts = OPENMP_LINKOPTS,
         **kwargs
     )

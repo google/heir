@@ -35,9 +35,15 @@ LogicalResult BootstrapWaterlineAnalysis::visitOperation(
   }
 
   // 2. Compute prospective level
-  LevelState prospectiveLevel = deriveResultLevel(op, operandLevelStates);
+  LevelState prospectiveLevel =
+      deriveResultLevel(op, operandLevelStates, &solverRef);
   if (levelBudget > 0 && prospectiveLevel.isInt() &&
       prospectiveLevel.getInt() > levelBudget) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "BWAnalysis: Level budget exceeded for op " << *op
+                   << ", setting level to Invalid. Was level-budget configured "
+                      "properly?\n";
+    });
     prospectiveLevel = LevelState(Invalid{});
   }
 
@@ -62,9 +68,10 @@ LogicalResult BootstrapWaterlineAnalysis::visitOperation(
     resultNeedsBootstrap = exceedsWaterline;
     if (exceedsWaterline) {
       if (auto reduceOp = dyn_cast<ReducesLevelOpInterface>(op)) {
-        resultLevel = LevelState(reduceOp.getLevelsToDrop());
+        resultLevel =
+            LevelState(bootstrapLevelsConsumed + reduceOp.getLevelsToDrop());
       } else {
-        resultLevel = LevelState(0);
+        resultLevel = LevelState(bootstrapLevelsConsumed);
       }
     } else {
       resultLevel = prospectiveLevel;

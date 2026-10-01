@@ -40,7 +40,7 @@ module attributes {tf_saved_model.semantics} {
     // CHECK: secret.generic
     // CHECK-NEXT: memref.alloc
     // CHECK-NEXT: secret.yield
-      %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc = memref.alloc() alignment = 64 : memref<1x16xi8>
       // CHECK: affine.for
       affine.for %arg2 = 0 to 1 {
       // CHECK: affine.for
@@ -57,7 +57,7 @@ module attributes {tf_saved_model.semantics} {
     // CHECK: secret.generic
     // CHECK-NEXT: memref.alloc
     // CHECK-NEXT: secret.yield
-      %alloc_0 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
+      %alloc_0 = memref.alloc() alignment = 64 : memref<1x16xi32>
       // CHECK: affine.for
       affine.for %arg2 = 0 to 1 {
       // CHECK: affine.for
@@ -66,7 +66,7 @@ module attributes {tf_saved_model.semantics} {
           affine.store %7, %alloc_0[%arg2, %arg3] : memref<1x16xi32>
         }
       }
-      %alloc_1 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
+      %alloc_1 = memref.alloc() alignment = 64 : memref<1x16xi32>
       // CHECK: affine.for
       affine.for %arg2 = 0 to 16 {
         %7 = affine.load %alloc_0[0, %arg2] : memref<1x16xi32>
@@ -103,7 +103,7 @@ module attributes {tf_saved_model.semantics} {
           }
         }
       }
-      %alloc_2 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc_2 = memref.alloc() alignment = 64 : memref<1x16xi8>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 16 {
           %7 = affine.load %alloc_1[%arg2, %arg3] : memref<1x16xi32>
@@ -124,7 +124,7 @@ module attributes {tf_saved_model.semantics} {
           affine.store %21, %alloc_2[%arg2, %arg3] : memref<1x16xi8>
         }
       }
-      %alloc_3 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc_3 = memref.alloc() alignment = 64 : memref<1x16xi8>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 16 {
           %7 = affine.load %alloc_2[0, %arg3] : memref<1x16xi8>
@@ -135,21 +135,21 @@ module attributes {tf_saved_model.semantics} {
           affine.store %11, %alloc_3[%arg2, %arg3] : memref<1x16xi8>
         }
       }
-      %alloc_4 = memref.alloc() {alignment = 64 : i64} : memref<16x16xi8>
+      %alloc_4 = memref.alloc() alignment = 64 : memref<16x16xi8>
       affine.for %arg2 = 0 to 16 {
         affine.for %arg3 = 0 to 16 {
           %7 = affine.load %3[%arg3, %arg2] : memref<16x16xi8>
           affine.store %7, %alloc_4[%arg2, %arg3] : memref<16x16xi8>
         }
       }
-      %alloc_5 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
+      %alloc_5 = memref.alloc() alignment = 64 : memref<1x16xi32>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 16 {
           %7 = affine.load %4[%arg3] : memref<16xi32>
           affine.store %7, %alloc_5[%arg2, %arg3] : memref<1x16xi32>
         }
       }
-      %alloc_6 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
+      %alloc_6 = memref.alloc() alignment = 64 : memref<1x16xi32>
       affine.for %arg2 = 0 to 16 {
         %7 = affine.load %alloc_5[0, %arg2] : memref<1x16xi32>
         affine.store %7, %alloc_6[0, %arg2] : memref<1x16xi32>
@@ -170,7 +170,7 @@ module attributes {tf_saved_model.semantics} {
           }
         }
       }
-      %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc_7 = memref.alloc() alignment = 64 : memref<1x16xi8>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 16 {
           %7 = affine.load %alloc_6[%arg2, %arg3] : memref<1x16xi32>
@@ -191,7 +191,7 @@ module attributes {tf_saved_model.semantics} {
           affine.store %21, %alloc_7[%arg2, %arg3] : memref<1x16xi8>
         }
       }
-      %alloc_8 = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
+      %alloc_8 = memref.alloc() alignment = 64 : memref<1x16xi8>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 16 {
           %7 = affine.load %alloc_7[0, %arg3] : memref<1x16xi8>
@@ -202,20 +202,20 @@ module attributes {tf_saved_model.semantics} {
           affine.store %11, %alloc_8[%arg2, %arg3] : memref<1x16xi8>
         }
       }
-      %alloc_9 = memref.alloc() {alignment = 64 : i64} : memref<16x1xi8>
+      %alloc_9 = memref.alloc() alignment = 64 : memref<16x1xi8>
       affine.for %arg2 = 0 to 16 {
         affine.for %arg3 = 0 to 1 {
           %7 = affine.load %5[%arg3, %arg2] : memref<1x16xi8>
           affine.store %7, %alloc_9[%arg2, %arg3] : memref<16x1xi8>
         }
       }
-      %alloc_10 = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
+      %alloc_10 = memref.alloc() alignment = 64 : memref<1x1xi32>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 1 {
           affine.store %c429_i32, %alloc_10[%arg2, %arg3] : memref<1x1xi32>
         }
       }
-      %alloc_11 = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
+      %alloc_11 = memref.alloc() alignment = 64 : memref<1x1xi32>
       %6 = affine.load %alloc_10[0, 0] : memref<1x1xi32>
       affine.store %6, %alloc_11[0, 0] : memref<1x1xi32>
       affine.for %arg2 = 0 to 1 {
@@ -234,7 +234,7 @@ module attributes {tf_saved_model.semantics} {
           }
         }
       }
-      %alloc_12 = memref.alloc() {alignment = 64 : i64} : memref<1x1xi8>
+      %alloc_12 = memref.alloc() alignment = 64 : memref<1x1xi8>
       affine.for %arg2 = 0 to 1 {
         affine.for %arg3 = 0 to 1 {
           %7 = affine.load %alloc_11[%arg2, %arg3] : memref<1x1xi32>

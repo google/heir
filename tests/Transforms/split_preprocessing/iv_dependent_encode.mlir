@@ -31,7 +31,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
       %empty = tensor.empty() : tensor<1024xf32>
       %padded = tensor.insert_slice %slice into %empty[0] [16] [1] : tensor<16xf32> into tensor<1024xf32>
 
-      %pt = lwe.rlwe_encode %padded {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt = lwe.rlwe_encode %padded <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
 
       %extracted_ct = tensor.extract %arg0[%arg1] : tensor<4x!ct_L2>
 

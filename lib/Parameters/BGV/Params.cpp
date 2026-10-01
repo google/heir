@@ -15,21 +15,21 @@ namespace heir {
 namespace bgv {
 
 SchemeParam SchemeParam::getConservativeSchemeParam(
-    int level, int64_t plaintextModulus, int slotNumber, bool usePublicKey,
+    int level, int64_t plaintextModulus, int minSlotCount, bool usePublicKey,
     bool encryptionTechniqueExtended) {
   // Use only half of the BGV slot number to make 1-dim vector.
   return SchemeParam(
       RLWESchemeParam::getConservativeRLWESchemeParam(
-          level, 2 * slotNumber, usePublicKey, encryptionTechniqueExtended),
+          level, 2 * minSlotCount, usePublicKey, encryptionTechniqueExtended),
       plaintextModulus);
 }
 
 SchemeParam SchemeParam::getConcreteSchemeParam(
-    std::vector<double> logqi, int64_t plaintextModulus, int slotNumber,
+    std::vector<double> logqi, int64_t plaintextModulus, int minSlotCount,
     bool usePublicKey, bool encryptionTechniqueExtended) {
   // Use only half of the BGV slot number to make 1-dim vector.
   return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
-                         std::move(logqi), 2 * slotNumber, usePublicKey,
+                         std::move(logqi), 2 * minSlotCount, usePublicKey,
                          encryptionTechniqueExtended, plaintextModulus),
                      plaintextModulus);
 }

@@ -24,6 +24,7 @@
 namespace mlir {
 namespace heir {
 
+template <typename ScaleModelT>
 class ScaleState {
  public:
   ScaleState() : scale(std::nullopt) {}
@@ -42,16 +43,16 @@ class ScaleState {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
-    // if both are initialized, they should be the same
-    return lhs;
+    return ScaleState(
+        ScaleModelT::evalAddScale({lhs.getScale(), rhs.getScale()}));
   }
 
   static ScaleState meet(const ScaleState& lhs, const ScaleState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
-    // if both are initialized, they should be the same
-    return lhs;
+    return ScaleState(
+        ScaleModelT::evalAddScale({lhs.getScale(), rhs.getScale()}));
   }
 
   void print(llvm::raw_ostream& os) const {
@@ -63,7 +64,7 @@ class ScaleState {
   }
 
   friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
-                                       const ScaleState& state) {
+                                       const ScaleState<ScaleModelT>& state) {
     state.print(os);
     return os;
   }
@@ -74,15 +75,17 @@ class ScaleState {
   std::optional<int64_t> scale;
 };
 
-class ScaleLattice : public dataflow::Lattice<ScaleState> {
+template <typename ScaleModelT>
+class ScaleLattice : public dataflow::Lattice<ScaleState<ScaleModelT>> {
  public:
-  using Lattice::Lattice;
+  using dataflow::Lattice<ScaleState<ScaleModelT>>::Lattice;
 };
 
 struct BGVScaleModel {
   using SchemeParam = bgv::SchemeParam;
   using LocalParam = bgv::LocalParam;
 
+  static int64_t evalAddScale(ArrayRef<int64_t> scales);
   static int64_t evalMulScale(const LocalParam& param, int64_t lhs,
                               int64_t rhs);
   static int64_t evalMulScaleBackward(const LocalParam& param, int64_t result,
@@ -92,21 +95,22 @@ struct BGVScaleModel {
   static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
                                             int64_t resultScale);
   static std::optional<int64_t> getDefaultScale(const SchemeParam& param);
+  static int64_t evalMulTargetScale(const LocalParam& param);
 };
 
 struct CKKSScaleModel {
   using SchemeParam = ckks::SchemeParam;
   using LocalParam = ckks::LocalParam;
 
+  static int64_t evalAddScale(ArrayRef<int64_t> scales);
   static int64_t evalMulScale(const LocalParam& param, int64_t lhs,
                               int64_t rhs);
-  static int64_t evalMulScaleBackward(const LocalParam& param, int64_t result,
-                                      int64_t lhs);
+
   static int64_t evalModReduceScale(const LocalParam& inputParam,
                                     int64_t scale);
-  static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
-                                            int64_t resultScale);
+
   static std::optional<int64_t> getDefaultScale(const SchemeParam& param);
+  static int64_t evalMulTargetScale(const LocalParam& param);
 };
 
 /// Forward Analyse the scale of each secret Value
@@ -129,62 +133,60 @@ struct CKKSScaleModel {
 /// should be determined by the Backward Analysis below.
 template <typename ScaleModelT>
 class ScaleAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>,
+    : public dataflow::SparseForwardDataFlowAnalysis<ScaleLattice<ScaleModelT>>,
       public SecretnessAnalysisDependent<ScaleAnalysis<ScaleModelT>> {
  public:
-  using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
+  using dataflow::SparseForwardDataFlowAnalysis<
+      ScaleLattice<ScaleModelT>>::SparseForwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<ScaleAnalysis<ScaleModelT>>;
 
   using SchemeParamType = typename ScaleModelT::SchemeParam;
   using LocalParamType = typename ScaleModelT::LocalParam;
 
   ScaleAnalysis(DataFlowSolver& solver, const SchemeParamType& schemeParam,
-                int64_t inputScale)
-      : dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>(solver),
+                int64_t inputScale, bool assumeTargetScaleForMul = false)
+      : dataflow::SparseForwardDataFlowAnalysis<ScaleLattice<ScaleModelT>>(
+            solver),
         schemeParam(schemeParam),
-        inputScale(inputScale) {}
+        inputScale(inputScale),
+        assumeTargetScaleForMul(assumeTargetScaleForMul) {}
 
-  void setToEntryState(ScaleLattice* lattice) override {
+  void setToEntryState(ScaleLattice<ScaleModelT>* lattice) override {
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
-      propagateIfChanged(lattice, lattice->join(ScaleState(inputScale)));
+      this->propagateIfChanged(
+          lattice, lattice->join(ScaleState<ScaleModelT>(inputScale)));
       return;
     }
-    propagateIfChanged(lattice, lattice->join(ScaleState()));
+    this->propagateIfChanged(lattice, lattice->join(ScaleState<ScaleModelT>()));
   }
 
-  LogicalResult visitOperation(Operation* op,
-                               ArrayRef<const ScaleLattice*> operands,
-                               ArrayRef<ScaleLattice*> results) override;
+  LogicalResult visitOperation(
+      Operation* op, ArrayRef<const ScaleLattice<ScaleModelT>*> operands,
+      ArrayRef<ScaleLattice<ScaleModelT>*> results) override;
 
-  void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const ScaleLattice*> argumentLattices,
-                         ArrayRef<ScaleLattice*> resultLattices) override;
+  void visitExternalCall(
+      CallOpInterface call,
+      ArrayRef<const ScaleLattice<ScaleModelT>*> argumentLattices,
+      ArrayRef<ScaleLattice<ScaleModelT>*> resultLattices) override;
 
   void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
+    this->propagateIfChanged(state, changed);
   }
 
  private:
   const SchemeParamType schemeParam;
   int64_t inputScale;
+  bool assumeTargetScaleForMul;
 };
 
-/// Backward Analyse the scale of plaintext Value / opaque result of
-/// AdjustLevelOp
-///
-/// This analysis should be run after the (forward) ScaleAnalysis
-/// where the scale of (almost) all the secret Value is determined.
-///
-/// A special example is ct2 = mul(ct0, rs(adjust_scale(ct1))), where the scale
-/// of ct0, ct1, ct2 is determined by the forward pass, rs is rescaling. Then
-/// the scale of adjust_scale(ct1) should be determined by the backward pass
-/// via backpropagation from ct2 to rs then to adjust_scale.
 template <typename ScaleModelT>
 class ScaleAnalysisBackward
-    : public dataflow::SparseBackwardDataFlowAnalysis<ScaleLattice>,
+    : public dataflow::SparseBackwardDataFlowAnalysis<
+          ScaleLattice<ScaleModelT>>,
       public SecretnessAnalysisDependent<ScaleAnalysisBackward<ScaleModelT>> {
  public:
-  using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
+  using dataflow::SparseBackwardDataFlowAnalysis<
+      ScaleLattice<ScaleModelT>>::SparseBackwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<ScaleAnalysisBackward<ScaleModelT>>;
 
   using SchemeParamType = typename ScaleModelT::SchemeParam;
@@ -193,23 +195,24 @@ class ScaleAnalysisBackward
   ScaleAnalysisBackward(DataFlowSolver& solver,
                         SymbolTableCollection& symbolTable,
                         const SchemeParamType& schemeParam)
-      : dataflow::SparseBackwardDataFlowAnalysis<ScaleLattice>(solver,
-                                                               symbolTable),
+      : dataflow::SparseBackwardDataFlowAnalysis<ScaleLattice<ScaleModelT>>(
+            solver, symbolTable),
         schemeParam(schemeParam) {}
 
-  void setToExitState(ScaleLattice* lattice) override {
+  void setToExitState(ScaleLattice<ScaleModelT>* lattice) override {
     Value val = lattice->getAnchor();
     auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(val);
-    if (mgmtAttr && mgmtAttr.getScale() != 0) {
-      propagateIfChanged(lattice,
-                         lattice->join(ScaleState(mgmtAttr.getScale())));
+    if (mgmtAttr && mgmtAttr.getScale() != -1) {
+      this->propagateIfChanged(
+          lattice, lattice->join(ScaleState<ScaleModelT>(mgmtAttr.getScale())));
       return;
     }
-    propagateIfChanged(lattice, lattice->join(ScaleState()));
+    this->propagateIfChanged(lattice, lattice->join(ScaleState<ScaleModelT>()));
   }
 
-  LogicalResult visitOperation(Operation* op, ArrayRef<ScaleLattice*> operands,
-                               ArrayRef<const ScaleLattice*> results) override;
+  LogicalResult visitOperation(
+      Operation* op, ArrayRef<ScaleLattice<ScaleModelT>*> operands,
+      ArrayRef<const ScaleLattice<ScaleModelT>*> results) override;
 
   // dummy impl
   void visitBranchOperand(OpOperand& operand) override {}
@@ -225,10 +228,12 @@ class ScaleAnalysisBackward
 // Utils
 //===----------------------------------------------------------------------===//
 
+template <typename ScaleModelT>
 int64_t getScale(Value value, DataFlowSolver* solver);
 
 constexpr StringRef kArgScaleAttrName = "mgmt.scale";
 
+template <typename ScaleModelT>
 void annotateScale(Operation* top, DataFlowSolver* solver);
 
 int64_t getScaleFromMgmtAttr(Value value);

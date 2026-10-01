@@ -16,6 +16,7 @@ def Lattigo_Dialect : Dialect {
 
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
+  let useStrictPropertiesInAssemblyFormat = 1;
 }
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGODIALECT_TD_

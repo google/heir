@@ -1,7 +1,5 @@
 // RUN: heir-opt --yosys-optimizer --canonicalize --cse %s | FileCheck %s --check-prefix=CHECK --check-prefix=LUT
-// RUN: heir-opt --yosys-optimizer="abc-fast=True" --canonicalize --cse %s | FileCheck %s --check-prefix=CHECK --check-prefix=LUT-FAST
 // RUN: heir-opt --yosys-optimizer="mode=Boolean" --canonicalize --cse %s | FileCheck --check-prefix=CHECK --check-prefix=BOOL %s
-// RUN: heir-opt --yosys-optimizer="mode=Boolean abc-fast=True" --canonicalize --cse %s | FileCheck --check-prefix=CHECK --check-prefix=BOOL-FAST %s
 
 module {
   // CHECK: @add_one

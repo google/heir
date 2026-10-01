@@ -82,7 +82,7 @@ func.func @no_inputs() -> !secret.secret<memref<1xf32>> {
 
 #layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = i64, layout = #layout>
-func.func private @_assign_layout_465215895469832199(%arg0: i1) -> tensor<1x1024xi1> attributes {client.pack_func = {func_name = "cmux"}} {
+func.func private @_assign_layout_465215895469832199(%arg0: i1) -> tensor<1x1024xi1> attributes {heir.interface = {func_name = "cmux", roles = ["client.pack"]}} {
   %splat = tensor.splat %arg0 : tensor<1x1024xi1>
   return %splat : tensor<1x1024xi1>
 }

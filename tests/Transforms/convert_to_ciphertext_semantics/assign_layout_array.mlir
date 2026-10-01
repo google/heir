@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=32 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=32 | FileCheck %s
 
 // Test layout array with two steps, should generate two loops.
 #layout1 = #tensor_ext.layout<"{ [i0] -> [o0, o1] : o0 = i0 and o1 = i0 and 0 <= i0 <= 3 }">
@@ -27,19 +27,16 @@ module {
   // CHECK:     scf.yield %[[INS2]]
   // CHECK:   scf.yield %[[LOOP3]]
 
-  // CHECK: func.func @assign_layout_array_i16
-  func.func @assign_layout_array_i16() -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #composed}) {
-    %cst = arith.constant dense<[0, 1, 2, 3]> : tensor<4xi16>
-    // CHECK: %[[CST:.*]] = arith.constant dense<[0, 1, 2, 3]> : tensor<4xi16>
-    // CHECK: %[[GEN:.*]] = secret.generic()
-    // CHECK:   %[[CALL:.*]] = func.call @_assign_layout_{{[0-9]+}}(%[[CST]]) : (tensor<4xi16>) -> tensor<4x32xi16>
+  // CHECK: func.func @assign_layout_array_i16(%[[ARG:.*]]: !secret.secret<tensor<4xi16>>)
+  func.func @assign_layout_array_i16(%arg0: !secret.secret<tensor<4xi16>>) -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #composed}) {
+    // CHECK: %[[GEN:.*]] = secret.generic(%[[ARG]]{{.*}})
+    // CHECK: ^body(%[[ARG_INNER:.*]]: tensor<4xi16>):
+    // CHECK:   %[[CALL:.*]] = func.call @_assign_layout_{{[0-9]+}}(%[[ARG_INNER]]) : (tensor<4xi16>) -> tensor<4x32xi16>
     // CHECK:   secret.yield %[[CALL]] : tensor<4x32xi16>
 
-    %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {
-        layout = [#layout1, #layout2],
-        tensor_ext.layout = #composed
-      } : tensor<4xi16>
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<4xi16>>) {
+    ^body(%arg1: tensor<4xi16>):
+      %1 = tensor_ext.assign_layout %arg1 <layout = [#layout1, #layout2]> {tensor_ext.layout = #composed} : tensor<4xi16>
       secret.yield %1 : tensor<4xi16>
     } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #composed})
     // CHECK: return %[[GEN]]
@@ -81,19 +78,16 @@ module {
   // CHECK:       tensor.extract %[[LOOP2]][{{.*}}, {{.*}}, {{.*}}]
   // CHECK:       tensor.insert %{{.*}} into %[[ITER3_3]][{{.*}}, {{.*}}]
 
-  // CHECK: func.func @assign_layout_array_3step
-  func.func @assign_layout_array_3step() -> (!secret.secret<tensor<2x2xi32>> {tensor_ext.layout = #composed}) {
-    %cst = arith.constant dense<[[0, 1], [2, 3]]> : tensor<2x2xi32>
-    // CHECK: %[[CST:.*]] = arith.constant dense<{{\[\[}}0, 1], [2, 3]]> : tensor<2x2xi32>
-    // CHECK: %[[GEN:.*]] = secret.generic()
-    // CHECK:   %[[CALL:.*]] = func.call @_assign_layout_{{[0-9]+}}(%[[CST]]) : (tensor<2x2xi32>) -> tensor<2x32xi32>
+  // CHECK: func.func @assign_layout_array_3step(%[[ARG:.*]]: !secret.secret<tensor<2x2xi32>>)
+  func.func @assign_layout_array_3step(%arg0: !secret.secret<tensor<2x2xi32>>) -> (!secret.secret<tensor<2x2xi32>> {tensor_ext.layout = #composed}) {
+    // CHECK: %[[GEN:.*]] = secret.generic(%[[ARG]]{{.*}})
+    // CHECK: ^body(%[[ARG_INNER:.*]]: tensor<2x2xi32>):
+    // CHECK:   %[[CALL:.*]] = func.call @_assign_layout_{{[0-9]+}}(%[[ARG_INNER]]) : (tensor<2x2xi32>) -> tensor<2x32xi32>
     // CHECK:   secret.yield %[[CALL]] : tensor<2x32xi32>
 
-    %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {
-        layout = [#layout1, #layout2, #layout3],
-        tensor_ext.layout = #composed
-      } : tensor<2x2xi32>
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<2x2xi32>>) {
+    ^body(%arg1: tensor<2x2xi32>):
+      %1 = tensor_ext.assign_layout %arg1 <layout = [#layout1, #layout2, #layout3]> {tensor_ext.layout = #composed} : tensor<2x2xi32>
       secret.yield %1 : tensor<2x2xi32>
     } -> (!secret.secret<tensor<2x2xi32>> {tensor_ext.layout = #composed})
     // CHECK: return %[[GEN]]
@@ -117,10 +111,7 @@ module {
     // CHECK:   secret.yield %[[CST]] : tensor<4x32xi16>
 
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {
-        layout = [#layout1, #layout2],
-        tensor_ext.layout = #composed
-      } : tensor<4xi16>
+      %1 = tensor_ext.assign_layout %cst <layout = [#layout1, #layout2]> {tensor_ext.layout = #composed} : tensor<4xi16>
       secret.yield %1 : tensor<4xi16>
     } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #composed})
     // CHECK: return %[[GEN]]

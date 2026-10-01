@@ -43,6 +43,30 @@ namespace preprocessing {
   return ::mlir::success();
 }
 
+::mlir::LogicalResult LoadResourceOp::verify() {
+  auto shapedType = cast<ShapedType>(getDestination().getType());
+  if (!shapedType.hasStaticShape()) {
+    return emitOpError() << "destination type " << shapedType
+                         << " must have a static shape";
+  }
+  return ::mlir::success();
+}
+
+Speculation::Speculatability LoadResourceOp::getSpeculatability() {
+  return isa<TensorType>(getDestination().getType())
+             ? Speculation::Speculatable
+             : Speculation::NotSpeculatable;
+}
+
+LoadResourceOp LoadResourceOp::getForDestination(Value value) {
+  for (Operation* user : value.getUsers()) {
+    auto loadResourceOp = dyn_cast<LoadResourceOp>(user);
+    if (loadResourceOp && loadResourceOp.getDestination() == value)
+      return loadResourceOp;
+  }
+  return {};
+}
+
 }  // namespace preprocessing
 }  // namespace heir
 }  // namespace mlir

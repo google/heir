@@ -102,6 +102,10 @@ def RegionBranchOpLevelInvariance : Pass<"region-branch-op-level-invariance"> {
     "mlir::scf::SCFDialect",
     "mlir::heir::mgmt::MgmtDialect",
   ];
+  let options = [
+    Option<"levelBudget", "level-budget", "int", /*default=*/"40",
+           "The maximum level allowed before it is considered invalid">
+  ];
 }
 
 #endif  // LIB_TRANSFORMS_HALO_PASSES_TD_

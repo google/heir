@@ -68,13 +68,13 @@ func.func @test_multiply_elementwise(%arg0 : tensor<5x!ct>, %arg1: tensor<5x!ct>
   // CHECK-NEXT: ckks.relinearize
   // CHECK-NEXT: tensor.insert
   // CHECK-NEXT: affine.yield
-  %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (tensor<5x!ct1>, tensor<10x!ct>) -> tensor<5x!ct>
+  %1 = ckks.relinearize %0, %ksk <from_basis = [0, 1, 2], to_basis = [0, 1]> : (tensor<5x!ct1>, tensor<10x!ct>) -> tensor<5x!ct>
 
   // CHECK: affine.for
   // CHECK-NEXT: tensor.extract
   // CHECK-NEXT: ckks.rescale
   // CHECK-NEXT: tensor.insert
   // CHECK-NEXT: affine.yield
-  %2 = ckks.rescale %1  {to_ring = #ring_rns_L0_1_x1024_} : tensor<5x!ct> -> tensor<5x!ct2>
+  %2 = ckks.rescale %1 <to_ring = #ring_rns_L0_1_x1024_> : tensor<5x!ct> -> tensor<5x!ct2>
   return %arg0 : tensor<5x!ct>
 }

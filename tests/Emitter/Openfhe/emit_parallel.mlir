@@ -27,7 +27,7 @@ module attributes {scheme.ckks} {
     %0 = tensor.empty() : tensor<4x!ct>
     %1 = scf.forall (%arg0) in (4) shared_outs(%arg1 = %0) -> (tensor<4x!ct>) {
       %extracted_9 = tensor.extract %from_elements[%arg0] : tensor<4xindex>
-      %ct_10 = openfhe.fast_rotation %cc, %ct, %extracted_9, %digit_decomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !digit_decomp) -> !ct
+      %ct_10 = openfhe.fast_rotation %cc, %ct, %extracted_9, %digit_decomp <cyclotomicOrder = 64> : (!cc, !ct, index, !digit_decomp) -> !ct
       %from_elements_11 = tensor.from_elements %ct_10 : tensor<1x!ct>
       scf.forall.in_parallel {
         tensor.parallel_insert_slice %from_elements_11 into %arg1[%arg0] [1] [1] : tensor<1x!ct> into tensor<4x!ct>

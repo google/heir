@@ -29,7 +29,7 @@ module {
       // CHECK: lwe.rlwe_encode
       // CHECK-SAME: encode_id
       // CHECK-SAME: 0
-      %pt1 = lwe.rlwe_encode %cst1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt1 = lwe.rlwe_encode %cst1 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       // CHECK: yield
       scf.yield %pt1 : !pt
     // CHECK: else
@@ -37,7 +37,7 @@ module {
       // CHECK: lwe.rlwe_encode
       // CHECK-SAME: encode_id
       // CHECK-SAME: 1
-      %pt2 = lwe.rlwe_encode %cst2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt2 = lwe.rlwe_encode %cst2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       // CHECK: yield
       scf.yield %pt2 : !pt
     }
@@ -45,7 +45,7 @@ module {
     // CHECK: lwe.rlwe_encode
     // CHECK-SAME: encode_id
     // CHECK-SAME: 2
-    %pt3 = lwe.rlwe_encode %cst2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt3 = lwe.rlwe_encode %cst2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements = tensor.from_elements %pt : tensor<1x!pt>
     %1 = ckks.add_plain %from_elements, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L2>) -> tensor<1x!ct_L2>
 

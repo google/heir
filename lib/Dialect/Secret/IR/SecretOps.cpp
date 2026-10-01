@@ -589,6 +589,8 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation* opToExtract,
         })) {
       this->setOperandAttrsAttr(
           ArrayAttr::get(this->getContext(), newGenericArgAttrs));
+    } else {
+      this->removeAllOperandAttrsAttr();
     }
   });
   rewriter.replaceOp(opToExtract, oldGenericNewBlockArgs);

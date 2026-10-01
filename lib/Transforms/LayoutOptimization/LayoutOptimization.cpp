@@ -109,6 +109,14 @@ void LayoutOptimization::runOnOperation() {
   auto* ctx = &getContext();
   IRRewriter builder(ctx);
 
+  RewritePatternSet preprocessingPatterns(ctx);
+  preprocessingPatterns.add<FoldMatvecInputConversionIntoPlaintext>(ctx);
+  if (failed(applyPatternsGreedily(getOperation(),
+                                   std::move(preprocessingPatterns)))) {
+    signalPassFailure();
+    return;
+  }
+
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<LayoutIsFreeAnalysis>();
@@ -328,7 +336,7 @@ Cost LayoutOptimization::costOfLayoutConversion(Attribute fromLayout,
     return 0;
   }
 
-  return computeCostOfLayoutConversion(ciphertextSize, fromLayoutAttr,
+  return computeCostOfLayoutConversion(minSlotCount, fromLayoutAttr,
                                        toLayoutAttr, vveRandomSeed,
                                        vveRandomTries);
 }

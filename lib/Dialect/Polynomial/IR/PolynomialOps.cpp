@@ -1079,7 +1079,9 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
       return nullptr;
     }
 
-    RNSPolynomial resultPoly = lhsPoly.mul(rhsPoly);
+    std::optional<RNSPolynomial> resultPolyOpt = lhsPoly.mul(rhsPoly);
+    if (!resultPolyOpt) return nullptr;
+    RNSPolynomial resultPoly = *resultPolyOpt;
 
     auto resultType = getResult().getType();
     auto elementType = lhsAttr.getCoefficients().getElementType();
@@ -1102,7 +1104,9 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
     auto lhs = getSingleLimbRNSPolynomial(lhsIntAttr, lhsPoly);
     auto rhs = getSingleLimbRNSPolynomial(rhsIntAttr, rhsPoly);
     if (lhs && rhs) {
-      RNSPolynomial result = lhs->mul(*rhs);
+      std::optional<RNSPolynomial> resultOpt = lhs->mul(*rhs);
+      if (!resultOpt) return nullptr;
+      RNSPolynomial result = *resultOpt;
       return getTypedIntPolynomialAttr(getContext(), result.getData(),
                                        getResult().getType());
     }
@@ -1126,7 +1130,9 @@ OpFoldResult NTTOp::fold(FoldAdaptor adaptor) {
     if (!rnsRootAttr) return nullptr;
 
     RNSPolynomial poly = inputAttr.getPolynomial();
-    RNSPolynomial resultPoly = poly.toNtt(rnsRootAttr);
+    std::optional<RNSPolynomial> resultPolyOpt = poly.toNtt(rnsRootAttr);
+    if (!resultPolyOpt) return nullptr;
+    RNSPolynomial resultPoly = *resultPolyOpt;
 
     auto resultType = getResult().getType();
     auto elementType = inputAttr.getCoefficients().getElementType();
@@ -1151,7 +1157,9 @@ OpFoldResult NTTOp::fold(FoldAdaptor adaptor) {
   if (!poly) return nullptr;
   SmallVector<uint64_t> roots = {
       modArithRootAttr.getValue().getValue().getZExtValue()};
-  RNSPolynomial resultPoly = poly->toNtt(roots);
+  std::optional<RNSPolynomial> resultPolyOpt = poly->toNtt(roots);
+  if (!resultPolyOpt) return nullptr;
+  RNSPolynomial resultPoly = *resultPolyOpt;
   return getTypedIntPolynomialAttr(getContext(), resultPoly.getData(),
                                    getResult().getType());
 }
@@ -1166,7 +1174,10 @@ OpFoldResult INTTOp::fold(FoldAdaptor adaptor) {
     if (!rnsRootAttr) return nullptr;
 
     RNSPolynomial poly = inputAttr.getPolynomial();
-    RNSPolynomial resultPoly = poly.toCoefficient(rnsRootAttr);
+    std::optional<RNSPolynomial> resultPolyOpt =
+        poly.toCoefficient(rnsRootAttr);
+    if (!resultPolyOpt) return nullptr;
+    RNSPolynomial resultPoly = *resultPolyOpt;
 
     auto resultType = getResult().getType();
     auto elementType = inputAttr.getCoefficients().getElementType();
@@ -1191,7 +1202,9 @@ OpFoldResult INTTOp::fold(FoldAdaptor adaptor) {
   if (!poly) return nullptr;
   SmallVector<uint64_t> roots = {
       modArithRootAttr.getValue().getValue().getZExtValue()};
-  RNSPolynomial resultPoly = poly->toCoefficient(roots);
+  std::optional<RNSPolynomial> resultPolyOpt = poly->toCoefficient(roots);
+  if (!resultPolyOpt) return nullptr;
+  RNSPolynomial resultPoly = *resultPolyOpt;
   return getTypedIntPolynomialAttr(getContext(), resultPoly.getData(),
                                    getResult().getType());
 }

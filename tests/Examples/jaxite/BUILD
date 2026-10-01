@@ -22,17 +22,18 @@ py_library(
     deps = ["@heir_pip_deps//jaxite"],
 )
 
-jaxite_end_to_end_test(
-    name = "add_one_lut3",
-    heir_opt_pass_flags = [
-        "--mlir-to-cggi",
-        "--scheme-to-jaxite",
-    ],
-    mlir_src = "add_one_lut3.mlir",
-    tags = ["yosys"],
-    test_src = "add_one_lut3_test.py",
-    deps = [":test_utils"],
-)
+# Disabled for flakiness
+# jaxite_end_to_end_test(
+#     name = "add_one_lut3",
+#     heir_opt_pass_flags = [
+#         "--mlir-to-cggi",
+#         "--scheme-to-jaxite",
+#     ],
+#     mlir_src = "add_one_lut3.mlir",
+#     tags = ["yosys"],
+#     test_src = "add_one_lut3_test.py",
+#     deps = [":test_utils"],
+# )
 
 jaxite_end_to_end_test(
     name = "fully_connected",

@@ -21,7 +21,7 @@
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = mix>
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797018652673, 35184372121601], P = [1152921504606994433], logDefaultScale = 45>, scheme.ckks} {
-  func.func private @_assign_layout_6046580691004308546(%arg0: tensor<16xf32>) -> tensor<1x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_6046580691004308546(%arg0: tensor<16xf32>) -> tensor<1x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %c0 = arith.constant 0 : index
     %c16_i32 = arith.constant 16 : i32
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
@@ -38,7 +38,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     }
     return %0 : tensor<1x1024xf32>
   }
-  func.func private @_assign_layout_82497239515497017(%arg0: tensor<16x16xf32>) -> tensor<16x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_82497239515497017(%arg0: tensor<16x16xf32>) -> tensor<16x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %c1024_i32 = arith.constant 1024 : i32
     %cst = arith.constant dense<0.000000e+00> : tensor<16x1024xf32>
     %c0_i32 = arith.constant 0 : i32
@@ -98,90 +98,90 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %12 = tensor_ext.rotate %extracted_slice_14, %c-12 : tensor<1x1024xf32>, index
     %13 = tensor_ext.rotate %extracted_slice_15, %c-12 : tensor<1x1024xf32>, index
     %extracted_slice_16 = tensor.extract_slice %extracted_slice[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt = lwe.rlwe_encode %extracted_slice_16 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt = lwe.rlwe_encode %extracted_slice_16 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements = tensor.from_elements %pt : tensor<1x!pt>
     %14 = ckks.mul_plain %from_elements, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %15 = ckks.rotate %arg0 {static_shift = 1 : index} : tensor<1x!ct_L1>
+    %15 = ckks.rotate %arg0 <static_shift = 1 : index> : tensor<1x!ct_L1>
     %extracted_slice_17 = tensor.extract_slice %extracted_slice_1[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_18 = lwe.rlwe_encode %extracted_slice_17 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_18 = lwe.rlwe_encode %extracted_slice_17 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_19 = tensor.from_elements %pt_18 : tensor<1x!pt>
     %16 = ckks.mul_plain %from_elements_19, %15 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %17 = ckks.rotate %arg0 {static_shift = 2 : index} : tensor<1x!ct_L1>
+    %17 = ckks.rotate %arg0 <static_shift = 2 : index> : tensor<1x!ct_L1>
     %extracted_slice_20 = tensor.extract_slice %extracted_slice_2[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_21 = lwe.rlwe_encode %extracted_slice_20 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_21 = lwe.rlwe_encode %extracted_slice_20 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_22 = tensor.from_elements %pt_21 : tensor<1x!pt>
     %18 = ckks.mul_plain %from_elements_22, %17 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %19 = ckks.rotate %arg0 {static_shift = 3 : index} : tensor<1x!ct_L1>
+    %19 = ckks.rotate %arg0 <static_shift = 3 : index> : tensor<1x!ct_L1>
     %extracted_slice_23 = tensor.extract_slice %extracted_slice_3[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_24 = lwe.rlwe_encode %extracted_slice_23 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_24 = lwe.rlwe_encode %extracted_slice_23 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_25 = tensor.from_elements %pt_24 : tensor<1x!pt>
     %20 = ckks.mul_plain %from_elements_25, %19 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_26 = tensor.extract_slice %2[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_27 = lwe.rlwe_encode %extracted_slice_26 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_27 = lwe.rlwe_encode %extracted_slice_26 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_28 = tensor.from_elements %pt_27 : tensor<1x!pt>
     %21 = ckks.mul_plain %from_elements_28, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_29 = tensor.extract_slice %3[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_30 = lwe.rlwe_encode %extracted_slice_29 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_30 = lwe.rlwe_encode %extracted_slice_29 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_31 = tensor.from_elements %pt_30 : tensor<1x!pt>
     %22 = ckks.mul_plain %from_elements_31, %15 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_32 = tensor.extract_slice %4[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_33 = lwe.rlwe_encode %extracted_slice_32 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_33 = lwe.rlwe_encode %extracted_slice_32 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_34 = tensor.from_elements %pt_33 : tensor<1x!pt>
     %23 = ckks.mul_plain %from_elements_34, %17 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_35 = tensor.extract_slice %5[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_36 = lwe.rlwe_encode %extracted_slice_35 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_36 = lwe.rlwe_encode %extracted_slice_35 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_37 = tensor.from_elements %pt_36 : tensor<1x!pt>
     %24 = ckks.mul_plain %from_elements_37, %19 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %25 = ckks.add %21, %22 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %26 = ckks.add %23, %24 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %27 = ckks.add %25, %26 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %28 = ckks.rotate %27 {static_shift = 4 : index} : tensor<1x!ct_L1>
+    %28 = ckks.rotate %27 <static_shift = 4 : index> : tensor<1x!ct_L1>
     %extracted_slice_38 = tensor.extract_slice %6[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_39 = lwe.rlwe_encode %extracted_slice_38 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_39 = lwe.rlwe_encode %extracted_slice_38 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_40 = tensor.from_elements %pt_39 : tensor<1x!pt>
     %29 = ckks.mul_plain %from_elements_40, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_41 = tensor.extract_slice %7[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_42 = lwe.rlwe_encode %extracted_slice_41 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_42 = lwe.rlwe_encode %extracted_slice_41 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_43 = tensor.from_elements %pt_42 : tensor<1x!pt>
     %30 = ckks.mul_plain %from_elements_43, %15 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_44 = tensor.extract_slice %8[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_45 = lwe.rlwe_encode %extracted_slice_44 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_45 = lwe.rlwe_encode %extracted_slice_44 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_46 = tensor.from_elements %pt_45 : tensor<1x!pt>
     %31 = ckks.mul_plain %from_elements_46, %17 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_47 = tensor.extract_slice %9[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_48 = lwe.rlwe_encode %extracted_slice_47 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_48 = lwe.rlwe_encode %extracted_slice_47 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_49 = tensor.from_elements %pt_48 : tensor<1x!pt>
     %32 = ckks.mul_plain %from_elements_49, %19 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %33 = ckks.add %29, %30 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %34 = ckks.add %31, %32 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %35 = ckks.add %33, %34 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %36 = ckks.rotate %35 {static_shift = 8 : index} : tensor<1x!ct_L1>
+    %36 = ckks.rotate %35 <static_shift = 8 : index> : tensor<1x!ct_L1>
     %extracted_slice_50 = tensor.extract_slice %10[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_51 = lwe.rlwe_encode %extracted_slice_50 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_51 = lwe.rlwe_encode %extracted_slice_50 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_52 = tensor.from_elements %pt_51 : tensor<1x!pt>
     %37 = ckks.mul_plain %from_elements_52, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_53 = tensor.extract_slice %11[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_54 = lwe.rlwe_encode %extracted_slice_53 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_54 = lwe.rlwe_encode %extracted_slice_53 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_55 = tensor.from_elements %pt_54 : tensor<1x!pt>
     %38 = ckks.mul_plain %from_elements_55, %15 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_56 = tensor.extract_slice %12[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_57 = lwe.rlwe_encode %extracted_slice_56 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_57 = lwe.rlwe_encode %extracted_slice_56 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_58 = tensor.from_elements %pt_57 : tensor<1x!pt>
     %39 = ckks.mul_plain %from_elements_58, %17 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_59 = tensor.extract_slice %13[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_60 = lwe.rlwe_encode %extracted_slice_59 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_60 = lwe.rlwe_encode %extracted_slice_59 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_61 = tensor.from_elements %pt_60 : tensor<1x!pt>
     %40 = ckks.mul_plain %from_elements_61, %19 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %41 = ckks.add %37, %38 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %42 = ckks.add %39, %40 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %43 = ckks.add %41, %42 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %44 = ckks.rotate %43 {static_shift = 12 : index} : tensor<1x!ct_L1>
+    %44 = ckks.rotate %43 <static_shift = 12 : index> : tensor<1x!ct_L1>
     %45 = ckks.add %14, %16 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %46 = ckks.add %18, %20 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %47 = ckks.add %45, %46 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %48 = ckks.add %28, %36 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %extracted_slice_62 = tensor.extract_slice %1[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt_63 = lwe.rlwe_encode %extracted_slice_62 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt_63 = lwe.rlwe_encode %extracted_slice_62 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements_64 = tensor.from_elements %pt_63 : tensor<1x!pt>
     %49 = ckks.add_plain %44, %from_elements_64 : (tensor<1x!ct_L1>, tensor<1x!pt>) -> tensor<1x!ct_L1>
     %50 = ckks.add %48, %49 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>

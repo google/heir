@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "bugminrepro",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=1024 first-mod-bits=60",
+        "--mlir-to-ckks=min-slot-count=1024 first-mod-bits=60",
         "--scheme-to-lattigo",
     ],
     mlir_src = "issue_3003.mlir",

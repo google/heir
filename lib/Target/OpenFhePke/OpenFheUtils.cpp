@@ -41,10 +41,8 @@ std::string getModulePrelude(OpenfheScheme scheme,
                     scheme == OpenfheScheme::CKKS
                         ? "CKKS"
                         : (scheme == OpenfheScheme::BGV ? "BGV" : "BFV")));
-  return std::string(import) + prelude;
+  return std::string(import) + prelude + std::string(kLoadResourceTemplate);
 }
-
-std::string getWeightsPrelude() { return std::string(kWeightsPreludeTemplate); }
 
 FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)

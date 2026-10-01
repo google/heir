@@ -86,10 +86,16 @@ LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
 
   // Intentionally use op.getCleartext() because we don't want to type-convert
   // the input to a ciphertext.
+  IntegerAttr scaleAttr;
+  if (ctTy.getModulusChain()) {
+    scaleAttr =
+        rewriter.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
+            ctTy.getPlaintextSpace().getEncoding()));
+  }
   auto encoded = lwe::RLWEEncodeOp::create(
       rewriter, op.getLoc(), encodeOpResultTy, op.getCleartext(),
       ctTy.getPlaintextSpace().getEncoding(),
-      ctTy.getPlaintextSpace().getRing());
+      ctTy.getPlaintextSpace().getRing(), /*level=*/nullptr, scaleAttr);
   auto newOp =
       lwe::TrivialEncryptOp::create(rewriter, op.getLoc(), resultTy, encoded);
   newOp->setAttrs(op->getAttrs());
@@ -145,11 +151,20 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
                                                 resultCtTy.getPlaintextSpace());
 
+  // As above, --lwe-annotate-plaintext-level owns the level.
+  IntegerAttr encScaleAttr;
+  if (resultCtTy.getModulusChain()) {
+    encScaleAttr =
+        rewriter.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
+            resultCtTy.getPlaintextSpace().getEncoding()));
+  }
+
   auto encryptFn = [&](Value cleartext) -> lwe::RLWEEncryptOp {
     auto encoded =
         lwe::RLWEEncodeOp::create(rewriter, op.getLoc(), plaintextTy, cleartext,
                                   resultCtTy.getPlaintextSpace().getEncoding(),
-                                  resultCtTy.getPlaintextSpace().getRing());
+                                  resultCtTy.getPlaintextSpace().getRing(),
+                                  /*level=*/nullptr, encScaleAttr);
     auto encryptOp = lwe::RLWEEncryptOp::create(
         rewriter, op.getLoc(), resultCtTy, encoded.getResult(), keyBlockArg);
     // Copy attributes from the original op to preserve any mgmt attrs needed by
@@ -196,9 +211,10 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
     secret::RevealOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc || !parentFunc->hasAttr(kClientDecFuncAttrName)) {
-    return op->emitError() << "expected to be inside a function with attribute "
-                           << kClientDecFuncAttrName;
+  if (!parentFunc || !hasInterfaceRole(parentFunc, kClientDecRole)) {
+    return op->emitError()
+           << "expected to be inside a function with interface role "
+           << kClientDecRole;
   }
 
   // The decryption func decrypts a single value, so it must have a single
@@ -533,6 +549,7 @@ void addSecretToSchemeDefaultConversionTargetsAndPatterns(
       SecretGenericOpConversion<debug::ValidateOp>, ConvertExtractSlice,
       ConvertInsertSlice, SecretGenericFuncCallConversion,
       SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
+      SecretGenericOpConversion<tensor::PadOp, tensor::PadOp>,
       SecretGenericOpIdentityConversion<arith::ExtSIOp>,
       SecretGenericOpIdentityConversion<arith::ExtUIOp>,
       SecretGenericOpIdentityConversion<arith::FPToSIOp>,

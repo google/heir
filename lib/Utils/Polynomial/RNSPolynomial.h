@@ -74,15 +74,18 @@ class RNSPolynomial {
   /// Performs modular multiplication limb-wise. In NTT form, this corresponds
   /// to an elementwise product. In coefficient form, it first converts to NTT
   /// form, multiplies elementwise, and converts back to coefficient form.
-  RNSPolynomial mul(const RNSPolynomial& other) const;
+  std::optional<RNSPolynomial> mul(const RNSPolynomial& other) const;
 
   /// Convert the polynomial to NTT representation.
-  RNSPolynomial toNtt(llvm::ArrayRef<uint64_t> rootOfUnity) const;
-  RNSPolynomial toNtt(rns::RNSAttr rootAttr = nullptr) const;
+  std::optional<RNSPolynomial> toNtt(
+      llvm::ArrayRef<uint64_t> rootOfUnity) const;
+  std::optional<RNSPolynomial> toNtt(rns::RNSAttr rootAttr = nullptr) const;
 
   /// Convert the polynomial to Coefficient representation.
-  RNSPolynomial toCoefficient(llvm::ArrayRef<uint64_t> rootOfUnity) const;
-  RNSPolynomial toCoefficient(rns::RNSAttr rootAttr = nullptr) const;
+  std::optional<RNSPolynomial> toCoefficient(
+      llvm::ArrayRef<uint64_t> rootOfUnity) const;
+  std::optional<RNSPolynomial> toCoefficient(
+      rns::RNSAttr rootAttr = nullptr) const;
 
   /// Slice the polynomial's RNS basis.
   RNSPolynomial slice(size_t start, size_t size) const;

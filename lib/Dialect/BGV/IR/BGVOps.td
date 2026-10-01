@@ -122,7 +122,7 @@ def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
+  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? prop-dict attr-dict `:` qualified(type($input))" ;
 }
 
 def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [
@@ -152,7 +152,7 @@ def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
+  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? prop-dict attr-dict `:` qualified(type($input))" ;
 }
 
 def BGV_NegateOp : BGV_Op<"negate", [ElementwiseMappable, Involution, SameOperandsAndResultType]> {
@@ -194,7 +194,7 @@ def BGV_RelinearizeOp : BGV_Op<"relinearize", [ElementwiseMappable,
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable, ReducesLevelOpInterface]> {
@@ -210,7 +210,7 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable, Reduces
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 def BGV_LevelReduceOp : BGV_Op<"level_reduce", [
@@ -230,7 +230,7 @@ def BGV_LevelReduceOp : BGV_Op<"level_reduce", [
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 #endif  // LIB_DIALECT_BGV_IR_BGVOPS_TD_

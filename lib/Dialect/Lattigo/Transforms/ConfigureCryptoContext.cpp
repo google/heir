@@ -13,6 +13,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
@@ -48,7 +49,7 @@ bool hasRelinOp(func::FuncOp op) {
   bool result = false;
   walkFuncAndCallees(op, [&](Operation* op) {
     if (isa<BGVRelinearizeOp, BGVRelinearizeNewOp, CKKSRelinearizeOp,
-            CKKSRelinearizeNewOp>(op)) {
+            CKKSRelinearizeNewOp, lattigo::CKKSChebyshevOp>(op)) {
       result = true;
       return WalkResult::interrupt();
     }
@@ -325,10 +326,12 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
 
   // Lattigo requires manually computing the galois element from the rotation
   // shift.
+  auto n = 1 << logN;
   for (auto rotIndex : rotIndices) {
     auto galoisElement = 1;
+    rotIndex = normalizeRotation(rotIndex, n / 2);
     while (rotIndex > 0) {
-      galoisElement = (galoisElement * 5) % (1 << (logN + 1));
+      galoisElement = (galoisElement * 5) % (2 * n);
       rotIndex--;
     }
     auto galoisElementAttr = IntegerAttr::get(

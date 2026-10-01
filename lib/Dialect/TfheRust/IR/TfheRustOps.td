@@ -14,7 +14,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
         Op<TfheRust_Dialect, mnemonic, traits> {
   let assemblyFormat = [{
-    operands attr-dict `:` functional-type(operands, results)
+    operands prop-dict attr-dict `:` functional-type(operands, results)
   }];
   let cppNamespace = "::mlir::heir::tfhe_rust";
 }

@@ -15,7 +15,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class Openfhe_Op<string mnemonic, list<Trait> traits = []> :
         Op<Openfhe_Dialect, mnemonic, traits> {
   let assemblyFormat = [{
-    operands attr-dict `:` functional-type(operands, results)
+    operands prop-dict attr-dict `:` functional-type(operands, results)
   }];
   let cppNamespace = "::mlir::heir::openfhe";
 }
@@ -216,9 +216,10 @@ def GenParamsOp : Openfhe_Op<"gen_params"> {
 def GenContextOp : Openfhe_Op<"gen_context"> {
   let arguments = (ins
     Openfhe_CCParams:$params,
-    BoolAttr:$supportFHE
+    BoolAttr:$supportFHE,
+    DefaultValuedAttr<BoolAttr, "false">:$supportAdvancedSHE
   );
-  let results = (outs Openfhe_CryptoContext:$context);
+  let results = (outs Openfhe_CryptoContext:$cryptoContext);
 }
 
 def GenMulKeyOp : Openfhe_Op<"gen_mulkey"> {
@@ -364,14 +365,14 @@ def SquareInPlaceOp : Openfhe_UnaryInPlaceOp<"square_inplace"> { let summary = "
 def RelinOp : Openfhe_UnaryOp<"relin"> { let summary = "Relinearization of a ciphertext."; }
 def RelinInPlaceOp : Openfhe_UnaryInPlaceOp<"relin_inplace"> { let summary = "In-place relinearization of a ciphertext."; }
 def ModReduceOp : Openfhe_UnaryOp<"mod_reduce", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> { let summary = "mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
 def ModReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"mod_reduce_inplace", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandsToReduce"]>
 ]> { let summary = "In-place mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
 
 def LevelReduceOp : Openfhe_UnaryOp<"level_reduce", [
-  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>
 ]> {
   let summary = "Reduce the level of a ciphertext.";
   let arguments = (ins
@@ -383,7 +384,7 @@ def LevelReduceOp : Openfhe_UnaryOp<"level_reduce", [
 
 def LevelReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"level_reduce_inplace", [
     InPlaceOpInterface,
-    DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>
+    DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandsToReduce"]>
 ]> {
   let summary = "In-place level reduction of a ciphertext.";
   let arguments = (ins
@@ -542,6 +543,21 @@ def DecodeCKKSOp : Openfhe_Op<"decode_ckks", [
   let assemblyFormat = [{
     operands attr-dict `:` type($input) `->` type($output)
   }];
+}
+
+def Openfhe_EvalChebyshevSeriesOp : Openfhe_Op<"eval_chebyshev_series", [
+  Pure,
+  AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "Evaluate a Chebyshev polynomial series on a ciphertext using OpenFHE's EvalChebyshevSeries";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_Ciphertext:$ciphertext,
+    ArrayAttr:$coefficients,
+    Builtin_FloatAttr:$domain_lower,
+    Builtin_FloatAttr:$domain_upper
+  );
+  let results = (outs Openfhe_Ciphertext:$output);
 }
 
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_

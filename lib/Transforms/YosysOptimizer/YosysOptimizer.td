@@ -18,9 +18,6 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
     arithmetic ops that can be optimized.
 
     Optional parameters:
-
-    - `abc-fast`: Run the abc optimizer in "fast" mode, getting faster compile
-      time at the expense of a possibly larger output circuit.
     - `unroll-factor`: Before optimizing the circuit, unroll loops by a given
       factor. If unset, this pass will not unroll any loops.
     - `print-stats`: Prints statistics about the optimized circuits.

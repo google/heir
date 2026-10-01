@@ -11,13 +11,13 @@ func.func public @test_poly_ntt() -> !poly_ty {
   %insert_rand0 = tensor.insert_slice %rand_coeffs into %full[0] [256] [1] : tensor<256xi32> into tensor<65536xi32>
   %rand1_enc = mod_arith.encapsulate %insert_rand0 : tensor<65536xi32> -> tensor<65536x!coeff_ty>
   %poly = polynomial.from_tensor %rand1_enc : tensor<65536x!coeff_ty> -> !poly_ty
-  %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<65536x!coeff_ty, #ring>
+  %0 = polynomial.ntt %poly <root = #root> : !poly_ty -> tensor<65536x!coeff_ty, #ring>
 
   // Insert casts so that intt(ntt()) does not get folded away during polynomial
   // canonicalization
   %cast = tensor.cast %0 : tensor<65536x!coeff_ty, #ring> to tensor<65536x!coeff_ty>
   %cast_back = tensor.cast %cast : tensor<65536x!coeff_ty> to tensor<65536x!coeff_ty, #ring>
 
-  %1 = polynomial.intt %cast_back {root=#root} : tensor<65536x!coeff_ty, #ring> -> !poly_ty
+  %1 = polynomial.intt %cast_back <root = #root> : tensor<65536x!coeff_ty, #ring> -> !poly_ty
   return %1 : !poly_ty
 }

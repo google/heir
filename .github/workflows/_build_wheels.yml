@@ -1,0 +1,114 @@
+name: Build Wheels
+
+on:
+  workflow_call:
+    inputs:
+      tag_name:
+        description: 'Tag name'
+        type: string
+        required: false
+        default: ''
+    outputs:
+      version:
+        description: "Version string"
+        value: ${{ jobs.setup-version.outputs.version }}
+
+jobs:
+  setup-version:
+    name: Get version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Get version
+        id: get-version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF_NAME: ${{ github.ref }}
+          TAG_NAME: ${{ github.event.release.tag_name || inputs.tag_name || '' }}
+        run: |
+          python scripts/get_version.py \
+            --event "$EVENT_NAME" \
+            --ref "$GITHUB_REF_NAME" \
+            --tag "$TAG_NAME" \
+            --package "heir_py" \
+            --gha
+
+  build_sdist:
+    name: Build source distribution
+    needs: [setup-version]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Install Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - name: Build sdist
+        env:
+          VERSION: ${{ needs.setup-version.outputs.version }}
+        run: |
+          if [[ -n "$VERSION" ]]; then
+            export SETUPTOOLS_SCM_PRETEND_VERSION="$VERSION"
+          fi
+          python -m build --sdist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  build_wheels:
+    name: Build HEIR wheels on ${{ matrix.name }}
+    needs: [setup-version]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - name: macos-arm64
+            runner: macos-15
+
+    steps:
+      - name: Check out HEIR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        name: Install Python 3.12
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade pip uv
+
+      - name: Build wheels on ${{ matrix.name }} using cibuildwheel
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
+          CIBW_ENVIRONMENT_PASS: SETUPTOOLS_SCM_PRETEND_VERSION
+
+      - name: Upload HEIR ${{ matrix.name }} wheels
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist-${{ matrix.name }}
+          path: wheelhouse/*.whl

@@ -7,12 +7,12 @@
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func.func @linalg__preprocessing() -> !preprocessing.storage<!pt>
-// CHECK-SAME: client.pack_func = {func_name = "linalg"}
+// CHECK-SAME: heir.interface = {entry_arg_indices = array<i64>, func_name = "linalg", roles = ["server.preprocessing"]}
 // CHECK: linalg.broadcast
 // CHECK: lwe.rlwe_encode
 
 // CHECK: func.func @linalg__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[STORAGE:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
-// CHECK-SAME: client.preprocessed_func = {func_name = "linalg"}
+// CHECK-SAME: heir.interface = {func_name = "linalg", roles = ["client.preprocessed", "server.evaluate"]}
 
 // CHECK: func.func @linalg
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]])
@@ -41,7 +41,7 @@ func.func @linalg(%ct: !ct_L1) -> (!ct_L1) {
   %c1 = arith.constant dense<1.0> : tensor<f32>
   %0 = tensor.empty() : tensor<1024xf32>
   %c2 = linalg.broadcast ins(%c1 : tensor<f32>) outs(%0 : tensor<1024xf32>) dimensions = [0]
-  %pt1 = lwe.rlwe_encode %c2 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt1 = lwe.rlwe_encode %c2 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
   %1 = ckks.add_plain %ct, %pt1 : (!ct_L1, !pt) -> !ct_L1
   return %1 : !ct_L1
 }

@@ -9,13 +9,11 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 // ISL
 #include "include/isl/ctx.h"  // from @isl
-#include "include/isl/map.h"  // from @isl
 
 namespace mlir {
 namespace heir {
@@ -30,34 +28,26 @@ void addConstraint(presburger::IntegerRelation& result,
 void addBounds(presburger::IntegerRelation& result, int64_t pos, int64_t lower,
                std::optional<int64_t> upper = std::nullopt);
 
+// Lifts a relation R : [a...] -> [b...] to [p, a...] -> [p, b...] by prepending
+// a "passthrough" dimension as the new leading variable of both the domain and
+// range, constrained so the new domain variable equals the new range variable
+// (i.e. p is carried through unchanged). When `lb`/`ub` are provided, the
+// passthrough dimension is additionally bounded to [lb, ub].
+void prependPassthroughDim(presburger::IntegerRelation& relation,
+                           std::optional<int64_t> lb = std::nullopt,
+                           std::optional<int64_t> ub = std::nullopt);
+
 // Adds a new local variable q to the relation that represents expr % modulus.
 // Returns the index of the new local variable in the relation.
 unsigned int addModConstraint(presburger::IntegerRelation& result,
                               ArrayRef<int64_t> exprs, int64_t modulus);
 
-/// Tests if two relations have the same range for a given domain point.
-bool sameRangeForDomainPoint(const std::vector<int64_t>& domainPoint,
-                             const presburger::IntegerRelation& rel1,
-                             const presburger::IntegerRelation& rel2);
-
-/// Tests if two relations have the same domain for a given range point.
-bool sameDomainForRangePoint(const std::vector<int64_t>& rangePoint,
-                             const presburger::IntegerRelation& rel1,
-                             const presburger::IntegerRelation& rel2);
-
-/// Attempts to quickly prove inequality of two relations by testing domain and
-/// range point-subsamples that are known to be in both relations. This can be
-/// used as a fast check to avoid a full equality test.
-///
-/// This function should only be used on layouts that map data -> ciphertexts,
-/// which is what allows us to conjure subsets of valid points to test.
-///
-/// For example, for a 2d data domain, it is always true that (0, 0) is in the
-/// domain of some point of the relation, because all tensors have an origin
-/// point. This function will then restrict the relation to the sub-relation of
-/// points with domain (0, 0), and compare the range points.
-LogicalResult tryProveUnequal(const presburger::IntegerRelation& layout1,
-                              const presburger::IntegerRelation& layout2);
+/// Cheap one-sided inequality check on two layout relations. Returns success()
+/// when they are provably unequal, and failure() when the check cannot tell --
+/// a failure() is not evidence of equality.
+LogicalResult tryProveUnequalByVolume(
+    const presburger::IntegerRelation& layout1,
+    const presburger::IntegerRelation& layout2);
 
 // Returns an IntegerRelation that enforces a row-major layout for the given
 // tensor type and number of slots. This is used for IntegerRelations that
@@ -71,12 +61,24 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 // such that the ith diagonal of the matrix is in the ith row of the
 // result. The number of rows of the input and output must match.
 presburger::IntegerRelation getDiagonalLayoutRelation(
-    RankedTensorType matrixType, int64_t ciphertextSize);
+    RankedTensorType matrixType, int64_t minSlotCount);
 
 // Applies a diagonal layout onto a given 2-D matrix layout.
+//
+// The matrix shape is read off `relation`'s own range bounds, which can be
+// tighter than the matrix the kernel is sized from: a trailing row or column
+// that no entry ever reaches lowers the derived bound. Pass `matrixShape` to
+// diagonalize against an explicit {rows, cols} instead, so that the layout and
+// the kernel agree.
 FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
     presburger::IntegerRelation relation, RankedTensorType originalType,
-    int64_t ciphertextSize);
+    int64_t minSlotCount, ArrayRef<int64_t> matrixShape = {});
+
+// Returns an IntegerRelation that represents a canonical cyclic (CRT) layout
+// for a tensor of rank >= 1. The range is (ct, slot) where ct = 0 and
+// for each dimension d: (-i_d + slot) mod dimSize(d) == 0.
+presburger::IntegerRelation getCyclicLayoutRelation(RankedTensorType type,
+                                                    int64_t numSlots);
 
 // Returns an IntegerRelation that represents a bicyclic layout for a matrix.
 // See https://eprint.iacr.org/2024/1762 for details.
@@ -88,15 +90,45 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
 presburger::IntegerRelation getTricyclicLayoutRelation(
     RankedTensorType tensorType, int64_t numSlots);
 
+// Returns the generalized diagonal packing relation for the cleartext
+// operand of a bicyclic matrix multiplication.
+//
+// This layout is specific to the cleartext matrix. It decomposes the matrix
+// into n diagonal vectors (one for each step along the contracting dimension).
+// Each diagonal vector pre-arranges matrix elements to align with a specific
+// rotation of the encrypted operand and match the target output slots. This
+// avoids single-ciphertext capacity limits and removes the coprimality
+// requirement on the cleartext matrix dimensions. It also ensures that the
+// multiplied result directly matches the output bicyclic layout without needing
+// layout conversions. However, it incurs the overhead of eagerly materializing
+// n separate plaintext vectors of size numSlots.
+presburger::IntegerRelation getBicyclicDiagonalRelation(
+    RankedTensorType matrixType, int64_t contractionDim, int64_t stride,
+    int64_t numSlots);
+
+// Returns an IntegerRelation with domain and range space both (ct, slot) that
+// maps each slot s in [0, period) of a ciphertext to every slot s' in [0,
+// numSlots) with s' equiv s (mod period). Excepts numCiphertexts == 1.
+presburger::IntegerRelation getPeriodicReplicationRelation(
+    int64_t numCiphertexts, int64_t numSlots, int64_t period);
+
 // Returns an IntegerRelation that represents a per-row layout for a matrix
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
-                                                    int64_t ciphertextSize);
+                                                    int64_t minSlotCount);
+
+// Returns the diagonal packing relation for the rank-3 plaintext operand
+// of the batch ciphertext-plaintext matmul:
+//   BatchDiag'(B, c)_k =
+//       B[k mod h][(k + c*h*ctStride) mod n][k mod p]
+// contractionDim specifies the contraction axis (1 for ct-pt, 2 for pt-ct).
+presburger::IntegerRelation getTricyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t ctStride,
+    int64_t numSlots);
 
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
-bool isRelationSquatDiagonal(RankedTensorType matrixType,
-                             int64_t ciphertextSize,
+bool isRelationSquatDiagonal(RankedTensorType matrixType, int64_t minSlotCount,
                              const presburger::IntegerRelation& relation);
 
 // Returns true if the given relation is a row-major layout for the given
@@ -104,10 +136,30 @@ bool isRelationSquatDiagonal(RankedTensorType matrixType,
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
                         const presburger::IntegerRelation& relation);
 
+// Returns true if the relation packs a vector into ciphertext zero with each
+// vector element occupying exactly one distinct slot.
+bool isOneToOneSingleCiphertextPacking(
+    const presburger::IntegerRelation& relation);
+
+// Folds a single-ciphertext vector permutation (as accepted by
+// isOneToOneSingleCiphertextPacking) into a matrix layout, returning the matrix
+// layout that lets a diagonal matvec consume the un-permuted vector directly.
+// `vectorPermutation` maps [col] -> [ct, slot]; `matrixLayout` maps
+// [row, col] -> [ct, slot].
+presburger::IntegerRelation foldVectorPermutationIntoMatrixLayout(
+    const presburger::IntegerRelation& vectorPermutation,
+    const presburger::IntegerRelation& matrixLayout);
+
 // Returns true if the given relation is a per-row layout
 // for the given matrix type and ciphertext semantic shape.
-bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
+bool isRelationPerRow(RankedTensorType matrixType, int64_t minSlotCount,
                       presburger::IntegerRelation relation);
+
+// Returns true if the relation corresponds to the canonical cyclic (CRT) layout
+// for the tensor type and ciphertext slot count. Requires rank >= 1 and all
+// dimensions > 1.
+bool isRelationCyclic(RankedTensorType type, int64_t numSlots,
+                      const presburger::IntegerRelation& relation);
 
 // Returns true if the given relation is a bicyclic layout for the given
 // matrix type and ciphertext semantic shape.
@@ -230,12 +282,30 @@ presburger::IntegerRelation shiftVar(
     const presburger::IntegerRelation& relation, unsigned int pos,
     int64_t offset);
 
+// Get layout relation that corresponds to a tensor::pad op.
+presburger::IntegerRelation getPaddingRelation(RankedTensorType paddedType,
+                                               RankedTensorType unpaddedType,
+                                               ArrayRef<int64_t> lowPadding);
+
 // Get layout relation that corresponds to a tensor::extract_slice op.
 FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     RankedTensorType sourceType, RankedTensorType resultType,
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
 
+// Returns the relation corresponding to a transpose by permuting its domain
+// variables according to `permutation`: result domain index i corresponds to
+// original domain index `permutation[i]`.
+presburger::IntegerRelation getTransposedRelation(
+    const presburger::IntegerRelation& relation, ArrayRef<int64_t> permutation);
+
+// Tests whether two layout relations describe the same set of points.
+//
+// This check is one-sided: `true` means the relations are provably equal, but
+// `false` means "not proven equal" rather than "proven unequal".
+//
+// IntegerRelation::isEqual is deliberately not used: it fails to
+// return within 120s on layouts isl decides in single-digit milliseconds.
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2);
 

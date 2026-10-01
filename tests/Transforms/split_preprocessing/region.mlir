@@ -13,7 +13,7 @@
 // CHECK: return
 
 // CHECK: func.func @region__preprocessed(
-// CHECK-SAME: %[[arg0:.*]]: tensor<1x![[ct_L2]]>,
+// CHECK-SAME: %[[arg0:.*]]: tensor<1x![[ct_L2]]>
 // CHECK-SAME: %[[STORAGE:.*]]: !preprocessing.storage<!pt>)
 
 !Z35184371138561_i64 = !mod_arith.int<35184371138561 : i64>
@@ -31,7 +31,7 @@
 #ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2_1_x1024, encryption_type = mix>
 !ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #modulus_chain_L2_C2>
 module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797017456641, 35184371138561, 35184372121601], P = [1152921504607338497, 1152921504608747521], logDefaultScale = 45>, scheme.ckks} {
-  func.func private @_assign_layout_1845394520611349023(%arg0: tensor<28x28xf32>) -> tensor<1x1024xf32> attributes {client.pack_func = {func_name = "region"}} {
+  func.func private @_assign_layout_1845394520611349023(%arg0: tensor<28x28xf32>) -> tensor<1x1024xf32> attributes {heir.interface = {func_name = "region", roles = ["client.pack"]}} {
     %c0 = arith.constant 0 : index
     %c28_i32 = arith.constant 28 : i32
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
@@ -68,7 +68,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %extracted_slice = tensor.extract_slice %1[0, 0, 0, 0] [1, 1, 28, 28] [1, 1, 1, 1] : tensor<1x6x28x28xf32> to tensor<28x28xf32>
     %2 = call @_assign_layout_1845394520611349023(%extracted_slice) : (tensor<28x28xf32>) -> tensor<1x1024xf32>
     %extracted_slice_0 = tensor.extract_slice %2[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    %pt = lwe.rlwe_encode %extracted_slice_0 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt = lwe.rlwe_encode %extracted_slice_0 <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %from_elements = tensor.from_elements %pt : tensor<1x!pt>
     %3 = ckks.add_plain %arg0, %from_elements : (tensor<1x!ct_L2>, tensor<1x!pt>) -> tensor<1x!ct_L2>
     return %3 : tensor<1x!ct_L2>

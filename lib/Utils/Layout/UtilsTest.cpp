@@ -64,57 +64,39 @@ TEST(UtilsTest, TestAddModConstraint) {
   }
 }
 
-TEST(UtilsTest, TestSameRangeForDomainPoint_AgreeOnZeroZero) {
-  auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  EXPECT_TRUE(sameRangeForDomainPoint({0}, rel1, rel1));
-}
-
-TEST(UtilsTest, TestSameRangeForDomainPoint_DifferOnZeroZeroByValue) {
-  auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  auto rel2 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 1 }").value();
-  EXPECT_FALSE(sameRangeForDomainPoint({0}, rel1, rel2));
-}
-
-TEST(UtilsTest, TestSameRangeForDomainPoint_DifferOnZeroZeroBySize) {
-  // (0, 0) is in both sets, but (0, 1), (0, 2), ... is in rel2
-  auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  auto rel2 = getIntegerRelationFromIslStr(
-                  "{ [x] -> [y] : 0 <= x <= 5 and 0 <= y <= 5 }")
-                  .value();
-  EXPECT_FALSE(sameRangeForDomainPoint({0}, rel1, rel2));
-}
-
-TEST(UtilsTest, TestTryProveUnequal_DifferingDomainVars) {
+TEST(UtilsTest, TestTryProveUnequalByVolume_DifferingDomainVars) {
   auto rel1 =
       getIntegerRelationFromIslStr("{ [x, z] -> [y] : x = 0 and y = 0 }")
           .value();
   auto rel2 =
       getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+  EXPECT_TRUE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
-TEST(UtilsTest, TestTryProveUnequal_DifferingRangeVars) {
+TEST(UtilsTest, TestTryProveUnequalByVolume_DifferingExtents) {
   auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y, z] : x = 0 and y = 0 }")
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 10 and y = 2*x }")
           .value();
   auto rel2 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
-  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 9 and y = 2*x }")
+          .value();
+  EXPECT_TRUE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
-TEST(UtilsTest, TestTryProveUnequal_DifferingOnTestPoint) {
+// A reversed diagonal has the same bounding box, and so the same volume, as the
+// forward one, so volume alone cannot separate them. isRelationEqual still
+// must, which is what IsRelationEqualDistinguishesEqualVolumeRelations covers.
+TEST(UtilsTest, TestTryProveUnequalByVolume_CannotDecideEqualVolumes) {
   auto rel1 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 3 and y = x }")
+          .value();
   auto rel2 =
-      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 1 }").value();
-  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 3 and y = 3 - x }")
+          .value();
+  EXPECT_FALSE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
-TEST(UtilsTest, TestTryProveUnequal_SameRelation) {
+TEST(UtilsTest, TestTryProveUnequalByVolume_SameRelation) {
   auto rel1 =
       getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 10 and y = 2*x }")
           .value();
@@ -122,7 +104,7 @@ TEST(UtilsTest, TestTryProveUnequal_SameRelation) {
       getIntegerRelationFromIslStr(
           "{ [x] -> [y] : 0 <= x <= 10 and 0 <= y <= 20 and x = y / 2 }")
           .value();
-  EXPECT_FALSE(succeeded(tryProveUnequal(rel1, rel2)));
+  EXPECT_FALSE(succeeded(tryProveUnequalByVolume(rel1, rel2)));
 }
 
 TEST(UtilsTest, SingleCiphertext) {
@@ -164,11 +146,11 @@ TEST(UtilsTest, DiagonalLayout) {
   MLIRContext context;
 
   // Diagonalize a 4x8 matrix into a 4x64 matrix.
-  int64_t ciphertextSize = 64;
+  int64_t minSlotCount = 64;
   RankedTensorType matrixType =
       RankedTensorType::get({4, 8}, IndexType::get(&context));
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSize);
+      getDiagonalLayoutRelation(matrixType, minSlotCount);
 
   diagonalRelation.simplify();
   for (unsigned int i = 0; i < 4; ++i) {
@@ -195,11 +177,11 @@ TEST(UtilsTest, SquatDiagonalLayout) {
   // 2  8 14  * * *  * *
   // 3  9 15  * * * 11 *
   // 4 10  *  * * 6 12 *
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
   RankedTensorType matrixType =
       RankedTensorType::get({3, 5}, IndexType::get(&context));
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSize);
+      getDiagonalLayoutRelation(matrixType, minSlotCount);
   int64_t paddedRows = 4;
   int64_t paddedCols = 8;
 
@@ -256,6 +238,125 @@ TEST(UtilsTest, BicyclicLayout3x5Repeated) {
        // Cyclically repeated to fill 32 slots
        1, 7, 13, 4, 10, 11, 2, 8, 14, 5, 6, 12, 3, 9, 15, 1, 7}};
   EXPECT_EQ(packedMatrix, expected);
+}
+
+TEST(UtilsTest, PeriodicReplicationRelation) {
+  int64_t numSlots = 10;
+  int64_t period = 3;
+  IntegerRelation replication =
+      getPeriodicReplicationRelation(/*numCiphertexts=*/1, numSlots, period);
+
+  // Every target slot t is reached exactly from source slot t % period.
+  for (int64_t t = 0; t < numSlots; ++t) {
+    for (int64_t s = 0; s < period; ++s) {
+      EXPECT_EQ(replication.containsPointNoLocal({0, s, 0, t}).has_value(),
+                s == t % period);
+    }
+  }
+
+  // Source slots outside the first period are not in the domain.
+  EXPECT_FALSE(replication.containsPointNoLocal({0, period, 0, period}));
+}
+
+TEST(UtilsTest, BicyclicCtPtDiagonal3x5x7) {
+  MLIRContext context;
+  int64_t numSlots = 105;
+  int64_t stride = 3;
+  int64_t contractionDim = 0;
+  RankedTensorType weightType =
+      RankedTensorType::get({5, 7}, IndexType::get(&context));
+  IntegerRelation relation =
+      getBicyclicDiagonalRelation(weightType, contractionDim, stride, numSlots);
+
+  // Initialize a 5x7 weight matrix
+  std::vector<std::vector<int>> weight(5, std::vector<int>(7));
+  for (int i = 0; i < 5; ++i) {
+    for (int j = 0; j < 7; ++j) {
+      weight[i][j] = i * 10 + j;
+    }
+  }
+
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation, weight);
+
+  // Expect n = 5 rows (diagonals) and numSlots = 105 cols
+  EXPECT_EQ(packed.size(), 5);
+  for (int c = 0; c < 5; ++c) {
+    EXPECT_EQ(packed[c].size(), numSlots);
+    for (int k = 0; k < numSlots; ++k) {
+      // D_c[k] = W[(k + c * stride) mod n, k mod freeSize]
+      // here n = 5, stride = 3, freeSize = 7
+      int expectedRow = (k + c * 3) % 5;
+      int expectedCol = k % 7;
+      EXPECT_EQ(packed[c][k], weight[expectedRow][expectedCol]);
+    }
+  }
+}
+
+TEST(UtilsTest, BicyclicPtCtDiagonal3x5x7) {
+  MLIRContext context;
+  int64_t numSlots = 105;
+  int64_t stride = 7;
+  int64_t contractionDim = 1;
+  RankedTensorType weightType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation relation =
+      getBicyclicDiagonalRelation(weightType, contractionDim, stride, numSlots);
+
+  // Initialize a 3x5 weight matrix
+  std::vector<std::vector<int>> weight(3, std::vector<int>(5));
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      weight[i][j] = i * 10 + j;
+    }
+  }
+
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation, weight);
+
+  // Expect n = 5 rows (diagonals) and numSlots = 105 cols
+  EXPECT_EQ(packed.size(), 5);
+  for (int c = 0; c < 5; ++c) {
+    EXPECT_EQ(packed[c].size(), numSlots);
+    for (int k = 0; k < numSlots; ++k) {
+      // D_c[k] = W[k mod freeSize, (k + c * stride) mod n]
+      // here n = 5 (dim 1), stride = 7, freeSize = 3 (dim 0)
+      int expectedRow = k % 3;
+      int expectedCol = (k + c * 7) % 5;
+      EXPECT_EQ(packed[c][k], weight[expectedRow][expectedCol]);
+    }
+  }
+}
+
+TEST(UtilsTest, BicyclicDiagonalNonIntegralWrap) {
+  MLIRContext context;
+  int64_t numSlots = 32;
+  int64_t stride = 7;
+  int64_t contractionDim = 1;
+  RankedTensorType weightType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation relation =
+      getBicyclicDiagonalRelation(weightType, contractionDim, stride, numSlots);
+
+  std::vector<std::vector<int>> weight(3, std::vector<int>(5));
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      weight[i][j] = i * 10 + j;
+    }
+  }
+
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation, weight);
+
+  EXPECT_EQ(packed.size(), 5);
+  for (int c = 0; c < 5; ++c) {
+    EXPECT_EQ(packed[c].size(), numSlots);
+    for (int k = 0; k < numSlots; ++k) {
+      int expectedRow = k % 3;
+      int expectedCol = (k + c * 7) % 5;
+      EXPECT_EQ(packed[c][k], weight[expectedRow][expectedCol]);
+    }
+  }
 }
 
 TEST(UtilsTest, TricyclicLayout2x5x7Structure) {
@@ -336,6 +437,211 @@ TEST(UtilsTest, TricyclicLayout2x5x7Repeated) {
   EXPECT_EQ(packedMatrix[0], expected);
 }
 
+// A genuine tricyclic layout must still be recognized after routing the check
+// through isRelationEqual.
+TEST(UtilsTest, IsRelationTricyclicAcceptsGenuineLayout) {
+  MLIRContext context;
+  int64_t h = 2, m = 5, n = 7;
+  int64_t numSlots = h * m * n;
+  RankedTensorType tensorType =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+
+  EXPECT_TRUE(isRelationTricyclic(
+      tensorType, numSlots, getTricyclicLayoutRelation(tensorType, numSlots)));
+}
+
+// The relation passed here IS the 1x5x7 tricyclic relation, so this returns
+// true without the unit-dim guard.
+TEST(UtilsTest, IsRelationTricyclicRejectsUnitDim) {
+  MLIRContext context;
+  int64_t h = 1, m = 5, n = 7;
+  int64_t numSlots = h * m * n;
+  RankedTensorType tensorType =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+
+  EXPECT_FALSE(isRelationTricyclic(
+      tensorType, numSlots, getTricyclicLayoutRelation(tensorType, numSlots)));
+}
+
+// Same degeneracy for the rank-2 CRT layout: gcd(1, cols) == 1 lets a unit-row
+// matrix through the coprimality filter.
+TEST(UtilsTest, IsRelationBicyclicRejectsUnitDim) {
+  MLIRContext context;
+  int64_t rows = 1, cols = 7;
+  int64_t numSlots = rows * cols;
+  RankedTensorType matrixType =
+      RankedTensorType::get({rows, cols}, IndexType::get(&context));
+
+  EXPECT_FALSE(isRelationBicyclic(
+      matrixType, numSlots, getBicyclicLayoutRelation(matrixType, numSlots)));
+}
+
+TEST(UtilsTest, GetCyclicLayoutRelationMatchesBicyclicAndTricyclic) {
+  MLIRContext context;
+  int64_t numSlots = 1024;
+
+  RankedTensorType matType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(isRelationEqual(getCyclicLayoutRelation(matType, numSlots),
+                              getBicyclicLayoutRelation(matType, numSlots)));
+
+  RankedTensorType tensorType =
+      RankedTensorType::get({2, 3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationEqual(getCyclicLayoutRelation(tensorType, numSlots),
+                      getTricyclicLayoutRelation(tensorType, numSlots)));
+}
+
+TEST(UtilsTest, IsRelationCyclicAcceptsValidRanksAndRejectsDegenerate) {
+  MLIRContext context;
+  int64_t numSlots = 1024;
+
+  // 1D valid (rank >= 1 cyclic modulo projection)
+  RankedTensorType t1 = RankedTensorType::get({5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t1, numSlots, getCyclicLayoutRelation(t1, numSlots)));
+  EXPECT_FALSE(
+      isRelationCyclic(t1, numSlots, getRowMajorLayoutRelation(t1, numSlots)));
+
+  // 2D bicyclic valid
+  RankedTensorType t2 = RankedTensorType::get({3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t2, numSlots, getCyclicLayoutRelation(t2, numSlots)));
+
+  // 3D tricyclic valid
+  RankedTensorType t3 =
+      RankedTensorType::get({2, 3, 5}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t3, numSlots, getCyclicLayoutRelation(t3, numSlots)));
+
+  // 4D valid (rank-generic cyclic)
+  RankedTensorType t4 =
+      RankedTensorType::get({2, 3, 5, 7}, IndexType::get(&context));
+  EXPECT_TRUE(
+      isRelationCyclic(t4, numSlots, getCyclicLayoutRelation(t4, numSlots)));
+
+  // Rejects unit dimensions (degenerate CRT cycle)
+  RankedTensorType tUnit1d =
+      RankedTensorType::get({1}, IndexType::get(&context));
+  EXPECT_FALSE(isRelationCyclic(tUnit1d, numSlots,
+                                getRowMajorLayoutRelation(tUnit1d, numSlots)));
+
+  RankedTensorType tUnit2d =
+      RankedTensorType::get({1, 5}, IndexType::get(&context));
+  EXPECT_FALSE(isRelationCyclic(tUnit2d, numSlots,
+                                getCyclicLayoutRelation(tUnit2d, numSlots)));
+
+  RankedTensorType tUnit3d =
+      RankedTensorType::get({2, 1, 5}, IndexType::get(&context));
+  EXPECT_FALSE(isRelationCyclic(tUnit3d, numSlots,
+                                getCyclicLayoutRelation(tUnit3d, numSlots)));
+
+  // Rejects 0D (rank < 1)
+  RankedTensorType t0d = RankedTensorType::get({}, IndexType::get(&context));
+  IntegerRelation rel0d(presburger::PresburgerSpace::getRelationSpace(
+      /*numDomain=*/0, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
+  EXPECT_FALSE(isRelationCyclic(t0d, numSlots, rel0d));
+
+  // Rejects non-coprime dimensions
+  RankedTensorType tNonCoprime2d =
+      RankedTensorType::get({2, 4}, IndexType::get(&context));
+  EXPECT_FALSE(
+      isRelationCyclic(tNonCoprime2d, numSlots,
+                       getCyclicLayoutRelation(tNonCoprime2d, numSlots)));
+
+  RankedTensorType tNonCoprime3d =
+      RankedTensorType::get({2, 3, 4}, IndexType::get(&context));
+  EXPECT_FALSE(
+      isRelationCyclic(tNonCoprime3d, numSlots,
+                       getCyclicLayoutRelation(tNonCoprime3d, numSlots)));
+
+  // Rejects capacity exceeded
+  RankedTensorType tCapacity =
+      RankedTensorType::get({10, 11}, IndexType::get(&context));
+  EXPECT_FALSE(
+      isRelationCyclic(tCapacity, /*numSlots=*/64,
+                       getCyclicLayoutRelation(tCapacity, /*numSlots=*/64)));
+}
+
+// The pair from TCResNet8's first tensor.collapse_shape (1x40x101 -> 40x101 at
+// logN=13), equal but differing in representation so isObviouslyEqual cannot
+// settle it. Also covered as the CollapseEqual pair in
+// benchmark/isl:relation_equality_benchmark.
+TEST(UtilsTest, IsRelationEqualDecidesCollapsedGapStructuredConvLayout) {
+  MLIRContext context;
+  auto sourceRel = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and "
+      "(-101i1 - i2 + slot) mod 4096 = 0 and 0 <= i1 <= 39 and "
+      "0 <= i2 <= 8191 - 101i1 and i2 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i1 + i2)/8192) <= 101i1 + i2 }");
+  auto resultRel = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : ct = 0 and "
+      "(-101i0 - i1 + slot) mod 4096 = 0 and 0 <= i0 <= 39 and "
+      "0 <= i1 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i0 + i1)/8192) <= 101i0 + i1 }");
+  ASSERT_TRUE(succeeded(sourceRel));
+  ASSERT_TRUE(succeeded(resultRel));
+
+  RankedTensorType sourceType =
+      RankedTensorType::get({1, 40, 101}, IndexType::get(&context));
+  SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
+  IntegerRelation collapsed =
+      collapseDimensions(sourceRel.value(), sourceType, reassociation);
+
+  EXPECT_TRUE(isRelationEqual(collapsed, resultRel.value()));
+}
+
+// One bound changed, so the check is not just answering "true" for every gap
+// structured layout it is handed. Settled by tryProveUnequalByVolume, on the
+// bounding-box volume.
+TEST(UtilsTest, IsRelationEqualDistinguishesGapStructuredConvLayouts) {
+  auto rel1 = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and "
+      "(-101i1 - i2 + slot) mod 4096 = 0 and 0 <= i1 <= 39 and "
+      "0 <= i2 <= 8191 - 101i1 and i2 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i1 + i2)/8192) <= 101i1 + i2 }");
+  auto rel2 = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and "
+      "(-101i1 - i2 + slot) mod 4096 = 0 and 0 <= i1 <= 38 and "
+      "0 <= i2 <= 8191 - 101i1 and i2 <= 100 and 0 <= slot <= 8191 and "
+      "8192*floor((4096 + 101i1 + i2)/8192) <= 101i1 + i2 }");
+  ASSERT_TRUE(succeeded(rel1));
+  ASSERT_TRUE(succeeded(rel2));
+
+  EXPECT_FALSE(isRelationEqual(rel1.value(), rel2.value()));
+}
+
+TEST(UtilsTest, IsRelationEqualDecidesNestedFloorLayout) {
+  const char* nestedFloor =
+      "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and ct = 0 and 0 <= i1 <= 23 and "
+      "4 <= i2 <= 54 and 0 <= slot <= 8191 and "
+      "2048*floor((824 + slot)/2048) <= slot and "
+      "2*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))/102) "
+      "<= -19 + slot - 40*floor((3 - 51i1 - i2)/2048) and "
+      "102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+      "/102) <= -98 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048) and "
+      "-1947 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+      "- 2056*floor((3 - 51i1 - i2)/2048) "
+      "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+      "/102) <= 102*floor((slot)/2) <= "
+      "-1946 - 102i1 - 2i2 + slot - 2048*floor((824 + slot)/2048) "
+      "- 2056*floor((3 - 51i1 - i2)/2048) "
+      "+ 102*floor((-47 + 51i1 + i2 + 51slot + 8*floor((3 - 51i1 - i2)/2048))"
+      "/102) }";
+  auto rel = getIntegerRelationFromIslStr(nestedFloor);
+  ASSERT_TRUE(succeeded(rel));
+
+  // Restating an already-implied bound leaves the point set alone but changes
+  // the constraint list, so isObviouslyEqual can no longer settle the pair and
+  // the check has to reach a real decision procedure.
+  IntegerRelation restated = rel.value();
+  restated.addBound(BoundType::LB,
+                    restated.getVarKindOffset(VarKind::Range) + 1, 0);
+  ASSERT_FALSE(rel.value().isObviouslyEqual(restated));
+
+  EXPECT_TRUE(isRelationEqual(rel.value(), restated));
+}
+
 TEST(UtilsTest, TestGetRangePoints) {
   MLIRContext context;
   auto rel = getIntegerRelationFromIslStr(
@@ -388,11 +694,11 @@ TEST(UtilsTest, PerRowLayout) {
   //  1  2  3  4  5 * * *  1  2  3  4  5 * * *
   //  6  7  8  9 10 * * *  6  7  8  9 10 * * *
   // 11 12 13 14 15 * * * 11 12 13 14 15 * * *
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
   RankedTensorType matrixType =
       RankedTensorType::get({3, 5}, IndexType::get(&context));
   IntegerRelation perRowRelation =
-      getPerRowLayoutRelation(matrixType, ciphertextSize);
+      getPerRowLayoutRelation(matrixType, minSlotCount);
   int64_t paddedCols = 8;
 
   for (unsigned int i = 0; i < 3; ++i) {
@@ -678,6 +984,53 @@ TEST(UtilsTest, TestGetCtComplementPoolingLayer) {
   EXPECT_EQ(collector.points.size(), 1994);
 }
 
+TEST(UtilsTest, TestIsOneToOneSingleCiphertextPacking) {
+  auto permutation = getIntegerRelationFromIslStr(
+                         "{ [i] -> [ct, slot] : ct = 0 and (slot - 3i) mod 8 "
+                         "= 0 and 0 <= i <= 7 and 0 <= slot <= 7 }")
+                         .value();
+  EXPECT_TRUE(isOneToOneSingleCiphertextPacking(permutation));
+
+  auto replicated = getIntegerRelationFromIslStr(
+                        "{ [i] -> [ct, slot] : ct = 0 and (slot - i) mod 8 = "
+                        "0 and 0 <= i <= 7 and 0 <= slot <= 15 }")
+                        .value();
+  EXPECT_FALSE(isOneToOneSingleCiphertextPacking(replicated));
+
+  auto multipleCiphertexts = getIntegerRelationFromIslStr(
+                                 "{ [i] -> [ct, slot] : i = 4ct + slot and 0 "
+                                 "<= i <= 7 and 0 <= ct <= 1 and 0 <= slot <= "
+                                 "3 }")
+                                 .value();
+  EXPECT_FALSE(isOneToOneSingleCiphertextPacking(multipleCiphertexts));
+}
+
+TEST(UtilsTest, TestFoldVectorPermutationIntoMatrixLayout) {
+  // The vector's slot = 3i permutation is folded into the matrix's column
+  // indexing (col -> 3col), so a diagonal matvec can consume the un-permuted
+  // ciphertext directly.
+  auto vectorPermutation = getIntegerRelationFromIslStr(
+                               "{ [i] -> [ct, slot] : ct = 0 and (slot - 3i) "
+                               "mod 8 = 0 and 0 <= i <= 7 and 0 <= slot <= 7 }")
+                               .value();
+  auto matrixLayout =
+      getIntegerRelationFromIslStr(
+          "{ [row, col] -> [ct, slot] : (row - col + ct) mod 4 = 0 and (-col + "
+          "ct + slot) mod 8 = 0 and 0 <= row <= 3 and 0 <= col <= 7 and 0 <= "
+          "ct <= 3 and 0 <= slot <= 7 }")
+          .value();
+  auto expected =
+      getIntegerRelationFromIslStr(
+          "{ [i0, i1] -> [ct, slot] : (i0 + i1 + ct) mod 4 = 0 and (-3i1 + ct "
+          "+ slot) mod 8 = 0 and 0 <= i0 <= 3 and 0 <= i1 <= 7 and 0 <= ct <= "
+          "3 and 0 <= slot <= 7 }")
+          .value();
+
+  auto folded =
+      foldVectorPermutationIntoMatrixLayout(vectorPermutation, matrixLayout);
+  EXPECT_TRUE(folded.isEqual(expected));
+}
+
 TEST(UtilsTest, TestIsDenseLayout_Dense) {
   MLIRContext context;
   RankedTensorType type =
@@ -760,6 +1113,49 @@ TEST(UtilsTest, TestRelationSizeLarge) {
           .value();
   // 50000 * 50000 = 2,500,000,000 (exceeds INT_MAX)
   EXPECT_EQ(relationSize(rel), 2500000000LL);
+}
+
+TEST(UtilsTest, TestGetPaddingRelation) {
+  MLIRContext context;
+  RankedTensorType unpaddedType =
+      RankedTensorType::get({5}, Float32Type::get(&context));
+  RankedTensorType paddedType =
+      RankedTensorType::get({8}, Float32Type::get(&context));
+
+  auto rel = getPaddingRelation(paddedType, unpaddedType, {2});
+
+  // Domain: 0 <= p <= 7
+  // Range: 0 <= s <= 4
+  // Constraint: p - s = 2 => s = p - 2
+
+  // Test some points
+  // Padded index 2 should map to unpadded index 0
+  EXPECT_TRUE(rel.containsPointNoLocal({2, 0}).has_value());
+  // Padded index 6 should map to unpadded index 4
+  EXPECT_TRUE(rel.containsPointNoLocal({6, 4}).has_value());
+
+  // Out of bounds in padded
+  EXPECT_FALSE(rel.containsPointNoLocal({8, 6}).has_value());
+  // Out of bounds in unpadded (even if relation holds)
+  // p = 7 => s = 5, which is out of bounds for unpadded (0 <= s <= 4)
+  EXPECT_FALSE(rel.containsPointNoLocal({7, 5}).has_value());
+  // p = 1 => s = -1, out of bounds
+  EXPECT_FALSE(rel.containsPointNoLocal({1, -1}).has_value());
+}
+
+TEST(UtilsTest, TricyclicCtPtDiagonal2x5x7) {
+  MLIRContext context;
+  int64_t numSlots = 105;
+  int64_t ctStride = 3;
+  int64_t contractionDim = 1;
+  RankedTensorType weightType =
+      RankedTensorType::get({2, 5, 7}, IndexType::get(&context));
+  IntegerRelation relation = getTricyclicDiagonalRelation(
+      weightType, contractionDim, ctStride, numSlots);
+
+  EXPECT_TRUE(relation.containsPointNoLocal({0, 0, 0, 0, 0}).has_value());
+  EXPECT_TRUE(relation.containsPointNoLocal({1, 1, 1, 0, 1}).has_value());
+  EXPECT_FALSE(relation.containsPointNoLocal({0, 0, 0, 0, 1}).has_value());
 }
 
 }  // namespace

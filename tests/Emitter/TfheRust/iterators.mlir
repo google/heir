@@ -22,7 +22,7 @@ module {
   // CHECK-NEXT: core::array::from_fn
   // CHECK-SAME:   [[v1]].get(&([[i0:.*]], [[i1:.*]])).unwrap().clone()
   func.func @generate_cleartext_ops(%sks : !tfhe_rust.server_key, %arg0 : memref<2xi16>) -> (memref<2x8xi8>) {
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<2x8xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<2x8xi8>
     affine.for %arg1 = 0 to 2 {
       %0 = memref.load %arg0[%arg1] : memref<2xi16>
       affine.for %arg2 = 0 to 8 {
@@ -71,7 +71,7 @@ module {
   // CHECK-SAME:   [[v12]].get(&([[i0:.*]], [[i1:.*]])).unwrap().clone()
   func.func @iterative(%alloc_6: memref<1x16xi8>, %alloc_7 : memref<16x1xi8>) -> memref<1x1xi4> {
     %c29_i8 = arith.constant 29 : i8
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi8>
+    %alloc = memref.alloc() alignment = 64 : memref<1x1xi8>
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 1 {
         memref.store %c29_i8, %alloc[%arg1, %arg2] : memref<1x1xi8>
@@ -89,7 +89,7 @@ module {
         }
       }
     }
-    %alloc_1 = memref.alloc() {alignment = 64 : i64} : memref<1x1xi4>
+    %alloc_1 = memref.alloc() alignment = 64 : memref<1x1xi4>
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 16 {
         %5 = memref.load %alloc[%arg1, %arg2] : memref<1x1xi8>

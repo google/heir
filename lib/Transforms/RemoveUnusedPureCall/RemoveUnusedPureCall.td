@@ -6,11 +6,8 @@ include "mlir/Pass/PassBase.td"
 def RemoveUnusedPureCall : Pass<"remove-unused-pure-call", "ModuleOp"> {
   let summary = "Remove unused calls to pure functions";
   let description = [{
-    This pass removes calls to functions that are considered "pure" if the
-    results of the call are unused.
-
-    A function is considered pure if it has an attribute with the `client.`
-    namespace.
+    Remove unused calls to interface helpers whose bodies have no memory
+    effects. Calls with unknown effects are retained.
 
     (* example filepath=tests/Transforms/remove_unused_pure_call/doctest.mlir *)
   }];

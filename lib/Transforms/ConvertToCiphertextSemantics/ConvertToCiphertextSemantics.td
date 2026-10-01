@@ -48,19 +48,19 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
   }];
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::heir::kernel::KernelDialect",
     "mlir::linalg::LinalgDialect",
     "mlir::tensor::TensorDialect",
     "mlir::scf::SCFDialect"
   ];
 
   let options = [
-    // TODO(#4102): reevaluate flag name
     Option<
-      "ciphertextSize",
-      "ciphertext-size",
+      "minSlotCount",
+      "min-slot-count",
       "int",
       /*default=*/"1024",
-      "Power of two length of the ciphertexts the data is packed in."
+      "Minimum number of slots to use for packing messages in ciphertexts."
     >,
     Option<
       "unrollKernels",

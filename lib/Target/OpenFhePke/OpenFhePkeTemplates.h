@@ -9,14 +9,29 @@ namespace openfhe {
 
 constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
 #include <cassert>
+#include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 #include "src/pke/include/openfhe.h"  // from @openfhe
 )cpp";
 constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
 #include <cassert>
+#include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 #include "openfhe/pke/openfhe.h"  // from @openfhe
 )cpp";
 constexpr std::string_view kEmbeddedOpenfheImport = R"cpp(
 #include <cassert>
+#include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 #include "openfhe.h"
 )cpp";
 
@@ -32,40 +47,44 @@ using PlaintextT = Plaintext;
 using PrivateKeyT = PrivateKey<DCRTPoly>;
 using PublicKeyT = PublicKey<DCRTPoly>;
 )cpp";
-// clang-format on
 
-// clang-format off
-constexpr std::string_view kWeightsPreludeTemplate = R"cpp(
-#include <fstream>
-#include <map>
-#include <string>
-#include <vector>
-
-#include "include/cereal/archives/portable_binary.hpp"  // from @cereal
-#include "include/cereal/cereal.hpp"  // from @cereal
-
-struct Weights {
-  std::map<std::string, std::vector<float>> floats;
-  std::map<std::string, std::vector<double>> doubles;
-  std::map<std::string, std::vector<int64_t>> int64_ts;
-  std::map<std::string, std::vector<int32_t>> int32_ts;
-  std::map<std::string, std::vector<int16_t>> int16_ts;
-  std::map<std::string, std::vector<int8_t>> int8_ts;
-
-  template <class Archive>
-  void serialize(Archive &archive) {
-    archive(CEREAL_NVP(floats), CEREAL_NVP(doubles), CEREAL_NVP(int64_ts),
-            CEREAL_NVP(int32_ts), CEREAL_NVP(int16_ts), CEREAL_NVP(int8_ts));
+constexpr std::string_view kLoadResourceTemplate = R"cpp(
+// Assumes a little-endian target.
+template <typename T>
+std::vector<T> load_resource(const std::string& path, size_t size) {
+  std::ifstream file(path, std::ios::binary);
+  if (!file.is_open()) {
+    std::cerr << "Failed to open file: " << path << std::endl;
+    std::abort();
   }
-};
+  std::vector<T> data(size);
+  file.read(reinterpret_cast<char*>(data.data()), size * sizeof(T));
+  if (!file) {
+    std::cerr << "Failed to read expected number of bytes from: " << path << std::endl;
+    std::abort();
+  }
+  return data;
+}
 
-Weights GetWeightModule(const std::string& filename) {
-  Weights obj;
-  std::ifstream file(filename, std::ios::in | std::ios::binary);
-  cereal::PortableBinaryInputArchive archive(file);
-  archive(obj);
-  file.close();
-  return obj;
+// Specialization for bool to avoid std::vector<bool>::data() compilation failure.
+template <>
+inline std::vector<bool> load_resource<bool>(const std::string& path, size_t size) {
+  std::ifstream file(path, std::ios::binary);
+  if (!file.is_open()) {
+    std::cerr << "Failed to open file: " << path << std::endl;
+    std::abort();
+  }
+  std::vector<char> temp(size);
+  file.read(temp.data(), size);
+  if (!file) {
+    std::cerr << "Failed to read expected number of bytes from: " << path << std::endl;
+    std::abort();
+  }
+  std::vector<bool> data(size);
+  for (size_t i = 0; i < size; ++i) {
+    data[i] = temp[i] != 0;
+  }
+  return data;
 }
 )cpp";
 // clang-format on

@@ -15,7 +15,7 @@ func.func public @test_intt_rns() -> tensor<8x!rns> {
   %coeffsRaw = arith.constant dense<[[5, 86], [9, 4], [13, 41], [5, 53], [0, 56], [11, 4], [8, 67], [8, 85]]> : tensor<8x2xi64>
   %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<8x2xi64> -> tensor<8x!rns>
   %poly = polynomial.from_tensor %coeffs : tensor<8x!rns> -> !ntt_poly
-  %res = polynomial.intt %poly {root = #root} : !ntt_poly
+  %res = polynomial.intt %poly <root = #root> : !ntt_poly
   %res_tensor = polynomial.to_tensor %res : !poly -> tensor<8x!rns>
   return %res_tensor : tensor<8x!rns>
 }

@@ -132,12 +132,17 @@ class CallerProvidedStorageInfo {
   void removeStorage(Value value) { storageToReferringValues.erase(value); }
 
   void mergeStorage(Value from, Value to) {
-    storageToReferringValues[to].reserve(storageToReferringValues[to].size() +
-                                         storageToReferringValues[from].size());
-    storageToReferringValues[to].insert(storageToReferringValues[to].end(),
-                                        storageToReferringValues[from].begin(),
-                                        storageToReferringValues[from].end());
+    if (from == to) {
+      return;
+    }
+    auto it = storageToReferringValues.find(from);
+    if (it == storageToReferringValues.end()) {
+      return;
+    }
+    SmallVector<Value> fromValues = std::move(it->second);
     removeStorage(from);
+    auto& toValues = storageToReferringValues[to];
+    toValues.append(fromValues.begin(), fromValues.end());
   }
 
  public:
@@ -256,12 +261,12 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
     if (funcOp.isDeclaration()) {
       return;
     }
-    for (auto& block : funcOp.getBody().getBlocks()) {
-      auto& storageInfo = blockToStorageInfo[&block];
+    funcOp.walk([&](Block* block) {
+      auto& storageInfo = blockToStorageInfo[block];
       // Note: We do not add entry block arguments as candidate storages because
       // they may be inserted into tensors/slices and aliased when lowered to
       // pointer slices.
-      for (Operation& op : block.getOperations()) {
+      for (Operation& op : block->getOperations()) {
         // inplace op will not allocate new memory, it produces referring
         // values
         if (auto inplaceOpInterface = mlir::dyn_cast<InPlaceOpInterface>(&op)) {
@@ -287,7 +292,7 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
           }
         }
       }
-    }
+    });
   });
 
   return blockToStorageInfo;

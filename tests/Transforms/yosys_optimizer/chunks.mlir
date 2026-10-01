@@ -1,4 +1,4 @@
-// RUN: heir-opt --yosys-optimizer="abc-fast=True mode=Boolean" %s | FileCheck %s
+// RUN: heir-opt --yosys-optimizer="mode=Boolean" %s | FileCheck %s
 
 // This tests when the RTLIL module contains connections from SigSpec's that are
 // neither a chunk of a wire, a full wire, or a bit of a wire, but rather made

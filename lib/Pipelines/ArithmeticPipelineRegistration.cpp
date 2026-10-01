@@ -9,6 +9,7 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
+#include "lib/Dialect/LWE/Transforms/AnnotatePlaintextLevel.h"
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
@@ -43,12 +44,15 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/ExternalizeConstants/ExternalizeConstants.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
 #include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/GatherZeroEncryptions/GatherZeroEncryptions.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
@@ -67,6 +71,7 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"  // from @llvm-project
@@ -75,6 +80,23 @@
 #include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
 
 namespace mlir::heir {
+
+llvm::cl::opt<std::string> extConstOutputDir(
+    "ext-const-output-dir",
+    llvm::cl::desc(
+        "Directory to write the externalized constant binary files to."),
+    llvm::cl::init(""));
+
+llvm::cl::opt<std::string> extConstRuntimeLoadDir(
+    "ext-const-runtime-load-dir",
+    llvm::cl::desc("Directory path to use in the load_resource op in the "
+                   "generated MLIR."),
+    llvm::cl::init(""));
+
+llvm::cl::opt<int> extConstThreshold(
+    "ext-const-threshold",
+    llvm::cl::desc("Minimum number of elements to externalize a constant."),
+    llvm::cl::init(1024));
 
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
@@ -125,6 +147,7 @@ void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
 void cleanupAfterLowerAssignLayout(OpPassManager& pm) {
   // Lower linalg.generics produced by ConvertToCiphertextSemantics
   // (assign_layout lowering) to affine loops.
+  pm.addPass(mlir::createLinalgGeneralizeNamedOpsPass());
   pm.addPass(createTensorLinalgToAffineLoops());
   pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
   pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
@@ -181,24 +204,29 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
-  hecoSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
-  mathToPolynomialApproximationBuilder(pm);
+  hecoSIMDVectorizerPipelineBuilder(pm, !options.unrollFheKernelLoops);
+  mathToPolynomialApproximationBuilder(pm, options.useCompositeRelu);
 
   // Layout assignment and optimization
   LayoutPropagationOptions layoutPropagationOptions;
-  layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+  layoutPropagationOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
   LayoutOptimizationOptions layoutOptimizationOptions;
-  layoutOptimizationOptions.ciphertextSize = options.ciphertextDegree;
+  layoutOptimizationOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createLayoutOptimization(layoutOptimizationOptions));
   // Layout conversions may be repeated, so run CSE
   pm.addPass(createCSEPass());
 
+  EarlyBootstrapPlacementOptions earlyBootstrapOptions;
+  earlyBootstrapOptions.levelBudget = options.greedyLevelBudget;
+  earlyBootstrapOptions.bootstrapWaterline = options.greedyBootstrapWaterline;
+  pm.addPass(createEarlyBootstrapPlacement(earlyBootstrapOptions));
+
   // Linalg kernel implementation
   ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
-  convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
+  convertToCiphertextSemanticsOptions.minSlotCount = options.minSlotCount;
   convertToCiphertextSemanticsOptions.unrollKernels =
-      !options.experimentalDisableLoopUnroll;
+      options.unrollFheKernelLoops;
   convertToCiphertextSemanticsOptions.codegenStrategy = options.codegenStrategy;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
@@ -215,7 +243,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Add encrypt/decrypt helper functions for each function argument and return
   // value.
   AddClientInterfaceOptions addClientInterfaceOptions;
-  addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
+  addClientInterfaceOptions.minSlotCount = options.minSlotCount;
   pm.addPass(createAddClientInterface(addClientInterfaceOptions));
 
   cleanupAfterLowerAssignLayout(pm);
@@ -228,7 +256,8 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
-  mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
+  mlirToRLWEPipelineOptions.minSlotCount = options.plaintextSize;
+  mlirToRLWEPipelineOptions.unrollFheKernelLoops = options.unrollFheKernelLoops;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
   // Insert debug handler calls and/or lower debug.validate
@@ -251,9 +280,67 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   polynomialToLLVMPipelineBuilder(pm);
 }
 
+static void validateCiphertextManagementOptions(
+    const MlirToRLWEPipelineOptions& options, const RLWEScheme scheme) {
+  // Check if any greedy-specific options are non-default
+  bool hasGreedyOptions = options.greedyModulusSwitchAfterMul != false ||
+                          options.greedyModulusSwitchBeforeFirstMul != false ||
+                          options.greedyLevelBudget != 10 ||
+                          options.greedyBootstrapWaterline != 0;
+
+  // Check if any orbit-specific options are non-default
+  bool hasOrbitOptions =
+      options.orbitBootstrapWaterline != 3 ||
+      options.orbitScaleWaterline != 40 || options.orbitScaleFactorBits != 51 ||
+      options.orbitBootstrapLevelLowerBound != 0 ||
+      options.orbitCostModel != "" || options.orbitBootstrapCost != 69320650 ||
+      options.orbitRescaleCost != 40988;
+
+  // Validate style exclusivity
+  if (options.ciphertextManagementStyle == CiphertextManagementStyle::greedy &&
+      hasOrbitOptions) {
+    llvm::errs() << "Error: orbit-* options cannot be used with "
+                 << "--ciphertext-management-style=greedy\n"
+                 << "Either switch to --ciphertext-management-style=orbit-ilp "
+                 << "or use greedy-* options instead.\n";
+    exit(EXIT_FAILURE);
+  }
+
+  if (options.ciphertextManagementStyle ==
+          CiphertextManagementStyle::orbitIlp &&
+      hasGreedyOptions) {
+    llvm::errs() << "Error: greedy-* options cannot be used with "
+                 << "--ciphertext-management-style=orbit-ilp\n"
+                 << "Either switch to --ciphertext-management-style=greedy "
+                 << "or use orbit-* options instead.\n";
+    exit(EXIT_FAILURE);
+  }
+
+  // Validate scheme compatibility
+  if (scheme == RLWEScheme::bfvScheme) {
+    if (options.ciphertextManagementStyle ==
+        CiphertextManagementStyle::orbitIlp) {
+      llvm::errs() << "Error: orbit-ilp ciphertext management style is not "
+                      "supported for BFV scheme\n"
+                   << "BFV does not support bootstrap operations.\n";
+      exit(EXIT_FAILURE);
+    }
+
+    if (options.greedyBootstrapWaterline != 0) {  // non-default
+      llvm::errs() << "Error: --greedy-bootstrap-waterline is not supported "
+                      "for BFV scheme\n"
+                   << "BFV does not support bootstrap operations.\n";
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
                         const RLWEScheme scheme) {
+  // Validate ciphertext management options
+  validateCiphertextManagementOptions(options, scheme);
+
   pm.addPass(debug::createDebugValidateNames());
   if (options.enableArithmetization) {
     mlirToSecretArithmeticPipelineBuilder(pm, options);
@@ -261,7 +348,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
     // Replicate the non-arithmetization related parts of the pipeline
     pm.addPass(createWrapGeneric());
     AddClientInterfaceOptions addClientInterfaceOptions;
-    addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
+    addClientInterfaceOptions.minSlotCount = options.minSlotCount;
     addClientInterfaceOptions.enableLayoutAssignment = false;
     pm.addPass(createAddClientInterface(addClientInterfaceOptions));
   }
@@ -277,31 +364,67 @@ void mlirToRLWEPipeline(OpPassManager& pm,
         secretImportExecutionResultOptions));
   }
 
-  // place mgmt.op and MgmtAttr for BGV
+  // place mgmt.op and MgmtAttr for BGV/CKKS
   // which is required for secret-to-<scheme> lowering
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
-      auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
-      secretInsertMgmtBGVOptions.afterMul = options.modulusSwitchAfterMul;
-      secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
-          options.modulusSwitchBeforeFirstMul;
-      pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
+      if (options.ciphertextManagementStyle ==
+          CiphertextManagementStyle::orbitIlp) {
+        // ILP-based management for BGV
+        auto ilpOptions = ILPBootstrapPlacementOptions{};
+        ilpOptions.bootstrapWaterline = options.orbitBootstrapWaterline;
+        ilpOptions.scaleWaterline = options.orbitScaleWaterline;
+        ilpOptions.scaleFactorBits = options.orbitScaleFactorBits;
+        ilpOptions.bootstrapLevelLowerBound =
+            options.orbitBootstrapLevelLowerBound;
+        ilpOptions.orbitCostModel = options.orbitCostModel;
+        ilpOptions.bootstrapCost = options.orbitBootstrapCost;
+        ilpOptions.rescaleCost = options.orbitRescaleCost;
+        pm.addPass(createILPBootstrapPlacement(ilpOptions));
+      } else {
+        // Greedy management for BGV
+        auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
+        secretInsertMgmtBGVOptions.afterMul =
+            options.greedyModulusSwitchAfterMul;
+        secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
+            options.greedyModulusSwitchBeforeFirstMul;
+        secretInsertMgmtBGVOptions.levelBudget = options.greedyLevelBudget;
+        pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
+      }
       break;
     }
     case RLWEScheme::bfvScheme: {
+      // BFV doesn't use bootstrap management currently
       pm.addPass(createSecretInsertMgmtBFV());
       break;
     }
     case RLWEScheme::ckksScheme: {
-      auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
-      secretInsertMgmtCKKSOptions.afterMul = options.modulusSwitchAfterMul;
-      secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
-          options.modulusSwitchBeforeFirstMul;
-      secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
-      secretInsertMgmtCKKSOptions.bootstrapWaterline =
-          options.ckksBootstrapWaterline;
-      secretInsertMgmtCKKSOptions.levelBudget = options.levelBudget;
-      pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
+      if (options.ciphertextManagementStyle ==
+          CiphertextManagementStyle::orbitIlp) {
+        // ILP-based management for CKKS
+        auto ilpOptions = ILPBootstrapPlacementOptions{};
+        ilpOptions.bootstrapWaterline = options.orbitBootstrapWaterline;
+        ilpOptions.scaleWaterline = options.orbitScaleWaterline;
+        ilpOptions.scaleFactorBits = options.orbitScaleFactorBits;
+        ilpOptions.bootstrapLevelLowerBound =
+            options.orbitBootstrapLevelLowerBound;
+        ilpOptions.orbitCostModel = options.orbitCostModel;
+        ilpOptions.bootstrapCost = options.orbitBootstrapCost;
+        ilpOptions.rescaleCost = options.orbitRescaleCost;
+        pm.addPass(createILPBootstrapPlacement(ilpOptions));
+      } else {
+        // Greedy management for CKKS
+        auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
+        secretInsertMgmtCKKSOptions.afterMul =
+            options.greedyModulusSwitchAfterMul;
+        secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
+            options.greedyModulusSwitchBeforeFirstMul;
+        secretInsertMgmtCKKSOptions.minSlotCount = options.minSlotCount;
+        secretInsertMgmtCKKSOptions.bootstrapWaterline =
+            options.greedyBootstrapWaterline;
+        secretInsertMgmtCKKSOptions.levelBudget = options.greedyLevelBudget;
+        pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
+      }
       break;
     }
     default:
@@ -310,7 +433,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   }
 
   // TODO(#2600): support loops in optimize-relinearization
-  if (!options.experimentalDisableLoopUnroll) {
+  if (options.unrollFheKernelLoops) {
     OptimizeRelinearizationOptions optimizeRelinearizationOptions;
     optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
     pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
@@ -334,7 +457,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
         generateParamOptions.model = options.noiseModel;
       }
       generateParamOptions.plaintextModulus = options.plaintextModulus;
-      generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
       generateParamOptions.encryptionTechniqueExtended =
           options.encryptionTechniqueExtended;
@@ -355,7 +478,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       }
       generateParamOptions.modBits = options.bfvModBits;
       generateParamOptions.plaintextModulus = options.plaintextModulus;
-      generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
       generateParamOptions.encryptionTechniqueExtended =
           options.encryptionTechniqueExtended;
@@ -374,13 +497,13 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       auto generateParamOptions = GenerateParamCKKSOptions{};
       generateParamOptions.firstModBits = options.firstModBits;
       generateParamOptions.scalingModBits = options.scalingModBits;
-      generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
       pm.addPass(createGenerateParamCKKS(generateParamOptions));
 
       PopulateScaleCKKSOptions populateScaleCKKSOptions;
       populateScaleCKKSOptions.beforeMulIncludeFirstMul =
-          options.modulusSwitchBeforeFirstMul;
+          options.greedyModulusSwitchBeforeFirstMul;
       pm.addPass(createPopulateScaleCKKS(populateScaleCKKSOptions));
       break;
     }
@@ -404,14 +527,14 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   switch (scheme) {
     case RLWEScheme::ckksScheme: {
       auto secretToCKKSOpts = SecretToCKKSOptions{};
-      secretToCKKSOpts.polyModDegree = options.ciphertextDegree;
+      secretToCKKSOpts.minSlotCount = options.minSlotCount;
       pm.addPass(createSecretToCKKS(secretToCKKSOpts));
       break;
     }
     case RLWEScheme::bgvScheme:
     case RLWEScheme::bfvScheme: {
       auto secretToBGVOpts = SecretToBGVOptions{};
-      secretToBGVOpts.polyModDegree = options.ciphertextDegree;
+      secretToBGVOpts.minSlotCount = options.minSlotCount;
       pm.addPass(createSecretToBGV(secretToBGVOpts));
       break;
     }
@@ -422,7 +545,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
 
   // Lower debug.validate ops to function calls with private key
   pm.addPass(lwe::createAddDebugPort(
-      lwe::AddDebugPortOptions{.messageSize = (int)options.ciphertextDegree,
+      lwe::AddDebugPortOptions{.minSlotCount = (int)options.minSlotCount,
                                .insertDebugAfterEveryOp = options.debug}));
 
   pm.addPass(createForwardInsertToExtract());
@@ -433,6 +556,12 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   // TODO(#2554): skip this pass if the backend supports trivial encryption
   pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
 
+  // Record the level each plaintext is used at, so backends can encode only the
+  // limbs it needs. This must run after the CSE above, which merges identical
+  // encode ops, and before split-preprocessing, which severs the use chain
+  // from an encode op to the ciphertext op consuming it.
+  pm.addPass(lwe::createAnnotatePlaintextLevel());
+
   // Add a __preprocessed helper for offline pre-packing of plaintexts
   if (options.enableSplitPreprocessing) {
     pm.addPass(createSplitPreprocessing());
@@ -440,7 +569,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   }
 
   ElementwiseToAffineOptions elementwiseOptions;
-  elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};
+  elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe", "kernel"};
   pm.addPass(createElementwiseToAffine(elementwiseOptions));
 
   pm.addPass(tensor_ext::createTensorExtToTensor());
@@ -474,6 +603,14 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(bgv::createBGVToLWE());
     pm.addPass(ckks::createCKKSToLWE());
 
+    if (!extConstOutputDir.empty()) {
+      ExternalizeConstantsOptions extConstOptions;
+      extConstOptions.outputDir = extConstOutputDir;
+      extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
+      extConstOptions.thresholdElements = extConstThreshold;
+      pm.addPass(createExternalizeConstants(extConstOptions));
+    }
+
     // insert debug handler calls
     lwe::AddDebugPortOptions addDebugPortOptions{
         .entryFunction = options.entryFunction,
@@ -486,6 +623,7 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(preprocessing::createPreprocessingToOpenfhe());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
+    pm.addPass(createGatherZeroEncryptions());
 
     auto configureCryptoContextOptions =
         openfhe::ConfigureCryptoContextOptions{};
@@ -523,6 +661,14 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(bgv::createBGVToLWE());
     pm.addPass(ckks::createCKKSToLWE());
 
+    if (!extConstOutputDir.empty()) {
+      ExternalizeConstantsOptions extConstOptions;
+      extConstOptions.outputDir = extConstOutputDir;
+      extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
+      extConstOptions.thresholdElements = extConstThreshold;
+      pm.addPass(createExternalizeConstants(extConstOptions));
+    }
+
     // insert debug handler calls
     lwe::AddDebugPortOptions addDebugPortOptions{
         .entryFunction = options.entryFunction,
@@ -555,6 +701,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     // Bufferize without deallocation because golang has garbage collection.
     prepareForBufferize(pm);
     oneShotBufferize(pm, /*includeDeallocation=*/false);
+    pm.addPass(createGatherZeroEncryptions());
 
     // Lower Linalg to loops
     pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
@@ -586,22 +733,23 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   MlirToRLWEPipelineOptions suboptions;
 
   suboptions.enableArithmetization = true;
-  suboptions.ciphertextDegree = options.ciphertextDegree;
-  suboptions.ckksBootstrapWaterline = options.ckksBootstrapWaterline;
+  suboptions.minSlotCount = options.minSlotCount;
+  suboptions.greedyBootstrapWaterline = options.greedyBootstrapWaterline;
+  suboptions.useCompositeRelu = options.useCompositeRelu;
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
   suboptions.enableSplitPreprocessing = options.enableSplitPreprocessing;
-  suboptions.experimentalDisableLoopUnroll =
-      options.experimentalDisableLoopUnroll;
+  suboptions.unrollFheKernelLoops = options.unrollFheKernelLoops;
   suboptions.usePublicKey = options.usePublicKey;
   suboptions.encryptionTechniqueExtended = options.encryptionTechniqueExtended;
-  suboptions.modulusSwitchAfterMul = options.modulusSwitchAfterMul;
-  suboptions.modulusSwitchBeforeFirstMul = options.modulusSwitchBeforeFirstMul;
+  suboptions.greedyModulusSwitchAfterMul = options.greedyModulusSwitchAfterMul;
+  suboptions.greedyModulusSwitchBeforeFirstMul =
+      options.greedyModulusSwitchBeforeFirstMul;
   suboptions.plaintextModulus = options.plaintextModulus;
   suboptions.noiseModel = options.noiseModel;
   suboptions.annotateNoiseBound = options.annotateNoiseBound;
   suboptions.bfvModBits = options.bfvModBits;
-  suboptions.levelBudget = options.levelBudget;
+  suboptions.greedyLevelBudget = options.greedyLevelBudget;
   suboptions.plaintextExecutionResultFileName =
       options.plaintextExecutionResultFileName;
   suboptions.codegenStrategy = options.codegenStrategy;

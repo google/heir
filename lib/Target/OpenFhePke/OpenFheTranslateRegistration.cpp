@@ -6,6 +6,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeDebugEmitter.h"
@@ -21,6 +22,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlow.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -52,9 +54,6 @@ struct TranslateOptions {
                      "embedded",
                      "Emit OpenFHE with embedded import paths (default "
                      "for code to be included in OpenFHE source files)"))};
-  llvm::cl::opt<std::string> weightsFile{
-      "weights-file",
-      llvm::cl::desc("Emit all dense elements attributes to this binary file")};
   llvm::cl::opt<bool> skipVectorResizing{
       "skip-vector-resizing",
       llvm::cl::desc("Skip resizing vectors to ringdimension/2 when emitting "
@@ -87,12 +86,13 @@ void registerTranslateOptions() {
 
 // Common func to register dialects
 static void registerRelevantDialects(DialectRegistry& registry) {
-  registry.insert<affine::AffineDialect, arith::ArithDialect,
-                  cf::ControlFlowDialect, func::FuncDialect, lwe::LWEDialect,
-                  memref::MemRefDialect, mod_arith::ModArithDialect,
-                  openfhe::OpenfheDialect, polynomial::PolynomialDialect,
-                  rns::RNSDialect, scf::SCFDialect, tensor::TensorDialect,
-                  tensor_ext::TensorExtDialect>();
+  registry.insert<
+      affine::AffineDialect, arith::ArithDialect, cf::ControlFlowDialect,
+      func::FuncDialect, lwe::LWEDialect, math::MathDialect,
+      memref::MemRefDialect, mod_arith::ModArithDialect,
+      openfhe::OpenfheDialect, polynomial::PolynomialDialect,
+      preprocessing::PreprocessingDialect, rns::RNSDialect, scf::SCFDialect,
+      tensor::TensorDialect, tensor_ext::TensorExtDialect>();
 }
 
 void registerToOpenFhePkeTranslation() {
@@ -101,7 +101,6 @@ void registerToOpenFhePkeTranslation() {
       "translate the openfhe dialect to C++ code against the OpenFHE pke API",
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToOpenFhePke(op, output, options->openfheImportType,
-                                     options->weightsFile,
                                      options->skipVectorResizing);
       },
       registerRelevantDialects);

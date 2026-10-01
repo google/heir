@@ -9,7 +9,7 @@ heir_lattigo_lib(
     go_library_name = "in_place_lib",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=1024",
+        "--mlir-to-ckks=min-slot-count=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "in_place.mlir",

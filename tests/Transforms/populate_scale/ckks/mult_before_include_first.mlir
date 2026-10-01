@@ -26,14 +26,11 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
 
 // MatchCrossLevel
 
-module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>, scheme.ckks} {
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193], P = [36028797020209153, 36028797020209153], logDefaultScale = 45>, scheme.ckks} {
   // CHECK: func @mul
   func.func @mul(%arg0: !secret.secret<f32>) -> !secret.secret<f32> {
-    // adjust_scale needs plaintext input encoded in specified scale
-    // CHECK: %cst = arith.constant 1.000000e+00
-    // CHECK: %[[INIT:.*]] = mgmt.init %cst
-    // CHECK-SAME: level = 2
-    // CHECK-SAME: scale = 45
+    // CHECK: %[[cst:.*]] = arith.constant 1.000000e+00 : f32
+    // CHECK: %[[INIT:.*]] = mgmt.init %[[cst]] {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 45>}
 
     // CHECK: secret.generic
     // CHECK-SAME: level = 2
@@ -45,13 +42,11 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
       // CHECK-NEXT: %[[v3:.*]] = arith.mulf %[[v2]], %[[v2]]
       // CHECK-NEXT: %[[v4:.*]] = mgmt.relinearize %[[v3]]
       %1 = arith.mulf %input0, %input0 : f32
-      // adjust_scale is materialized into mulf
-      // CHECK-NEXT: %[[v5:.*]] = arith.mulf %[[INPUT0]], %[[INIT]]
-      // CHECK-NEXT: %[[v6:.*]] = mgmt.modreduce %[[v5]]
-      // CHECK-NEXT: %[[v7:.*]] = arith.addf %[[v4]], %[[v6]]
+      // CHECK-NEXT: %[[v5:.*]] = arith.mulf %[[v2]], %[[INIT]]
+      // CHECK-NEXT: %[[v6:.*]] = arith.addf %[[v4]], %[[v5]]
       %2 = arith.addf %1, %input0 : f32
-      // CHECK-NEXT: %[[v8:.*]] = mgmt.modreduce %[[v7]]
-      // CHECK-NEXT: secret.yield %[[v8]]
+      // CHECK-NEXT: %[[v7:.*]] = mgmt.modreduce %[[v6]]
+      // CHECK-NEXT: secret.yield %[[v7]]
       secret.yield %2 : f32
     // CHECK: ->
     // CHECK-SAME: level = 0

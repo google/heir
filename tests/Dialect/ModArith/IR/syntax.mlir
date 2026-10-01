@@ -84,8 +84,8 @@ func.func @test_arith_syntax() {
 
   // CHECK: mod_arith.barrett_reduce
   // CHECK: mod_arith.barrett_reduce
-  %barrett = mod_arith.barrett_reduce %zero { modulus = 17 } : i10
-  %barrett_vec = mod_arith.barrett_reduce %c_vec { modulus = 17 } : tensor<4xi10>
+  %barrett = mod_arith.barrett_reduce %zero <modulus = 17> : i10
+  %barrett_vec = mod_arith.barrett_reduce %c_vec <modulus = 17> : tensor<4xi10>
 
   // CHECK: mod_arith.subifge
   // CHECK: mod_arith.subifge

@@ -7,6 +7,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/Preprocessing/Conversions/Util.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -43,10 +44,6 @@ struct PreprocessingToOpenfhe
     }
 
     if (analysis.getTotalSizes().empty()) {
-      getOperation()->emitWarning()
-          << "split-preprocessing was run, but preprocessing-to-openfhe "
-             "determined there are no plaintexts to preprocess.";
-      signalPassFailure();
       return;
     }
 
@@ -55,6 +52,7 @@ struct PreprocessingToOpenfhe
 
     ConversionTarget target(getContext());
     target.addIllegalDialect<PreprocessingDialect>();
+    target.addLegalOp<preprocessing::LoadResourceOp>();
     target.addLegalDialect<memref::MemRefDialect, arith::ArithDialect,
                            affine::AffineDialect, func::FuncDialect,
                            openfhe::OpenfheDialect>();

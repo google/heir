@@ -6,6 +6,7 @@ include "PreprocessingTypes.td"
 
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/DestinationStyleOpInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -74,5 +75,54 @@ def Preprocessing_LoadOp : Preprocessing_Op<"load", [MemoryEffectsOpInterface]> 
   let assemblyFormat = "$storage `[` $indices `]` `site` $site_id `<` $element_type `>` attr-dict `:` type($storage) `,` type($result)";
 }
 
+
+def Preprocessing_LoadResourceOp : Preprocessing_Op<"load_resource", [
+    DeclareOpInterfaceMethods<ConditionallySpeculatable>,
+    DestinationStyleOpInterface,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+  ]> {
+  let summary = "Load a constant resource from an external binary file";
+  let description = [{
+    Loads raw bytes from the file specified by `path` into `destination`. With
+    a tensor destination, the op returns a tensor of the same type that is tied
+    to the destination. With a memref destination, the op has no results.
+
+    Tensor results are treated as read-only during bufferization. A later write
+    is placed in separate storage.
+
+    This op is inserted by the `externalize-constants` pass.
+  }];
+  let arguments = (ins
+    StrAttr:$path,
+    AnyTypeOf<[AnyTensor, AnyMemRef]>:$destination
+  );
+  let results = (outs Variadic<AnyTensor>:$result);
+  let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() {
+      return ::mlir::MutableOperandRange(
+          getOperation(), getDestinationMutable().getOperandNumber(), 1);
+    }
+
+    ::mlir::Value getLoadedResource() {
+      return getNumResults() == 1 ? getOperation()->getResult(0)
+                                  : getDestination();
+    }
+
+    static LoadResourceOp getForDestination(::mlir::Value value);
+  }];
+  let extraClassDefinition = [{
+    void $cppClass::getEffects(::llvm::SmallVectorImpl<
+        ::mlir::SideEffects::EffectInstance<::mlir::MemoryEffects::Effect>>
+            &effects) {
+      if (::llvm::isa<::mlir::MemRefType>(getDestination().getType()))
+        effects.emplace_back(::mlir::MemoryEffects::Write::get(),
+                             &getDestinationMutable(),
+                             ::mlir::SideEffects::DefaultResource::get());
+    }
+  }];
+  let assemblyFormat =
+      "$path `into` $destination attr-dict `:` functional-type(operands, results)";
+}
 
 #endif  // LIB_DIALECT_PREPROCESSING_IR_PREPROCESSINGOPS_TD_

@@ -24,11 +24,11 @@ module @jit_func attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_pa
   // CHECK: func.func @mnist__preprocessed(%[[cc:.*]]: [[ccType]],
   // CHECK: func.func public @mnist(%[[cc:.*]]: [[ccType]],
   // CHECK:   call @mnist__preprocessed(%[[cc]],
-  func.func private @_assign_layout_11979326689855340354(tensor<512x784xf32>) -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "mnist"}}
-  func.func @mnist__preprocessed(%arg0: tensor<512x1024xf32> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<512x784xf32>, layout = #layout1>}, %arg1: tensor<1x!ct_L1> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x784xf32>, layout = #layout2>}) -> (tensor<1x!ct_L1> {tensor_ext.original_type = #original_type}) attributes {client.preprocessed_func = {func_name = "mnist"}} {
+  func.func private @_assign_layout_11979326689855340354(tensor<512x784xf32>) -> tensor<512x1024xf32> attributes {heir.interface = {func_name = "mnist", roles = ["client.pack"]}}
+  func.func @mnist__preprocessed(%arg0: tensor<512x1024xf32> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<512x784xf32>, layout = #layout1>}, %arg1: tensor<1x!ct_L1> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x784xf32>, layout = #layout2>}) -> (tensor<1x!ct_L1> {tensor_ext.original_type = #original_type}) attributes {heir.interface = {func_name = "mnist", roles = ["client.preprocessed"]}} {
     %c0 = arith.constant 0 : index
     %extracted_slice = tensor.extract_slice %arg0[0, 0] [1, 1024] [1, 1] : tensor<512x1024xf32> to tensor<1024xf32>
-    %pt = lwe.rlwe_encode %extracted_slice {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+    %pt = lwe.rlwe_encode %extracted_slice <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
     %extracted = tensor.extract %arg1[%c0] : tensor<1x!ct_L1>
     %ct = lwe.rmul_plain %extracted, %pt : (!ct_L1, !pt) -> !ct_L1
     %from_elements = tensor.from_elements %ct : tensor<1x!ct_L1>
@@ -37,7 +37,7 @@ module @jit_func attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_pa
   func.func public @mnist(%arg0: tensor<512x784xf32>, %arg1: tensor<1x!ct_L1> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1x784xf32>, layout = #layout2>}) -> (tensor<1x!ct_L1> {jax.result_info = "result[0]", tensor_ext.original_type = #original_type}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<512xf32>
     %0 = call @_assign_layout_11979326689855340354(%arg0) : (tensor<512x784xf32>) -> tensor<512x1024xf32>
-    %1 = call @mnist__preprocessed(%0, %arg1) {arg_attrs = [{mhlo.sharding = "{replicated}", tensor_ext.layout = #layout1}, {tensor_ext.layout = #layout2}]} : (tensor<512x1024xf32>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
+    %1 = call @mnist__preprocessed(%0, %arg1) <arg_attrs = [{mhlo.sharding = "{replicated}", tensor_ext.layout = #layout1}, {tensor_ext.layout = #layout2}]> : (tensor<512x1024xf32>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     return %1 : tensor<1x!ct_L1>
   }
 }

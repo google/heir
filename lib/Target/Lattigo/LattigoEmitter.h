@@ -5,16 +5,20 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Utils/Tablegen/InPlaceOpInterface.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -133,6 +137,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::arith::SubIOp op);
   LogicalResult printOperation(::mlir::arith::SubFOp op);
   LogicalResult printOperation(::mlir::arith::XOrIOp op);
+  LogicalResult printOperation(::mlir::math::SqrtOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
@@ -154,6 +159,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::memref::SubViewOp op);
   LogicalResult printOperation(::mlir::memref::ExtractStridedMetadataOp op);
   LogicalResult printOperation(::mlir::memref::DimOp op);
+  LogicalResult printOperation(::mlir::heir::preprocessing::LoadResourceOp op);
 
   // Lattigo ops
   // RLWE
@@ -242,6 +248,11 @@ class LattigoEmitter {
                               op, err);
   }
 
+  // Returns true/false based on whether the IR contains load_resource ops to
+  // emit. Returns failure() if it failed to process the IR. Writes to
+  // resourceGlobals, resourceEltTypes, and resources.
+  FailureOr<bool> collectResourcesToLoad(ModuleOp moduleOp);
+
   // find the actual value used for inplace op
   ::mlir::Value getStorageValue(::mlir::Value value) {
     if (auto* op = value.getDefiningOp()) {
@@ -260,13 +271,18 @@ class LattigoEmitter {
     if (value == Value()) {
       return "nil";
     }
+    auto storageValue = getStorageValue(value);
+    auto it = resourceGlobals.find(storageValue);
+    if (it != resourceGlobals.end()) {
+      return it->second;
+    }
     // When the value has no uses, we can not assign it a name otherwise GO
     // would complain "declared and not used." Force in cases when the
     // generated code ensures the variable is referenced.
     if (!force && value.use_empty()) {
       return "_";
     }
-    return variableNames->getNameForValue(getStorageValue(value));
+    return variableNames->getNameForValue(storageValue);
   }
 
   std::string getErrName() { return "err" + std::to_string(errCount++); }
@@ -306,6 +322,18 @@ class LattigoEmitter {
 
   std::string emitCopySlice(Value source, Value result,
                             bool shouldDeclare = true);
+
+  struct ResourceInfo {
+    std::string globalName;
+    std::string goType;
+    std::string goEltType;
+    std::string path;
+    int64_t size;
+  };
+
+  llvm::DenseMap<Value, std::string> resourceGlobals;
+  std::vector<ResourceInfo> resources;
+  std::set<std::string> resourceEltTypes;
 };
 
 void registerToLattigoTranslation(void);

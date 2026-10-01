@@ -22,6 +22,6 @@ func.func @scf_if(%cond: i1, %arg0: i1, %arg1: i1) {
   }
   // CHECK: lwe.encode
   // CHECK-SAME: {encode_id = 0 : i32
-  %2 = lwe.encode %res { plaintext_bits = 3 : index }: i1 to !plaintext
+  %2 = lwe.encode %res <plaintext_bits = 3>: i1 to !plaintext
   return
 }

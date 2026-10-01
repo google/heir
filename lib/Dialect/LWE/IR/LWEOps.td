@@ -101,7 +101,7 @@ def LWE_EncodeOp : LWE_Op<"encode", [PlaintextEncodeOpInterface]> {
   );
 
   let results = (outs LWEPlaintext:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `to` qualified(type($output))";
+  let assemblyFormat = "$input prop-dict attr-dict `:` qualified(type($input)) `to` qualified(type($output))";
   let hasVerifier = 1;
 }
 
@@ -201,6 +201,15 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
     be floating points, and a scaling factor described by the encoding will be
     applied.
 
+    The optional `level` attribute records the level of the ciphertext this
+    plaintext will be combined with, i.e., the `current` index of that
+    ciphertext's modulus chain. It is
+    recorded on the op rather than in `!lwe.lwe_plaintext` because that type is
+    not RNS-aware (see #1643), and it must be attached where the plaintext is
+    created, since passes such as `--split-preprocessing` later sever the
+    def-use chain to the consuming ciphertext op. When absent, backends fall
+    back to the top level of the modulus chain.
+
     Examples:
 
     ```
@@ -211,11 +220,13 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
   let arguments = (ins
     SignlessIntegerOrFloatLike:$input,
     AnyPlaintextEncodingAttr:$encoding,
-    Polynomial_RingAttr:$ring
+    Polynomial_RingAttr:$ring,
+    OptionalAttr<ConfinedAttr<I64Attr, [IntNonNegative]>>:$level,
+    OptionalAttr<I64Attr>:$scale
   );
 
   let results = (outs LWEPlaintextLike:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
+  let assemblyFormat = "$input prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
   let hasVerifier = true;
 }
 
@@ -229,7 +240,7 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [HasEncoding<"input", "encoding", "
   );
 
   let results = (outs SignlessIntegerOrFloatLike:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
+  let assemblyFormat = "$input prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
 
   // Verify that the expected output type and the encoding are compatible.
   let hasVerifier = true;
@@ -280,7 +291,7 @@ def LWE_ExtractCoeffOp : LWE_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethod
     LWERingElt:$output
   );
   let hasVerifier = 1;
-  let assemblyFormat = "$value attr-dict `:` type($value)";
+  let assemblyFormat = "$value prop-dict attr-dict `:` type($value)";
 }
 
 def LWE_FromCoeffsOp : LWE_Op<"from_coeffs", [Pure]> {
@@ -318,7 +329,7 @@ def LWE_ExtractSliceOp : LWE_Op<"extract_slice", [Pure, DeclareOpInterfaceMethod
   let results = (outs
     LWERingElt:$output
   );
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 
@@ -336,7 +347,7 @@ def LWE_ConvertBasisOp : LWE_Op<"convert_basis", [Pure, DeclareOpInterfaceMethod
   let results = (outs
     LWERingElt:$output
   );
-  let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
+  let assemblyFormat = "$value prop-dict attr-dict `:` type($value) `->` type($output)";
 }
 
 def LWE_ModDownOp : LWE_Op<"mod_down", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
@@ -352,7 +363,7 @@ def LWE_ModDownOp : LWE_Op<"mod_down", [Pure, DeclareOpInterfaceMethods<InferTyp
       TypeAttr:$targetBasis
   );
   let results = (outs LWECiphertext:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 

@@ -111,7 +111,7 @@ def CKKS_RotateOp : CKKS_Op<"rotate", [
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
+  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? prop-dict attr-dict `:` qualified(type($input))" ;
 }
 
 def CKKS_NegateOp : CKKS_Op<"negate", [ElementwiseMappable, SameOperandsAndResultType, Involution]> {
@@ -168,7 +168,7 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [
   // different type signatures because... well mlir-tblgen just doesn't do
   // optional stuff well.
   let assemblyFormat = [{
-    $input (`,` $keySwitchingKey^)? attr-dict `:` functional-type(operands, results)
+    $input (`,` $keySwitchingKey^)? prop-dict attr-dict `:` functional-type(operands, results)
   }];
 }
 
@@ -185,7 +185,7 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable, ReducesLevelOpInte
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [
@@ -206,7 +206,7 @@ def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [
@@ -232,7 +232,7 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [
 
   let hasVerifier = 1;
 
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "operands prop-dict attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 #endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

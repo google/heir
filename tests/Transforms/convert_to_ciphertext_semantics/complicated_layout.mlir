@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=4096 --split-input-file | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=4096 --split-input-file | FileCheck %s
 
 // This is a regression test for a bug found - if layout materialization attrs
 // aren't added to the layout assignment op, then
@@ -13,7 +13,7 @@ module {
   func.func @complicated_layout_dense() -> (!secret.secret<tensor<1x4x14x14xf32>> {tensor_ext.layout = #layout}) {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x4x14x14xf32>
     %0 = secret.generic() {
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<1x4x14x14xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<1x4x14x14xf32>
       secret.yield %2 : tensor<1x4x14x14xf32>
     } -> (!secret.secret<tensor<1x4x14x14xf32>> {tensor_ext.layout = #layout})
     return %0 : !secret.secret<tensor<1x4x14x14xf32>>
@@ -32,7 +32,7 @@ module {
     %cst_0 = arith.constant dense<[1.0, 2.0, 3.0, 4.0]> : tensor<4xf32>
     %cst = linalg.broadcast ins(%cst_0 : tensor<4xf32>) outs(%cst_1 : tensor<1x4x14x14xf32>) dimensions = [0, 2, 3]
     %0 = secret.generic() {
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<1x4x14x14xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<1x4x14x14xf32>
       secret.yield %2 : tensor<1x4x14x14xf32>
     } -> (!secret.secret<tensor<1x4x14x14xf32>> {tensor_ext.layout = #layout})
     return %0 : !secret.secret<tensor<1x4x14x14xf32>>

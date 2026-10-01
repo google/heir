@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-bfv='ciphertext-degree=64 plaintext-modulus=65537' %s
+// RUN: heir-opt --mlir-to-bfv='min-slot-count=64 plaintext-modulus=65537' %s
 
 !ct_s = !secret.secret<tensor<1x8xi32>>
 

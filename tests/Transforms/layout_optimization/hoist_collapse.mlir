@@ -15,7 +15,7 @@ module {
     %0 = secret.generic(%arg0: !secret.secret<tensor<1x128x768xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<1x128x768xf32>):
       %collapsed = tensor.collapse_shape %input0 [[0, 1], [2]] {tensor_ext.layout = #layout2} : tensor<1x128x768xf32> into tensor<128x768xf32>
-      %1 = tensor_ext.convert_layout %collapsed {from_layout = #layout2, tensor_ext.layout = #layout, to_layout = #layout} : tensor<128x768xf32>
+      %1 = tensor_ext.convert_layout %collapsed <from_layout = #layout2, to_layout = #layout> {tensor_ext.layout = #layout} : tensor<128x768xf32>
       secret.yield %1 : tensor<128x768xf32>
     } -> (!secret.secret<tensor<128x768xf32>> {tensor_ext.layout = #layout})
     return %0 : !secret.secret<tensor<128x768xf32>>

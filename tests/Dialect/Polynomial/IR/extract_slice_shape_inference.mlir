@@ -13,7 +13,7 @@
 module {
   func.func @preserve_extract_slice_form(
       %poly: !input_poly) {
-    %0 = polynomial.extract_slice %poly {start = 0 : index, size = 1 : index}
+    %0 = polynomial.extract_slice %poly <start = 0, size = 1>
         : !input_poly -> !slice_poly
     return
   }

@@ -158,7 +158,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvDiagonalized) {
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   auto relation = getConvFilterDiagonalizedRelation(
-      filterType, dataType, /*padding=*/1, /*ciphertextSize=*/16);
+      filterType, dataType, /*padding=*/1, /*minSlotCount=*/16);
 
   std::vector<std::vector<int>> filter = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
   // The expanded matrix will have size 9x9, and diagonalizing it will require
@@ -389,7 +389,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwAsSequence) {
       RankedTensorType::get({1, 1, 4, 4}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
 
   std::vector<std::vector<std::vector<std::vector<int>>>> filter = {
       {{{1, 2}, {3, 4}}},  // Channel 0
@@ -406,7 +406,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwAsSequence) {
   // Test 1: No Interchange
   {
     auto maybeRels = get2dConvChwFchwFilterAsSequence(
-        filterType, dataType, strides, padding, ciphertextSize, false);
+        filterType, dataType, strides, padding, minSlotCount, false);
     ASSERT_TRUE(succeeded(maybeRels));
     auto rels = maybeRels.value();
     ASSERT_EQ(rels.size(), 4);
@@ -440,7 +440,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwAsSequence) {
   // Test 2: With Interchange
   {
     auto maybeRels = get2dConvChwFchwFilterAsSequence(
-        filterType, dataType, strides, padding, ciphertextSize, true);
+        filterType, dataType, strides, padding, minSlotCount, true);
     ASSERT_TRUE(succeeded(maybeRels));
     auto rels = maybeRels.value();
     ASSERT_EQ(rels.size(), 5);
@@ -511,9 +511,9 @@ TEST(EvaluateTest, Conv2dResultRelationNoInterchange) {
   int64_t padding = 0;
 
   // Fits in one ciphertext
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
   IntegerRelation rel =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
   EXPECT_EQ(rel.getNumDomainVars(), outputType.getRank());
   EXPECT_EQ(rel.getNumRangeVars(), 2);
 
@@ -541,11 +541,11 @@ TEST(EvaluateTest, Conv2dResultRelationWithInterchange) {
   int64_t padding = 0;
 
   // Fits in one ciphertext
-  int64_t ciphertextSize = 16;
+  int64_t minSlotCount = 16;
   IntegerRelation rel1 =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
-  IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
-      outputType, strides, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
+  IntegerRelation rel2 =
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, minSlotCount);
   rel1.compose(rel2);
 
   std::vector<std::vector<std::vector<std::vector<int>>>> output = {
@@ -571,9 +571,9 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsNoInterchange) {
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
 
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
   IntegerRelation rel =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
 
   std::vector<std::vector<std::vector<std::vector<int>>>> output = {
       {{{1, 2}, {3, 4}},
@@ -598,11 +598,11 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsWithInterchange) {
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
 
-  int64_t ciphertextSize = 8;
+  int64_t minSlotCount = 8;
   IntegerRelation rel1 =
-      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
-  IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
-      outputType, strides, ciphertextSize);
+      get2dConvResultRelation(outputType, strides, padding, minSlotCount);
+  IntegerRelation rel2 =
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, minSlotCount);
   rel1.compose(rel2);
 
   std::vector<std::vector<std::vector<std::vector<int>>>> output = {
@@ -621,23 +621,31 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsWithInterchange) {
   EXPECT_THAT(result, Eq(expected));
 }
 
-TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
-  MLIRContext context;
-  RankedTensorType filterType =
-      RankedTensorType::get({8, 1, 2, 2}, IndexType::get(&context));
-  RankedTensorType dataType =
-      RankedTensorType::get({1, 1, 4, 4}, IndexType::get(&context));
-  SmallVector<int64_t> strides = {2, 2};
+// Checks that the staged filter layout the pass uses agrees with the
+// single-relation reference for a 2-D conv of the given shape.
+void checkConv2dFilterRelationsEquivalence(MLIRContext& context,
+                                           int64_t outputChannels,
+                                           int64_t inputChannels,
+                                           int64_t dataSize, int64_t stride,
+                                           int64_t minSlotCount) {
+  SCOPED_TRACE("outputChannels = " + std::to_string(outputChannels) +
+               " inputChannels = " + std::to_string(inputChannels) +
+               " dataSize = " + std::to_string(dataSize) +
+               " stride = " + std::to_string(stride));
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataSize, dataSize}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
   int64_t padding = 0;
-  int64_t ciphertextSize = 32;
 
   auto singleRel = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, padding, ciphertextSize,
+      filterType, dataType, strides, padding, minSlotCount,
       /*interchangeRows=*/true);
   ASSERT_TRUE(succeeded(singleRel));
 
   auto sequenceRels = get2dConvChwFchwFilterAsSequence(
-      filterType, dataType, strides, padding, ciphertextSize,
+      filterType, dataType, strides, padding, minSlotCount,
       /*interchangeRows=*/true);
   ASSERT_TRUE(succeeded(sequenceRels));
   auto rels = sequenceRels.value();
@@ -649,15 +657,17 @@ TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
     composed.compose(rels[i]);
   }
 
-  // Filter is 8x1x2x2
   std::vector<std::vector<std::vector<std::vector<int>>>> filter(
-      8, std::vector<std::vector<std::vector<int>>>(
-             1, std::vector<std::vector<int>>(2, std::vector<int>(2, 0))));
+      outputChannels, std::vector<std::vector<std::vector<int>>>(
+                          inputChannels, std::vector<std::vector<int>>(
+                                             2, std::vector<int>(2))));
   int val = 1;
-  for (int f = 0; f < 8; ++f) {
-    for (int kh = 0; kh < 2; ++kh) {
-      for (int kw = 0; kw < 2; ++kw) {
-        filter[f][0][kh][kw] = val++;
+  for (int f = 0; f < outputChannels; ++f) {
+    for (int c = 0; c < inputChannels; ++c) {
+      for (int kh = 0; kh < 2; ++kh) {
+        for (int kw = 0; kw < 2; ++kw) {
+          filter[f][c][kh][kw] = val++;
+        }
       }
     }
   }
@@ -672,6 +682,30 @@ TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
   auto resultComposed = evaluateLayout(composed, getValueFn);
 
   EXPECT_THAT(resultComposed, Eq(resultSingle));
+}
+
+TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
+  MLIRContext context;
+  checkConv2dFilterRelationsEquivalence(context, /*outputChannels=*/8,
+                                        /*inputChannels=*/1, /*dataSize=*/4,
+                                        /*stride=*/2, /*minSlotCount=*/32);
+}
+
+TEST(EvaluateTest, GapPaddedConvFilterDiagonalizedRelationsEquivalence) {
+  // Channel counts that are not a multiple of gap^2 = 4, so the layout pads the
+  // channel dimension. The staged relations must reserve the same padding rows
+  // as the single-relation reference.
+  MLIRContext context;
+  for (int64_t outputChannels : {1, 2, 3}) {
+    checkConv2dFilterRelationsEquivalence(context, outputChannels,
+                                          /*inputChannels=*/1, /*dataSize=*/4,
+                                          /*stride=*/2, /*minSlotCount=*/32);
+  }
+  for (int64_t outputChannels : {5, 6, 7}) {
+    checkConv2dFilterRelationsEquivalence(context, outputChannels,
+                                          /*inputChannels=*/2, /*dataSize=*/4,
+                                          /*stride=*/2, /*minSlotCount=*/64);
+  }
 }
 
 }  // namespace

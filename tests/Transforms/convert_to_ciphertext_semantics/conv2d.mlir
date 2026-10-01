@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=32 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=32 | FileCheck %s
 
 #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 #layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-3i0 - i1 + slot) mod 16 = 0 and 0 <= i0 <= 2 and 0 <= i1 <= 31 - 3i0 and i1 <= 2 and 0 <= slot <= 31 and 32*floor((16 + 3i0 + i1)/32) <= 3i0 + i1 }">
@@ -18,8 +18,8 @@ module {
     ^body(%input0: tensor<5x5xf32>):
     // CHECK: secret.generic
     // CHECK-COUNT-13: tensor_ext.rotate
-      %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<3x3xf32>
-      %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<3x3xf32>
+      %1 = tensor_ext.assign_layout %cst_0 <layout = #layout2> {tensor_ext.layout = #layout2} : tensor<3x3xf32>
+      %2 = tensor_ext.assign_layout %cst <layout = #layout> {tensor_ext.layout = #layout} : tensor<3x3xf32>
       %3 = linalg.conv_2d {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%input0, %1 : tensor<5x5xf32>, tensor<3x3xf32>) outs(%2 : tensor<3x3xf32>) -> tensor<3x3xf32>
       secret.yield %3 : tensor<3x3xf32>
     } -> (!secret.secret<tensor<3x3xf32>> {tensor_ext.layout = #layout})

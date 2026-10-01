@@ -15,6 +15,7 @@
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Hoisting.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
@@ -74,6 +75,30 @@ struct CollapseShapeHoistingImpl
 
     hoisters.push_back(createCollapseShapeHoister(collapseShapeOp));
 
+    return hoisters;
+  }
+};
+
+struct PadHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          PadHoistingImpl, tensor::PadOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+    tensor::PadOp padOp = cast<tensor::PadOp>(op);
+
+    for (int64_t val : padOp.getStaticLow()) {
+      if (ShapedType::isDynamic(val)) {
+        return hoisters;
+      }
+    }
+    for (int64_t val : padOp.getStaticHigh()) {
+      if (ShapedType::isDynamic(val)) {
+        return hoisters;
+      }
+    }
+
+    hoisters.push_back(createPadHoister(padOp));
     return hoisters;
   }
 };
@@ -260,6 +285,36 @@ Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
   };
 }
 
+static LayoutAttr hoistLayoutThroughPad(LayoutAttr attr, tensor::PadOp op) {
+  SmallVector<int64_t> lowPadding = llvm::to_vector(op.getStaticLow());
+  RankedTensorType paddedType = op.getResultType();
+  RankedTensorType unpaddedType = op.getSourceType();
+  IntegerRelation paddingRel =
+      getPaddingRelation(paddedType, unpaddedType, lowPadding);
+  paddingRel.inverse();
+  IntegerRelation toRel = attr.getIntegerRelation();
+  paddingRel.compose(toRel);
+  return LayoutAttr::getFromIntegerRelation(op.getContext(), paddingRel);
+}
+
+Hoister createPadHoister(tensor::PadOp op) {
+  return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+    if (!fromLayout || !toLayout) return failure();
+
+    HoistResult result;
+    result.convertLayoutOp = convertLayoutOp;
+    result.newOutputLayout = toLayout;
+    result.newKernel = KernelName::Trivial;
+
+    auto hoistedLayout = hoistLayoutThroughPad(toLayout, op);
+    result.newInputLayouts = SmallVector<Attribute>{hoistedLayout};
+
+    return result;
+  };
+}
+
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
     HoistResult result;
@@ -355,6 +410,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   });
   registry.addExtension(+[](MLIRContext* ctx, tensor::TensorDialect* dialect) {
     tensor::CollapseShapeOp::attachInterface<CollapseShapeHoistingImpl>(*ctx);
+    tensor::PadOp::attachInterface<PadHoistingImpl>(*ctx);
   });
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {
     linalg::MatvecOp::attachInterface<MatvecHoistingImpl>(*ctx);

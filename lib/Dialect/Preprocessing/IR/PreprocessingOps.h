@@ -14,6 +14,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 // IWYU pragma: end_keep

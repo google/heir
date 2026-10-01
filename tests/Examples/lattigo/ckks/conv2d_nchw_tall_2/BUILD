@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "conv2dnchwtall2",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=1024",
+        "--mlir-to-ckks=min-slot-count=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:conv2d_nchw_tall_2.mlir",

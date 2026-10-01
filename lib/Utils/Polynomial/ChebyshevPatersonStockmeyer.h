@@ -175,7 +175,9 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
   int64_t c = std::abs(a - b);
   auto two = isTensorType ? NodeTy::splat(2, coeffType)
                           : NodeTy::constantScalar(2, coeffType);
-  tN = NodeTy::mul(two, tN);
+  // To avoid a plaintext ciphertext multiplication inducing a rescale, add
+  // instead of multiply by two.
+  tN = NodeTy::add(tN, tN);
 
   // Compute T_n = 2*T_a*T_b - T_c
   if (c == 0) {
@@ -244,14 +246,12 @@ computeChebyshevPolynomialValues(const T& x, int64_t k,
   for (int64_t i = 2; i <= k; i++) {
     if (i % 2 == 0) {
       // T_{2n}(x) = 2(T_n(x))^2 - 1
-      result.push_back(NodeTy::sub(
-          NodeTy::mul(NodeTy::mul(result[i / 2], result[i / 2]), number2),
-          number1));
+      auto square = NodeTy::mul(result[i / 2], result[i / 2]);
+      result.push_back(NodeTy::sub(NodeTy::add(square, square), number1));
     } else {
       // T_{2n+1}(x) = 2*T_n(x) * T_{n+1}(x) - x
-      result.push_back(NodeTy::sub(
-          NodeTy::mul(NodeTy::mul(result[i / 2], result[i / 2 + 1]), number2),
-          xNode));
+      auto product = NodeTy::mul(result[i / 2], result[i / 2 + 1]);
+      result.push_back(NodeTy::sub(NodeTy::add(product, product), xNode));
     }
   }
   return result;
@@ -321,6 +321,8 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
       auto coeffNode = isTensorType
                            ? NodeTy::splat(coeffs[j], coeffType)
                            : NodeTy::constantScalar(coeffs[j], coeffType);
+      // TODO(#2364): Use level-saving techniques to reduce the number of levels
+      // consumed.
       auto termNode = NodeTy::mul(coeffNode, chebPolynomialValuesMap[j]);
 
       if (pol) {

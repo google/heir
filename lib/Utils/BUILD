@@ -21,6 +21,19 @@ cc_library(
 )
 
 cc_library(
+    name = "EntryInterfaceUtils",
+    srcs = ["EntryInterfaceUtils.cpp"],
+    hdrs = ["EntryInterfaceUtils.h"],
+    deps = [
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "AffineMapUtils",
     srcs = ["AffineMapUtils.cpp"],
     hdrs = ["AffineMapUtils.h"],

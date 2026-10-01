@@ -216,10 +216,10 @@ TEST(RNSPolynomialTest, TestConversions) {
   RNSPolynomial poly(coeffs, moduli);
 
   // Test round-trip toNtt -> toCoefficient
-  RNSPolynomial ntt = poly.toNtt();
+  RNSPolynomial ntt = poly.toNtt().value();
   EXPECT_TRUE(ntt.isNtt());
 
-  RNSPolynomial roundtrip = ntt.toCoefficient();
+  RNSPolynomial roundtrip = ntt.toCoefficient().value();
   EXPECT_FALSE(roundtrip.isNtt());
   EXPECT_EQ(roundtrip, poly);
 }
@@ -233,17 +233,17 @@ TEST(RNSPolynomialTest, TestMul) {
   RNSPolynomial poly2(coeffs2, moduli);
 
   // Test multiplication in Coefficient form (uses NTT under the hood)
-  RNSPolynomial prodCoeff = poly1.mul(poly2);
+  RNSPolynomial prodCoeff = poly1.mul(poly2).value();
   EXPECT_FALSE(prodCoeff.isNtt());
   SmallVector<uint64_t> expectedProd = {5, 16, 12, 0, 21, 11, 32, 0};
   EXPECT_EQ(prodCoeff.getData(), llvm::ArrayRef<uint64_t>(expectedProd));
 
   // Test multiplication in NTT form
-  RNSPolynomial ntt1 = poly1.toNtt();
-  RNSPolynomial ntt2 = poly2.toNtt();
-  RNSPolynomial prodNtt = ntt1.mul(ntt2);
+  RNSPolynomial ntt1 = poly1.toNtt().value();
+  RNSPolynomial ntt2 = poly2.toNtt().value();
+  RNSPolynomial prodNtt = ntt1.mul(ntt2).value();
   EXPECT_TRUE(prodNtt.isNtt());
-  EXPECT_EQ(prodNtt.toCoefficient(), prodCoeff);
+  EXPECT_EQ(prodNtt.toCoefficient().value(), prodCoeff);
 }
 
 TEST(RNSPolynomialTest, TestPrecomputedRoots) {
@@ -283,15 +283,15 @@ TEST(RNSPolynomialTest, TestPrecomputedRoots) {
       mlir::heir::rns::RNSAttr::get(rnsType, {root17Attr, root41Attr});
 
   // Test toNtt with precomputed roots (matching on-the-fly)
-  RNSPolynomial ntt = poly.toNtt(rnsAttr);
+  RNSPolynomial ntt = poly.toNtt(rnsAttr).value();
   EXPECT_TRUE(ntt.isNtt());
 
   // Compare with on-the-fly computation
-  RNSPolynomial nttOnTheFly = poly.toNtt();
+  RNSPolynomial nttOnTheFly = poly.toNtt().value();
   EXPECT_EQ(ntt, nttOnTheFly);
 
   // Test toCoefficient with precomputed roots
-  RNSPolynomial roundtrip = ntt.toCoefficient(rnsAttr);
+  RNSPolynomial roundtrip = ntt.toCoefficient(rnsAttr).value();
   EXPECT_FALSE(roundtrip.isNtt());
   EXPECT_EQ(roundtrip, poly);
 
@@ -305,10 +305,10 @@ TEST(RNSPolynomialTest, TestPrecomputedRoots) {
   auto diffRnsAttr =
       mlir::heir::rns::RNSAttr::get(rnsType, {diffRoot17Attr, diffRoot41Attr});
 
-  RNSPolynomial nttDiff = poly.toNtt(diffRnsAttr);
+  RNSPolynomial nttDiff = poly.toNtt(diffRnsAttr).value();
   EXPECT_TRUE(nttDiff.isNtt());
 
-  RNSPolynomial roundtripDiff = nttDiff.toCoefficient(diffRnsAttr);
+  RNSPolynomial roundtripDiff = nttDiff.toCoefficient(diffRnsAttr).value();
   EXPECT_FALSE(roundtripDiff.isNtt());
   EXPECT_EQ(roundtripDiff, poly);
 }

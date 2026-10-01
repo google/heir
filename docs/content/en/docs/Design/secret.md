@@ -177,7 +177,7 @@ func.func @dot_product(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secr
 }
 ```
 
-And then lowering it to `bgv` with `--secret-to-bgv="poly-mod-degree=8"` (the
+And then lowering it to `bgv` with `--secret-to-bgv="min-slot-count=8"` (the
 pass option matches the tensor size, but it is an unrealistic FHE polynomial
 degree used here just for demonstration purposes). Note type annotations on ops
 are omitted for brevity.

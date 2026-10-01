@@ -78,7 +78,9 @@ struct SecretInsertMgmtBGV
     OpPassManager pipeline("builtin.module");
     pipeline.addPass(createCanonicalizerPass());
     pipeline.addPass(createCSEPass());
-    pipeline.addPass(mgmt::createAnnotateMgmt());
+    mgmt::AnnotateMgmtOptions annotateOptions;
+    annotateOptions.levelBudget = levelBudget;
+    pipeline.addPass(mgmt::createAnnotateMgmt(annotateOptions));
     (void)runPipeline(pipeline, getOperation());
   }
 };

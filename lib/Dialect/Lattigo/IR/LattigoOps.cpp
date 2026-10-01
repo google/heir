@@ -1,16 +1,20 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 
+#include <cassert>
 #include <cstdint>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "lib/Utils/MathUtils.h"
 #include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Utils.h"
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -54,32 +58,52 @@ int RLWEDropLevelNewOp::getLevelsToDrop() { return getLevelToDrop(); }
 
 int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
 
-::mlir::OpOperand& BGVRescaleNewOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> BGVRescaleNewOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& BGVRescaleOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> BGVRescaleOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& CKKSRescaleNewOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> CKKSRescaleNewOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& CKKSRescaleOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> CKKSRescaleOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
+}
+
+int CKKSChebyshevOp::getLevelsToDrop() {
+  auto coefficients = getCoefficients().getValue();
+  if (coefficients.empty()) {
+    // The zero polynomial consumes no depth.
+    return 0;
+  }
+  return lattigoChebyshevDepth(coefficients.size() - 1);
+}
+
+::llvm::SmallVector<::mlir::OpOperand*> CKKSChebyshevOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 ::mlir::OpOperand& CKKSBootstrapOp::getOperandToReset() {
   return getOperation()->getOpOperand(1);
 }
 
-::mlir::OpOperand& RLWEDropLevelNewOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> RLWEDropLevelNewOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& RLWEDropLevelOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> RLWEDropLevelOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 LogicalResult BGVRotateColumnsNewOp::verify() {
@@ -122,20 +146,94 @@ CKKSRotateNewOp::getRotationIndices() {
   return {getDynamicShift()};
 }
 
-::llvm::SmallVector<::mlir::OpFoldResult>
-CKKSLinearTransformOp::getRotationIndices() {
-  auto diagonalsType = cast<RankedTensorType>(getDiagonals().getType());
-  int64_t slots = diagonalsType.getShape()[1];
-  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
-  auto rotations = lintransRotationIndices(
-      getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+static SmallVector<OpFoldResult> computeLintransRotationIndices(
+    MLIRContext* ctx, ArrayRef<int32_t> diagonalIndices, int64_t slots,
+    int64_t logBSGS) {
+  auto rotations = lintransRotationIndices(diagonalIndices, slots, logBSGS);
   SmallVector<OpFoldResult> result;
   result.reserve(rotations.size());
-  auto* ctx = getContext();
   for (int64_t rot : rotations) {
     result.push_back(IntegerAttr::get(IndexType::get(ctx), rot));
   }
   return result;
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSLinearTransformOp::getRotationIndices() {
+  // The diagonals arrive as a tensor before bufferization and as a memref
+  // after it, and this accessor is reachable in both states.
+  // Match on ShapedType so it does not assert on legal IR.
+  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
+  int64_t slots = diagonalsType.getShape()[1];
+  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
+  return computeLintransRotationIndices(
+      getContext(), getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+}
+
+static LogicalResult verifyLinearTransformCommon(
+    Operation* op, ShapedType diagonalsType, DenseI32ArrayAttr diagonalIndices,
+    DenseI32ArrayAttr sourceRowIndices, IntegerAttr levelQ,
+    IntegerAttr logBabyStepGiantStepRatio) {
+  if (levelQ.getInt() < 0) {
+    return op->emitOpError("levelQ must be non-negative, but got ")
+           << levelQ.getInt();
+  }
+  if (logBabyStepGiantStepRatio.getInt() < 0) {
+    return op->emitOpError(
+               "logBabyStepGiantStepRatio must be non-negative, but got ")
+           << logBabyStepGiantStepRatio.getInt();
+  }
+
+  int64_t numDiagonals = diagonalsType.getDimSize(0);
+  int64_t numIndices = diagonalIndices.size();
+  if (!sourceRowIndices) {
+    if (!ShapedType::isDynamic(numDiagonals) && numDiagonals != numIndices) {
+      return op->emitOpError("number of diagonals (")
+             << numDiagonals << ") must match number of diagonal indices ("
+             << numIndices << ")";
+    }
+    return success();
+  }
+
+  if (static_cast<int64_t>(sourceRowIndices.size()) != numIndices) {
+    return op->emitOpError("number of source row indices (")
+           << sourceRowIndices.size()
+           << ") must match number of diagonal indices (" << numIndices << ")";
+  }
+  if (ShapedType::isDynamic(numDiagonals)) return success();
+  for (int32_t row : sourceRowIndices.asArrayRef()) {
+    if (row < 0 || row >= numDiagonals) {
+      return op->emitOpError("source row index ")
+             << row << " is out of bounds for " << numDiagonals
+             << " diagonal rows";
+    }
+  }
+  return success();
+}
+
+LogicalResult CKKSPrepareLinearTransformOp::verify() {
+  int64_t logSlots = getLogSlots().getInt();
+  if (logSlots < 0 || logSlots > 62) {
+    return emitOpError("logSlots must be in range [0, 62], but got ")
+           << logSlots;
+  }
+  return verifyLinearTransformCommon(
+      getOperation(), cast<ShapedType>(getDiagonals().getType()),
+      getDiagonalIndicesAttr(), getSourceRowIndicesAttr(), getLevelQAttr(),
+      getLogBabyStepGiantStepRatioAttr());
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSPrepareLinearTransformOp::getRotationIndices() {
+  // Lattigo reduces its BSGS split and Galois elements modulo the transform's
+  // slot count, not the width of the diagonals it was handed, so take the slot
+  // count this op recorded.
+  int shiftCount = getLogSlots().getInt();
+  assert(shiftCount >= 0 && shiftCount < 64);
+  int64_t slots = int64_t{1} << shiftCount;
+  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
+  return computeLintransRotationIndices(
+      getContext(), getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
 }
 
 }  // namespace lattigo

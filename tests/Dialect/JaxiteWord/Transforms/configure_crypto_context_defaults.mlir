@@ -25,16 +25,17 @@ module {
     %ct = jaxiteword.mul %arg0, %arg2, %arg3, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1_D3
     %ct_1 = jaxiteword.relin %arg0, %ct, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1_D3, !jaxiteword.eval_key<>) -> !ct_L1_1
     %ct_2 = jaxiteword.mod_reduce %arg0, %ct_1 : (!jaxiteword.crypto_context<>, !ct_L1_1) -> !ct_L0
-    %ct_3 = jaxiteword.rot %arg0, %ct_2, %arg1 {index = 4 : i64} : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
-    %ct_4 = jaxiteword.rot %arg0, %ct_3, %arg1 {index = 8 : i64} : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
+    %ct_3 = jaxiteword.rot %arg0, %ct_2, %arg1 <index = 4> : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
+    %ct_4 = jaxiteword.rot %arg0, %ct_3, %arg1 <index = 8> : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
     return %ct_4 : !ct_L0
   }
 }
 
 // CHECK: @simple_mul__generate_crypto_context
+// CHECK-SAME: () -> !jaxiteword.crypto_context
 // CHECK: jaxiteword.gen_params
-// CHECK-SAME: batch = 1 : i32
-// CHECK-SAME: c = 4 : i32
-// CHECK-SAME: dnum = 3 : i32
-// CHECK-SAME: r = 4 : i32
 // CHECK-SAME: scalingFactor = 0x4300008208404308
+// CHECK-SAME: batch = 1
+// CHECK-SAME: r = 4
+// CHECK-SAME: c = 4
+// CHECK-SAME: dnum = 3

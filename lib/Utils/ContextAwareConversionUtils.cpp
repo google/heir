@@ -53,11 +53,22 @@ FailureOr<Value> encodeCleartextAsPlaintext(
     return failure();
   }
 
-  // TODO(#1643): inherit level information to plaintext type from init-op
-  // mgmt attr. This actually needs to make LWEPlaintextType RNS aware.
+  // TODO(#1643): LWEPlaintextType should carry RNS ring info. For now,
+  // the level and scale are passed as attributes on the encode op.
   auto plaintextTy = lwe::LWEPlaintextType::get(
       ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextSpace.getRing(),
                                         plaintextEncoding));
+
+  // The level is deliberately left unset here, for
+  // `--lwe-annotate-plaintext-level` to fill in. Reading it off this one
+  // ciphertext would record a level per *use*, which keeps CSE from merging the
+  // encodings of a constant that several levels share. One plaintext at the
+  // highest of those levels serves them all, and costs fewer limbs in total.
+  IntegerAttr scaleAttr;
+  if (ciphertextElementType.getModulusChain()) {
+    scaleAttr = builder.getI64IntegerAttr(
+        lwe::getScalingFactorFromEncodingAttr(plaintextEncoding));
+  }
 
   // cleartext is a ciphertext-semantic tensor, so it
   // could be a tensor<Nxty>, tensor<k x N x ty>, (where k=1 is possible).
@@ -66,10 +77,10 @@ FailureOr<Value> encodeCleartextAsPlaintext(
   int64_t numSlots =
       cleartextTensorTy.getDimSize(cleartextTensorTy.getRank() - 1);
   if (cleartextTensorTy.getRank() == 1) {
-    Value encodeOp =
-        lwe::RLWEEncodeOp::create(builder, plaintextTy, cleartext,
-                                  plaintextEncoding, plaintextSpace.getRing())
-            .getResult();
+    Value encodeOp = lwe::RLWEEncodeOp::create(
+                         builder, plaintextTy, cleartext, plaintextEncoding,
+                         plaintextSpace.getRing(), /*level=*/nullptr, scaleAttr)
+                         .getResult();
     return encodeOp;
   }
 
@@ -89,7 +100,8 @@ FailureOr<Value> encodeCleartextAsPlaintext(
                                                 offsets, sizes, strides);
     Value encodedSlice =
         lwe::RLWEEncodeOp::create(builder, plaintextTy, slice,
-                                  plaintextEncoding, plaintextSpace.getRing())
+                                  plaintextEncoding, plaintextSpace.getRing(),
+                                  /*level=*/nullptr, scaleAttr)
             .getResult();
     encodedSlices.push_back(encodedSlice);
   }

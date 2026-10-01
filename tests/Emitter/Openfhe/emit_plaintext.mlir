@@ -49,8 +49,8 @@ module attributes {scheme.bgv} {
     return %0 : i64
   }
   func.func @cond__generate_crypto_context() -> !cc {
-    %params = openfhe.gen_params  {encryptionTechniqueExtended = false, evalAddCount = 2 : i64, insecure = false, keySwitchCount = 0 : i64, mulDepth = 1 : i64, plainMod = 65537 : i64} : () -> !params
-    %cc = openfhe.gen_context %params {supportFHE = false} : (!params) -> !cc
+    %params = openfhe.gen_params <mulDepth = 1, plainMod = 65537, evalAddCount = 2, keySwitchCount = 0, insecure = false, encryptionTechniqueExtended = false> : () -> !params
+    %cc = openfhe.gen_context %params <supportFHE = false> : (!params) -> !cc
     return %cc : !cc
   }
   func.func @cond__configure_crypto_context(%cc: !cc, %sk: !sk) -> !cc {

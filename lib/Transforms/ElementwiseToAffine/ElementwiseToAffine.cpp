@@ -7,6 +7,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -34,6 +35,23 @@ namespace heir {
 // are mapped over), or if it has the ElementwiseByOperandOpInterface, which
 // means only some operands are mapped over.
 static bool isSupported(Operation* op) {
+  // Skip kernel dialect operations if they are mapped over tensors of standard
+  // floats or integers. Operands that are not mapped over (per
+  // ElementwiseByOperandOpInterface) are replicated as-is, so their element
+  // types are irrelevant.
+  if (op->getDialect()->getNamespace() == "kernel") {
+    auto byOperand = dyn_cast<ElementwiseByOperandOpInterface>(op);
+    for (auto [i, type] : llvm::enumerate(op->getOperandTypes())) {
+      if (byOperand && !byOperand.operandIsMappable(i)) continue;
+      if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
+        Type eltType = tensorType.getElementType();
+        if (llvm::isa<FloatType, IntegerType>(eltType)) {
+          return false;
+        }
+      }
+    }
+  }
+
   auto hasRankedTensorResult = [](Operation* op) {
     return llvm::any_of(op->getResultTypes(),
                         [](Type type) { return isa<RankedTensorType>(type); });

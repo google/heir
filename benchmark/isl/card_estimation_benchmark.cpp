@@ -56,6 +56,16 @@ static void BM_CardEstimation_Relation3(benchmark::State& state) {
 }
 BENCHMARK(BM_CardEstimation_Relation3)->Unit(benchmark::kSecond);
 
+static void BM_CardEstimation_LolaLayout2(benchmark::State& state) {
+  BM_CardEstimation_helper(state, kLolaLayout2);
+}
+BENCHMARK(BM_CardEstimation_LolaLayout2)->Unit(benchmark::kSecond);
+
+static void BM_CardEstimation_LolaLayout12(benchmark::State& state) {
+  BM_CardEstimation_helper(state, kLolaLayout12);
+}
+BENCHMARK(BM_CardEstimation_LolaLayout12)->Unit(benchmark::kSecond);
+
 }  // namespace heir
 }  // namespace mlir
 

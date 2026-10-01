@@ -43,28 +43,13 @@ class JaxiteWordEmitter {
   // values.
   SelectVariableNames* variableNames;
 
-  // ciphertext arg.
-  std::string CiphertextArg_;
-
-  // A list of modulus to be used for the add operation.
-  std::string ModulusListArg_;
-
-  // Crypto context variable name (set by GenParamsOp, used by accessor calls)
-  std::string cryptoContextVarName_;
-
-  // Legacy member variables kept for backward compatibility with old pipeline
-  // (GenMulKeyOp / GenRotKeyOp path). Not used by the new
-  // ProgramInitializationOp path.
-  std::string heMulVarName_;
-  std::string heRotVarName_;
-  std::string rotKeysDictVarName_;
-
   LogicalResult printOperation(ModuleOp moduleOp);
   LogicalResult printOperation(func::FuncOp funcOp);
+  LogicalResult printOperation(func::CallOp op);
   LogicalResult printOperation(func::ReturnOp returnOp);
   LogicalResult printOperation(AddOp op);
+  LogicalResult printOperation(AddPlainOp op);
   LogicalResult printOperation(SubOp op);
-  LogicalResult printOperation(NegateOp op);
   LogicalResult printOperation(SquareOp op);
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulNoRelinOp op);
@@ -72,8 +57,6 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(RotOp op);
   LogicalResult printOperation(RelinOp op);
 
-  LogicalResult printOperation(AddPlainOp op);
-  LogicalResult printOperation(SubPlainOp op);
   LogicalResult printOperation(MulPlainOp op);
   LogicalResult printOperation(AddInPlaceOp op);
   LogicalResult printOperation(SubInPlaceOp op);
@@ -109,6 +92,7 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(arith::SubIOp op);
   LogicalResult printOperation(arith::MulIOp op);
   LogicalResult printOperation(arith::DivSIOp op);
+  LogicalResult printOperation(arith::FloorDivSIOp op);
   LogicalResult printOperation(arith::RemSIOp op);
   LogicalResult printOperation(arith::CmpIOp op);
   LogicalResult printOperation(arith::SelectOp op);
@@ -126,13 +110,9 @@ class JaxiteWordEmitter {
 
   void emitAssignPrefix(Value result);
 
-  LogicalResult printBinaryOpHelper(
-      Value result, Value lhs, Value rhs,
-      llvm::function_ref<void(StringRef, StringRef, StringRef)> callback);
-
-  LogicalResult printInPlaceBinaryOpHelper(
-      Value lhs, Value rhs,
-      llvm::function_ref<void(StringRef, StringRef)> callback);
+  LogicalResult printBinaryOpHelper(Value result, Value lhs, Value rhs,
+                                    Value ctx, Operation* op,
+                                    StringRef accessor, StringRef method);
 
   LogicalResult printMulOpHelper(
       Value result, Value lhs, Value rhs, Value ctx, Operation* op,

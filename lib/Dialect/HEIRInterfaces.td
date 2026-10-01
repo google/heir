@@ -80,12 +80,12 @@ def ReducesLevelOpInterface : OpInterface<"ReducesLevelOpInterface"> {
       /*defaultBody=*/[{ return 1; }]
     >,
     InterfaceMethod<
-      /*desc=*/"Return the OpOperand whose level is reduced.",
-      /*retTy=*/"::mlir::OpOperand&",
-      /*methodName=*/"getOperandToReduce",
-      /*args=*/(ins ),
+      /*desc=*/"Return the OpOperands whose level is reduced.",
+      /*retTy=*/"::llvm::SmallVector<::mlir::OpOperand*>",
+      /*methodName=*/"getOperandsToReduce",
+      /*args=*/(ins "const ::mlir::DataFlowSolver *":$solver),
       /*body=*/[{}],
-      /*defaultBody=*/[{ return $_op->getOpOperand(0); }]
+      /*defaultBody=*/[{ return {&$_op->getOpOperand(0)}; }]
     >
   ];
 }
@@ -560,6 +560,28 @@ def PlaintextEncodeOpInterface : OpInterface<"PlaintextEncodeOpInterface"> {
   let description = [{
     An interface that marks encode-like operations for preprocessing dataflow analysis.
   }];
+}
+
+def RequiresLinearKeyBasisOpInterface : OpInterface<"RequiresLinearKeyBasisOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface for operations that require a linear key basis for certain
+    secret operands.
+
+    Callers of `requiresLinearKeyBasis` must ensure the op operand they are querying
+    is known to be secret.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return true if the secret operand at the given index requires a linearized input.",
+      /*retTy=*/"bool",
+      /*methodName=*/"requiresLinearKeyBasis",
+      /*args=*/(ins "unsigned":$operandIndex),
+      /*methodBody=*/[{}],
+      /*defaultImplementation=*/[{ return true; }]
+    >,
+  ];
 }
 
 def LimbwiseAttrInterface : AttrInterface<"LimbwiseAttrInterface"> {

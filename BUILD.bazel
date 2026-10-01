@@ -25,9 +25,8 @@ package_group(
 
 # copybara: fuzztest_ci_invocation
 
-# Disables deps for CI tools and tests.
-# use by passing `--//:enable_openmp=0` or `--//:enable_yosys=0`
-# to `bazel build` or `bazel test`
+# Disables OpenMP deps for CI tools and tests.
+# Use by passing `--//:enable_openmp=0` to `bazel build` or `bazel test`.
 
 # OpenMP
 string_flag(
@@ -51,23 +50,29 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-# Yosys
+# CHEDDAR GPU FHE backend (opt-in, requires CUDA).
+# Enable with `--config=cheddar`
 string_flag(
-    name = "enable_yosys",
-    build_setting_default = "1",
+    name = "enable_cheddar",
+    build_setting_default = "0",
 )
 
 config_setting(
-    name = "config_enable_yosys",
+    name = "config_enable_cheddar",
     flag_values = {
-        ":enable_yosys": "1",
+        ":enable_cheddar": "1",
     },
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
-    name = "config_disable_yosys",
+    name = "config_enable_cheddar_linux_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
     flag_values = {
-        ":enable_yosys": "0",
+        ":enable_cheddar": "1",
     },
 )
 

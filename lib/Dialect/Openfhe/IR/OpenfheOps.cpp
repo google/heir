@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -190,28 +191,33 @@ FastRotationExtOp::getRotationIndices() {
   return {getIndex()};
 }
 
-::mlir::OpOperand& ModReduceOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> ModReduceOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
-::mlir::OpOperand& ModReduceInPlaceOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> ModReduceInPlaceOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 int LevelReduceOp::getLevelsToDrop() {
   return static_cast<int>(getLevelToDrop());
 }
 
-::mlir::OpOperand& LevelReduceOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*> LevelReduceOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 int LevelReduceInPlaceOp::getLevelsToDrop() {
   return static_cast<int>(getLevelToDrop());
 }
 
-::mlir::OpOperand& LevelReduceInPlaceOp::getOperandToReduce() {
-  return getOperation()->getOpOperand(1);
+::llvm::SmallVector<::mlir::OpOperand*>
+LevelReduceInPlaceOp::getOperandsToReduce(
+    const ::mlir::DataFlowSolver* solver) {
+  return {&getOperation()->getOpOperand(1)};
 }
 
 ::mlir::OpOperand& BootstrapOp::getOperandToReset() {

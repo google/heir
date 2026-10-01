@@ -14,7 +14,7 @@
 func.func @test_valid_lwe_encode() {
     %0 = arith.constant 0 : i1
     // CHECK: constant_coefficient_encoding
-    %2 = lwe.encode %0 { plaintext_bits = 3 : index }: i1 to !plaintext
+    %2 = lwe.encode %0 <plaintext_bits = 3>: i1 to !plaintext
   return
 }
 
@@ -30,7 +30,7 @@ func.func @test_valid_lwe_encode() {
 // CHECK: test_valid_lwe_default_overflow
 func.func @test_valid_lwe_default_overflow() {
     %0 = arith.constant 0 : i1
-    %2 = lwe.encode %0 { plaintext_bits = 3 : index }: i1 to !plaintext_nooverflow
+    %2 = lwe.encode %0 <plaintext_bits = 3>: i1 to !plaintext_nooverflow
   return
 }
 

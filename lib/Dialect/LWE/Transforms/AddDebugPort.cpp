@@ -125,12 +125,16 @@ void insertValidationOps(func::FuncOp op,
   int count = 0;
   auto insertValidate = [&](Value value, OpBuilder& b) {
     Type valueType = value.getType();
-    if (isa<LWECiphertextType>(getElementTypeOrSelf(valueType))) {
-      if (isAlreadyDebugged(value, debugFuncNames)) return;
-      debug::ValidateOp::create(b, value.getLoc(), value,
-                                "heir_debug_" + std::to_string(count++),
-                                nullptr);
-    }
+    auto ctType = dyn_cast<LWECiphertextType>(getElementTypeOrSelf(valueType));
+    if (!ctType) return;
+    // Skip non-canonical (dimension > 2) ciphertexts. The raw product of two
+    // ciphertexts before relinearization carries an s^2 term that the
+    // decrypt-based debug hook cannot decrypt .
+    // The relinearized result is debugged on the next op.
+    if (ctType.getCiphertextSpace().getSize() > 2) return;
+    if (isAlreadyDebugged(value, debugFuncNames)) return;
+    debug::ValidateOp::create(b, value.getLoc(), value,
+                              "heir_debug_" + std::to_string(count++), nullptr);
   };
 
   Block& entryBlock = op.getBody().getBlocks().front();
@@ -152,7 +156,7 @@ void insertValidationOps(func::FuncOp op,
 
 LogicalResult lowerValidationOps(
     func::FuncOp op, SymbolTable& symbolTable, Value privateKey,
-    int messageSize, llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
+    int minSlotCount, llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
   auto module = op->getParentOfType<ModuleOp>();
   Type lwePrivateKeyType = privateKey.getType();
 
@@ -169,7 +173,7 @@ LogicalResult lowerValidationOps(
             b.getNamedAttr("debug.metadata", validateOp.getMetadataAttr()));
       }
       attrs.push_back(b.getNamedAttr(
-          "message.size", b.getStringAttr(std::to_string(messageSize))));
+          "message.size", b.getStringAttr(std::to_string(minSlotCount))));
 
       auto debugFunc = getOrCreateExternalDebugFunc(
           module, symbolTable, lwePrivateKeyType, valueType, typeToDebugFunc);
@@ -467,7 +471,7 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
 
       if (privateKey) {
         if (failed(lowerValidationOps(funcOp, symbolTable, privateKey,
-                                      messageSize, typeToDebugFunc))) {
+                                      minSlotCount, typeToDebugFunc))) {
           funcOp.emitError("failed to lower validation ops");
           return failure();
         }

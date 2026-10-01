@@ -63,7 +63,7 @@ class CoverageRunner:
 
     passes = (
         '--secretize "--annotate-module=backend=lattigo scheme=ckks"'
-        ' "--torch-linalg-to-ckks=ciphertext-degree=1024" --scheme-to-lattigo'
+        ' "--torch-linalg-to-ckks=min-slot-count=1024" --scheme-to-lattigo'
     )
     cmd = f"{self.heir_opt_path} {passes} {input_path}"
     result = self.executor.run(cmd)

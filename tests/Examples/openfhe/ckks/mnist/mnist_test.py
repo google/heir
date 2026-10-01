@@ -97,47 +97,52 @@ class MNISTTest(absl.testing.absltest.TestCase):
     )
 
     # Find all encrypt zero functions dynamically
-    zero_encrypt_func_names = sorted([
-        name for name in dir(mnist) if name.startswith("mnist__encrypt__zero__")
-    ])
-    zero_encrypt_funcs = [
-        getattr(mnist, name) for name in zero_encrypt_func_names
-    ]
+    zero_encrypt_func = getattr(mnist, "mnist__encrypt__zeros")
 
     # 4. Evaluation Loop
     total = 4
     correct = 0
     samples_processed = 0
 
+    # Load plaintext model for comparison
+    pt_model = torch.jit.load(MODEL_PATH)
+    pt_model.eval()
+
     for batch_data, batch_target in test_loader:
       if samples_processed >= total:
         break
 
       input_tensor = batch_data.contiguous()  # (1, 1, 28, 28)
+
+      # Run plaintext model
+      with torch.no_grad():
+        pt_output = pt_model(input_tensor.view(1, -1))
+        pt_output_list = pt_output.flatten().tolist()
+        pt_max_id = pt_output.argmax().item()
+        print(f"Plaintext output: {pt_output_list}")
+        print(f"Plaintext max_id: {pt_max_id}")
+
       input_vector = input_tensor.flatten().tolist()
       input_encrypted = mnist.mnist__encrypt__arg4(
           crypto_context, input_vector, public_key
       )
 
-      ct_zeros = [
-          func(crypto_context, public_key) for func in zero_encrypt_funcs
-      ]
+      ct_zeros = zero_encrypt_func(crypto_context, public_key)
 
       start_time = time.time()
       output_encrypted = mnist.mnist(
-          crypto_context, *weights[0:4], input_encrypted, *ct_zeros
+          crypto_context, *weights[0:4], input_encrypted, ct_zeros
       )
       end_time = time.time()
 
       time_elapsed_ms = (end_time - start_time) * 1000.0
       print(f"CPU time used: {time_elapsed_ms:.2f} ms")
 
-      output = [0.0] * 10
       output = mnist.mnist__decrypt__result0(
           crypto_context, output_encrypted, secret_key
       )
       label = batch_target.item()
-      max_id = max(range(len(output)), key=lambda index: output[index])
+      max_id = max(range(len(output)), key=lambda i: output[i])
 
       # NOTE: For the test to pass with the default placeholder 'output',
       # the `mnist__decrypt__result0` function must be fixed to return an
@@ -145,6 +150,7 @@ class MNISTTest(absl.testing.absltest.TestCase):
       if max_id == label:
         correct += 1
 
+      print(f"output: {output}")
       print(f"max_id: {max_id}, label: {label}")
       samples_processed += 1
 

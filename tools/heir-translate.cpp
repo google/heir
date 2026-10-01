@@ -5,6 +5,7 @@
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 // This comment includes internal emitters
+#include "lib/Target/Poulpy/PoulpyEmitter.h"
 #include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #include "lib/Target/SimFHE/SimFHEEmitter.h"
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
@@ -23,6 +24,9 @@ int main(int argc, char** argv) {
   mlir::heir::tfhe_rust::registerToTfheRustTranslation();
   mlir::heir::tfhe_rust::registerToTfheRustHLTranslation();
   mlir::heir::tfhe_rust_bool::registerToTfheRustBoolTranslation();
+
+  // poulpy output
+  mlir::heir::poulpy::registerToPoulpyTranslation();
 
   // jaxite output
   mlir::heir::jaxite::registerToJaxiteTranslation();

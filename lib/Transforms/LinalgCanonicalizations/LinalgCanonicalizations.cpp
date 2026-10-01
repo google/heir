@@ -510,8 +510,26 @@ struct LinalgGenericToElementwise
 
     for (auto& innerOp : genericOp.getBody()->getOperations()) {
       if (isa<linalg::YieldOp>(innerOp)) {
-        auto results = llvm::to_vector(llvm::map_range(
-            innerOp.getOperands(), [&](Value v) { return bvm.lookup(v); }));
+        SmallVector<Value> results;
+        results.reserve(innerOp.getNumOperands());
+        for (auto [idx, operand] : llvm::enumerate(innerOp.getOperands())) {
+          if (bvm.contains(operand)) {
+            results.push_back(bvm.lookup(operand));
+          } else if (operand.getParentBlock() != genericOp.getBody()) {
+            // If the yielded value is defined outside the generic op, we must
+            // splat it to match the output shape.
+            auto resultTensorType =
+                cast<RankedTensorType>(genericOp.getResult(idx).getType());
+            Value splatTensor = tensor::SplatOp::create(
+                rewriter, genericOp.getLoc(), resultTensorType, operand);
+            bvm.map(operand, splatTensor);
+            results.push_back(splatTensor);
+          } else {
+            return rewriter.notifyMatchFailure(
+                genericOp,
+                "yielded value defined inside generic but not mapped");
+          }
+        }
         rewriter.replaceOp(genericOp, results);
         break;
       }
@@ -1141,10 +1159,11 @@ struct MaterializeBroadcasts : public OpRewritePattern<linalg::GenericOp> {
 
     auto refOutput = genericOp.getDpsInitOperand(0)->get();
     auto refOutputType = cast<RankedTensorType>(refOutput.getType());
+    auto inputType = cast<RankedTensorType>(value.getType());
 
     auto emptyOp = tensor::EmptyOp::create(rewriter, genericOp.getLoc(),
                                            refOutputType.getShape(),
-                                           refOutputType.getElementType());
+                                           inputType.getElementType());
 
     auto broadcastOp = linalg::BroadcastOp::create(
         rewriter, genericOp.getLoc(), value, emptyOp.getResult(), addedDims);

@@ -138,11 +138,13 @@ cc_test(
         ":KernelImplementation",
         ":RotationCountVisitor",
         "@googletest//:gtest_main",
+        "@heir//lib/Utils:RotationUtils",
         "@heir//lib/Utils/Layout:Codegen",
         "@heir//lib/Utils/Layout:Convolution",
         "@heir//lib/Utils/Layout:ConvolutionTestUtil",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
@@ -163,6 +165,20 @@ cc_test(
 cc_test(
     name = "RotateAndReduceFuzzTest",
     srcs = ["RotateAndReduceFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        ":TestingUtils",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
+    name = "BroadcastedReduceFuzzTest",
+    srcs = ["BroadcastedReduceFuzzTest.cpp"],
     deps = [
         ":AbstractValue",
         ":ArithmeticDag",
@@ -212,5 +228,62 @@ cc_test(
         ":TestingUtils",
         "@fuzztest//fuzztest",
         "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
+    name = "BicyclicDiagonalMatmulFuzzTest",
+    srcs = ["BicyclicDiagonalMatmulFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:MathUtils",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "BicyclicMatmulFuzzTest",
+    srcs = ["BicyclicMatmulFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:MathUtils",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "TricyclicBatchMatmulFuzzTest",
+    srcs = ["TricyclicBatchMatmulFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:MathUtils",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )

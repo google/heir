@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=32 --split-input-file | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=32 --split-input-file | FileCheck %s
 
 // Splat tensor with dense layout.
 // Input tensor<32xi16> with splat 1, dense layout to 1x32 ciphertext.
@@ -10,7 +10,7 @@ module {
     // CHECK-NOT: func.call
     // CHECK: arith.constant dense<1> : tensor<1x32xi16>
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {layout = #layout_dense, tensor_ext.layout = #layout_dense} : tensor<32xi16>
+      %1 = tensor_ext.assign_layout %cst <layout = #layout_dense> {tensor_ext.layout = #layout_dense} : tensor<32xi16>
       secret.yield %1 : tensor<32xi16>
     } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout_dense})
     // CHECK: return
@@ -30,7 +30,7 @@ module {
     %cst = arith.constant dense<1> : tensor<16xi16>
     // CHECK: arith.constant dense<
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {layout = #layout_not_dense, tensor_ext.layout = #layout_not_dense} : tensor<16xi16>
+      %1 = tensor_ext.assign_layout %cst <layout = #layout_not_dense> {tensor_ext.layout = #layout_not_dense} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>
     } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout_not_dense})
     // CHECK: return
@@ -51,7 +51,7 @@ module {
       %c2 = arith.constant 2 : i16
       // CHECK-NOT: func.call
       // CHECK: arith.constant dense<2> : tensor<1x32xi16>
-      %1 = tensor_ext.assign_layout %c2 {layout = #layout_scalar, tensor_ext.layout = #layout_scalar} : i16
+      %1 = tensor_ext.assign_layout %c2 <layout = #layout_scalar> {tensor_ext.layout = #layout_scalar} : i16
       %2 = arith.muli %input, %1 {tensor_ext.layout = #layout_scalar} : i16
       secret.yield %2 : i16
     } -> (!secret.secret<i16> {tensor_ext.layout = #layout_scalar})
@@ -75,7 +75,7 @@ module {
     // CHECK: tensor.splat %[[input0]] : tensor<1x32xi16>
     %0 = secret.generic(%arg0 : i16) {
     ^body(%input: i16):
-      %1 = tensor_ext.assign_layout %input {layout = #layout_scalar, tensor_ext.layout = #layout_scalar} : i16
+      %1 = tensor_ext.assign_layout %input <layout = #layout_scalar> {tensor_ext.layout = #layout_scalar} : i16
       secret.yield %1 : i16
     } -> (!secret.secret<i16> {tensor_ext.layout = #layout_scalar})
     return %0 : !secret.secret<i16>
@@ -90,10 +90,11 @@ module {
 module {
   func.func @test_dense_resource_dense() -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout_dense_res}) {
     %cst = arith.constant dense_resource<resource1> : tensor<4xf32>
-    // CHECK: func.call
+    // CHECK: arith.constant dense_resource<resource1_packed> : tensor<1x32xf32>
+    // CHECK-NOT: func.call
     // CHECK: return
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {layout = #layout_dense_res, tensor_ext.layout = #layout_dense_res} : tensor<4xf32>
+      %1 = tensor_ext.assign_layout %cst <layout = #layout_dense_res> {tensor_ext.layout = #layout_dense_res} : tensor<4xf32>
       secret.yield %1 : tensor<4xf32>
     } -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout_dense_res})
     return %0 : !secret.secret<tensor<4xf32>>
@@ -107,6 +108,7 @@ module {
     }
   }
 #-}
+// CHECK: resource1_packed: "0x40000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000"
 
 // -----
 
@@ -118,7 +120,7 @@ module {
     // CHECK: arith.constant dense<{{.*}}> : tensor<1x32xi16>
     %cst = arith.constant dense<[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]> : tensor<16xi16>
     %0 = secret.generic() {
-      %1 = tensor_ext.assign_layout %cst {layout = #layout_not_dense, tensor_ext.layout = #layout_not_dense} : tensor<16xi16>
+      %1 = tensor_ext.assign_layout %cst <layout = #layout_not_dense> {tensor_ext.layout = #layout_not_dense} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>
     } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout_not_dense})
     // CHECK: return

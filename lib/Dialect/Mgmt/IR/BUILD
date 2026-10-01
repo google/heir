@@ -1,5 +1,5 @@
 load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
@@ -23,11 +23,11 @@ cc_library(
     ],
     deps = [
         ":attributes_inc_gen",
-        ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -41,7 +41,6 @@ td_library(
     name = "td_files",
     srcs = [
         "MgmtAttributes.td",
-        "MgmtCanonicalization.td",
         "MgmtDialect.td",
         "MgmtOps.td",
     ],
@@ -84,17 +83,5 @@ add_heir_dialect_library(
     td_file = "MgmtOps.td",
     deps = [
         ":td_files",
-    ],
-)
-
-gentbl_cc_library(
-    name = "canonicalize_inc_gen",
-    tbl_outs = {"MgmtCanonicalization.cpp.inc": ["-gen-rewriters"]},
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "MgmtCanonicalization.td",
-    deps = [
-        ":ops_inc_gen",
-        ":td_files",
-        "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )

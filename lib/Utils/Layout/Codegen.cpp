@@ -292,19 +292,26 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
           args = extendToCommonWidth(b, args, createdOpCallback);
         }
 
+        // Keep the comparison result as an i1. ISL keeps boolean and integer
+        // AST expressions distinct -- a comparison only ever feeds and/or
+        // (logical), select, or an `if` guard, never integer arithmetic -- so
+        // there is no need to widen it to an index 0/1.
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
         createdOpCallback(op);
-        auto indexCastOp = arith::IndexCastOp::create(b, b.getIndexType(), op);
-        createdOpCallback(indexCastOp);
-        return indexCastOp->getResult(0);
+        return op->getResult(0);
       } else if (type == isl_ast_op_select) {
-        // Select op
+        // Select op. The condition is a boolean expression, so it is already an
+        // i1; an index-typed condition from another path is still cast.
         SmallVector<Value> args = getArgs(expr);
-        auto condI1 = arith::IndexCastOp::create(b, b.getI1Type(), args[0]);
-        auto op = arith::SelectOp::create(b, condI1, args[1], args[2]);
+        Value cond = args[0];
+        if (!cond.getType().isInteger(1)) {
+          auto condI1 = arith::IndexCastOp::create(b, b.getI1Type(), cond);
+          createdOpCallback(condI1);
+          cond = condI1->getResult(0);
+        }
+        auto op = arith::SelectOp::create(b, cond, args[1], args[2]);
         createdOpCallback(op);
-        createdOpCallback(condI1);
         return op->getResult(0);
       }
 
@@ -494,15 +501,17 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   SmallVector<Value> incomingIterArgs(currentIterArgs_.begin(),
                                       currentIterArgs_.end());
 
-  // Build scf if operation with the result types of the iter args
-  // Convert condVal to an i1
-  auto condValI1 =
-      arith::IndexCastOp::create(builder_, builder_.getI1Type(), condVal);
+  Value condValI1 = condVal;
+  if (!condValI1.getType().isInteger(1)) {
+    auto cast =
+        arith::IndexCastOp::create(builder_, builder_.getI1Type(), condVal);
+    createdOpCallback_(cast);
+    condValI1 = cast->getResult(0);
+  }
   auto ifOp = scf::IfOp::create(builder_, currentLoc_,
                                 TypeRange(incomingIterArgs), condValI1,
                                 /*addThenBlock=*/true, /*addElseBlock=*/true);
   createdOpCallback_(ifOp);
-  createdOpCallback_(condValI1);
 
   isl_ast_node* thenNode = isl_ast_node_if_get_then_node(node);
   builder_.setInsertionPointToStart(&ifOp.getThenRegion().front());

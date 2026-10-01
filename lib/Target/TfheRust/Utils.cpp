@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
@@ -46,7 +47,8 @@ LogicalResult canEmitFuncForTfheRust(func::FuncOp& funcOp) {
               ::mlir::heir::tfhe_rust_bool::NorOp,
               ::mlir::heir::tfhe_rust_bool::NotOp,
               ::mlir::heir::tfhe_rust_bool::XorOp,
-              ::mlir::heir::tfhe_rust_bool::XnorOp>(
+              ::mlir::heir::tfhe_rust_bool::XnorOp,
+              ::mlir::heir::preprocessing::LoadResourceOp>(
             [&](auto op) { return WalkResult::advance(); })
         .Default([&](Operation* op) {
           llvm::errs()

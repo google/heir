@@ -1,6 +1,7 @@
 #ifndef LIB_UTILS_MATHUTILS_H_
 #define LIB_UTILS_MATHUTILS_H_
 
+#include <bit>
 #include <cstdint>
 #include <optional>
 
@@ -28,6 +29,12 @@ inline uint64_t nextPowerOfTwo(uint64_t v) {
 }
 
 inline bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
+
+// Levels consumed by Lattigo's polynomial evaluator for a Chebyshev polynomial
+// of the given degree: one per level of the binary evaluation tree.
+inline int lattigoChebyshevDepth(uint32_t degree) {
+  return std::bit_width(static_cast<uint64_t>(degree));
+}
 
 // Convert an input APFloat to the given semantics
 APFloat convertFloatToSemantics(APFloat value,

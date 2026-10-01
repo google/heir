@@ -4,7 +4,7 @@ module {
   func.func @test_lower_validate(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
     %0 = secret.generic(%arg0: !secret.secret<i32>) {
     ^body(%arg1: i32):
-      debug.validate %arg1 {name = "val1"} : i32
+      debug.validate %arg1 <name = "val1"> : i32
       secret.yield %arg1 : i32
     } -> !secret.secret<i32>
     return %0 : !secret.secret<i32>

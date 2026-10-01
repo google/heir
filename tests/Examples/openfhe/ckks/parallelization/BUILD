@@ -1,4 +1,4 @@
-load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test", "openfhe_interpreter_test")
+load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
@@ -35,22 +35,4 @@ openfhe_end_to_end_test(
     mlir_src = "parallelization.mlir",
     tags = ["notap"],
     test_src = "parallelization_skip_test.cpp",
-)
-
-openfhe_interpreter_test(
-    name = "parallelization_interpreter_test",
-    generated_heir_opt_filename = "module.openfhe.mlir",
-    heir_opt_flags = [
-        "--openfhe-fast-rotation-precompute",
-        "--boolean-vectorize",
-        "--canonicalize",
-        "--cse",
-        "--openfhe-alloc-to-inplace",
-    ],
-    mlir_src = "@heir//tests/Examples/openfhe/ckks/parallelization:parallelization.mlir",
-    test_src = "parallelization_interpreter_test.cpp",
-    deps = [
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Parser",
-    ],
 )

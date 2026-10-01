@@ -1,17 +1,17 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks=bootstrap-waterline=4 %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks="level-budget=4" %s | FileCheck %s
 
 #layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = f16, layout = #layout>
-module {
+module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
   // CHECK: func @bootstrap_waterline
   // CHECK-SAME: level = 4
-  // CHECK-COUNT-5: arith.mulf
+  // CHECK-COUNT-4: arith.mulf
   // CHECK-NOT: arith.mulf
   // CHECK: mgmt.bootstrap
   // CHECK-COUNT-4: arith.mulf
   // CHECK-NOT: arith.mulf
   // CHECK: mgmt.bootstrap
-  // CHECK-COUNT-2: arith.mulf
+  // CHECK-COUNT-3: arith.mulf
   // CHECK-NOT: arith.mulf
   // CHECK: secret.yield
   func.func @bootstrap_waterline(%arg0: !secret.secret<tensor<1x1024xf16>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf16>> {tensor_ext.original_type = #original_type}) {

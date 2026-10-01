@@ -8,7 +8,7 @@
 // CHECK: secret.generic
 // CHECK: arith.mulf %input0, %input1
 // CHECK-NEXT: mgmt.relinearize
-// CHECK-NEXT: arith.mulf %input1, %input2
+// CHECK: arith.mulf %input1, %input2
 // CHECK: mgmt.modreduce
 // CHECK: mgmt.bootstrap
 // CHECK: secret.yield

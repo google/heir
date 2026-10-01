@@ -9,6 +9,7 @@
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
+// This comment includes internal conversions
 #include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
@@ -17,6 +18,8 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
+#include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Cheddar/Transforms/CheddarBufferize.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Debug/Transforms/Passes.h"
@@ -24,6 +27,8 @@
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
 #include "lib/Dialect/JaxiteWord/Transforms/Passes.h"
+#include "lib/Dialect/Kernel/IR/KernelDialect.h"
+#include "lib/Dialect/Kernel/Transforms/Passes.h"
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
 #include "lib/Dialect/LWE/Conversions/LWEToJaxiteWord/LWEToJaxiteWord.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
@@ -43,6 +48,7 @@
 #include "lib/Dialect/Openfhe/Conversions/OpenFHEToEmitC/OpenfheToEmitCDialectInterface.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
+// This comment includes internal dialects
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
@@ -52,10 +58,12 @@
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Preprocessing/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/Transforms/Passes.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
+#include "lib/Dialect/ReducesLevelOpInterfaceRegistration.h"
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Transforms/Passes.h"
 #include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
@@ -76,7 +84,9 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
+// This comment includes internal pipelines
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Target/CompilationTarget/RegisterAllBackends.h"
 #include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
@@ -99,12 +109,14 @@
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/EmitCInterface/EmitCInterface.h"
+#include "lib/Transforms/ExternalizeConstants/ExternalizeConstants.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
 #include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/GatherZeroEncryptions/GatherZeroEncryptions.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/Halo/Passes.h"
 #include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
@@ -137,6 +149,8 @@
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#include "lib/Transforms/ValidateScale/ValidateScale.h"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -164,6 +178,7 @@
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
@@ -177,6 +192,7 @@
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/AllocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
@@ -192,14 +208,6 @@
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/InliningUtils.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
-
-#ifndef HEIR_NO_YOSYS
-#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
-#endif
-
-// This comment includes internal conversions
-// This comment includes internal dialects
-// This comment includes internal pipelines
 
 using namespace mlir;
 using namespace heir;
@@ -244,6 +252,7 @@ struct LLVMDummyInlinerInterface : public DialectInlinerInterface {
 }  // namespace
 
 int main(int argc, char** argv) {
+  registerAllBackends();
   mlir::DialectRegistry registry;
 
   // This comment inserts internal dialects
@@ -257,6 +266,7 @@ int main(int argc, char** argv) {
   registry.insert<debug::DebugDialect>();
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<jaxiteword::JaxiteWordDialect>();
+  registry.insert<kernel::KernelDialect>();
   registry.insert<key_mgmt::KeyMgmtDialect>();
   registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
@@ -320,6 +330,7 @@ int main(int argc, char** argv) {
   registerTransformsPasses();      // canonicalize, cse, etc.
   affine::registerAffinePasses();  // loop unrolling
   registerLinalgPasses();          // linalg to loops
+  memref::registerMemRefPasses();  // fold-memref-alias-ops, etc.
 
   // These are only needed by two tests that build a pass pipeline
   // from the CLI. Those tests can probably eventually be removed.
@@ -352,10 +363,12 @@ int main(int argc, char** argv) {
   bufferization::registerBufferizationPasses();
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  bufferization::registerBufferizableOpInterfaceExternalModels(registry);
   bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);
   cf::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
   registry.addExtension(+[](MLIRContext* ctx, LLVM::LLVMDialect* dialect) {
@@ -375,6 +388,11 @@ int main(int argc, char** argv) {
   cggi::registerCGGIPasses();
   debug::registerDebugPasses();
   ckks::registerCKKSPasses();
+  PassPipelineRegistration<>(
+      "cheddar-bufferize",
+      "Bufferize cheddar programs into out-params with One-Shot Bufferize",
+      cheddar::buildCheddarBufferizationPipeline);
+  kernel::registerKernelPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
@@ -392,6 +410,7 @@ int main(int argc, char** argv) {
   registerSecretizePasses();
   registerSecretInsertMgmtPasses();
   registerFullLoopUnrollPasses();
+  registerExternalizeConstantsPasses();
   registerConvertIfToSelectPasses();
   registerCompareToSignRewritePasses();
   registerActivationCanonicalizationsPasses();
@@ -413,6 +432,7 @@ int main(int argc, char** argv) {
   registerForwardInsertSliceToExtractSlicePasses();
   registerForwardInsertToExtractPasses();
   registerForwardStoreToLoadPasses();
+  registerGatherZeroEncryptionsPasses();
   registerGenerateParamPasses();
   registerHaloPasses();
   registerOperationBalancerPasses();
@@ -420,6 +440,7 @@ int main(int argc, char** argv) {
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerValidateNoisePasses();
+  registerValidateScalePasses();
   registerILPBootstrapPlacementPasses();
   registerOptimizeRelinearizationPasses();
   registerRemoveUnusedPureCallPasses();
@@ -443,8 +464,7 @@ int main(int argc, char** argv) {
   registerSoftmaxToCgfSoftmaxPasses();
   registerInlineActivationsPass();
   registerSplitPreprocessingPass();
-  // Register yosys optimizer pipeline if configured.
-#ifndef HEIR_NO_YOSYS
+  // Register the Yosys optimizer pipeline.
 #ifndef HEIR_ABC_BINARY
   llvm::errs() << "HEIR_ABC_BINARY #define not properly set";
   return EXIT_FAILURE;
@@ -469,13 +489,6 @@ int main(int argc, char** argv) {
       "Convert a func using standard MLIR dialects to FHE using "
       "CGGI.",
       mlirToCGGIPipelineBuilder(yosysRunfilesEnvPath, abcEnvPath));
-#else
-  PassPipelineRegistration<mlir::heir::MLIRToCGGIPipelineOptions>(
-      "mlir-to-cggi",
-      "Convert a func using standard MLIR dialects to FHE using "
-      "CGGI.",
-      mlirToCGGIPipelineBuilder());
-#endif
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();
@@ -516,11 +529,14 @@ int main(int argc, char** argv) {
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
+  cheddar::registerBufferizableOpInterfaceExternalModels(registry);
+  preprocessing::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);
   registerOperandLayoutRequirementOpInterface(registry);
   registerPlaintextOperandInterface(registry);
+  registerReducesLevelOpInterfaceExternalModels(registry);
 
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
@@ -538,7 +554,7 @@ int main(int argc, char** argv) {
       "tensor_ext.rotate",
       [](OpPassManager& pm, const LoopOptions& options) {
         ::mlir::heir::hecoSIMDVectorizerPipelineBuilder(
-            pm, options.experimentalDisableLoopUnroll);
+            pm, !options.unrollFheKernelLoops);
       });
 
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
@@ -622,7 +638,7 @@ int main(int argc, char** argv) {
       "math-to-polynomial-approximation",
       "Approximate math operations that cannot be expressed in FHE using "
       "polynomial approximations.",
-      mathToPolynomialApproximationBuilder);
+      [](OpPassManager& pm) { mathToPolynomialApproximationBuilder(pm); });
 
   PassPipelineRegistration<MlirToRLWEPipelineOptions>(
       "torch-linalg-to-ckks", "Convert linalg MLIR exported from torch to CKKS",

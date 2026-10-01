@@ -19,10 +19,10 @@ module attributes {scheme.ckks} {
   func.func @strips_existing_management(%arg0: !ct_ty) -> !ct_ty {
     %0 = secret.generic(%arg0: !ct_ty) {
     ^body(%input0: !pt_ty):
-      %old_adjust = mgmt.adjust_scale %input0 {id = 77 : i64} : !pt_ty
+      %old_adjust = mgmt.adjust_scale %input0 <id = 77> : !pt_ty
       %old_modreduce = mgmt.modreduce %old_adjust : !pt_ty
       %old_level_reduce = mgmt.level_reduce %old_modreduce
-          {levelToDrop = 2 : i64} : !pt_ty
+          <levelToDrop = 2> : !pt_ty
       %old_bootstrap = mgmt.bootstrap %old_level_reduce : !pt_ty
       %old_relinearize = mgmt.relinearize %old_bootstrap : !pt_ty
       %out = arith.addf %old_relinearize, %input0 : !pt_ty

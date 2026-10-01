@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <optional>
+#include <variant>
 
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/HEIRInterfaces.h"
@@ -11,15 +13,19 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -27,8 +33,6 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 #define DEBUG_TYPE "level-analysis"
-
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 
 namespace mlir {
 namespace heir {
@@ -52,18 +56,24 @@ namespace heir {
 };
 
 LevelState transferForward(ReducesLevelOpInterface op,
-                           ArrayRef<LevelState> operands) {
-  unsigned operandIdx = op.getOperandToReduce().getOperandNumber();
-  LevelState result = std::visit(
-      Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
-          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [&](int val) -> LevelState {
-            return LevelState(val + op.getLevelsToDrop());
-          },
-      },
-      operands[operandIdx].get());
+                           ArrayRef<LevelState> operands,
+                           const DataFlowSolver* solver) {
+  auto operandsToReduce = op.getOperandsToReduce(solver);
+  LevelState result;
+  for (auto* operand : operandsToReduce) {
+    unsigned operandIdx = operand->getOperandNumber();
+    LevelState opResult = std::visit(
+        Overloaded{
+            [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
+            [](Uninit) -> LevelState { return LevelState(Uninit{}); },
+            [](Invalid) -> LevelState { return LevelState(Invalid{}); },
+            [&](int val) -> LevelState {
+              return LevelState(val + op.getLevelsToDrop());
+            },
+        },
+        operands[operandIdx].get());
+    result = LevelState::join(result, opResult);
+  }
   LLVM_DEBUG(debugLog("ReduceLevelOpInterface", operands, result));
   return result;
 }
@@ -75,7 +85,7 @@ LevelState transferForward(ReducesAllLevelsOpInterface op,
           // MaxLevel -> MaxLevel should result in a no-op, so technically
           // acceptable.
           [](MaxLevel) -> LevelState { return LevelState(MaxLevel{}); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Uninit) -> LevelState { return LevelState(Uninit{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [](int val) -> LevelState { return LevelState(MaxLevel{}); },
       },
@@ -87,26 +97,38 @@ LevelState transferForward(ReducesAllLevelsOpInterface op,
 LevelState transferForward(ResetsLevelOpInterface op,
                            ArrayRef<LevelState> operands) {
   unsigned operandIdx = op.getOperandToReset().getOperandNumber();
+  auto module = op->getParentOfType<ModuleOp>();
+  FailureOr<CompilationTarget> target = getTargetConfig(module);
+  int64_t levelsConsumed = 0;
+  if (succeeded(target)) {
+    levelsConsumed = target->bootstrapLevelsConsumed;
+  } else {
+    op->emitOpError()
+        << "Could not determine bootstrapLevelsConsumed, defaulting to zero.";
+  }
+
   LevelState result = std::visit(
       Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(0); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [=](MaxLevel) -> LevelState { return LevelState(levelsConsumed); },
+          [](Uninit) -> LevelState { return LevelState(Uninit{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [](int val) -> LevelState { return LevelState(0); },
+          [=](int val) -> LevelState { return LevelState(levelsConsumed); },
       },
       operands[operandIdx].get());
   LLVM_DEBUG(debugLog("ResetsLevelOpInterface", operands, result));
   return result;
 }
 
-LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands) {
+LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands,
+                             const DataFlowSolver* solver) {
   return llvm::TypeSwitch<Operation*, LevelState>(op)
       .Case<ResetsLevelOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
       .Case<ReducesAllLevelsOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
-      .Case<ReducesLevelOpInterface>(
-          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Case<ReducesLevelOpInterface>([&](auto op) -> LevelState {
+        return transferForward(op, operands, solver);
+      })
       .Default([&](auto* op) -> LevelState {
         LevelState result;
         for (const auto& operand : operands) {
@@ -126,16 +148,42 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  if (hasUnknownSecretness(op)) {
+    return success();
+  }
+
   SmallVector<LevelState> operandStates;
   for (auto* operand : operands) {
     operandStates.push_back(operand->getValue());
   }
-  LevelState resultLevel = deriveResultLevel(op, operandStates);
+  bool operandsValid = llvm::all_of(operandStates, [](const LevelState& state) {
+    return !state.isInvalid();
+  });
+  LevelState resultLevel = deriveResultLevel(op, operandStates, &solverRef);
   if (resultLevel.isInt() && resultLevel.getInt() > levelBudget) {
     resultLevel = LevelState(Invalid{});
   }
+  if (resultLevel.isInvalid() && operandsValid) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "LevelAnalysis: Op " << *op
+                   << " became Invalid! Operands: ";
+      for (auto state : operandStates) {
+        state.print(llvm::dbgs());
+        llvm::dbgs() << ", ";
+      }
+      llvm::dbgs() << "\n";
+      for (Value operand : op->getOperands()) {
+        llvm::dbgs() << "  Operand: " << operand << "\n";
+        if (auto* defOp = operand.getDefiningOp()) {
+          llvm::dbgs() << "    Defined by: " << *defOp << "\n";
+        } else {
+          llvm::dbgs() << "    Block argument\n";
+        }
+      }
+    });
+  }
   for (auto result : op->getOpResults()) {
-    if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result)) {
+    if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result).value_or(false)) {
       propagate(result, resultLevel);
     }
   }
@@ -232,6 +280,9 @@ int getMaxLevel(Operation* top, DataFlowSolver* solver) {
   auto maxLevel = 0;
   walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      if (!isBlockLive(value.getParentBlock(), solver)) {
+        return;
+      }
       auto levelState = solver->lookupState<LevelLattice>(value)->getValue();
       if (levelState.isInt()) {
         int level = levelState.getInt();
@@ -267,6 +318,9 @@ void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel) {
 
   walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      if (!isBlockLive(value.getParentBlock(), solver)) {
+        return;
+      }
       int level = getLevel(value);
       setAttributeAssociatedWith(value, kArgLevelAttrName,
                                  getIntegerAttr(level));
@@ -296,6 +350,33 @@ std::optional<int> getMaxLevel(Operation* root) {
     }
   });
   return maxLevel;
+}
+
+LogicalResult validateLevelAnalysis(DataFlowSolver& solver, Operation* op) {
+  LogicalResult result = success();
+  op->walk([&](Operation* walkOp) {
+    auto checkValue = [&](Value value) {
+      if (mgmt::shouldHaveMgmtAttribute(value, &solver)) {
+        auto* lattice = solver.lookupState<LevelLattice>(value);
+        if (lattice && lattice->getValue().isInvalid()) {
+          emitError(value.getLoc()) << "value has invalid level: " << value;
+          result = failure();
+        }
+      }
+    };
+
+    for (Value result : walkOp->getResults()) {
+      checkValue(result);
+    }
+    for (Region& region : walkOp->getRegions()) {
+      for (Block& block : region.getBlocks()) {
+        for (BlockArgument arg : block.getArguments()) {
+          checkValue(arg);
+        }
+      }
+    }
+  });
+  return result;
 }
 
 }  // namespace heir

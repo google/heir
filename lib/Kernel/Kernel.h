@@ -29,6 +29,10 @@ struct FieldParser<heir::KernelName> {
     if (kernelName == "VecmatDiagonal") return heir::KernelName::VecmatDiagonal;
     if (kernelName == "MatmulDiagonal") return heir::KernelName::MatmulDiagonal;
     if (kernelName == "MatmulBicyclic") return heir::KernelName::MatmulBicyclic;
+    if (kernelName == "MatmulBicyclicDiagonal")
+      return heir::KernelName::MatmulBicyclicDiagonal;
+    if (kernelName == "BatchMatmulTricyclicDiagonal")
+      return heir::KernelName::BatchMatmulTricyclicDiagonal;
     if (kernelName == "BatchMatmulTricyclic")
       return heir::KernelName::BatchMatmulTricyclic;
     if (kernelName == "Dot") return heir::KernelName::Dot;

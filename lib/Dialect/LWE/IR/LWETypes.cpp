@@ -1,6 +1,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 
 #include <cstdint>
+#include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
@@ -109,6 +110,12 @@ LWECiphertextType cloneAtLevel(LWECiphertextType inputType, int64_t level) {
           ctx, newRing, inputType.getCiphertextSpace().getEncryptionType(),
           inputType.getCiphertextSpace().getSize()),
       lwe::KeyAttr::get(ctx, 0), newChain);
+}
+
+std::optional<int64_t> getLevel(LWECiphertextType ctType) {
+  auto modulusChain = ctType.getModulusChain();
+  if (!modulusChain) return std::nullopt;
+  return modulusChain.getCurrent();
 }
 
 }  // namespace lwe

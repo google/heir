@@ -17,14 +17,14 @@ module {
   // CHECK: func @test_module_create
   func.func @test_module_create() {
     // CHECK: poulpy.module_create
-    %mod = poulpy.module_create {N = 64 : i64} : () -> !module
+    %mod = poulpy.module_create <N = 64> : () -> !module
     return
   }
 
   // CHECK: func @test_scratch_alloc
   func.func @test_scratch_alloc() {
     // CHECK: poulpy.scratch_alloc
-    %scratch = poulpy.scratch_alloc {size = 1024 : i64} : () -> !scratch
+    %scratch = poulpy.scratch_alloc <size = 1024> : () -> !scratch
     return
   }
 
@@ -47,7 +47,7 @@ module {
   // CHECK: func @test_encode
   func.func @test_encode(%mod: !module, %pt: memref<!pt>, %re: memref<f64>, %im: memref<f64>) {
     // CHECK: poulpy.encode
-    poulpy.encode %mod, %pt, %re, %im {logDelta = 40 : i64, logBudget = 20 : i64} : (!module, memref<!pt>, memref<f64>, memref<f64>) -> ()
+    poulpy.encode %mod, %pt, %re, %im <logDelta = 40, logBudget = 20, base2k = 52> : (!module, memref<!pt>, memref<f64>, memref<f64>) -> ()
     return
   }
 
@@ -61,7 +61,7 @@ module {
   // CHECK: func @test_encrypt
   func.func @test_encrypt(%mod: !module, %ct: memref<!ct>, %pt: memref<!pt>, %sk: !sk, %scratch: !scratch) {
     // CHECK: poulpy.encrypt
-    poulpy.encrypt %mod, %ct, %pt, %sk, %scratch : (!module, memref<!ct>, memref<!pt>, !sk, !scratch) -> ()
+    poulpy.encrypt %mod, %ct, %pt, %sk, %scratch <base2k = 52, ctk = 300> : (!module, memref<!ct>, memref<!pt>, !sk, !scratch) -> ()
     return
   }
 
@@ -131,28 +131,28 @@ module {
   // CHECK: func @test_rotate
   func.func @test_rotate(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %akm: !akm, %scratch: !scratch) {
     // CHECK: poulpy.rotate
-    poulpy.rotate %mod, %dst, %src, %akm, %scratch {k = 1 : i64} : (!module, memref<!ct>, memref<!ct>, !akm, !scratch) -> ()
+    poulpy.rotate %mod, %dst, %src, %akm, %scratch <k = 1> : (!module, memref<!ct>, memref<!ct>, !akm, !scratch) -> ()
     return
   }
 
   // CHECK: func @test_rotate_assign
   func.func @test_rotate_assign(%mod: !module, %dst: memref<!ct>, %akm: !akm, %scratch: !scratch) {
     // CHECK: poulpy.rotate_assign
-    poulpy.rotate_assign %mod, %dst, %akm, %scratch {k = 1 : i64} : (!module, memref<!ct>, !akm, !scratch) -> ()
+    poulpy.rotate_assign %mod, %dst, %akm, %scratch <k = 1> : (!module, memref<!ct>, !akm, !scratch) -> ()
     return
   }
 
   // CHECK: func @test_rescale
   func.func @test_rescale(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %scratch: !scratch) {
     // CHECK: poulpy.rescale
-    poulpy.rescale %mod, %dst, %src, %scratch {bits = 40 : i64} : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
+    poulpy.rescale %mod, %dst, %src, %scratch <bits = 40> : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
     return
   }
 
   // CHECK: func @test_rescale_assign
   func.func @test_rescale_assign(%mod: !module, %dst: memref<!ct>, %scratch: !scratch) {
     // CHECK: poulpy.rescale_assign
-    poulpy.rescale_assign %mod, %dst, %scratch {bits = 40 : i64} : (!module, memref<!ct>, !scratch) -> ()
+    poulpy.rescale_assign %mod, %dst, %scratch <bits = 40> : (!module, memref<!ct>, !scratch) -> ()
     return
   }
 

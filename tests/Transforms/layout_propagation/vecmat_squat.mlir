@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-propagation=ciphertext-size=8 --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=min-slot-count=8 --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 // CHECK: func.func @vecmat_squat
 func.func @vecmat_squat(%arg0: !secret.secret<tensor<5xf32>>) -> !secret.secret<tensor<3xf32>> {

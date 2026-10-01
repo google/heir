@@ -259,7 +259,7 @@ func.func @test_lower_barrett_reduce(%arg : tensor<4xi10>) -> tensor<4xi10> {
   // CHECK: %[[MULCMOD:.*]] = arith.muli %[[SHIFTED]], %[[CMOD]] : [[INTER_TYPE]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[EXT]], %[[MULCMOD]] : [[INTER_TYPE]]
   // CHECK: %[[RES:.*]] = arith.trunci %[[SUB]] : [[INTER_TYPE]] to [[TENSOR_TYPE]]
-  %res = mod_arith.barrett_reduce %arg { modulus = 17 } : tensor<4xi10>
+  %res = mod_arith.barrett_reduce %arg <modulus = 17> : tensor<4xi10>
 
   // CHECK: return %[[RES]] : [[TENSOR_TYPE]]
   return %res : tensor<4xi10>
@@ -281,7 +281,7 @@ func.func @test_lower_barrett_reduce_int(%arg : i10) -> i10 {
   // CHECK: %[[MULCMOD:.*]] = arith.muli %[[SHIFTED]], %[[CMOD]] : [[INTER_TYPE]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[EXT]], %[[MULCMOD]] : [[INTER_TYPE]]
   // CHECK: %[[RES:.*]] = arith.trunci %[[SUB]] : [[INTER_TYPE]] to [[INT_TYPE]]
-  %res = mod_arith.barrett_reduce %arg { modulus = 17 } : i10
+  %res = mod_arith.barrett_reduce %arg <modulus = 17> : i10
 
   // CHECK: return %[[RES]] : [[INT_TYPE]]
   return %res : i10
@@ -300,7 +300,7 @@ func.func @test_lower_barrett_reduce_int(%arg : i10) -> i10 {
 // CHECK-SAME: (%[[ARG:.*]]: tensor<3xi11>) -> tensor<2xi11>
 func.func @test_lower_rns_extract_slice(%arg : !RNS) -> !RNS_slice {
   // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG]][1] [2] [1] : tensor<3xi11> to tensor<2xi11>
-  %res = rns.extract_slice %arg {start = 1 : index, size = 2 : index} : !RNS -> !RNS_slice
+  %res = rns.extract_slice %arg <start = 1, size = 2> : !RNS -> !RNS_slice
   // CHECK: return %[[SLICE]]
   return %res : !RNS_slice
 }
@@ -309,7 +309,7 @@ func.func @test_lower_rns_extract_slice(%arg : !RNS) -> !RNS_slice {
 // CHECK-SAME: (%[[ARG:.*]]: tensor<4x3xi11>) -> tensor<4x2xi11>
 func.func @test_lower_tensor_rns_extract_slice(%arg : tensor<4x!RNS>) -> tensor<4x!RNS_slice> {
   // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG]][0, 1] [4, 2] [1, 1] : tensor<4x3xi11> to tensor<4x2xi11>
-  %res = rns.extract_slice %arg {start = 1 : index, size = 2 : index} : tensor<4x!RNS> -> tensor<4x!RNS_slice>
+  %res = rns.extract_slice %arg <start = 1, size = 2> : tensor<4x!RNS> -> tensor<4x!RNS_slice>
   // CHECK: return %[[SLICE]]
   return %res : tensor<4x!RNS_slice>
 }

@@ -16,8 +16,8 @@ func.func @conv2d_nchw(%arg0: !secret.secret<tensor<1x1x10x10xf32>>) -> !secret.
     // CHECK: linalg.conv_2d_nchw_fchw
     // CHECK-SAME: heir.kernel_info = {gap_factor = 2 : i64, input_shape = array<i64: 1, 1, 10, 10>, result_shape = array<i64: 1, 1, 10, 10>}
     // CHECK-SAME: secret.kernel = #kernel
-    // CHECK-SAME: strides = dense<2> : tensor<2xi64>
     // CHECK-SAME: tensor_ext.layout
+    // CHECK-SAME: strides = dense<2> : tensor<2xi64>
     %1 = linalg.conv_2d_nchw_fchw
       { dilations = dense<1> : tensor<2xi64>, strides = dense<2> : tensor<2xi64> }
       ins(%input0, %filter : tensor<1x1x10x10xf32>, tensor<4x1x2x2xf32>)

@@ -42,7 +42,7 @@ module attributes {scheme.bgv} {
     %relin_res = openfhe.relin %cc, %mul_const_res : (!cc, !ct) -> !ct
     %mod_reduce_res = openfhe.mod_reduce %cc, %relin_res : (!cc, !ct) -> !ct
     %level_reduce_res = openfhe.level_reduce %cc, %mod_reduce_res : (!cc, !ct) -> !ct
-    %rotate_res = openfhe.rot %cc, %level_reduce_res { static_shift = 4 } : (!cc, !ct) -> !ct
+    %rotate_res = openfhe.rot %cc, %level_reduce_res <static_shift = 4> : (!cc, !ct) -> !ct
     %automorph_res = openfhe.automorph %cc, %rotate_res, %eval_key : (!cc, !ct, !ek) -> !ct
     %key_switch_res = openfhe.key_switch %cc, %automorph_res, %eval_key : (!cc, !ct, !ek) -> !ct
     return %key_switch_res: !ct
@@ -68,20 +68,20 @@ module attributes {scheme.bgv} {
 // CHECK-SAME: [0]
 module attributes {scheme.ckks} {
   func.func @simple_sum(%arg0: !openfhe.crypto_context, %arg1: !ct) -> !ct {
-    %1 = openfhe.rot %arg0, %arg1 { static_shift = 16 } : (!openfhe.crypto_context, !ct) -> !ct
+    %1 = openfhe.rot %arg0, %arg1 <static_shift = 16> : (!openfhe.crypto_context, !ct) -> !ct
     %2 = openfhe.add %arg0, %arg1, %1 : (!openfhe.crypto_context, !ct, !ct) -> !ct
-    %4 = openfhe.rot %arg0, %2 { static_shift = 8 } : (!openfhe.crypto_context, !ct) -> !ct
+    %4 = openfhe.rot %arg0, %2 <static_shift = 8> : (!openfhe.crypto_context, !ct) -> !ct
     %5 = openfhe.add %arg0, %2, %4 : (!openfhe.crypto_context, !ct, !ct) -> !ct
-    %7 = openfhe.rot %arg0, %5 { static_shift = 4 } : (!openfhe.crypto_context, !ct) -> !ct
+    %7 = openfhe.rot %arg0, %5 <static_shift = 4> : (!openfhe.crypto_context, !ct) -> !ct
     %8 = openfhe.add %arg0, %5, %7 : (!openfhe.crypto_context, !ct, !ct) -> !ct
-    %10 = openfhe.rot %arg0, %8 { static_shift = 2 } : (!openfhe.crypto_context, !ct) -> !ct
+    %10 = openfhe.rot %arg0, %8 <static_shift = 2> : (!openfhe.crypto_context, !ct) -> !ct
     %11 = openfhe.add %arg0, %8, %10 : (!openfhe.crypto_context, !ct, !ct) -> !ct
-    %13 = openfhe.rot %arg0, %11 { static_shift = 1 } : (!openfhe.crypto_context, !ct) -> !ct
+    %13 = openfhe.rot %arg0, %11 <static_shift = 1> : (!openfhe.crypto_context, !ct) -> !ct
     %14 = openfhe.add %arg0, %11, %13 : (!openfhe.crypto_context, !ct, !ct) -> !ct
     %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
     %15 = openfhe.make_packed_plaintext %arg0, %cst : (!openfhe.crypto_context, tensor<32xi16>) -> !pt
     %16 = openfhe.mul_plain %arg0, %14, %15 : (!openfhe.crypto_context, !ct, !pt) -> !ct
-    %18 = openfhe.rot %arg0, %16 { static_shift = 31 } : (!openfhe.crypto_context, !ct) -> !ct
+    %18 = openfhe.rot %arg0, %16 <static_shift = 31> : (!openfhe.crypto_context, !ct) -> !ct
     return %18 : !ct
   }
   func.func @simple_sum__encrypt(%arg0: !openfhe.crypto_context, %arg1: tensor<32xi16>, %arg2: !openfhe.public_key) -> !ct {
@@ -135,8 +135,8 @@ module attributes {scheme.bgv} {
 // CHECK-NOT: SetPlaintextModulus
 module attributes {scheme.ckks} {
   func.func @test_ckks_no_plaintext_modulus() -> !openfhe.crypto_context {
-    %0 = openfhe.gen_params  {insecure = false, mulDepth = 2 : i64, plainMod = 0 : i64, evalAddCount = 0 : i64, keySwitchCount = 0 : i64, encryptionTechniqueExtended = false} : () -> !openfhe.cc_params
-    %1 = openfhe.gen_context %0 {supportFHE = false} : (!openfhe.cc_params) -> !openfhe.crypto_context
+    %0 = openfhe.gen_params  <mulDepth = 2, plainMod = 0, evalAddCount = 0, keySwitchCount = 0, insecure = false, encryptionTechniqueExtended = false> : () -> !openfhe.cc_params
+    %1 = openfhe.gen_context %0 <supportFHE = false> : (!openfhe.cc_params) -> !openfhe.crypto_context
     return %1 : !openfhe.crypto_context
   }
 }
@@ -203,7 +203,7 @@ module attributes {scheme.bgv} {
     // CHECK: [[PARAMS]].SetEncryptionTechnique(EXTENDED);
     // CHECK: [[PARAMS]].SetKeySwitchTechnique(BV);
     // CHECK: [[PARAMS]].SetScalingTechnique(FIXEDMANUAL);
-    %0 = openfhe.gen_params  {mulDepth = 2 : i64, plainMod = 17 : i64, ringDim = 16384, batchSize = 8, firstModSize = 59, scalingModSize = 59, evalAddCount = 2 : i64, keySwitchCount = 1 : i64, digitSize = 16, numLargeDigits = 2, maxRelinSkDeg = 3, insecure = true, encryptionTechniqueExtended = true, keySwitchingTechniqueBV = true, scalingTechniqueFixedManual = true} : () -> !openfhe.cc_params
+    %0 = openfhe.gen_params  <mulDepth = 2, plainMod = 17, ringDim = 16384, batchSize = 8, firstModSize = 59, scalingModSize = 59, evalAddCount = 2, keySwitchCount = 1, digitSize = 16, numLargeDigits = 2, maxRelinSkDeg = 3, insecure = true, encryptionTechniqueExtended = true, keySwitchingTechniqueBV = true, scalingTechniqueFixedManual = true> : () -> !openfhe.cc_params
     return %0 : !openfhe.cc_params
   }
 }
@@ -384,7 +384,7 @@ module attributes {scheme.ckks} {
   func.func @test_fast_rot(%cc: !cc, %input1: !ct) -> !ct {
     %c4 = arith.constant 4 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
-    %res = openfhe.fast_rotation %cc, %input1, %c4, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %res = openfhe.fast_rotation %cc, %input1, %c4, %precomp <cyclotomicOrder = 64> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
     return %res : !ct
   }
 }
@@ -409,8 +409,8 @@ module attributes {scheme.ckks} {
     %c1 = arith.constant 1 : index
     %c2 = arith.constant 2 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
-    %rot1 = openfhe.fast_rotation_ext %cc, %input1, %c1, %precomp {addFirst = true} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
-    %rot2 = openfhe.fast_rotation_ext %cc, %input1, %c2, %precomp {addFirst = false} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %rot1 = openfhe.fast_rotation_ext %cc, %input1, %c1, %precomp <addFirst = true> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %rot2 = openfhe.fast_rotation_ext %cc, %input1, %c2, %precomp <addFirst = false> : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
     %sum = openfhe.add %cc, %rot1, %rot2 : (!cc, !ct, !ct) -> !ct
     %result = openfhe.key_switch_down %cc, %sum : (!cc, !ct) -> !ct
     return %result : !ct

@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 --verify-diagnostics
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 --verify-diagnostics
 // Test that a reduction over 2 dimensions fails
 #layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 module {
@@ -12,7 +12,7 @@ module {
         linalg.yield %3 : f32
       }
     %1 = secret.conceal %reduced : tensor<f32> -> !secret.secret<tensor<f32>>
-    %2 = tensor_ext.assign_layout %1 {layout = #layout, tensor_ext.layout = #layout} : !secret.secret<tensor<f32>>
+    %2 = tensor_ext.assign_layout %1 <layout = #layout> {tensor_ext.layout = #layout} : !secret.secret<tensor<f32>>
     // expected-error @+1 {{unexpected unrealized conversion cast op found}}
     return %2 : !secret.secret<tensor<f32>>
   }

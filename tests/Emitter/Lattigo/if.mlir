@@ -18,7 +18,7 @@ module attributes {scheme.bgv} {
   func.func @test_scf_if(%evaluator: !evaluator, %ct: !ct) -> !ct {
     %0 = arith.constant 1 : i1
     %1 = scf.if %0 -> !ct {
-      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %ct {static_shift = 1} : (!evaluator, !ct) -> !ct
+      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %ct <static_shift = 1> : (!evaluator, !ct) -> !ct
       scf.yield %ct_12 : !ct
     } else {
       scf.yield %ct : !ct

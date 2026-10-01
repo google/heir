@@ -26,6 +26,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FileSystem.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
@@ -172,12 +173,11 @@ struct RelativeOptimizationStatistics {
 struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   using YosysOptimizerBase::YosysOptimizerBase;
 
-  YosysOptimizer(std::string yosysFilesPath, std::string abcPath, bool abcFast,
+  YosysOptimizer(std::string yosysFilesPath, std::string abcPath,
                  int unrollFactor, bool useSubmodules, Mode mode,
                  bool printStats)
       : yosysFilesPath(std::move(yosysFilesPath)),
         abcPath(std::move(abcPath)),
-        abcFast(abcFast),
         printStats(printStats),
         unrollFactor(unrollFactor),
         useSubmodules(useSubmodules),
@@ -195,7 +195,6 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   // Path to ABC binary.
   std::string abcPath;
 
-  bool abcFast;
   bool printStats;
   int unrollFactor;
   bool useSubmodules;
@@ -447,12 +446,17 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   // unsupported operations.
   LLVM_DEBUG(op.emitRemark() << "Emitting verilog for this op");
 
-  char* filename = std::tmpnam(nullptr);
-  std::error_code ec;
-  llvm::raw_fd_ostream of(filename, ec);
+  int fd;
+  llvm::SmallString<128> tempFilename;
+  if (auto ec = llvm::sys::fs::createTemporaryFile("heir_yosys", "sv", fd,
+                                                   tempFilename)) {
+    op.emitError() << "Failed to create temporary file for verilog: "
+                   << ec.message();
+    return failure();
+  }
+  llvm::raw_fd_ostream of(fd, /*shouldClose=*/true);
   if (failed(translateToVerilog(op, of, moduleName,
-                                /*allowSecretOps=*/true)) ||
-      ec) {
+                                /*allowSecretOps=*/true))) {
     op.emitError() << "Failed to translate to verilog";
     of.close();
     return failure();
@@ -477,20 +481,17 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                               : mode == Mode::LUT4 ? "LUT4 cells"
                                                    : "boolean gates"));
 
-  auto yosysTemplate =
-      llvm::formatv(kYosysLut3Template.data(), filename, moduleName,
-                    yosysFilesPath, abcPath, abcFast ? "-fast" : "")
-          .str();
+  auto yosysTemplate = llvm::formatv(kYosysLut3Template.data(), tempFilename,
+                                     moduleName, yosysFilesPath, abcPath, "")
+                           .str();
   if (mode == Mode::LUT4) {
-    yosysTemplate =
-        llvm::formatv(kYosysLut4Template.data(), filename, moduleName,
-                      yosysFilesPath, abcPath, abcFast ? "-fast" : "")
-            .str();
+    yosysTemplate = llvm::formatv(kYosysLut4Template.data(), tempFilename,
+                                  moduleName, yosysFilesPath, abcPath, "")
+                        .str();
   } else if (mode == Mode::Boolean) {
-    yosysTemplate =
-        llvm::formatv(kYosysBooleanTemplate.data(), filename, moduleName,
-                      abcPath, yosysFilesPath, abcFast ? "-fast" : "")
-            .str();
+    yosysTemplate = llvm::formatv(kYosysBooleanTemplate.data(), tempFilename,
+                                  moduleName, abcPath, yosysFilesPath, "")
+                        .str();
   }
 
   Yosys::run_pass(yosysTemplate);
@@ -713,11 +714,10 @@ void YosysOptimizer::runOnOperation() {
 }
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
-    const std::string& yosysFilesPath, const std::string& abcPath, bool abcFast,
+    const std::string& yosysFilesPath, const std::string& abcPath,
     int unrollFactor, bool useSubmodules, Mode mode, bool printStats) {
-  return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast,
-                                          unrollFactor, useSubmodules, mode,
-                                          printStats);
+  return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, unrollFactor,
+                                          useSubmodules, mode, printStats);
 }
 
 void registerYosysOptimizerPipeline(const std::string& yosysFilesPath,
@@ -727,7 +727,7 @@ void registerYosysOptimizerPipeline(const std::string& yosysFilesPath,
       [yosysFilesPath, abcPath](OpPassManager& pm,
                                 const YosysOptimizerPipelineOptions& options) {
         pm.addPass(createYosysOptimizer(
-            yosysFilesPath, abcPath, options.abcFast, options.unrollFactor,
+            yosysFilesPath, abcPath, options.unrollFactor,
             options.useSubmodules, options.mode, options.printStats));
         pm.addPass(mlir::createCSEPass());
       });

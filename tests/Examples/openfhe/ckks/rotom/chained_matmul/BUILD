@@ -12,7 +12,7 @@ openfhe_lib(
     generated_lib_header = "chained_matmul_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=4096 enable-arithmetization=false scaling-mod-bits=45",
+        "--mlir-to-ckks=min-slot-count=4096 enable-arithmetization=false scaling-mod-bits=45",
         "--scheme-to-openfhe",
     ],
     heir_translate_flags = [],

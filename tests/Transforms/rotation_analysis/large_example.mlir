@@ -1,7 +1,7 @@
 // RUN: heir-opt --rotation-analysis --split-input-file %s | FileCheck %s
 
 // Generated with
-// heir-opt "--annotate-module=backend=lattigo scheme=ckks" "--mlir-to-ckks=ciphertext-degree=1024 level-budget=2 modulus-switch-after-mul=true experimental-disable-loop-unroll=true first-mod-bits=55" --scheme-to-lattigo --dump-pass-pipeline --mlir-print-ir-before-all --mlir-print-ir-tree-dir=/tmp/mlir $PWD/tests/Examples/common/matvec_512x784.mlir
+// heir-opt "--annotate-module=backend=lattigo scheme=ckks" "--mlir-to-ckks=min-slot-count=1024 greedy-level-budget=2 greedy-modulus-switch-after-mul=true unroll-fhe-kernel-loops=false first-mod-bits=55" --scheme-to-lattigo --dump-pass-pipeline --mlir-print-ir-before-all --mlir-print-ir-tree-dir=/tmp/mlir $PWD/tests/Examples/common/matvec_512x784.mlir
 //
 // Then copied as
 // cp /tmp/mlir/builtin_module_no-symbol-name/89_lattigo-configure-crypto-context.mlir tests/Transforms/rotation_analysis/large_example.mlir
@@ -20,7 +20,7 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 512 = 0 and 0 <= i0 <= 511 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<512xf32>, layout = #layout>
 module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797017456641, 35184372121601], P = [1152921504607338497], logDefaultScale = 45, encryptionTechnique = extended>, scheme.actual_slot_count = 8192 : i64, scheme.ckks, scheme.requested_slot_count = 8192 : i64} {
-  func.func private @_assign_layout_4710750956904016321() -> tensor<512x1024xf32> attributes {client.pack_func = {func_name = "matvec"}} {
+  func.func private @_assign_layout_4710750956904016321() -> tensor<512x1024xf32> attributes {heir.interface = {func_name = "matvec", roles = ["client.pack"]}} {
     %c512_i32 = arith.constant 512 : i32
     %c1024_i32 = arith.constant 1024 : i32
     %c240_i32 = arith.constant 240 : i32
@@ -61,12 +61,12 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     %0 = call @_assign_layout_4710750956904016321() : () -> tensor<512x1024xf32>
     %extracted_slice = tensor.extract_slice %0[0, 0] [1, 1024] [1, 1] : tensor<512x1024xf32> to tensor<1024xf32>
     %pt = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-    %pt_1 = lattigo.ckks.encode %encoder, %extracted_slice, %pt {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+    %pt_1 = lattigo.ckks.encode %encoder, %extracted_slice, %pt <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
     %extracted = tensor.extract %arg0[%c0] : tensor<1x!ct>
     %ct_2 = lattigo.ckks.mul_new %evaluator, %extracted, %pt_1 : (!evaluator, !ct, !pt) -> !ct
     %ct_3 = lattigo.ckks.rescale_new %evaluator, %ct_2 : (!evaluator, !ct) -> !ct
     %pt_4 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-    %pt_5 = lattigo.ckks.encode %encoder, %cst, %pt_4 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+    %pt_5 = lattigo.ckks.encode %encoder, %cst, %pt_4 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
     %1 = tensor.empty() : tensor<1x!ct>
     %ct_6 = lattigo.ckks.add_new %evaluator, %ct_3, %pt_5 : (!evaluator, !ct, !pt) -> !ct
     %inserted = tensor.insert %ct_6 into %1[%c0] : tensor<1x!ct>
@@ -78,11 +78,11 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
         %ct_16 = lattigo.ckks.rotate_new %evaluator, %extracted, %arg1 : (!evaluator, !ct, index) -> !ct
         %extracted_slice_17 = tensor.extract_slice %0[%arg1, 0] [1, 1024] [1, 1] : tensor<512x1024xf32> to tensor<1024xf32>
         %pt_18 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-        %pt_19 = lattigo.ckks.encode %encoder, %extracted_slice_17, %pt_18 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+        %pt_19 = lattigo.ckks.encode %encoder, %extracted_slice_17, %pt_18 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
         %ct_20 = lattigo.ckks.mul_new %evaluator, %ct_16, %pt_19 : (!evaluator, !ct, !pt) -> !ct
         %ct_21 = lattigo.ckks.rescale_new %evaluator, %ct_20 : (!evaluator, !ct) -> !ct
         %pt_22 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-        %pt_23 = lattigo.ckks.encode %encoder, %cst_0, %pt_22 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+        %pt_23 = lattigo.ckks.encode %encoder, %cst_0, %pt_22 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
         %ct_24 = lattigo.ckks.mul_new %evaluator, %ct_15, %pt_23 : (!evaluator, !ct, !pt) -> !ct
         %ct_25 = lattigo.ckks.rescale_new %evaluator, %ct_24 : (!evaluator, !ct) -> !ct
         %ct_26 = lattigo.ckks.add_new %evaluator, %ct_25, %ct_21 : (!evaluator, !ct, !ct) -> !ct
@@ -99,7 +99,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
         %ct_16 = lattigo.ckks.rotate_new %evaluator, %extracted, %6 : (!evaluator, !ct, index) -> !ct
         %extracted_slice_17 = tensor.extract_slice %0[%6, 0] [1, 1024] [1, 1] : tensor<512x1024xf32> to tensor<1024xf32>
         %pt_18 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-        %pt_19 = lattigo.ckks.encode %encoder, %extracted_slice_17, %pt_18 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+        %pt_19 = lattigo.ckks.encode %encoder, %extracted_slice_17, %pt_18 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
         %ct_20 = lattigo.ckks.mul_new %evaluator, %ct_16, %pt_19 : (!evaluator, !ct, !pt) -> !ct
         %ct_21 = lattigo.ckks.rescale_new %evaluator, %ct_20 : (!evaluator, !ct) -> !ct
         %extracted_22 = tensor.extract %5[%c0] : tensor<1x!ct>
@@ -132,7 +132,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
         %inserted_slice_23 = tensor.insert_slice %extracted_slice_22 into %inserted_slice[0, 0] [1, %12] [1, 1] : tensor<1x?xf32> into tensor<1x1024xf32>
         %extracted_slice_24 = tensor.extract_slice %inserted_slice_23[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
         %pt_25 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-        %pt_26 = lattigo.ckks.encode %encoder, %extracted_slice_24, %pt_25 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+        %pt_26 = lattigo.ckks.encode %encoder, %extracted_slice_24, %pt_25 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
         %ct_27 = lattigo.ckks.mul_new %evaluator, %extracted, %pt_26 : (!evaluator, !ct, !pt) -> !ct
         %ct_28 = lattigo.ckks.rescale_new %evaluator, %ct_27 : (!evaluator, !ct) -> !ct
         %ct_29 = lattigo.ckks.add_new %evaluator, %ct_28, %pt_5 : (!evaluator, !ct, !pt) -> !ct
@@ -164,11 +164,11 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
           %ct_26 = lattigo.ckks.rotate_new %evaluator, %extracted, %arg3 : (!evaluator, !ct, index) -> !ct
           %extracted_slice_27 = tensor.extract_slice %inserted_slice_25[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
           %pt_28 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-          %pt_29 = lattigo.ckks.encode %encoder, %extracted_slice_27, %pt_28 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+          %pt_29 = lattigo.ckks.encode %encoder, %extracted_slice_27, %pt_28 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
           %ct_30 = lattigo.ckks.mul_new %evaluator, %ct_26, %pt_29 : (!evaluator, !ct, !pt) -> !ct
           %ct_31 = lattigo.ckks.rescale_new %evaluator, %ct_30 : (!evaluator, !ct) -> !ct
           %pt_32 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-          %pt_33 = lattigo.ckks.encode %encoder, %cst_0, %pt_32 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+          %pt_33 = lattigo.ckks.encode %encoder, %cst_0, %pt_32 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
           %ct_34 = lattigo.ckks.mul_new %evaluator, %ct_22, %pt_33 : (!evaluator, !ct, !pt) -> !ct
           %ct_35 = lattigo.ckks.rescale_new %evaluator, %ct_34 : (!evaluator, !ct) -> !ct
           %ct_36 = lattigo.ckks.add_new %evaluator, %ct_35, %ct_31 : (!evaluator, !ct, !ct) -> !ct
@@ -196,7 +196,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
           %ct_26 = lattigo.ckks.rotate_new %evaluator, %extracted, %11 : (!evaluator, !ct, index) -> !ct
           %extracted_slice_27 = tensor.extract_slice %inserted_slice_25[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
           %pt_28 = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-          %pt_29 = lattigo.ckks.encode %encoder, %extracted_slice_27, %pt_28 {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+          %pt_29 = lattigo.ckks.encode %encoder, %extracted_slice_27, %pt_28 <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
           %ct_30 = lattigo.ckks.mul_new %evaluator, %ct_26, %pt_29 : (!evaluator, !ct, !pt) -> !ct
           %ct_31 = lattigo.ckks.rescale_new %evaluator, %ct_30 : (!evaluator, !ct) -> !ct
           %extracted_32 = tensor.extract %10[%c0] : tensor<1x!ct>
@@ -221,14 +221,14 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     %inserted_13 = tensor.insert %ct_12 into %1[%c0] : tensor<1x!ct>
     return %inserted_13 : tensor<1x!ct>
   }
-  func.func @matvec__encrypt__zero__0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk) -> !ct attributes {client.enc_zero_func} {
+  func.func @matvec__encrypt__zero__0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk) -> !ct attributes {heir.interface = {roles = ["client.encrypt_zero"]}} {
     %cst = arith.constant dense<0.000000e+00> : tensor<8192xf64>
     %pt = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-    %pt_0 = lattigo.ckks.encode %encoder, %cst, %pt {scale = 45 : i64} : (!encoder, tensor<8192xf64>, !pt) -> !pt
+    %pt_0 = lattigo.ckks.encode %encoder, %cst, %pt <scale = 45> : (!encoder, tensor<8192xf64>, !pt) -> !pt
     %ct = lattigo.rlwe.encrypt %encryptor, %pt_0 : (!encryptor_pk, !pt) -> !ct
     return %ct : !ct
   }
-  func.func @matvec__encrypt__arg0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk, %arg0: tensor<784xf32>) -> tensor<1x!ct> attributes {client.enc_func = {func_name = "matvec", index = 0 : i64}} {
+  func.func @matvec__encrypt__arg0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk, %arg0: tensor<784xf32>) -> tensor<1x!ct> attributes {heir.interface = {func_name = "matvec", index = 0 : i64, roles = ["client.encrypt"]}} {
     %c0 = arith.constant 0 : index
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
     %c0_i32 = arith.constant 0 : i32
@@ -242,12 +242,12 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     }
     %extracted_slice = tensor.extract_slice %0[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     %pt = lattigo.ckks.new_plaintext %param : (!param) -> !pt
-    %pt_0 = lattigo.ckks.encode %encoder, %extracted_slice, %pt {scale = 45 : i64} : (!encoder, tensor<1024xf32>, !pt) -> !pt
+    %pt_0 = lattigo.ckks.encode %encoder, %extracted_slice, %pt <scale = 45> : (!encoder, tensor<1024xf32>, !pt) -> !pt
     %ct = lattigo.rlwe.encrypt %encryptor, %pt_0 : (!encryptor_pk, !pt) -> !ct
     %from_elements = tensor.from_elements %ct : tensor<1x!ct>
     return %from_elements : tensor<1x!ct>
   }
-  func.func @matvec__decrypt__result0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %decryptor: !decryptor, %arg0: tensor<1x!ct>) -> tensor<512xf32> attributes {client.dec_func = {func_name = "matvec", index = 0 : i64}} {
+  func.func @matvec__decrypt__result0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %decryptor: !decryptor, %arg0: tensor<1x!ct>) -> tensor<512xf32> attributes {heir.interface = {func_name = "matvec", index = 0 : i64, roles = ["client.decrypt"]}} {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
     %c0 = arith.constant 0 : index
     %c1024_i32 = arith.constant 1024 : i32

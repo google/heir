@@ -24,6 +24,13 @@
 !ct_L1_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L7_C1>
 
 module attributes {scheme.ckks} {
+  // CHECK: func.func @add_plain(
+  func.func @add_plain(%ctx: !jaxiteword.crypto_context<>, %ct: !ct_L1, %pt: !pt) -> !ct_L1 {
+    // CHECK: jaxiteword.add_plain
+    %0 = jaxiteword.add_plain %ctx, %ct, %pt : (!jaxiteword.crypto_context<>, !ct_L1, !pt) -> !ct_L1
+    return %0 : !ct_L1
+  }
+
   // CHECK: func.func @simple_mul(
   func.func @simple_mul(%arg0: !jaxiteword.crypto_context<>, %arg1: !jaxiteword.eval_key<>, %arg2: tensor<1x!ct_L1> {tensor_ext.original_type = #original_type}, %arg3: tensor<1x!ct_L1> {tensor_ext.original_type = #original_type}) -> (tensor<1x!ct_L0> {tensor_ext.original_type = #original_type}) {
     %c0 = arith.constant 0 : index

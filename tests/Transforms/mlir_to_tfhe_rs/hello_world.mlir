@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-tfhe-rs %s | FileCheck %s
+// RUN: heir-opt --mlir-to-cggi --scheme-to-tfhe-rs %s | FileCheck %s
 
 // CHECK: module
 #map = affine_map<(d0, d1) -> (d1)>

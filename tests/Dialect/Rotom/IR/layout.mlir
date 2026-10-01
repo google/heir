@@ -24,7 +24,7 @@ func.func private @split_ok(tensor<16xi32> {foo.bar = #split_ok})
 
 // The slot side must fill the ciphertext exactly; a written layout may not
 // leave capacity implicit.
-#underfilled = #rotom.layout<n = 8, dims = [[0:4:1]]> // expected-error {{slot dims must fill the ciphertext exactly (slot extent 4 vs n = 8); spell unused capacity as an explicit gap piece}}
+#underfilled = #rotom.layout<n = 8, dims = [[0:4:1]]> // expected-error {{slot dims must fill the ciphertext exactly (slot extent 4 vs n = 8); state unused capacity as an explicit gap piece}}
 func.func private @underfilled(tensor<16xi32> {foo.bar = #underfilled})
 
 // -----
@@ -61,3 +61,23 @@ func.func private @uneven_roll(tensor<16xi32> {foo.bar = #uneven_roll})
 // blocks would repeat rotations the accounting was not audited for.
 #big_gap_roll = #rotom.layout<n = 8, rolls = [(0, 1)], dims = [#t | #g]> // expected-error {{a rolled-by gap dim must not exceed the rolled dim's extent}}
 func.func private @big_gap_roll(tensor<32xi32> {foo.bar = #big_gap_roll})
+
+// -----
+
+// An `axis` argument rolls the whole split axis: legal when the axis has
+// more than one piece.
+#axis_roll = #rotom.layout<n = 16, rolls = [(axis 1, 2)], dims = [[1:4:4], [1:4:1] | [0:16:1]]>
+func.func private @axis_roll(tensor<16x16xi32> {foo.bar = #axis_roll})
+
+// -----
+
+// The piece form is canonical for an unsplit axis: the axis form is
+// rejected there.
+#axis_unsplit = #rotom.layout<n = 16, rolls = [(axis 0, 1)], dims = [[0:4:1], [1:4:1]]> // expected-error {{an axis roll argument requires a split axis; write an unsplit axis's argument as its piece position}}
+func.func private @axis_unsplit(tensor<16xi32> {foo.bar = #axis_unsplit})
+
+// -----
+
+// An axis may not be shifted by one of its own pieces.
+#axis_self = #rotom.layout<n = 16, rolls = [(axis 1, 0)], dims = [[1:4:4], [1:4:1] | [0:16:1]]> // expected-error {{a roll may not shift an index by an argument on the same axis}}
+func.func private @axis_self(tensor<16x16xi32> {foo.bar = #axis_self})

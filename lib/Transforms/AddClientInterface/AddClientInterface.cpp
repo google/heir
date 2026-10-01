@@ -59,13 +59,27 @@ Type stripSecretType(Type type) {
     return secretType.getValueType();
   return type;
 }
+
+Type getOriginalArgType(func::FuncOp op, unsigned index) {
+  auto originalTypeAttr =
+      op.getArgAttrOfType<OriginalTypeAttr>(index, kOriginalTypeAttrName);
+  return originalTypeAttr ? originalTypeAttr.getOriginalType()
+                          : stripSecretType(op.getArgumentTypes()[index]);
+}
+
+Type getOriginalResultType(func::FuncOp op, unsigned index) {
+  auto originalTypeAttr =
+      op.getResultAttrOfType<OriginalTypeAttr>(index, kOriginalTypeAttrName);
+  return originalTypeAttr ? originalTypeAttr.getOriginalType()
+                          : stripSecretType(op.getResultTypes()[index]);
+}
 }  // namespace
 
 /// Generates an encryption func for one types.
 LogicalResult generateEncryptionFunc(func::FuncOp op,
                                      BlockArgument funcArgument,
                                      ImplicitLocOpBuilder& builder,
-                                     int64_t ciphertextSize,
+                                     int64_t minSlotCount,
                                      bool enableLayoutAssignment) {
   auto insertionBlock = builder.getInsertionBlock();
   auto insertionPoint = builder.getInsertionPoint();
@@ -88,8 +102,8 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
       FunctionType::get(builder.getContext(), {encArgType}, {encReturnType});
   auto encFuncOp = func::FuncOp::create(builder, encFuncName, encFuncType);
 
-  encFuncOp->setAttr(
-      kClientEncFuncAttrName,
+  setInterfaceRole(
+      encFuncOp, kClientEncRole,
       builder.getDictionaryAttr({
           builder.getNamedAttr(kClientHelperFuncName,
                                builder.getStringAttr(op.getSymName())),
@@ -117,9 +131,9 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
       // after this pass.
       auto assignLayoutOp = AssignLayoutOp::create(
           builder, operand, originalTypeAttr.getLayout());
-      auto res = implementAssignLayout(
-          assignLayoutOp.getValue(), assignLayoutOp.getLayout(), ciphertextSize,
-          builder, [&](Operation* createdOp) {});
+      auto res = implementAssignLayout(assignLayoutOp.getValue(),
+                                       assignLayoutOp.getLayout(), minSlotCount,
+                                       builder, [&](Operation* createdOp) {});
       if (failed(res)) return failure();
       b.replaceOp(assignLayoutOp, res.value());
       valueToEncrypt = res.value();
@@ -142,7 +156,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
 LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
                                           BlockArgument funcArgument,
                                           ImplicitLocOpBuilder& builder,
-                                          int64_t ciphertextSize) {
+                                          int64_t minSlotCount) {
   auto insertionBlock = builder.getInsertionBlock();
   auto insertionPoint = builder.getInsertionPoint();
   std::string packFuncName("");
@@ -166,8 +180,8 @@ LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
       FunctionType::get(builder.getContext(), {packArgType}, {packReturnType});
   auto packFuncOp = func::FuncOp::create(builder, packFuncName, packFuncType);
 
-  packFuncOp->setAttr(
-      kClientPackFuncAttrName,
+  setInterfaceRole(
+      packFuncOp, kClientPackRole,
       builder.getDictionaryAttr({
           builder.getNamedAttr(kClientHelperFuncName,
                                builder.getStringAttr(op.getSymName())),
@@ -186,7 +200,7 @@ LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
   auto assignLayoutOp =
       AssignLayoutOp::create(builder, operand, originalTypeAttr.getLayout());
   auto res = implementAssignLayout(assignLayoutOp.getValue(),
-                                   assignLayoutOp.getLayout(), ciphertextSize,
+                                   assignLayoutOp.getLayout(), minSlotCount,
                                    builder, [&](Operation* createdOp) {});
   if (failed(res)) {
     return op.emitError()
@@ -228,8 +242,8 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
       FunctionType::get(builder.getContext(), {decFuncArgType}, {originalType});
   auto decFuncOp = func::FuncOp::create(builder, decFuncName, decFuncType);
 
-  decFuncOp->setAttr(
-      kClientDecFuncAttrName,
+  setInterfaceRole(
+      decFuncOp, kClientDecRole,
       builder.getDictionaryAttr({
           builder.getNamedAttr(kClientHelperFuncName,
                                builder.getStringAttr(op.getSymName())),
@@ -273,10 +287,9 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
 
 /// Adds the client interface for a single func. This should only be used on the
 /// "entry" func for the IR being compiled, but there may be multiple.
-LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
+LogicalResult convertFunc(func::FuncOp op, int64_t minSlotCount,
                           bool enableLayoutAssignment) {
-  if (op.isDeclaration()) {
-    LLVM_DEBUG(op->emitWarning("Skipping client interface for external func"));
+  if (op.isDeclaration() || isClientHelper(op)) {
     return success();
   }
 
@@ -285,6 +298,21 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
   builder.setInsertionPointAfter(op);
 
+  auto role = builder.getDictionaryAttr({builder.getNamedAttr(
+      kClientHelperFuncName, builder.getStringAttr(op.getSymName()))});
+  setInterfaceRole(op, kEntryRole, role);
+  setInterfaceRole(op, kServerEvaluateRole, role);
+  SmallVector<Attribute> logicalInputTypes;
+  for (unsigned i = 0; i < op.getNumArguments(); ++i)
+    logicalInputTypes.push_back(TypeAttr::get(getOriginalArgType(op, i)));
+  setInterfaceField(op, kEntryInputTypes,
+                    builder.getArrayAttr(logicalInputTypes));
+  SmallVector<Attribute> logicalResultTypes;
+  for (unsigned i = 0; i < op.getNumResults(); ++i)
+    logicalResultTypes.push_back(TypeAttr::get(getOriginalResultType(op, i)));
+  setInterfaceField(op, kEntryResultTypes,
+                    builder.getArrayAttr(logicalResultTypes));
+
   // We need one encryption function per argument and one decryption
   // function per return value. This is mainly to avoid complicated C++ codegen
   // when encrypting multiple inputs which requires out-params.
@@ -292,7 +320,7 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
   // First, generate encryption functions for all secret arguments.
   for (BlockArgument val : op.getArguments()) {
     if (isa<SecretType>(val.getType())) {
-      if (failed(generateEncryptionFunc(op, val, builder, ciphertextSize,
+      if (failed(generateEncryptionFunc(op, val, builder, minSlotCount,
                                         enableLayoutAssignment))) {
         return failure();
       }
@@ -304,8 +332,8 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
       if (!isa<SecretType>(val.getType()) &&
           op.getArgAttrOfType<OriginalTypeAttr>(val.getArgNumber(),
                                                 kOriginalTypeAttrName)) {
-        if (failed(generatePlaintextPackedFunc(op, val, builder,
-                                               ciphertextSize))) {
+        if (failed(
+                generatePlaintextPackedFunc(op, val, builder, minSlotCount))) {
           return failure();
         }
       }
@@ -334,7 +362,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   void runOnOperation() override {
     Operation* root = getOperation();
     auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-      if (failed(convertFunc(op, ciphertextSize, enableLayoutAssignment))) {
+      if (failed(convertFunc(op, minSlotCount, enableLayoutAssignment))) {
         op->emitError("Failed to add client interface for func");
         return WalkResult::interrupt();
       }

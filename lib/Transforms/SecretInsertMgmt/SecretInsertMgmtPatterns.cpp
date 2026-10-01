@@ -6,7 +6,9 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Kernel/IR/KernelOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
@@ -25,6 +27,15 @@
 namespace mlir {
 namespace heir {
 
+static bool moduleTargetsCKKS(Operation* op) {
+  ModuleOp module = dyn_cast<ModuleOp>(op);
+  if (!module) {
+    module = op->getParentOfType<ModuleOp>();
+  }
+  if (!module) return false;
+  return moduleIsCKKS(module);
+}
+
 LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
   // Here we update the analysis state of the result of the original op This
   // implies any downstream users now have an invalidated state in the data
@@ -41,7 +52,7 @@ LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
       operandStates.push_back(lattice->getValue());
     }
     for (auto result : op->getResults()) {
-      LevelState resultLevel = deriveResultLevel(op, operandStates);
+      LevelState resultLevel = deriveResultLevel(op, operandStates, solver);
       auto* resultLattice = solver->getOrCreateState<LevelLattice>(result);
       resultLattice->getValue() = resultLevel;
     }
@@ -158,13 +169,23 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
       llvm::map_range(secretOperands, [](OpOperand* op) { return op->get(); }));
   // iterating over Values instead of OpOperands
   // because one Value can corresponds to multiple OpOperands
+  bool changed = false;
   for (auto operand : secretOperandValues) {
+    if (auto defOp = operand.getDefiningOp()) {
+      if (isa<kernel::EvalChebyshevOp>(defOp)) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "ModReduceBefore: skipping operand defined by "
+                      "EvalChebyshevOp\n");
+        continue;
+      }
+    }
     rewriter.setInsertionPoint(op);
     auto managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), operand);
     op->replaceUsesOfWith(operand, managed);
+    changed = true;
   }
 
-  return success();
+  return changed ? success() : failure();
 }
 
 template <typename Op>
@@ -221,6 +242,11 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
       if (resultLevelState.isMaxLevel()) {
         managed =
             mgmt::LevelReduceMinOp::create(rewriter, op.getLoc(), managed);
+      } else if (!canEmitAdjustScale) {
+        auto resultLevel = resultLevelState.getInt();
+        auto level = levelState.getInt();
+        managed = mgmt::LevelReduceOp::create(rewriter, op.getLoc(), managed,
+                                              resultLevel - level);
       } else {
         auto resultLevel = resultLevelState.getInt();
         auto level = levelState.getInt();
@@ -230,9 +256,11 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
         }
         // make a different adjust scale each time
         // only after parameter selection can we decide the actual scale
-        managed = mgmt::AdjustScaleOp::create(
-            rewriter, op.getLoc(), managed,
-            rewriter.getI64IntegerAttr((*idCounter)++));
+        if (!moduleTargetsCKKS(top)) {
+          managed = mgmt::AdjustScaleOp::create(
+              rewriter, op.getLoc(), managed,
+              rewriter.getI64IntegerAttr((*idCounter)++));
+        }
         managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), managed);
       }
       // NOTE that only at most one operand/Value will experience such
@@ -437,6 +465,8 @@ template struct MultRelinearize<arith::MulFOp>;
 template struct UseInitOpForPlaintextOperand<arith::AddFOp>;
 template struct UseInitOpForPlaintextOperand<arith::MulFOp>;
 template struct UseInitOpForPlaintextOperand<arith::SubFOp>;
+template struct ModReduceBefore<kernel::EvalChebyshevOp>;
+template struct UseInitOpForPlaintextOperand<kernel::EvalChebyshevOp>;
 
 }  // namespace heir
 }  // namespace mlir

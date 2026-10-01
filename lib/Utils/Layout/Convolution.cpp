@@ -12,6 +12,7 @@
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"      // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -24,6 +25,11 @@ using presburger::BoundType;
 using presburger::IntegerRelation;
 using presburger::PresburgerSpace;
 using presburger::VarKind;
+
+int64_t getPaddedConvChannels(int64_t outputChannels,
+                              int64_t channelsPerBlock) {
+  return llvm::alignTo(outputChannels, channelsPerBlock);
+}
 
 presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                                                     RankedTensorType dataType,
@@ -261,7 +267,8 @@ RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
 RankedTensorType get1dConvCwFcwFilterExpandedType(RankedTensorType filterType,
                                                   RankedTensorType dataType,
                                                   int64_t stride,
-                                                  int64_t padding) {
+                                                  int64_t padding,
+                                                  bool interchangeRows) {
   // Get the filter relation for a single input and output channel and multiply
   // the dimensions by the number of input and output channels for the row and
   // column dimensions respectively.
@@ -274,6 +281,11 @@ RankedTensorType get1dConvCwFcwFilterExpandedType(RankedTensorType filterType,
 
   int64_t inputChannels = dataType.getDimSize(1);
   int64_t outputChannels = filterType.getDimSize(0);
+  // An interchanged layout reserves whole channel blocks of `stride`, so the
+  // matrix also has rows for the padding channels. Those rows stay zero.
+  if (interchangeRows) {
+    outputChannels = getPaddedConvChannels(outputChannels, stride);
+  }
 
   int64_t rows = outputChannels * singleResultType.getDimSize(0);
   int64_t cols = inputChannels * singleResultType.getDimSize(1);
@@ -283,7 +295,8 @@ RankedTensorType get1dConvCwFcwFilterExpandedType(RankedTensorType filterType,
 RankedTensorType get2dConvChwFchwFilterExpandedType(RankedTensorType filterType,
                                                     RankedTensorType dataType,
                                                     int64_t padding,
-                                                    ArrayRef<int64_t> strides) {
+                                                    ArrayRef<int64_t> strides,
+                                                    bool interchangeRows) {
   // Get the filter relation for a single input and output channel and multiply
   // the dimensions by the number of input and output channels for the row and
   // column dimensions respectively.
@@ -298,6 +311,12 @@ RankedTensorType get2dConvChwFchwFilterExpandedType(RankedTensorType filterType,
 
   int64_t inputChannels = dataType.getDimSize(1);
   int64_t outputChannels = filterType.getDimSize(0);
+  // An interchanged layout reserves whole g x g channel blocks, so the matrix
+  // also has rows for the padding channels. Those rows stay zero.
+  if (interchangeRows) {
+    outputChannels =
+        getPaddedConvChannels(outputChannels, strides[0] * strides[0]);
+  }
 
   int64_t rows = outputChannels * singleResultType.getDimSize(0);
   int64_t cols = inputChannels * singleResultType.getDimSize(1);
@@ -448,23 +467,23 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
 
 FailureOr<presburger::IntegerRelation> getConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
-    int64_t ciphertextSize) {
+    int64_t minSlotCount) {
   if (filterType.getRank() == 1) {
     int64_t stride = 1;
     auto filterRelation =
         get1dConvFilterRelation(filterType, dataType, stride, padding);
-    return diagonalize2dMatrix(filterRelation, filterType, ciphertextSize);
+    return diagonalize2dMatrix(filterRelation, filterType, minSlotCount);
   }
   if (filterType.getRank() != 2) return failure();
   SmallVector<int64_t> strides = {1, 1};
   auto filterRelation =
       get2dConvFilterRelation(filterType, dataType, strides, padding);
-  return diagonalize2dMatrix(filterRelation, filterType, ciphertextSize);
+  return diagonalize2dMatrix(filterRelation, filterType, minSlotCount);
 }
 
 FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t stride,
-    int64_t padding, int64_t ciphertextSize, bool interchangeRows) {
+    int64_t padding, int64_t minSlotCount, bool interchangeRows) {
   auto expandedFilterRelation =
       get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
   // Permutate the rows of the matrix to minimize the number of non-zero
@@ -489,13 +508,18 @@ FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
         /*equality=*/true);
     expandedFilterRelation.compose(rowInterchangeRelation);
   }
-  return diagonalize2dMatrix(expandedFilterRelation, filterType,
-                             ciphertextSize);
+  // Diagonalize against the shape the Halevi-Shoup kernel is sized from. The
+  // relation's own bounds can be tighter: an interchanged layout reserves rows
+  // for padding channels that no filter entry reaches.
+  auto expandedType = get1dConvCwFcwFilterExpandedType(
+      filterType, dataType, stride, padding, interchangeRows);
+  return diagonalize2dMatrix(expandedFilterRelation, filterType, minSlotCount,
+                             expandedType.getShape());
 }
 
 FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
     RankedTensorType filterType, RankedTensorType dataType,
-    ArrayRef<int64_t> strides, int64_t padding, int64_t ciphertextSize,
+    ArrayRef<int64_t> strides, int64_t padding, int64_t minSlotCount,
     bool interchangeRows) {
   auto inputChannels = dataType.getDimSize(1);
   auto outputChannels = filterType.getDimSize(0);
@@ -520,16 +544,24 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
   auto totalRowSize = singleResultType.getDimSize(0);
   auto totalColSize = singleResultType.getDimSize(1);
 
-  int64_t maxRow = outputChannels * totalRowSize;
+  // An interchanged layout reserves whole g x g channel blocks, so the matrix
+  // also has rows for the padding channels. Those rows carry no filter entry
+  // and stay zero.
+  int64_t paddedOutputChannels =
+      interchangeRows ? getPaddedConvChannels(outputChannels, g * g)
+                      : outputChannels;
+
+  int64_t maxRow = paddedOutputChannels * totalRowSize;
   int64_t maxCol = inputChannels * totalColSize;
 
   int64_t paddedRows = isPowerOfTwo(maxRow) ? maxRow : nextPowerOfTwo(maxRow);
   int64_t paddedCols = isPowerOfTwo(maxCol) ? maxCol : nextPowerOfTwo(maxCol);
   int64_t numDiagonals = std::min(paddedRows, paddedCols);
 
-  int64_t step3F = interchangeRows ? outputChannels / (g * g) : outputChannels;
-  int64_t step3H = interchangeRows ? outputW * g : outputH;
-  int64_t step3W = interchangeRows ? outputH * g : outputW;
+  int64_t step3F =
+      interchangeRows ? paddedOutputChannels / (g * g) : outputChannels;
+  int64_t step3H = interchangeRows ? outputH * g : outputH;
+  int64_t step3W = interchangeRows ? outputW * g : outputW;
 
   std::vector<IntegerRelation> relations;
 
@@ -594,7 +626,7 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
       "(slot - row) mod {2} = 0 and "
       "(ct + slot - col) mod {3} = 0 and "
       "0 <= ct < {5} and 0 <= slot < {4} }}",
-      maxRow, maxCol, paddedRows, paddedCols, ciphertextSize, numDiagonals);
+      maxRow, maxCol, paddedRows, paddedCols, minSlotCount, numDiagonals);
   auto step5Rel = getIntegerRelationFromIslStr(step5Str);
   if (failed(step5Rel)) return failure();
   relations.push_back(step5Rel.value());
@@ -604,9 +636,9 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
 
 bool isRelationConvFilterDiagonalized(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
-    int64_t ciphertextSize, const presburger::IntegerRelation& relation) {
+    int64_t minSlotCount, const presburger::IntegerRelation& relation) {
   auto diagonalizedRelation = getConvFilterDiagonalizedRelation(
-      filterType, dataType, padding, ciphertextSize);
+      filterType, dataType, padding, minSlotCount);
   if (failed(diagonalizedRelation)) {
     return false;
   }
@@ -622,10 +654,16 @@ presburger::IntegerRelation get2dConvRowInterchangeRelation(int64_t c,
   //    h' = hi * g + (ci % g**2) // g
   //    w' = wi * g + (ci % g)
   // 3. Flatten (gW, gH, C) into idx_out = (c * g * h) * w' + (c) * h' + c'
+  //
+  // The shuffle needs g^2 channels per g x g spatial block, so the output
+  // reserves `paddedC` channels. When C is not a multiple of g^2, the last
+  // block is partly empty and the map is injective but not surjective.
   int64_t hOut = h * g;
   int64_t wOut = w * g;
-  int64_t cOut = c / (g * g);
+  int64_t paddedC = getPaddedConvChannels(c, g * g);
+  int64_t cOut = paddedC / (g * g);
   int64_t numElements = c * h * w;
+  int64_t numPaddedElements = paddedC * h * w;
 
   // One to one mapping from idx_in to idx_out.
   std::string islStr = llvm::formatv(
@@ -637,8 +675,9 @@ presburger::IntegerRelation get2dConvRowInterchangeRelation(int64_t c,
       "ho = hi * {10} + (ci % {10}^2) // {10} and "
       "idx_in = wi + hi * {6} + ci * {7} and "
       "idx_out = wo + ho * {8} + co * {9} and 0 <= idx_in < {11} and 0 <= "
-      "idx_out < {11} }",
-      h, w, c, hOut, wOut, cOut, w, h * w, wOut, hOut * wOut, g, numElements);
+      "idx_out < {12} }",
+      h, w, c, hOut, wOut, cOut, w, h * w, wOut, hOut * wOut, g, numElements,
+      numPaddedElements);
 
   return getIntegerRelationFromIslStr(islStr).value();
 }
@@ -651,9 +690,15 @@ presburger::IntegerRelation get1dConvRowInterchangeRelation(int64_t c,
   //    w' = wi * g + (ci % g)
   //    c' = ci // g
   // 3. Flatten (gW, C) into idx_out = (c * g) * w' + c'
+  //
+  // The shuffle needs g channels per gap of g, so the output reserves
+  // `paddedC` channels. When C is not a multiple of g, the last block is
+  // partly empty and the map is injective but not surjective.
   int64_t wOut = w * g;
-  int64_t cOut = c / (g);
+  int64_t paddedC = getPaddedConvChannels(c, g);
+  int64_t cOut = paddedC / g;
   int64_t numElements = c * w;
+  int64_t numPaddedElements = paddedC * w;
 
   // One to one mapping from idx_in to idx_out.
   std::string islStr = llvm::formatv(
@@ -663,8 +708,8 @@ presburger::IntegerRelation get1dConvRowInterchangeRelation(int64_t c,
       "wo = wi * {4} + (ci % {4}) and "
       "idx_in = wi + ci * {0} and "
       "idx_out = wo + co * {2} and "
-      "0 <= idx_in < {5} and 0 <= idx_out < {5} }",
-      w, c, wOut, cOut, g, numElements);
+      "0 <= idx_in < {5} and 0 <= idx_out < {6} }",
+      w, c, wOut, cOut, g, numElements, numPaddedElements);
 
   return getIntegerRelationFromIslStr(islStr).value();
 }
@@ -672,19 +717,28 @@ presburger::IntegerRelation get1dConvRowInterchangeRelation(int64_t c,
 presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
                                                     int64_t stride,
                                                     int64_t padding,
-                                                    int64_t ciphertextSize,
+                                                    int64_t minSlotCount,
                                                     bool interchangeRows) {
   // First flatten the output tensor into a 1-D tensor of (ct, slot) where ct =
-  // 0 (set the "ciphertextSize" to be the same as the number of elements). This
+  // 0 (set the "minSlotCount" to be the same as the number of elements). This
   // creates outputType -> [0, slot].
   auto flattenedOutput =
       getRowMajorLayoutRelation(outputType, outputType.getNumElements());
 
-  int64_t numCiphertexts =
-      std::ceil((float)outputType.getNumElements() / ciphertextSize);
-  int64_t paddedSize = isPowerOfTwo(outputType.getNumElements())
-                           ? outputType.getNumElements()
-                           : nextPowerOfTwo(outputType.getNumElements());
+  // A shuffled result reserves whole channel blocks of `stride`, so the
+  // ciphertext holds `ambientElements` values even though only
+  // outputType.getNumElements() of them are real. The replication period has to
+  // match that larger extent.
+  int64_t ambientElements = outputType.getNumElements();
+  if (interchangeRows) {
+    ambientElements = getPaddedConvChannels(outputType.getDimSize(1), stride) *
+                      outputType.getDimSize(2);
+  }
+
+  int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
+  int64_t paddedSize = isPowerOfTwo(ambientElements)
+                           ? ambientElements
+                           : nextPowerOfTwo(ambientElements);
 
   // Create the interchange permutation [idx_in] -> [idx_out] and add a domain
   // var = 0 to align with the range of the flattenedOutput relation.
@@ -709,7 +763,7 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
         "{{ [idx_out] -> [ct, slot] : "
         "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
         "ct = idx_out // {2} }",
-        numCiphertexts, paddedSize, ciphertextSize);
+        numCiphertexts, paddedSize, minSlotCount);
     auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
     flattenedOutput.compose(toCtSlot);
     return flattenedOutput;
@@ -719,7 +773,7 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
       "{{ [in_ct, idx_out] -> [ct, slot] : in_ct = 0 and "
       "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
       "ct = idx_out // {2} }",
-      numCiphertexts, paddedSize, ciphertextSize);
+      numCiphertexts, paddedSize, minSlotCount);
   auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
   flattenedOutput.compose(toCtSlot);
   return flattenedOutput;
@@ -728,26 +782,38 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
 presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
                                                     ArrayRef<int64_t> strides,
                                                     int64_t padding,
-                                                    int64_t ciphertextSize) {
+                                                    int64_t minSlotCount,
+                                                    bool interchangeRows) {
   assert(llvm::all_equal(strides) && "strides must be equal");
 
   // First flatten the output tensor into a 1-D tensor of (ct, slot) where ct =
-  // 0 (set the "ciphertextSize" to be the same as the number of elements). This
+  // 0 (set the "minSlotCount" to be the same as the number of elements). This
   // creates outputType -> [0, slot].
   auto flattenedOutput =
       getRowMajorLayoutRelation(outputType, outputType.getNumElements());
 
-  int64_t numCiphertexts =
-      std::ceil((float)outputType.getNumElements() / ciphertextSize);
-  int64_t paddedSize = isPowerOfTwo(outputType.getNumElements())
-                           ? outputType.getNumElements()
-                           : nextPowerOfTwo(outputType.getNumElements());
+  // A pixel-shuffled result reserves whole g x g channel blocks, so the
+  // ciphertext holds `ambientElements` values even though only
+  // outputType.getNumElements() of them are real. The replication period must
+  // match that larger extent, and so must the interchange relation this gets
+  // composed with.
+  int64_t ambientElements = outputType.getNumElements();
+  if (interchangeRows) {
+    ambientElements = getPaddedConvChannels(outputType.getDimSize(1),
+                                            strides[0] * strides[0]) *
+                      outputType.getDimSize(2) * outputType.getDimSize(3);
+  }
+
+  int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
+  int64_t paddedSize = isPowerOfTwo(ambientElements)
+                           ? ambientElements
+                           : nextPowerOfTwo(ambientElements);
 
   std::string mapToCtSlot = llvm::formatv(
       "{{ [in_ct, idx_out] -> [ct, slot] : in_ct = 0 and "
       "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
       "ct = idx_out // {2} }",
-      numCiphertexts, paddedSize, ciphertextSize);
+      numCiphertexts, paddedSize, minSlotCount);
   auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
   flattenedOutput.compose(toCtSlot);
   return flattenedOutput;
@@ -755,7 +821,7 @@ presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
 
 presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
     RankedTensorType outputType, ArrayRef<int64_t> strides,
-    int64_t ciphertextSize) {
+    int64_t minSlotCount) {
   assert(llvm::all_equal(strides) && "strides must be equal");
 
   int64_t c = outputType.getDimSize(1);
@@ -765,20 +831,26 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
 
   int64_t hOut = h * g;
   int64_t wOut = w * g;
-  int64_t cOut = c / (g * g);
+  // The shuffle needs g^2 channels per g x g spatial block, so the result
+  // reserves whole blocks. When c is not a multiple of g^2 the last block is
+  // partly empty: the map stays injective, and the empty sub-pixels hold the
+  // zeros the padding rows of the filter matrix produce.
+  int64_t paddedC = getPaddedConvChannels(c, g * g);
+  int64_t cOut = paddedC / (g * g);
   int64_t numElements = outputType.getNumElements();
+  int64_t ambientElements = paddedC * h * w;
 
-  int64_t numCiphertexts =
-      std::ceil((float)outputType.getNumElements() / ciphertextSize);
+  int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
 
-  int64_t paddedSize =
-      isPowerOfTwo(numElements) ? numElements : nextPowerOfTwo(numElements);
+  int64_t paddedSize = isPowerOfTwo(ambientElements)
+                           ? ambientElements
+                           : nextPowerOfTwo(ambientElements);
 
   // Construct a row interchange relation: [ct, slot] -> [ct', slot']
   //
   // 1. Map (ct, slot) to flat indices (with potential replication `k`):
-  //    flat_in = ct * ciphertextSize + slot = k * paddedSize + slot_in_mod
-  //    flat_out = ct' * ciphertextSize + slot' = k * paddedSize + slot_out_mod
+  //    flat_in = ct * minSlotCount + slot = k * paddedSize + slot_in_mod
+  //    flat_out = ct' * minSlotCount + slot' = k * paddedSize + slot_out_mod
   //    where `slot_in_mod` and `slot_out_mod` are flat logical indices in the
   //    tensor.
   //
@@ -805,7 +877,7 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
       "  k >= 0 and "
       // Add bounds for (slot_in_mod, slot_out_mod)
       "  0 <= slot_in_mod < {0} and slot_in_mod < {2} and "
-      "  0 <= slot_out_mod < {0} and slot_out_mod < {2} and "
+      "  0 <= slot_out_mod < {0} and slot_out_mod < {14} and "
       // Bounds for input tensor (H x W x C)
       "  0 <= hi < {3} and 0 <= wi < {4} and 0 <= ci < {5} and "
       // Bounds for output tensor (H_out x W_out x C_out)
@@ -819,7 +891,7 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
       "  slot_out_mod = wo + ho * {11} + co * {12}"
       "}",
       paddedSize,      // 0
-      ciphertextSize,  // 1
+      minSlotCount,    // 1
       numElements,     // 2
       h,               // 3
       w,               // 4
@@ -831,15 +903,16 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
       h * w,           // 10
       wOut,            // 11
       hOut * wOut,     // 12
-      numCiphertexts   // 13
+      numCiphertexts,  // 13
+      ambientElements  // 14
   );
 
   auto rel = getIntegerRelationFromIslStr(islStr).value();
   // slot is domain var 1 (index 1)
-  addBounds(rel, 1, 0, ciphertextSize - 1);
+  addBounds(rel, 1, 0, minSlotCount - 1);
   // slot' is range var 1 (index 3, since domain has 2 vars: 0, 1. Range has 2
   // vars: 2, 3)
-  addBounds(rel, 3, 0, ciphertextSize - 1);
+  addBounds(rel, 3, 0, minSlotCount - 1);
   return rel;
 }
 

@@ -127,8 +127,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
 
     auto concreteSchemeParam =
         NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
-            qiSize, schemeParam.getPlaintextModulus(), slotNumber, usePublicKey,
-            encryptionTechniqueExtended);
+            qiSize, schemeParam.getPlaintextModulus(), minSlotCount,
+            usePublicKey, encryptionTechniqueExtended);
 
     return concreteSchemeParam;
   }
@@ -137,7 +137,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     auto* context = &getContext();
     OpBuilder builder(context);
     getOperation()->setAttr(kRequestedSlotCountAttrName,
-                            builder.getI64IntegerAttr(slotNumber));
+                            builder.getI64IntegerAttr(minSlotCount));
     getOperation()->setAttr(
         kActualSlotCountAttrName,
         builder.getI64IntegerAttr(schemeParam.getRingDim()));
@@ -165,7 +165,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
 
     // plaintext modulus from command line option
     auto schemeParam = NoiseModel::SchemeParamType::getConservativeSchemeParam(
-        maxLevel.value_or(0), plaintextModulus, slotNumber, usePublicKey,
+        maxLevel.value_or(0), plaintextModulus, minSlotCount, usePublicKey,
         encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
@@ -198,7 +198,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
                                   45);  // all primes of 45 bits
 
     auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
-        logPrimes, plaintextModulus, slotNumber, usePublicKey,
+        logPrimes, plaintextModulus, minSlotCount, usePublicKey,
         encryptionTechniqueExtended);
 
     annotateSchemeParam(schemeParam);

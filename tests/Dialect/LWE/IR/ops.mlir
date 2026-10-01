@@ -23,7 +23,7 @@
 !sk = !lwe.lwe_secret_key<key = #key, ring = #ring_rns_L0_1_x1024_>
 
 func.func @test_encrypt(%arg0: tensor<32xi3>, %arg1: !sk) -> !ct {
-  %0 = lwe.rlwe_encode %arg0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x1024_} : tensor<32xi3> -> !pt
+  %0 = lwe.rlwe_encode %arg0 <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x1024_> : tensor<32xi3> -> !pt
   // CHECK: lwe.rlwe_encrypt
   %1 = lwe.rlwe_encrypt %0, %arg1 : (!pt, !sk) -> !ct
   return %1 : !ct

@@ -1,6 +1,9 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -24,7 +27,7 @@ namespace heir {
 namespace kernel {
 namespace {
 
-using tensor4d = std::vector<std::vector<std::vector<std::vector<int>>>>;
+using tensor4d = ConvTensor4D;
 using tensor3d = std::vector<std::vector<std::vector<int>>>;
 
 std::function<int(const std::vector<int64_t>&)> getDataValueFn4D(
@@ -491,6 +494,92 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   EXPECT_EQ(unpackedResult, expected);
 }
 
+TEST(KernelImplementationTest, BicyclicCtPtDiagonalMatmul) {
+  MLIRContext context;
+  std::vector<std::vector<int>> matrixA = {
+      {1, 2, 3, 5}, {7, 11, 13, 17}, {19, 23, 29, 31}};
+  std::vector<std::vector<int>> matrixB = {{2, 3, 5, 7, 11},
+                                           {13, 17, 19, 23, 29},
+                                           {31, 37, 41, 43, 47},
+                                           {53, 59, 61, 67, 71}};
+  int m = 3;
+  int n = 4;
+  int p = 5;
+  int numSlots = 64;
+
+  auto layoutA = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, n}, mlir::IndexType::get(&context)), numSlots);
+  auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
+
+  auto layoutB = getBicyclicDiagonalRelation(
+      RankedTensorType::get({n, p}, mlir::IndexType::get(&context)),
+      /*contractionDim=*/0, /*stride=*/m, numSlots);
+  auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
+
+  LiteralValue packedAValue = packedA[0];
+  LiteralValue packedBValue = packedB;
+
+  auto dag = implementRotateAndReduce(
+      packedAValue, std::optional<LiteralValue>(packedBValue), m, n,
+      DagType::intTensor(32, {numSlots}), /*zeroDiagonals=*/{}, "arith.addi");
+
+  LiteralValue result = evalKernel(dag)[0];
+  auto resultVec = std::get<std::vector<int>>(result.get());
+
+  auto resultLayout = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), m * p);
+  auto unpackedResult =
+      unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
+
+  std::vector<std::vector<int>> expected = {{386, 443, 471, 517, 565},
+                                            {1461, 1692, 1814, 2000, 2214},
+                                            {2879, 3350, 3612, 3986, 4440}};
+  EXPECT_EQ(unpackedResult, expected);
+}
+
+TEST(KernelImplementationTest, BicyclicPtCtDiagonalMatmul) {
+  MLIRContext context;
+  std::vector<std::vector<int>> matrixA = {
+      {1, 2, 3, 5}, {7, 11, 13, 17}, {19, 23, 29, 31}};
+  std::vector<std::vector<int>> matrixB = {{2, 3, 5, 7, 11},
+                                           {13, 17, 19, 23, 29},
+                                           {31, 37, 41, 43, 47},
+                                           {53, 59, 61, 67, 71}};
+  int m = 3;
+  int n = 4;
+  int p = 5;
+  int numSlots = 64;
+
+  auto layoutA = getBicyclicDiagonalRelation(
+      RankedTensorType::get({m, n}, mlir::IndexType::get(&context)),
+      /*contractionDim=*/1, /*stride=*/p, numSlots);
+  auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
+
+  auto layoutB = getBicyclicLayoutRelation(
+      RankedTensorType::get({n, p}, mlir::IndexType::get(&context)), numSlots);
+  auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
+
+  LiteralValue packedAValue = packedA;
+  LiteralValue packedBValue = packedB[0];
+
+  auto dag = implementRotateAndReduce(
+      packedBValue, std::optional<LiteralValue>(packedAValue), p, n,
+      DagType::intTensor(32, {numSlots}), /*zeroDiagonals=*/{}, "arith.addi");
+
+  LiteralValue result = evalKernel(dag)[0];
+  auto resultVec = std::get<std::vector<int>>(result.get());
+
+  auto resultLayout = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), m * p);
+  auto unpackedResult =
+      unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
+
+  std::vector<std::vector<int>> expected = {{386, 443, 471, 517, 565},
+                                            {1461, 1692, 1814, 2000, 2214},
+                                            {2879, 3350, 3612, 3986, 4440}};
+  EXPECT_EQ(unpackedResult, expected);
+}
+
 TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
   MLIRContext context;
 
@@ -510,6 +599,30 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
 
   // 124 + 2*math.sqrt(124) = 146
   EXPECT_EQ(rotationCount, 146);
+}
+
+TEST(KernelImplementationTest, BicyclicDiagonalMatmulRotationCount) {
+  MLIRContext context;
+
+  int m = 123;
+  int n = 124;
+  int p = 125;
+  int numSlots = 2 * m * n * p;
+
+  SymbolicValue secretVal({m, n}, true);
+  SymbolicValue plainVal({n, p}, false);
+
+  int period = m;
+  int steps = n;
+  auto dag = implementRotateAndReduce(
+      secretVal, std::optional<SymbolicValue>(plainVal), period, steps,
+      DagType::intTensor(32, {numSlots}));
+
+  RotationCountVisitor rotationCounter;
+  int64_t rotationCount = rotationCounter.process(dag);
+
+  // 2*math.sqrt(124) = 22
+  EXPECT_EQ(rotationCount, 22);
 }
 
 TEST(KernelImplementationTest, TricyclicBatchMatmul) {
@@ -735,6 +848,365 @@ TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2) {
 
   // Result is 4 2x2 tensors with a row-major layout.
   EXPECT_EQ(actualUnpacked, expected);
+}
+
+// Direct 1-D multichannel convolution, as an independent reference for the
+// packed kernel.
+tensor3d reference1dConv(const tensor3d& data, const tensor3d& filter,
+                         int64_t stride) {
+  int64_t outputChannels = filter.size();
+  int64_t inputChannels = filter[0].size();
+  int64_t filterWidth = filter[0][0].size();
+  int64_t dataWidth = data[0][0].size();
+  int64_t outputWidth = (dataWidth - filterWidth) / stride + 1;
+  tensor3d result(1, std::vector<std::vector<int>>(
+                         outputChannels, std::vector<int>(outputWidth, 0)));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t ow = 0; ow < outputWidth; ++ow) {
+      for (int64_t c = 0; c < inputChannels; ++c) {
+        for (int64_t k = 0; k < filterWidth; ++k) {
+          result[0][f][ow] += data[0][c][ow * stride + k] * filter[f][c][k];
+        }
+      }
+    }
+  }
+  return result;
+}
+
+// End-to-end Halevi-Shoup matvec for a strided 1-D multichannel conv whose
+// output channel count is not a multiple of the gap. The shuffle folds `gap`
+// channels into each gap-sized stretch, so the layout reserves whole stretches:
+// the Toeplitz matrix gains zero rows for the channels that are not there.
+void checkGapPaddedConv1dCwFcw(int64_t outputChannels, int64_t inputChannels,
+                               int64_t dataWidth, int64_t filterWidth,
+                               int64_t stride, int numSlots, bool unroll) {
+  SCOPED_TRACE("outputChannels = " + std::to_string(outputChannels) +
+               " inputChannels = " + std::to_string(inputChannels) +
+               " dataWidth = " + std::to_string(dataWidth) +
+               " filterWidth = " + std::to_string(filterWidth) +
+               " stride = " + std::to_string(stride));
+  MLIRContext context;
+  tensor3d data(1, std::vector<std::vector<int>>(
+                       inputChannels, std::vector<int>(dataWidth, 0)));
+  for (int64_t c = 0; c < inputChannels; ++c) {
+    for (int64_t w = 0; w < dataWidth; ++w) {
+      data[0][c][w] = (int)((c * 23 + w * 7) % 13);
+    }
+  }
+  tensor3d filter(outputChannels,
+                  std::vector<std::vector<int>>(
+                      inputChannels, std::vector<int>(filterWidth, 0)));
+  for (int64_t f = 0; f < outputChannels; ++f) {
+    for (int64_t c = 0; c < inputChannels; ++c) {
+      for (int64_t k = 0; k < filterWidth; ++k) {
+        filter[f][c][k] = (int)((f * 37 + c * 11 + k * 3) % 17) + 1;
+      }
+    }
+  }
+
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataWidth}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({outputChannels, inputChannels, filterWidth},
+                            mlir::IndexType::get(&context));
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn3D(data));
+
+  auto filterLayout = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, /*padding=*/0, numSlots,
+      /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape = get1dConvCwFcwFilterExpandedType(
+      filterType, dataType, stride, /*padding=*/0, /*interchangeRows=*/true);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  tensor3d expected = reference1dConv(data, filter, stride);
+  int64_t outputWidth = expected[0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, outputChannels, outputWidth}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get1dConvResultRelation(outputType, stride, /*padding=*/0, numSlots,
+                              /*interchangeRows=*/true);
+
+  EXPECT_EQ(unpackLayoutTo3DTensor<int>(resultLayout, {actual},
+                                        {1, outputChannels, outputWidth}),
+            expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv1dCwFcwGapPaddedChannels) {
+  bool unroll = std::get<0>(GetParam());
+  // gap = 2, so the shuffle needs the output channels in pairs. 2 and 4 are the
+  // controls that need no padding at all.
+  for (int64_t outputChannels : {1, 2, 3, 4}) {
+    checkGapPaddedConv1dCwFcw(outputChannels, /*inputChannels=*/2,
+                              /*dataWidth=*/8, /*filterWidth=*/2,
+                              /*stride=*/2, /*numSlots=*/32, unroll);
+  }
+}
+
+// End-to-end Halevi-Shoup matvec for a padded strided 1-D multichannel conv, in
+// the packing production uses when LayoutPropagation folds a zero tensor.pad on
+// the width dim into the conv's own `padding` parameter: the data ciphertext is
+// packed row-major at the *unpadded* width, and the Toeplitz matrix is built
+// with padding = p so that a window reaching into the padding contributes no
+// column. `expected` is the convolution of the zero-padded data.
+void checkPaddedConv1dCwFcw(int64_t padding, const tensor3d& expected,
+                            bool unroll, bool interchangeRows) {
+  SCOPED_TRACE("padding = " + std::to_string(padding));
+  MLIRContext context;
+  // 1x2x6 input data, 2x2x3 filter, stride 2.
+  tensor3d data = {{{0, 1, 2, 3, 4, 5}, {6, 7, 8, 9, 10, 11}}};
+  tensor3d filter = {{{3, 4, 1}, {1, 5, 2}}, {{1, 2, 3}, {2, 2, 2}}};
+  int64_t stride = 2;
+  int numSlots = 16;
+
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 6}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3}, mlir::IndexType::get(&context));
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn3D(data));
+
+  auto filterLayout = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, padding, numSlots, interchangeRows);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  // The matrix shape must be derived the same way the filter was diagonalized,
+  // i.e. against the unpadded data type with padding = p: implementHaleviShoup
+  // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
+  auto expandedFilterShape = get1dConvCwFcwFilterExpandedType(
+      filterType, dataType, stride, padding, interchangeRows);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  int64_t outputWidth = expected[0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, 2, outputWidth}, mlir::IndexType::get(&context));
+  auto resultLayout = get1dConvResultRelation(outputType, stride, /*padding=*/0,
+                                              numSlots, interchangeRows);
+
+  EXPECT_EQ(
+      unpackLayoutTo3DTensor<int>(resultLayout, {actual}, {1, 2, outputWidth}),
+      expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2WithPadding) {
+  // Same shape family as TestConv1dCwFcwStride2, but with padding != 0
+  // padding 1 keeps the unpadded and padded column counts in the same
+  // power-of-two bucket (2*6=12 and 2*8=16 both round to 16); padding 2 does
+  // not (2*6=12 rounds to 16, 2*10=20 rounds to 32).
+  checkPaddedConv1dCwFcw(/*padding=*/1, {{{45, 79, 111}, {29, 62, 86}}},
+                         std::get<0>(GetParam()), std::get<1>(GetParam()));
+  checkPaddedConv1dCwFcw(/*padding=*/2, {{{12, 63, 95, 97}, {12, 50, 74, 56}}},
+                         std::get<0>(GetParam()), std::get<1>(GetParam()));
+}
+
+// End-to-end Halevi-Shoup matvec for a padded strided 2-D multichannel conv.
+// the data ciphertext is packed row-major at the *unpadded* H and W, and the
+// Toeplitz matrix is built with padding = p so that a window reaching into the
+// padding contributes no column.
+void checkPaddedConv2dChwFchw(int64_t stride, int64_t filterSize,
+                              int64_t padding, int numSlots, bool unroll,
+                              bool interchangeRows) {
+  SCOPED_TRACE("stride = " + std::to_string(stride) +
+               " filterSize = " + std::to_string(filterSize) +
+               " padding = " + std::to_string(padding));
+  MLIRContext context;
+  // 1x4x4x4 input data, 4x4x(filterSize)x(filterSize) filter.
+  int64_t channels = 4;
+  int64_t dataSize = 4;
+  tensor4d data(1, std::vector<std::vector<std::vector<int>>>(
+                       channels, std::vector<std::vector<int>>(
+                                     dataSize, std::vector<int>(dataSize, 0))));
+  for (int64_t c = 0; c < channels; ++c) {
+    for (int64_t h = 0; h < dataSize; ++h) {
+      for (int64_t w = 0; w < dataSize; ++w) {
+        data[0][c][h][w] = (int)((c * 23 + h * 7 + w * 3) % 13);
+      }
+    }
+  }
+  tensor4d filter =
+      deterministicConvFilter(channels, channels, filterSize, filterSize);
+
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, channels, dataSize, dataSize}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({channels, channels, filterSize, filterSize},
+                            mlir::IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
+
+  auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, padding, numSlots, interchangeRows);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  // The matrix shape must be derived the same way the filter was diagonalized,
+  // i.e. against the unpadded data type with padding = p: implementHaleviShoup
+  // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
+  auto expandedFilterShape = get2dConvChwFchwFilterExpandedType(
+      filterType, dataType, padding, strides);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  tensor4d expected = reference2dConv(data, filter, stride, padding);
+  int64_t outputH = expected[0][0].size();
+  int64_t outputW = expected[0][0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, channels, outputH, outputW}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get2dConvResultRelation(outputType, strides, /*padding=*/0, numSlots);
+  if (interchangeRows) {
+    resultLayout.compose(
+        get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots));
+  }
+
+  EXPECT_EQ(unpackLayoutTo4DTensor<int>(resultLayout, {actual},
+                                        {1, channels, outputH, outputW}),
+            expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv2dNchwFchwWithPadding) {
+  bool unroll = std::get<0>(GetParam());
+  // A stride-1 "same" convolution, the shape LayoutPropagation folds a
+  // tensor.pad into. Stride 1 never interchanges rows.
+  checkPaddedConv2dChwFchw(/*stride=*/1, /*filterSize=*/3, /*padding=*/1,
+                           /*numSlots=*/64, unroll,
+                           /*interchangeRows=*/false);
+  // Strided and padded: the unpadded and padded column counts land in
+  // different power-of-two buckets (4*4*4=64 rounds to 64, 4*6*6=144 rounds to
+  // 256), so a matrix built against the padded operand would be sized wrong.
+  checkPaddedConv2dChwFchw(/*stride=*/2, /*filterSize=*/2, /*padding=*/1,
+                           /*numSlots=*/64, unroll, std::get<1>(GetParam()));
+}
+
+// End-to-end Halevi-Shoup matvec for a strided 2-D multichannel conv whose
+// output channel count is not a multiple of gap^2. The pixel shuffle folds
+// gap^2 channels into each gap x gap spatial block, so the layout reserves
+// whole blocks: the Toeplitz matrix gains zero rows for the channels that are
+// not there, and the result layout maps nothing into their slots.
+void checkGapPaddedConv2dChwFchw(int64_t outputChannels, int64_t inputChannels,
+                                 int64_t dataSize, int64_t filterSize,
+                                 int64_t stride, int numSlots, bool unroll) {
+  SCOPED_TRACE("outputChannels = " + std::to_string(outputChannels) +
+               " inputChannels = " + std::to_string(inputChannels) +
+               " dataSize = " + std::to_string(dataSize) +
+               " filterSize = " + std::to_string(filterSize) +
+               " stride = " + std::to_string(stride));
+  MLIRContext context;
+  tensor4d data(
+      1, std::vector<std::vector<std::vector<int>>>(
+             inputChannels, std::vector<std::vector<int>>(
+                                dataSize, std::vector<int>(dataSize, 0))));
+  for (int64_t c = 0; c < inputChannels; ++c) {
+    for (int64_t h = 0; h < dataSize; ++h) {
+      for (int64_t w = 0; w < dataSize; ++w) {
+        data[0][c][h][w] = (int)((c * 23 + h * 7 + w * 3) % 13);
+      }
+    }
+  }
+  tensor4d filter = deterministicConvFilter(outputChannels, inputChannels,
+                                            filterSize, filterSize);
+
+  RankedTensorType dataType = RankedTensorType::get(
+      {1, inputChannels, dataSize, dataSize}, mlir::IndexType::get(&context));
+  RankedTensorType filterType = RankedTensorType::get(
+      {outputChannels, inputChannels, filterSize, filterSize},
+      mlir::IndexType::get(&context));
+  SmallVector<int64_t> strides = {stride, stride};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
+
+  auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, /*padding=*/0, numSlots,
+      /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape = get2dConvChwFchwFilterExpandedType(
+      filterType, dataType, /*padding=*/0, strides, /*interchangeRows=*/true);
+
+  auto dag = implementHaleviShoup(
+      LiteralValue(packedData[0]), LiteralValue(packedFilter),
+      expandedFilterShape.getShape(), DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, unroll);
+  auto actual = std::get<std::vector<int>>(evalKernel(dag)[0].get());
+
+  tensor4d expected = reference2dConv(data, filter, stride, /*padding=*/0);
+  int64_t outputH = expected[0][0].size();
+  int64_t outputW = expected[0][0][0].size();
+  RankedTensorType outputType = RankedTensorType::get(
+      {1, outputChannels, outputH, outputW}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get2dConvResultRelation(outputType, strides, /*padding=*/0, numSlots,
+                              /*interchangeRows=*/true);
+  resultLayout.compose(
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots));
+
+  EXPECT_EQ(unpackLayoutTo4DTensor<int>(resultLayout, {actual},
+                                        {1, outputChannels, outputH, outputW}),
+            expected);
+}
+
+TEST_P(KernelImplementationTest, TestConv2dNchwFchwGapPaddedChannels) {
+  bool unroll = std::get<0>(GetParam());
+  // gap = 2, so the shuffle needs the output channels in blocks of 4. The
+  // matrix must stay no taller than it is wide, which caps the padded channel
+  // count at 4 for one input channel and 8 for two. 4 and 8 are the controls
+  // that need no padding at all.
+  for (int64_t outputChannels : {1, 2, 3, 4}) {
+    checkGapPaddedConv2dChwFchw(outputChannels, /*inputChannels=*/1,
+                                /*dataSize=*/4, /*filterSize=*/2,
+                                /*stride=*/2, /*numSlots=*/64, unroll);
+  }
+  for (int64_t outputChannels : {2, 3, 5, 6, 7, 8}) {
+    checkGapPaddedConv2dChwFchw(outputChannels, /*inputChannels=*/2,
+                                /*dataSize=*/4, /*filterSize=*/2,
+                                /*stride=*/2, /*numSlots=*/64, unroll);
+  }
 }
 
 TEST_P(KernelImplementationTest,

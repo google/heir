@@ -8,6 +8,7 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -40,6 +41,13 @@
 // analysis, and mod_reduce/level_reduce causes levels do decrement.
 namespace mlir {
 namespace heir {
+/// Records how many levels a ciphertext function argument has already consumed
+/// on entry. Backend dialects give every ciphertext the same opaque type, so an
+/// analysis running after that lowering cannot recover the argument's level
+/// from the type and would otherwise assume the argument is fresh.
+constexpr StringRef kEntryLevelDepthAttrName = "lwe.entry_level_depth";
+
+constexpr int kDefaultLevelBudget = 40;
 
 // A sentinel for the maximum allowable level before it is determined exactly
 // what the max level is. In the semantics of this analysis, levels start from 0
@@ -193,13 +201,31 @@ class LevelAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<LevelLattice>,
       public SecretnessAnalysisDependent<LevelAnalysis> {
  public:
-  LevelAnalysis(DataFlowSolver& solver, int levelBudget = 40)
+  LevelAnalysis(DataFlowSolver& solver, int levelBudget = -1)
       : dataflow::SparseForwardDataFlowAnalysis<LevelLattice>(solver),
-        levelBudget(levelBudget) {}
+        solverRef(solver),
+        levelBudget(levelBudget >= 0 ? levelBudget : kDefaultLevelBudget) {}
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToEntryState(LevelLattice* lattice) override {
-    propagateIfChanged(lattice, lattice->join(LevelState(0)));
+    // A function argument is not necessarily fresh: a client may hand the
+    // entry point a ciphertext that has already consumed levels. Assuming
+    // depth 0 makes every value derived from such an argument look shallower
+    // than it is, which later reads as "this buffer still has levels left".
+    propagateIfChanged(
+        lattice,
+        lattice->join(LevelState(getEntryLevelDepth(lattice->getAnchor()))));
+  }
+
+  /// Levels already consumed by `value` on entry, from the attribute the
+  /// backend lowering leaves behind. Zero (fresh) when unannotated.
+  static int getEntryLevelDepth(Value value) {
+    auto attr = findAttributeAssociatedWith(value, kEntryLevelDepthAttrName);
+    if (failed(attr)) {
+      return 0;
+    }
+    auto intAttr = dyn_cast<IntegerAttr>(*attr);
+    return intAttr ? static_cast<int>(intAttr.getInt()) : 0;
   }
 
   LogicalResult visitOperation(Operation* op,
@@ -215,10 +241,12 @@ class LevelAnalysis
   }
 
  private:
+  DataFlowSolver& solverRef;
   int levelBudget;
 };
 
-LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands);
+LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands,
+                             const DataFlowSolver* solver);
 
 /// Backward Analyze the level of plaintext operands of ct-pt ops.
 ///
@@ -256,6 +284,9 @@ constexpr StringRef kArgLevelAttrName = "mgmt.level";
 
 /// baseLevel is for B/FV scheme, where all the analysis result would be 0
 void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel = 0);
+
+/// Validate that no values have an invalid LevelState.
+LogicalResult validateLevelAnalysis(DataFlowSolver& solver, Operation* op);
 
 // Get the maximum annotated level from mgmt attributes.
 // Assumes max level at the entrypoint to the main compiled function.

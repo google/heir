@@ -29,6 +29,7 @@ def LowerPolynomialEval : Pass<"lower-polynomial-eval"> {
   }];
   let dependentDialects = [
     "::mlir::heir::polynomial::PolynomialDialect",
+    "::mlir::heir::kernel::KernelDialect",
   ];
   let options = [
     Option<"method", "method", "mlir::heir::PolynomialApproximationMethod",

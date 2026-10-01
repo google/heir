@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-tfhe-rust --use-levels=False | FileCheck %s
+// RUN: heir-translate %s --emit-tfhe-rust --use-levels=false | FileCheck %s
 
 !sks = !tfhe_rust.server_key
 
@@ -45,7 +45,7 @@ func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !
 func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> !eui3 {
   %v1 = tfhe_rust.apply_lookup_table %sks, %input, %lut : (!sks, !eui3, !lut) -> !eui3
   %v2 = tfhe_rust.add %sks, %input, %v1 : (!sks, !eui3, !eui3) -> !eui3
-  %v3 = tfhe_rust.scalar_left_shift %sks, %v2 {shiftAmount = 1 : index} : (!sks, !eui3) -> !eui3
+  %v3 = tfhe_rust.scalar_left_shift %sks, %v2 <shiftAmount = 1> : (!sks, !eui3) -> !eui3
   %v4 = tfhe_rust.apply_lookup_table %sks, %v3, %lut : (!sks, !eui3, !lut) -> !eui3
   return %v4 : !eui3
 }
@@ -72,7 +72,7 @@ func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   // CHECK: let mut [[v7:.*]] : HashMap<usize, Ciphertext> = HashMap::new();
   // CHECK-NEXT: [[v7]].insert([[v1]] as usize, [[v6]]);
   // CHECK-NEXT: core::array::from_fn(|i0| [[v7]].get
-memref.global constant @__constant_1x1xi1 : memref<1x1xi1> = dense<[[1]]> {alignment = 64 : i64}
+memref.global constant @__constant_1x1xi1 : memref<1x1xi1> = dense<[[1]]> alignment = 64
 func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3>) {
   %c0 = arith.constant 0 : index
   %0 = memref.load %input[%c0] : memref<1x!eui3>

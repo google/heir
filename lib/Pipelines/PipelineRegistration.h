@@ -14,7 +14,8 @@ void prepareForBufferize(OpPassManager& manager);
 
 void oneShotBufferize(OpPassManager& manager, bool includeDeallocation = true);
 
-void mathToPolynomialApproximationBuilder(OpPassManager& pm);
+void mathToPolynomialApproximationBuilder(OpPassManager& pm,
+                                          bool useCompositeRelu = false);
 
 void polynomialToLLVMPipelineBuilder(OpPassManager& manager);
 

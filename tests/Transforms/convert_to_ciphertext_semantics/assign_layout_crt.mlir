@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 
 // CHECK: func.func private @_assign_layout_{{[0-9]+}}(%[[ARG0:.*]]: tensor<11x13xi16>) -> tensor<1x1024xi16>
 // CHECK-DAG: %[[ZERO:.*]] = arith.constant dense<0> : tensor<1x1024xi16>
@@ -21,7 +21,7 @@ module {
   func.func @test_bicyclic_assign_layout(%arg0: tensor<11x13xi16>) -> (!secret.secret<tensor<11x13xi16>> {tensor_ext.layout = #bicyclic}) {
     %0 = secret.generic(%arg0: tensor<11x13xi16>) {
     ^body(%input: tensor<11x13xi16>):
-      %1 = tensor_ext.assign_layout %input {layout = #bicyclic, tensor_ext.layout = #bicyclic} : tensor<11x13xi16>
+      %1 = tensor_ext.assign_layout %input <layout = #bicyclic> {tensor_ext.layout = #bicyclic} : tensor<11x13xi16>
       secret.yield %1 : tensor<11x13xi16>
     } -> (!secret.secret<tensor<11x13xi16>> {tensor_ext.layout = #bicyclic})
     return %0 : !secret.secret<tensor<11x13xi16>>
@@ -53,7 +53,7 @@ module {
   func.func @test_tricyclic_assign_layout(%arg0: tensor<2x11x13xi16>) -> (!secret.secret<tensor<2x11x13xi16>> {tensor_ext.layout = #tricyclic}) {
     %0 = secret.generic(%arg0: tensor<2x11x13xi16>) {
     ^body(%input: tensor<2x11x13xi16>):
-      %1 = tensor_ext.assign_layout %input {layout = #tricyclic, tensor_ext.layout = #tricyclic} : tensor<2x11x13xi16>
+      %1 = tensor_ext.assign_layout %input <layout = #tricyclic> {tensor_ext.layout = #tricyclic} : tensor<2x11x13xi16>
       secret.yield %1 : tensor<2x11x13xi16>
     } -> (!secret.secret<tensor<2x11x13xi16>> {tensor_ext.layout = #tricyclic})
     return %0 : !secret.secret<tensor<2x11x13xi16>>

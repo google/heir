@@ -37,7 +37,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
 
     %0 = scf.for %arg1 = %c0 to %c4 step %c1 iter_args(%arg2 = %arg0) -> (tensor<1x!ct_L2>) {
       %extracted_slice = tensor.extract_slice %cst[%arg1, 0] [1, 1024] [1, 1] : tensor<4x1024xf32> to tensor<1024xf32>
-      %pt = lwe.rlwe_encode %extracted_slice {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+      %pt = lwe.rlwe_encode %extracted_slice <encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024> : tensor<1024xf32> -> !pt
       %from_elements = tensor.from_elements %pt : tensor<1x!pt>
       %1 = ckks.add_plain %from_elements, %arg2 : (tensor<1x!pt>, tensor<1x!ct_L2>) -> tensor<1x!ct_L2>
       scf.yield %1 : tensor<1x!ct_L2>

@@ -13,7 +13,11 @@ cc_library(
     deps = [
         ":Patterns",
         ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Target/CompilationTarget",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TransformUtils",
@@ -26,6 +30,8 @@ cc_library(
     srcs = ["Patterns.cpp"],
     hdrs = ["Patterns.h"],
     deps = [
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",

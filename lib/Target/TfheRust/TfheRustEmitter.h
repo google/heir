@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -71,6 +72,7 @@ class TfheRustEmitter {
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
   LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(::mlir::heir::preprocessing::LoadResourceOp op);
   LogicalResult printOperation(memref::GetGlobalOp op);
   LogicalResult printOperation(memref::LoadOp op);
   LogicalResult printOperation(memref::StoreOp op);

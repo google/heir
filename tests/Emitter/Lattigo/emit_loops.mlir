@@ -15,7 +15,7 @@ module attributes {scheme.bgv} {
   // CHECK: return [[loop_result]]
   func.func @test_affine_for(%evaluator: !evaluator, %ct: !ct) -> !ct {
     %1 = affine.for %arg0 = 1 to 10 step 2 iter_args(%arg1 = %ct) -> (!ct) {
-      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 {static_shift = 1} : (!evaluator, !ct) -> !ct
+      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 <static_shift = 1> : (!evaluator, !ct) -> !ct
       affine.yield %ct_12 : !ct
     }
     return %1 : !ct
@@ -38,7 +38,7 @@ module attributes {scheme.bgv} {
     %c10 = arith.constant 10 : index
     %c2 = arith.constant 2 : index
     %1 = scf.for %arg0 = %c1 to %c10 step %c2 iter_args(%arg1 = %ct) -> (!ct) {
-      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 {static_shift = 1} : (!evaluator, !ct) -> !ct
+      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 <static_shift = 1> : (!evaluator, !ct) -> !ct
       scf.yield %ct_12 : !ct
     }
     return %1 : !ct
@@ -63,10 +63,10 @@ module attributes {scheme.bgv} {
   func.func @test_affine_if(%evaluator: !evaluator, %ct: !ct) -> !ct {
     %1 = affine.for %arg0 = 0 to 10 iter_args(%arg1 = %ct) -> (!ct) {
       %2 = affine.if affine_set<(d0) : (d0 mod 2 == 0)>(%arg0) -> !ct {
-        %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 {static_shift = 1} : (!evaluator, !ct) -> !ct
+        %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 <static_shift = 1> : (!evaluator, !ct) -> !ct
         affine.yield %ct_12 : !ct
       } else {
-        %ct_13 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 {static_shift = 2} : (!evaluator, !ct) -> !ct
+        %ct_13 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 <static_shift = 2> : (!evaluator, !ct) -> !ct
         affine.yield %ct_13 : !ct
       }
       affine.yield %2 : !ct
@@ -84,7 +84,7 @@ module attributes {scheme.bgv} {
   // CHECK: return
   func.func @test_affine_for_unused_result(%evaluator: !evaluator, %ct: !ct) {
     %1 = affine.for %arg0 = 1 to 10 step 2 iter_args(%arg1 = %ct) -> (!ct) {
-      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 {static_shift = 1} : (!evaluator, !ct) -> !ct
+      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 <static_shift = 1> : (!evaluator, !ct) -> !ct
       affine.yield %ct_12 : !ct
     }
     return
@@ -107,7 +107,7 @@ module attributes {scheme.bgv} {
     %c10 = arith.constant 10 : index
     %c2 = arith.constant 2 : index
     %1 = scf.for %arg0 = %c1 to %c10 step %c2 iter_args(%arg1 = %ct) -> (!ct) {
-      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 {static_shift = 1} : (!evaluator, !ct) -> !ct
+      %ct_12 = lattigo.bgv.rotate_columns_new %evaluator, %arg1 <static_shift = 1> : (!evaluator, !ct) -> !ct
       scf.yield %ct_12 : !ct
     }
     return

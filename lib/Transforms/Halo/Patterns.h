@@ -74,8 +74,12 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     rewriter.setInsertionPoint(forOp);
     for (auto i : secretInitIndices) {
       auto& initMutable = forOp.getInitsMutable()[i];
-      auto reduceMinOp = mgmt::LevelReduceMinOp::create(
-          rewriter, forOp.getLoc(), initMutable.get());
+      Value initVal = initMutable.get();
+      if (auto reduceOp = initVal.getDefiningOp<mgmt::LevelReduceOp>()) {
+        initVal = reduceOp.getOperand();
+      }
+      auto reduceMinOp =
+          mgmt::LevelReduceMinOp::create(rewriter, forOp.getLoc(), initVal);
       rewriter.modifyOpInPlace(
           forOp, [&]() { initMutable.set(reduceMinOp.getResult()); });
     }
@@ -157,6 +161,24 @@ struct RegionBranchOpLevelInvariancePattern
 
  private:
   DataFlowSolver* solver;
+};
+
+// Insert adjust_scale ops to align scale across branches of a region branch op.
+struct RegionBranchOpScaleInvariancePattern
+    : public OpInterfaceRewritePattern<RegionBranchOpInterface> {
+  RegionBranchOpScaleInvariancePattern(MLIRContext* context,
+                                       DataFlowSolver* solver, int* idCounter)
+      : OpInterfaceRewritePattern<RegionBranchOpInterface>(context),
+        solver(solver),
+        idCounter(idCounter) {}
+
+  LogicalResult matchAndRewrite(RegionBranchOpInterface op,
+                                PatternRewriter& rewriter) const override;
+
+ private:
+  DataFlowSolver* solver;
+  // increment ID to avoid CSE
+  int* idCounter;
 };
 
 // Remove any bootstrap ops that are marked for deletion in

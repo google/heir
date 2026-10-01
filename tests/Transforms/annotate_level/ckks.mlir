@@ -44,15 +44,15 @@ module {
   func.func @test_ckks(%ct: !ct3, %pt: !pt) -> !ct3 {
     // CHECK: ckks.rescale
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 2>
-    %ct_reduced = ckks.rescale %ct {to_ring = #ring_rns_L2_1_x1024_} : !ct3 -> !ct2
+    %ct_reduced = ckks.rescale %ct <to_ring = #ring_rns_L2_1_x1024_> : !ct3 -> !ct2
 
     // CHECK: ckks.level_reduce
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 0>
-    %ct_reduced2 = ckks.level_reduce %ct_reduced {levelToDrop = 2 : i64} : !ct2 -> !ct0
+    %ct_reduced2 = ckks.level_reduce %ct_reduced <levelToDrop = 2> : !ct2 -> !ct0
 
     // CHECK: ckks.bootstrap
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 3>
-    %ct_bootstrapped = ckks.bootstrap %ct_reduced2 {targetLevel = 3 : i64} : !ct0 -> !ct3
+    %ct_bootstrapped = ckks.bootstrap %ct_reduced2 <targetLevel = 3> : !ct0 -> !ct3
 
     // CHECK: mgmt.init
     // CHECK-SAME: mgmt.mgmt = #mgmt.mgmt<level = 3>

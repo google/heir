@@ -1,5 +1,6 @@
 #include "lib/Analysis/LevelAnalysis/BootstrapWaterlineAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -32,10 +33,16 @@ struct AnnotateBootstrapWaterline
   using AnnotateBootstrapWaterlineBase::AnnotateBootstrapWaterlineBase;
 
   void runOnOperation() override {
+    FailureOr<CompilationTarget> target = getTargetConfig(getOperation());
+    int64_t bootstrapLevelsConsumed = 0;
+    if (succeeded(target)) {
+      bootstrapLevelsConsumed = target->bootstrapLevelsConsumed;
+    }
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
-    solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget);
+    solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget,
+                                            bootstrapLevelsConsumed);
 
     auto result = solver.initializeAndRun(getOperation());
 

@@ -2,7 +2,9 @@
 
 // CHECK: func Test_bootstrap(
 // CHECK-SAME: [[BOOT_EVAL:[^, ]+]] *bootstrapping.Evaluator, [[EVAL:[^, ]+]] *ckks.Evaluator, [[CT_IN:[^, ]+]] *rlwe.Ciphertext, [[CT_OTHER:[^, ]+]] *rlwe.Ciphertext
-// CHECK:   [[CT_OUT:[^, ]+]], err{{.*}} := [[BOOT_EVAL]].Bootstrap([[CT_IN]])
+// lattigo's Bootstrap mod-ups its argument in place, so the operand is
+// handed a copy to keep it usable afterwards.
+// CHECK:   [[CT_OUT:[^, ]+]], err{{.*}} := [[BOOT_EVAL]].Bootstrap([[CT_IN]].CopyNew())
 // CHECK:   if err{{.*}} != nil {
 // CHECK:     panic(err{{.*}})
 // CHECK:   }
@@ -13,7 +15,7 @@
 module attributes {scheme.ckks} {
   func.func @test_bootstrap(%boot_eval: !lattigo.ckks.bootstrapping_evaluator, %eval: !lattigo.ckks.evaluator, %ct: !lattigo.rlwe.ciphertext, %ct_other: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     %bootstrapped = lattigo.ckks.bootstrap %boot_eval, %ct : (!lattigo.ckks.bootstrapping_evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
-    %reduced = lattigo.rlwe.drop_level %eval, %ct_other, %bootstrapped {levelToDrop = 2 : i64} : (!lattigo.ckks.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    %reduced = lattigo.rlwe.drop_level %eval, %ct_other, %bootstrapped <levelToDrop = 2> : (!lattigo.ckks.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
     return %reduced : !lattigo.rlwe.ciphertext
   }
 }

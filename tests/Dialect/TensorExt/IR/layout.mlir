@@ -11,7 +11,7 @@ func.func private @test_fn(tensor<16xi32> {foo.bar = #layout})
 
 func.func @test_empty_array(%arg0: tensor<16x16xi32>) -> tensor<16x16xi32> {
   // expected-error @+1 {{'tensor_ext.assign_layout' op layout array cannot be empty}}
-  %0 = tensor_ext.assign_layout %arg0 {layout = []} : tensor<16x16xi32>
+  %0 = tensor_ext.assign_layout %arg0 <layout = []> : tensor<16x16xi32>
   return %0 : tensor<16x16xi32>
 }
 
@@ -21,7 +21,7 @@ func.func @test_empty_array(%arg0: tensor<16x16xi32>) -> tensor<16x16xi32> {
 
 func.func @test_first_not_layout_attr(%arg0: tensor<16x16xi32>) -> tensor<16x16xi32> {
   // expected-error @+1 {{'tensor_ext.assign_layout' op attribute 'layout' failed to satisfy constraint}}
-  %0 = tensor_ext.assign_layout %arg0 {layout = ["bad_attr"]} : tensor<16x16xi32>
+  %0 = tensor_ext.assign_layout %arg0 <layout = ["bad_attr"]> : tensor<16x16xi32>
   return %0 : tensor<16x16xi32>
 }
 
@@ -31,7 +31,7 @@ func.func @test_first_not_layout_attr(%arg0: tensor<16x16xi32>) -> tensor<16x16x
 
 func.func @test_non_first_not_layout_attr(%arg0: tensor<16x16xi32>) -> tensor<16x16xi32> {
   // expected-error @+1 {{'tensor_ext.assign_layout' op attribute 'layout' failed to satisfy constraint}}
-  %0 = tensor_ext.assign_layout %arg0 {layout = [#layout, "bad_attr"]} : tensor<16x16xi32>
+  %0 = tensor_ext.assign_layout %arg0 <layout = [#layout, "bad_attr"]> : tensor<16x16xi32>
   return %0 : tensor<16x16xi32>
 }
 
@@ -42,7 +42,7 @@ func.func @test_non_first_not_layout_attr(%arg0: tensor<16x16xi32>) -> tensor<16
 
 func.func @test_dim_mismatch(%arg0: tensor<16x16xi32>) -> tensor<16x16xi32> {
   // expected-error @+1 {{'tensor_ext.assign_layout' op layout 1 domain size (2) must match layout 0 range size (3)}}
-  %0 = tensor_ext.assign_layout %arg0 {layout = [#layout1, #layout2]} : tensor<16x16xi32>
+  %0 = tensor_ext.assign_layout %arg0 <layout = [#layout1, #layout2]> : tensor<16x16xi32>
   return %0 : tensor<16x16xi32>
 }
 
@@ -52,6 +52,6 @@ func.func @test_dim_mismatch(%arg0: tensor<16x16xi32>) -> tensor<16x16xi32> {
 
 func.func @test_rank_mismatch(%arg0: tensor<16xi32>) -> tensor<16xi32> {
   // expected-error @+1 {{'tensor_ext.assign_layout' op requires tensor rank to match the layout's domain size, but found rank 1 and domain size 2}}
-  %0 = tensor_ext.assign_layout %arg0 {layout = [#layout]} : tensor<16xi32>
+  %0 = tensor_ext.assign_layout %arg0 <layout = [#layout]> : tensor<16xi32>
   return %0 : tensor<16xi32>
 }

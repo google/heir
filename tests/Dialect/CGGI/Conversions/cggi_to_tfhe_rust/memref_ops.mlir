@@ -17,7 +17,7 @@
 
 module attributes {tf_saved_model.semantics} {
   func.func @main(%arg0: memref<1x1x8x!ct_ty>) -> memref<1x1x4x!ct_ty> {
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1x4x!ct_ty>
+    %alloc = memref.alloc() alignment = 64 : memref<1x1x4x!ct_ty>
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 1 {
         %subview = memref.subview %arg0[0, 0, 0] [1, 1, 8] [1, 1, 1] : memref<1x1x8x!ct_ty> to memref<8x!ct_ty>

@@ -14,7 +14,7 @@
   plaintext_space=#plaintext_space>
 
 func.func @test_rlwe_encode_elementwise(%arg0: tensor<4x1024xi16>) -> tensor<4x!pt> {
-  %0 = lwe.rlwe_encode %arg0 {encoding = #encoding, ring = #plaintext_ring} : tensor<4x1024xi16> -> tensor<4x!pt>
+  %0 = lwe.rlwe_encode %arg0 <encoding = #encoding, ring = #plaintext_ring> : tensor<4x1024xi16> -> tensor<4x!pt>
   return %0 : tensor<4x!pt>
 }
 
@@ -35,6 +35,6 @@ func.func @test_rlwe_encode_elementwise(%arg0: tensor<4x1024xi16>) -> tensor<4x!
 
 func.func @test_rlwe_encode_elementwise_error(%arg0: tensor<4x1024xi16>) -> tensor<5x!pt> {
   // expected-error@+1 {{expected all tensor results to have the same shape as mappable operands, but found shape (4) at operand 0 and shape (5) at result 0}}
-  %0 = lwe.rlwe_encode %arg0 {encoding = #encoding, ring = #plaintext_ring} : tensor<4x1024xi16> -> tensor<5x!pt>
+  %0 = lwe.rlwe_encode %arg0 <encoding = #encoding, ring = #plaintext_ring> : tensor<4x1024xi16> -> tensor<5x!pt>
   return %0 : tensor<5x!pt>
 }

@@ -26,6 +26,7 @@ def TensorExt_Dialect : Dialect {
 
 
   let useDefaultAttributePrinterParser = 1;
+  let useStrictPropertiesInAssemblyFormat = 1;
 }
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_

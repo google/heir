@@ -1,7 +1,7 @@
 // RUN: heir-translate --emit-verilog %s | FileCheck %s
 
 module {
-  memref.global "private" constant @__constant_256xi8 : memref<256xi8> = dense<2> {alignment = 64 : i64}
+  memref.global "private" constant @__constant_256xi8 : memref<256xi8> = dense<2> alignment = 64
   // CHECK: module variable_index
   // CHECK-NEXT:   input wire signed [7:0] [[ARG:.*]],
   func.func @variable_index(%arg : i8) -> i8 {
