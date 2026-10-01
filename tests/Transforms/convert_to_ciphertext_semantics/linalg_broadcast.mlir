@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 // Tests that a broadcast for the 0th dimension gets converted and also broadcasting non power of 2 dimensions.
 
 // CHECK: func.func @main
@@ -20,7 +20,7 @@ module {
     %0 = tensor.empty() {secret.public} : tensor<7x10x9xf32>
     %1 = secret.generic(%arg0: !secret.secret<tensor<10x9xf32>> {tensor_ext.layout = #layout1}) attrs = {secret.secret} {
     ^body(%input0: tensor<10x9xf32>):
-      %2 = tensor_ext.assign_layout %0 {layout = #layout, tensor_ext.layout = #layout} : tensor<7x10x9xf32>
+      %2 = tensor_ext.assign_layout %0 <layout = #layout> {tensor_ext.layout = #layout} : tensor<7x10x9xf32>
       %broadcasted = linalg.broadcast ins(%input0 : tensor<10x9xf32>) outs(%2 : tensor<7x10x9xf32>) dimensions = [0]  {secret.secret, tensor_ext.layout = #layout}
       secret.yield %broadcasted {secret.secret} : tensor<7x10x9xf32>
     } -> (!secret.secret<tensor<7x10x9xf32>> {tensor_ext.layout = #layout})

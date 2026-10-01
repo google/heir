@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=4096 --mlir-elide-elementsattrs-if-larger=10 | tee /tmp/heir_debug.mlir | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=min-slot-count=4096 --mlir-elide-elementsattrs-if-larger=10 | tee /tmp/heir_debug.mlir | FileCheck %s
 // Tests a sample from a layernorm of 4 tokens.
 
 // CHECK: func.func @main
@@ -35,15 +35,15 @@ module {
     %0 = tensor.empty() : tensor<4x768xf32>
     %1 = secret.generic(%arg0: !secret.secret<tensor<4x768xf32>> {tensor_ext.layout = #layout}) {
     ^body(%input0: tensor<4x768xf32>):
-      %2 = tensor_ext.assign_layout %cst_0 {layout = #layout1, tensor_ext.layout = #layout1} : tensor<4xf32>
+      %2 = tensor_ext.assign_layout %cst_0 <layout = #layout1> {tensor_ext.layout = #layout1} : tensor<4xf32>
       %reduced = linalg.reduce ins(%input0 : tensor<4x768xf32>) outs(%2 : tensor<4xf32>) dimensions = [1]  {tensor_ext.layout = #layout1}
         (%in: f32, %init: f32) {
           %8 = arith.addf %in, %init : f32
           linalg.yield %8 : f32
         }
-      %3 = tensor_ext.assign_layout %cst {layout = #layout1, tensor_ext.layout = #layout1} : tensor<4xf32>
+      %3 = tensor_ext.assign_layout %cst <layout = #layout1> {tensor_ext.layout = #layout1} : tensor<4xf32>
       %4 = arith.mulf %reduced, %3 {tensor_ext.layout = #layout1} : tensor<4xf32>
-      %5 = tensor_ext.assign_layout %0 {layout = #layout, tensor_ext.layout = #layout} : tensor<4x768xf32>
+      %5 = tensor_ext.assign_layout %0 <layout = #layout> {tensor_ext.layout = #layout} : tensor<4x768xf32>
       %broadcasted = linalg.broadcast ins(%4 : tensor<4xf32>) outs(%5 : tensor<4x768xf32>) dimensions = [1]  {tensor_ext.layout = #layout}
       %6 = arith.subf %input0, %broadcasted {tensor_ext.layout = #layout} : tensor<4x768xf32>
       %7 = arith.mulf %6, %6 {tensor_ext.layout = #layout} : tensor<4x768xf32>

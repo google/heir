@@ -281,7 +281,6 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(TransposeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
-  LogicalResult visitOperation(BroadcastOp op);
   LogicalResult visitOperation(Conv1DOp op);
   LogicalResult visitOperation(Conv1DNcwFcwOp op);
   LogicalResult visitOperation(Conv2DOp op);
@@ -1803,7 +1802,7 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
       thisLayout = newLayoutAttr;
     }
 
-    if (checkReductionThenBroadcast(op, ciphertextSize)) {
+    if (checkReductionThenBroadcast(op, minSlotCount)) {
       // don't drop dimensions
       assignedLayouts.insert({result, thisLayout});
       debugAssignLayout(result, thisLayout);
@@ -1816,82 +1815,6 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
     }
   }
   setResultLayoutAttr(op);
-  return success();
-}
-
-LogicalResult LayoutPropagation::visitOperation(BroadcastOp op) {
-  MLIRContext* ctx = &getContext();
-  mlir::IRRewriter builder(ctx);
-  builder.setInsertionPoint(op);
-
-  Value init = op.getDpsInits().front();
-  if (!assignedLayouts.contains(init))
-    return failure("BroadcastOp init value has no assigned layout");
-
-  LayoutAttr resultLayout = llvm::cast<LayoutAttr>(assignedLayouts.at(init));
-
-  LayoutAttr initLayout = llvm::cast<LayoutAttr>(assignedLayouts.at(init));
-
-  LayoutAttr inputLayout =
-      llvm::cast<LayoutAttr>(assignedLayouts.at(op.getInput()));
-
-  // generate a new row-major layout
-  LayoutAttr rowMajorLayout = LayoutAttr::getFromIntegerRelation(
-      ctx, getRowMajorLayoutRelation(
-               cast<RankedTensorType>(op.getResults().front().getType()),
-               ciphertextSize));
-
-  LayoutAttr rowMajorInputLayout =
-      convertLayoutForReduce(rowMajorLayout, op.getDimensions());
-
-  for (const auto& [tensor, result] :
-       llvm::zip(ValueRange{op.getInput()}, op.getResults())) {
-    LayoutAttr thisLayout = llvm::cast<LayoutAttr>(assignedLayouts.at(tensor));
-
-    // enforce row-major layout
-    RankedTensorType thisType = cast<RankedTensorType>(tensor.getType());
-    if (!rowMajorInputLayout.getIntegerRelation().isEqual(
-            inputLayout.getIntegerRelation())) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "BroadcastOp tensor is not row major" << thisLayout
-                 << ", inserting layout conversion.\n");
-      auto [toReplace, newLayoutAttr] =
-          convertToLayout(ctx, builder, op, tensor, thisLayout,
-                          getRowMajorLayoutRelation(thisType, ciphertextSize));
-      debugAssignLayout(toReplace, newLayoutAttr);
-      assignedLayouts.insert({toReplace, newLayoutAttr});
-      thisLayout = newLayoutAttr;
-    }
-
-    // check if we are broadcasting after a reduction op:
-    if (checkBroadcastAfterReduction(op, ciphertextSize)) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "BroadcastOp is broadcasting after a ReduceOp, "
-                    "so not adding dimensions to the layout");
-      // don't add dimensions, this op is a no-op
-      assignedLayouts.insert({result, thisLayout});
-      debugAssignLayout(result, thisLayout);
-      resultLayout = thisLayout;
-    } else {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "BroadcastOp is not broadcasting after a ReduceOp, "
-                    "so adding dimensions to the layout");
-      resultLayout = rowMajorLayout;
-      assignedLayouts.insert({result, resultLayout});
-      debugAssignLayout(result, resultLayout);
-    }
-  }
-
-  // update the layout of the init
-  if (initLayout != resultLayout) {
-    auto [toReplace, newInitLayout] = convertToLayout(
-        ctx, builder, op, init, initLayout, resultLayout.getIntegerRelation());
-
-    assignedLayouts.insert({toReplace, newInitLayout});
-  }
-
-  setResultLayoutAttr(op);
-
   return success();
 }
 

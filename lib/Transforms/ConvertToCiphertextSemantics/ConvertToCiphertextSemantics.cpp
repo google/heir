@@ -831,91 +831,6 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
   }
 };
 
-class ConvertLinalgBroadcast
-    : public ContextAwareOpConversionPattern<linalg::BroadcastOp> {
- public:
-  using ContextAwareOpConversionPattern<
-      linalg::BroadcastOp>::ContextAwareOpConversionPattern;
-
-  void rotateAndMaskKernel(
-      linalg::BroadcastOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const {
-    auto input = op.getInput();
-
-    int64_t dim = op.getDimensions()[0];
-    int64_t dimSize =
-        llvm::cast<RankedTensorType>(op.getResults().front().getType())
-            .getShape()[dim];
-    auto originalShape = cast<RankedTensorType>(input.getType()).getShape();
-
-    auto convertedType = getTypeConverter()->convertType(
-        input.getType(), cast<LayoutAttr>(op->getAttr(kLayoutAttrName)));
-    auto convertedInput =
-        cast<TypedValue<RankedTensorType>>(adaptor.getInput());
-
-    int64_t ciphertextSize = convertedInput.getType().getNumElements();
-
-    kernel::DagType dagType =
-        kernel::mlirTypeToDagType(convertedInput.getType());
-
-    SSAValue vectorLeaf(adaptor.getInput());
-    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
-        implementRotateAndBroadcast(vectorLeaf, dim, dimSize, dagType,
-                                    ciphertextSize, originalShape);
-
-    rewriter.setInsertionPointAfter(op);
-
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        convertedType, [&](Operation* createdOp) { setMaterializedAttr(op); });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
-
-    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto* finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
-
-    // Add the initial value
-    Value result = adaptor.getInit();
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
-  }
-
-  LogicalResult matchAndRewrite(
-      linalg::BroadcastOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const final {
-    Value input = adaptor.getInput();
-
-    LayoutAttr inputLayout = getLayoutAttr(input);
-    if (!inputLayout)
-      return rewriter.notifyMatchFailure(
-          op, "missing new layout attribute for input");
-
-    // TODO(#3465): support multi-dimension broadcasts
-    if (op.getDimensions().size() != 1) {
-      return op.emitError(
-          "linalg.broadcast only supported with a single broadcast dimension");
-    }
-
-    rotateAndMaskKernel(op, adaptor, rewriter);
-
-    return success();
-  }
-
- private:
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
-};
-
 struct ConvertLinalgDot : public ConversionBase<linalg::DotOp> {
  public:
   using ConversionBase<linalg::DotOp>::ConversionBase;
@@ -969,8 +884,9 @@ struct ConvertLinalgDot : public ConversionBase<linalg::DotOp> {
   }
 };
 
-// Lowers linalg.broadcast under bicyclic or tricyclic packing where the
-// broadcast acts as a zero-cost view without moving ciphertext data.
+// Lowers linalg.broadcast. When both layouts are cyclic, the broadcast is a
+// zero-cost view of the ciphertext. Otherwise it uses a rotate-and-mask
+// kernel.
 class ConvertLinalgBroadcast
     : public ContextAwareOpConversionPattern<linalg::BroadcastOp> {
  public:
@@ -1030,10 +946,59 @@ class ConvertLinalgBroadcast
       return success();
     }
 
-    // Lowering of non-cyclic broadcasts is postponed to a dedicated broadcast
-    // kernel (e.g. https://github.com/google/heir/pull/3163)
-    return rewriter.notifyMatchFailure(
-        op, "non-cyclic broadcasts are not supported yet");
+    // TODO(#3465): support multi-dimension broadcasts
+    if (op.getDimensions().size() != 1) {
+      return op.emitError(
+          "linalg.broadcast only supported with a single broadcast dimension");
+    }
+
+    rotateAndMaskKernel(op, adaptor, rewriter, resultLayout,
+                        convertedResultType);
+    return success();
+  }
+
+ private:
+  void rotateAndMaskKernel(linalg::BroadcastOp op, OpAdaptor adaptor,
+                           ContextAwareConversionPatternRewriter& rewriter,
+                           LayoutAttr layoutAttr, Type convertedType) const {
+    auto input = op.getInput();
+
+    int64_t dim = op.getDimensions()[0];
+    int64_t dimSize =
+        llvm::cast<RankedTensorType>(op.getResults().front().getType())
+            .getShape()[dim];
+    auto originalShape = cast<RankedTensorType>(input.getType()).getShape();
+
+    auto convertedInput =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInput());
+    int64_t ciphertextSize = convertedInput.getType().getNumElements();
+    kernel::DagType dagType =
+        kernel::mlirTypeToDagType(convertedInput.getType());
+
+    SSAValue vectorLeaf(adaptor.getInput());
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementRotateAndBroadcast(vectorLeaf, dim, dimSize, dagType,
+                                    ciphertextSize, originalShape);
+
+    rewriter.setInsertionPointAfter(op);
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial value
+    Value result = adaptor.getInit();
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
   }
 };
 
