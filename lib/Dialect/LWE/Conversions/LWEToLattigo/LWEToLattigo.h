@@ -3,6 +3,10 @@
 
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+// IWYU pragma: end_keep
+
 namespace mlir::heir::lwe {
 
 #define GEN_PASS_DECL

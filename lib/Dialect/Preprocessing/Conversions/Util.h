@@ -5,6 +5,7 @@
 
 #include "lib/Analysis/PreprocessingStorageLayoutAnalysis/PreprocessingStorageLayoutAnalysis.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
@@ -71,15 +72,38 @@ FailureOr<Value> getLinearIndex(OpBuilder& builder, Location loc, Operation* op,
 // At this stage, the preprocessing.storage may have multiple element types,
 // so the type conversion is needed to combine them into a single type when
 // the target backend has a single type, such as openfhe.plaintext.
+//
+// Several distinct element types can convert to the same backend type (e.g.
+// every prepared-linear-transform type becomes one lattigo transformation
+// type), so the converted list is deduplicated, keeping first-occurrence
+// order.
 inline Type convertStorageElementTypes(PreprocessingStorageType storageTy,
                                        TypeConverter* typeConverter) {
   SmallVector<Type> convertedTypes;
   for (Type t : storageTy.getElementTypes()) {
-    convertedTypes.push_back(typeConverter->convertType(t));
+    Type converted = typeConverter->convertType(t);
+    if (!converted) return Type();
+    if (!llvm::is_contained(convertedTypes, converted)) {
+      convertedTypes.push_back(converted);
+    }
   }
   return preprocessing::PreprocessingStorageType::get(storageTy.getContext(),
                                                       convertedTypes);
 }
+
+// Type converter lowering a preprocessing.storage to one flat memref per
+// element type, sized by the storage layout analysis.
+class FlatMemrefPreprocessingTypeConverter : public TypeConverter {
+ public:
+  explicit FlatMemrefPreprocessingTypeConverter(
+      const PreprocessingStorageLayoutAnalysis& analysis);
+};
+
+// Populate patterns lowering preprocessing.empty/store/load onto the flat
+// memrefs created by FlatMemrefPreprocessingTypeConverter.
+void populatePreprocessingToFlatMemrefPatterns(
+    const TypeConverter& typeConverter, RewritePatternSet& patterns,
+    const PreprocessingStorageLayoutAnalysis& analysis);
 
 }  // namespace preprocessing
 }  // namespace heir
