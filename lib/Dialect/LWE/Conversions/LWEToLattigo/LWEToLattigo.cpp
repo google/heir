@@ -31,6 +31,7 @@
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
@@ -156,7 +157,23 @@ bool containsEncode(Operation* op) {
     return false;
   }
   auto result = walkFuncAndCallees(funcOp, [&](Operation* op) {
-    if (isa<lwe::RLWEEncodeOp>(op)) {
+    if (isa<lwe::RLWEEncodeOp, kernel::PrepareLinearTransformOp,
+            lattigo::CKKSPrepareLinearTransformOp>(op)) {
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  return result.wasInterrupted();
+}
+
+bool containsApplyLinearTransform(Operation* op) {
+  auto funcOp = dyn_cast<func::FuncOp>(op);
+  if (!funcOp) {
+    return false;
+  }
+  auto result = walkFuncAndCallees(funcOp, [&](Operation* op) {
+    if (isa<kernel::ApplyLinearTransformOp,
+            lattigo::CKKSApplyLinearTransformOp>(op)) {
       return WalkResult::interrupt();
     }
     return WalkResult::advance();
@@ -712,6 +729,33 @@ struct ConvertKernelLinearTransformOp
       ConversionPatternRewriter& rewriter) const override {
     LLVM_DEBUG(llvm::dbgs() << "Lowering Kernel LinearTransformOp\n");
 
+    auto lweType = dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
+    if (!lweType) {
+      return op.emitOpError("input is not LWE ciphertext");
+    }
+    auto modulusChain = lweType.getModulusChain();
+    if (!modulusChain) {
+      return op.emitOpError("input LWE type has no modulus chain");
+    }
+
+    auto outputLweType =
+        dyn_cast<lwe::LWECiphertextType>(op.getResult().getType());
+    if (!outputLweType) {
+      return op.emitOpError("output is not LWE ciphertext");
+    }
+    auto outputModulusChain = outputLweType.getModulusChain();
+    if (!outputModulusChain) {
+      return op.emitOpError("output LWE type has no modulus chain");
+    }
+
+    int64_t inputLevel = modulusChain.getCurrent();
+    int64_t outputLevel = outputModulusChain.getCurrent();
+    if (outputLevel != inputLevel - 1) {
+      return op.emitOpError() << "expected output level (" << outputLevel
+                              << ") to be exactly one less than input level ("
+                              << inputLevel << ")";
+    }
+
     FailureOr<Value> evaluatorResult =
         getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
     if (failed(evaluatorResult)) return evaluatorResult;
@@ -722,16 +766,7 @@ struct ConvertKernelLinearTransformOp
     if (failed(encoderResult)) return encoderResult;
     Value encoder = encoderResult.value();
 
-    // Extract level from input LWE ciphertext type
-    auto lweType = dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
-    if (!lweType) {
-      return op.emitOpError("input is not LWE ciphertext");
-    }
-    auto modulusChain = lweType.getModulusChain();
-    if (!modulusChain) {
-      return op.emitOpError("input LWE type has no modulus chain");
-    }
-    int64_t levelQ = modulusChain.getCurrent();
+    int64_t levelQ = inputLevel;
 
     // Convert diagonal_indices from I64 to I32 (Lattigo CKKSLinearTransformOp
     // expects I32)
@@ -770,8 +805,114 @@ struct ConvertKernelLinearTransformOp
         adaptor.getInput(), op.getDiagonals(), diagonalIndicesI32Attr,
         levelQAttr, logBSGSRatioAttr);
 
+    // Lattigo's linear_transform preserves the input level with a multiplied
+    // scale (so a rescale must follow). kernel.linear_transform drops exactly
+    // one level.
+    auto rescaleOp = lattigo::CKKSRescaleNewOp::create(
+        rewriter, op.getLoc(), adaptor.getInput().getType(), evaluator,
+        linearTransformOp.getResult());
+
+    rewriter.replaceOp(op, rescaleOp.getResult());
+    return success();
+  }
+};
+
+struct ConvertKernelPrepareLinearTransformOp
+    : public OpConversionPattern<kernel::PrepareLinearTransformOp> {
+  using OpConversionPattern<
+      kernel::PrepareLinearTransformOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      kernel::PrepareLinearTransformOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Lowering Kernel PrepareLinearTransformOp\n");
+
+    FailureOr<Value> encoderResult =
+        getContextualEvaluator<lattigo::CKKSEncoderType>(op.getOperation());
+    if (failed(encoderResult)) return encoderResult;
+    Value encoder = encoderResult.value();
+
+    FailureOr<Value> paramsResult =
+        getContextualEvaluator<lattigo::CKKSParameterType>(op.getOperation());
+    if (failed(paramsResult)) return paramsResult;
+    Value params = paramsResult.value();
+
+    auto preparedType = op.getPrepared().getType();
+    int64_t slots = preparedType.getSlots();
+    if (slots <= 0 || !llvm::isPowerOf2_64(slots)) {
+      return op.emitOpError("slots must be a power of two");
+    }
+    int64_t logSlots = llvm::Log2_64(slots);
+    int64_t levelQ = preparedType.getLevel();
+    int64_t logBSGSRatio = preparedType.getLogBsgsRatio();
+
+    auto diagonalIndicesAttr = op.getDiagonalIndices();
+    std::vector<int32_t> diagonalIndicesI32;
+    diagonalIndicesI32.reserve(diagonalIndicesAttr.size());
+    for (auto val : diagonalIndicesAttr) {
+      diagonalIndicesI32.push_back(static_cast<int32_t>(val));
+    }
+    auto diagonalIndicesI32Attr =
+        rewriter.getDenseI32ArrayAttr(diagonalIndicesI32);
+
+    DenseI32ArrayAttr sourceRowIndicesI32Attr = nullptr;
+    if (auto sourceRowIndicesAttr = op.getSourceRowIndicesAttr()) {
+      std::vector<int32_t> sourceRowIndicesI32;
+      sourceRowIndicesI32.reserve(sourceRowIndicesAttr.size());
+      for (auto val : sourceRowIndicesAttr.asArrayRef()) {
+        sourceRowIndicesI32.push_back(static_cast<int32_t>(val));
+      }
+      sourceRowIndicesI32Attr =
+          rewriter.getDenseI32ArrayAttr(sourceRowIndicesI32);
+    }
+
+    Value diagonalsValue = adaptor.getDiagonals();
+    auto diagonalsType = cast<ShapedType>(diagonalsValue.getType());
+    if (isa<IntegerType>(diagonalsType.getElementType())) {
+      if (auto rankedTensorType = dyn_cast<RankedTensorType>(diagonalsType)) {
+        auto f64DiagonalsType = RankedTensorType::get(
+            rankedTensorType.getShape(), rewriter.getF64Type());
+        diagonalsValue = arith::SIToFPOp::create(
+            rewriter, op.getLoc(), f64DiagonalsType, diagonalsValue);
+      }
+    }
+
+    Type resultType =
+        getTypeConverter()->convertType(op.getPrepared().getType());
+    auto prepareOp = lattigo::CKKSPrepareLinearTransformOp::create(
+        rewriter, op.getLoc(), resultType, params, encoder, diagonalsValue,
+        diagonalIndicesI32Attr, sourceRowIndicesI32Attr,
+        rewriter.getI64IntegerAttr(levelQ),
+        rewriter.getI64IntegerAttr(logSlots),
+        rewriter.getI64IntegerAttr(logBSGSRatio));
+    prepareOp->setDiscardableAttrs(op->getDiscardableAttrDictionary());
+
+    rewriter.replaceOp(op, prepareOp.getResult());
+    return success();
+  }
+};
+
+struct ConvertKernelApplyLinearTransformOp
+    : public OpConversionPattern<kernel::ApplyLinearTransformOp> {
+  using OpConversionPattern<
+      kernel::ApplyLinearTransformOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      kernel::ApplyLinearTransformOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Lowering Kernel ApplyLinearTransformOp\n");
+
+    auto lweType = dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
+    if (!lweType) {
+      return op.emitOpError("input is not LWE ciphertext");
+    }
+    auto modulusChain = lweType.getModulusChain();
+    if (!modulusChain) {
+      return op.emitOpError("input LWE type has no modulus chain");
+    }
+
     auto outputLweType =
-        dyn_cast<lwe::LWECiphertextType>(op.getResult().getType());
+        dyn_cast<lwe::LWECiphertextType>(op.getOutput().getType());
     if (!outputLweType) {
       return op.emitOpError("output is not LWE ciphertext");
     }
@@ -780,18 +921,32 @@ struct ConvertKernelLinearTransformOp
       return op.emitOpError("output LWE type has no modulus chain");
     }
 
-    Value result = linearTransformOp.getResult();
-    if (outputModulusChain.getCurrent() < modulusChain.getCurrent()) {
-      int64_t diff =
-          modulusChain.getCurrent() - outputModulusChain.getCurrent();
-      for (int64_t i = 0; i < diff; ++i) {
-        auto rescaleOp = rewriter.create<lattigo::CKKSRescaleNewOp>(
-            op.getLoc(), result.getType(), evaluator, result);
-        result = rescaleOp.getResult();
-      }
+    int64_t inputLevel = modulusChain.getCurrent();
+    int64_t outputLevel = outputModulusChain.getCurrent();
+    if (outputLevel != inputLevel - 1) {
+      return op.emitOpError() << "expected output level (" << outputLevel
+                              << ") to be exactly one less than input level ("
+                              << inputLevel << ")";
     }
 
-    rewriter.replaceOp(op, result);
+    FailureOr<Value> evaluatorResult =
+        getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
+    if (failed(evaluatorResult)) return evaluatorResult;
+    Value evaluator = evaluatorResult.value();
+
+    auto applyOp = lattigo::CKKSApplyLinearTransformOp::create(
+        rewriter, op.getLoc(), adaptor.getInput().getType(), evaluator,
+        adaptor.getInput(), adaptor.getPrepared());
+    applyOp->setDiscardableAttrs(op->getDiscardableAttrDictionary());
+
+    // Lattigo's apply_linear_transform preserves the input level with a
+    // multiplied scale (so a rescale must follow).
+    // kernel.apply_linear_transform drops exactly one level.
+    auto rescaleOp = lattigo::CKKSRescaleNewOp::create(
+        rewriter, op.getLoc(), adaptor.getInput().getType(), evaluator,
+        applyOp.getResult());
+
+    rewriter.replaceOp(op, rescaleOp.getResult());
     return success();
   }
 };
@@ -1065,11 +1220,12 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                              orion::OrionDialect>();
     target.addDynamicallyLegalDialect<preprocessing::PreprocessingDialect>(
         [&](Operation* op) { return typeConverter.isLegal(op); });
-    target
-        .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
-                      lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
-                      lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp,
-                      kernel::EvalChebyshevOp, kernel::LinearTransformOp>();
+    target.addIllegalOp<
+        lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
+        lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
+        lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp,
+        kernel::EvalChebyshevOp, kernel::LinearTransformOp,
+        kernel::PrepareLinearTransformOp, kernel::ApplyLinearTransformOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -1090,10 +1246,12 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                                     ckks::CKKSDialect, lattigo::LattigoDialect>(
               op);
       bool hasEncodeOp = containsEncode(op);
+      bool hasApplyOp = containsApplyLinearTransform(op);
 
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!(hasCryptoArg || hasEncodeOp) || hasCryptoContextArg);
+             (!(hasCryptoArg || hasEncodeOp || hasApplyOp) ||
+              hasCryptoContextArg);
     });
 
     // Ensures that callee function signature is consistent
@@ -1206,8 +1364,11 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                   containsBootstrap(op);
          })},
         {lattigo::CKKSEvaluatorType::get(context),
-         gateByCKKSModuleAttr(
-             containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
+         gateByCKKSModuleAttr([&](Operation* op) {
+           return containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>(
+                      op) ||
+                  containsApplyLinearTransform(op);
+         })},
         {lattigo::CKKSParameterType::get(context),
          gateByCKKSModuleAttr([&](Operation* op) {
            return containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>(
@@ -1250,7 +1411,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
           ConvertCKKSBootstrappingOp, ConvertOrionLinearTransformOp,
           ConvertOrionChebyshevOp, ConvertKernelEvalChebyshevOp,
-          ConvertKernelLinearTransformOp>(typeConverter, context);
+          ConvertKernelLinearTransformOp, ConvertKernelPrepareLinearTransformOp,
+          ConvertKernelApplyLinearTransformOp>(typeConverter, context);
     }
     // Misc
 
