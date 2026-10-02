@@ -204,6 +204,34 @@ cc_test(
 )
 
 cc_test(
+    name = "RotateAndBroadcastImplTest",
+    srcs = ["RotateAndBroadcastImplTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        ":TestingUtils",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
+    name = "RotateAndBroadcastFuzzTest",
+    srcs = ["RotateAndBroadcastFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        ":TestingUtils",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
     name = "BicyclicDiagonalMatmulFuzzTest",
     srcs = ["BicyclicDiagonalMatmulFuzzTest.cpp"],
     deps = [

@@ -91,6 +91,7 @@ using kernel::IRMaterializingVisitor;
 using kernel::SSAValue;
 using ::mlir::heir::kernel::ArithmeticDagNode;
 using ::mlir::heir::kernel::implementHaleviShoup;
+using ::mlir::heir::kernel::implementRotateAndBroadcast;
 using ::mlir::heir::kernel::implementRotateAndReduce;
 using ::mlir::heir::kernel::IRMaterializingVisitor;
 using ::mlir::heir::kernel::SSAValue;
@@ -730,7 +731,60 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
 
     // Add the initial  value.
     Value result = adaptor.getInits()[0];
-    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
+    Operation* addBias = makeAppropriatelyTypedAddOp(rewriter, op->getLoc(),
+                                                     finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
+
+    // if the reduce is immediately broadcasted, the broadcast is a NoOp
+    if (checkReductionThenBroadcast(op)) {
+      SmallVector<linalg::BroadcastOp> broadcastsToErase;
+      for (auto user : op->getUsers()) {
+        if (auto broadcastOp = dyn_cast<linalg::BroadcastOp>(user)) {
+          broadcastsToErase.push_back(broadcastOp);
+        }
+      }
+      for (auto broadcastOp : broadcastsToErase) {
+        broadcastOp.getResults()[0].replaceAllUsesWith(op.getResults()[0]);
+      }
+    }
+
+    // if the reduce is immediately broadcasted, the broadcast is a NoOp
+    if (checkReductionThenBroadcast(op)) {
+      SmallVector<linalg::BroadcastOp> broadcastsToErase;
+      for (auto user : op->getUsers()) {
+        if (auto broadcastOp = dyn_cast<linalg::BroadcastOp>(user)) {
+          broadcastsToErase.push_back(broadcastOp);
+        }
+      }
+      for (auto broadcastOp : broadcastsToErase) {
+        broadcastOp.getResults()[0].replaceAllUsesWith(op.getResults()[0]);
+      }
+    }
+  }
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
+  }
+
+  bool checkReductionThenBroadcast(const linalg::ReduceOp op) const {
+    auto nextBroadcast =
+        llvm::dyn_cast_or_null<linalg::BroadcastOp>(*op->getUsers().begin());
+    if (!nextBroadcast) {
+      return false;
+    }
+    auto broadcastResult = nextBroadcast->getResult(0);
+    auto broadcastInput = nextBroadcast.getInput();
+    auto broadcastResultLayout = getLayoutAttr(broadcastResult);
+    auto broadcastInputLayout = getLayoutAttr(broadcastInput);
+    return broadcastResultLayout && broadcastInputLayout &&
+           broadcastResultLayout.getIntegerRelation().isEqual(
+               broadcastInputLayout.getIntegerRelation());
   }
 
   LogicalResult matchAndRewrite(
@@ -830,8 +884,9 @@ struct ConvertLinalgDot : public ConversionBase<linalg::DotOp> {
   }
 };
 
-// Lowers linalg.broadcast under bicyclic or tricyclic packing where the
-// broadcast acts as a zero-cost view without moving ciphertext data.
+// Lowers linalg.broadcast. When both layouts are cyclic, the broadcast is a
+// zero-cost view of the ciphertext. Otherwise it uses a rotate-and-mask
+// kernel.
 class ConvertLinalgBroadcast
     : public ContextAwareOpConversionPattern<linalg::BroadcastOp> {
  public:
@@ -891,10 +946,59 @@ class ConvertLinalgBroadcast
       return success();
     }
 
-    // Lowering of non-cyclic broadcasts is postponed to a dedicated broadcast
-    // kernel (e.g. https://github.com/google/heir/pull/3163)
-    return rewriter.notifyMatchFailure(
-        op, "non-cyclic broadcasts are not supported yet");
+    // TODO(#3465): support multi-dimension broadcasts
+    if (op.getDimensions().size() != 1) {
+      return op.emitError(
+          "linalg.broadcast only supported with a single broadcast dimension");
+    }
+
+    rotateAndMaskKernel(op, adaptor, rewriter, resultLayout,
+                        convertedResultType);
+    return success();
+  }
+
+ private:
+  void rotateAndMaskKernel(linalg::BroadcastOp op, OpAdaptor adaptor,
+                           ContextAwareConversionPatternRewriter& rewriter,
+                           LayoutAttr layoutAttr, Type convertedType) const {
+    auto input = op.getInput();
+
+    int64_t dim = op.getDimensions()[0];
+    int64_t dimSize =
+        llvm::cast<RankedTensorType>(op.getResults().front().getType())
+            .getShape()[dim];
+    auto originalShape = cast<RankedTensorType>(input.getType()).getShape();
+
+    auto convertedInput =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInput());
+    int64_t ciphertextSize = convertedInput.getType().getNumElements();
+    kernel::DagType dagType =
+        kernel::mlirTypeToDagType(convertedInput.getType());
+
+    SSAValue vectorLeaf(adaptor.getInput());
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementRotateAndBroadcast(vectorLeaf, dim, dimSize, dagType,
+                                    ciphertextSize, originalShape);
+
+    rewriter.setInsertionPointAfter(op);
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial value
+    Value result = adaptor.getInit();
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
   }
 };
 
