@@ -222,10 +222,24 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSBootstrapOp op);
   LogicalResult printOperation(CKKSRotateOp op);
   LogicalResult printOperation(CKKSLinearTransformOp op);
+  LogicalResult printOperation(CKKSPrepareLinearTransformOp op);
+  LogicalResult printOperation(CKKSApplyLinearTransformOp op);
   LogicalResult printOperation(CKKSChebyshevOp op);
 
   // Helpers for above
   void printErrPanic(std::string_view errName);
+  void printDiagonalsUnpack(llvm::StringRef diagonalsName,
+                            ShapedType diagonalsType,
+                            DenseI32ArrayAttr diagonalIndicesAttr,
+                            DenseI32ArrayAttr sourceRowIndicesAttr,
+                            llvm::StringRef slotsExpr,
+                            std::optional<int64_t> staticSlots,
+                            llvm::StringRef prefix,
+                            std::string& diagonalsMapName);
+  void printLinearTransformEvaluate(llvm::StringRef evaluatorName,
+                                    llvm::StringRef inputName,
+                                    llvm::StringRef transformationName,
+                                    llvm::StringRef outputName);
 
   LogicalResult printNewMethod(::mlir::Value result,
                                ::mlir::ValueRange operands, std::string_view op,

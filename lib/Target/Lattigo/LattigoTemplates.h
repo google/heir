@@ -32,6 +32,7 @@ constexpr std::string_view kLattigoUtilsImport =
 constexpr std::string_view kMathImport = "\"math\"";
 constexpr std::string_view kSlicesImport = "\"slices\"";
 constexpr std::string_view kMathBigImport = "\"math/big\"";
+constexpr std::string_view kFmtImport = "\"fmt\"";
 
 }  // namespace lattigo
 }  // namespace heir
