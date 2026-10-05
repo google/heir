@@ -729,6 +729,9 @@ void cheddarToEmitCPipelineBuilder(OpPassManager& pm) {
   pm.addPass(createCanonicalizerPass());
   pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
   pm.addPass(bufferization::createLowerDeallocationsPass());
+  // Fold the `scf.if %true` guards lower-deallocations emits for statically
+  // owned buffers so the C++ resets temporaries unconditionally.
+  pm.addPass(createCanonicalizerPass());
 
   ConvertToEmitCOptions emitCOptions;
   emitCOptions.filterDialects = {"cheddar", "arith", "math", "scf"};

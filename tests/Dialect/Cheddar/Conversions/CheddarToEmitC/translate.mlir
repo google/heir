@@ -44,3 +44,20 @@ func.func @rotate(%ctx: !context, %evk: !evk_map, %ct: tensor<!ciphertext>) -> t
   %r = cheddar.hrot %ctx, %evk, %ct, %d <{static_distance = 5 : i64}> : (!context, !evk_map, tensor<!ciphertext>, tensor<!ciphertext>) -> tensor<!ciphertext>
   return %r : tensor<!ciphertext>
 }
+
+// Temporaries own their buffer statically, so they are released right after
+// their last use without a runtime ownership flag guarding the reset.
+// CHECK: void temporaries(Context<word>* [[CTX:v[0-9]+]], const Ciphertext<word>& [[A:v[0-9]+]], const Ciphertext<word>& [[B:v[0-9]+]], Ciphertext<word>& [[OUT:v[0-9]+]])
+// CHECK-NOT: bool
+// CHECK: Ciphertext<word> [[T:v[0-9]+]];
+// CHECK-NEXT: [[CTX]]->Add([[T]], [[A]], [[B]]);
+// CHECK-NEXT: [[CTX]]->Mult([[OUT]], [[T]], [[A]]);
+// CHECK-NEXT: [[T]] = Ciphertext<word>();
+// CHECK-NEXT: return;
+func.func @temporaries(%ctx: !context, %a: tensor<!ciphertext>, %b: tensor<!ciphertext>) -> tensor<!ciphertext> {
+  %d0 = tensor.empty() : tensor<!ciphertext>
+  %0 = cheddar.add %ctx, %a, %b, %d0 : (!context, tensor<!ciphertext>, tensor<!ciphertext>, tensor<!ciphertext>) -> tensor<!ciphertext>
+  %d1 = tensor.empty() : tensor<!ciphertext>
+  %1 = cheddar.mult %ctx, %0, %a, %d1 : (!context, tensor<!ciphertext>, tensor<!ciphertext>, tensor<!ciphertext>) -> tensor<!ciphertext>
+  return %1 : tensor<!ciphertext>
+}
