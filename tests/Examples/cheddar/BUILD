@@ -17,7 +17,7 @@ bzl_library(
     ],
 )
 
-# TODO: these inputs are hand-written Cheddar IR; generate them from
+# TODO(#3429): these inputs are hand-written Cheddar IR; generate them from
 # tests/Examples/common via a scheme-to-cheddar pipeline once one exists.
 
 # The op surface real kernels use.
