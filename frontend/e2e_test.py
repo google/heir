@@ -139,6 +139,21 @@ class EndToEndTest(absltest.TestCase):
     # Note: there's no 'myfunc.original' since there's no original Python function to call
     self.assertEqual(15, myfunc(7, 8))
 
+  def test_mlir_invalid_func_name(self):
+    src = """
+      func.func @"../myfunc"(%a : i32 {secret.secret}, %b : i32) -> i32 {
+        %sum = arith.addi %a, %b : i32
+        return %sum : i32
+      }
+    """
+    with self.assertRaisesRegex(ValueError, "not a valid identifier"):
+      compile(
+          mlir_str=src,
+          scheme="bgv",
+          backend=CleartextBackend(),
+          debug=True,
+      )
+
 
 if __name__ == "__main__":
   absltest.main()
