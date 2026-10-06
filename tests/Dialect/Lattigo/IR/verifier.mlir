@@ -126,3 +126,27 @@ func.func @test_ckks_prepare_linear_transform_source_row_index_out_of_bounds(%pa
   %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], source_row_indices = [2], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<2x4xf64>) -> !linear_transformation
   return
 }
+
+// -----
+
+!params = !lattigo.ckks.parameter
+!encoder = !lattigo.ckks.encoder
+!linear_transformation = !lattigo.ckks.linear_transformation
+
+func.func @test_ckks_prepare_linear_transform_width_greater_than_slots(%params: !params, %encoder: !encoder, %diagonals: tensor<1x8xf64>) {
+  // expected-error@+1 {{diagonal width (8) must be in range (0, 4]}}
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<1x8xf64>) -> !linear_transformation
+  return
+}
+
+// -----
+
+!params = !lattigo.ckks.parameter
+!encoder = !lattigo.ckks.encoder
+!linear_transformation = !lattigo.ckks.linear_transformation
+
+func.func @test_ckks_prepare_linear_transform_slots_not_multiple_of_width(%params: !params, %encoder: !encoder, %diagonals: tensor<1x3xf64>) {
+  // expected-error@+1 {{slots (4) must be a multiple of diagonal width (3)}}
+  %transformation = lattigo.ckks.prepare_linear_transform %params, %encoder, %diagonals <diagonal_indices = [0], levelQ = 0 : i64, logSlots = 2 : i64, logBabyStepGiantStepRatio = 0 : i64> : (!params, !encoder, tensor<1x3xf64>) -> !linear_transformation
+  return
+}
