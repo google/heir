@@ -165,6 +165,11 @@ def run_pipeline(
             options=["--emit-function-info", "--allow-unregistered-dialect"],
         )
         func_name = func_info_str.splitlines()[0]
+        if not func_name.isidentifier():
+          raise ValueError(
+              f"function name {func_name!r} from --emit-function-info is not a"
+              " valid identifier; refusing to use as filesystem path component"
+          )
         arg_names = func_info_str.splitlines()[1].split(", ")
         secret_args = list(map(int, func_info_str.splitlines()[2].split(", ")))
       except CLIError as e:
