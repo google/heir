@@ -189,6 +189,16 @@ MemberCallOpaqueOp emitMemberCall(OpBuilder& b, Location loc,
       /*template_args=*/ArrayAttr{}, operands);
 }
 
+// Look through the materialization cast the driver inserts between an
+// `lvalue<opaque T>` producer and an `opaque T` use.
+Value unwrapSingleUnrealizedCast(Value v) {
+  if (auto cast = v.getDefiningOp<mlir::UnrealizedConversionCastOp>();
+      cast && cast.getInputs().size() == 1 &&
+      isa<emitc::LValueType>(cast.getInputs()[0].getType()))
+    return cast.getInputs()[0];
+  return v;
+}
+
 // Emit `receiver.method(out, args...)`, marking `out` as written.
 void emitOutParamCall(OpBuilder& b, Location loc, Value receiver,
                       StringRef method, Value out, ArrayRef<CallArg> args) {
@@ -310,7 +320,11 @@ struct OutParamDpsPattern : public OpConversionPattern<Op> {
     Value dest = operands[initIdx];
     SmallVector<CallArg> inputs;
     for (unsigned i = 1; i < operands.size(); ++i)
-      if (i != initIdx) inputs.push_back(operands[i]);
+      // A payload loaded from a buffer (rank 0 or an array element) is an
+      // lvalue; pass it directly instead of through the driver's
+      // materialization cast.
+      if (i != initIdx)
+        inputs.push_back(unwrapSingleUnrealizedCast(operands[i]));
     if (extra) inputs.push_back(extra(op));
     emitOutParamCall(rewriter, op.getLoc(), receiver, method, dest, inputs);
     rewriter.eraseOp(op);
@@ -707,6 +721,11 @@ struct ConvertLoadArray : public OpConversionPattern<mlir::memref::LoadOp> {
       }
       return failure();
     }
+    // Subscript with the array's own element type: for evaluation keys the
+    // stored `EvaluationKey<word>` differs from the borrowed
+    // `const EvaluationKey<word>&` an SSA key converts to.
+    if (auto array = dyn_cast<emitc::ArrayType>(baseTy))
+      elt = array.getElementType();
     auto sub = emitc::SubscriptOp::create(
         rewriter, op.getLoc(), emitc::LValueType::get(elt), adaptor.getMemref(),
         adaptor.getIndices());
@@ -720,16 +739,6 @@ struct ConvertLoadArray : public OpConversionPattern<mlir::memref::LoadOp> {
     return success();
   }
 };
-
-// Look through the materialization cast the driver inserts between an
-// `lvalue<opaque T>` producer and an `opaque T` use.
-static Value unwrapSingleUnrealizedCast(Value v) {
-  if (auto cast = v.getDefiningOp<mlir::UnrealizedConversionCastOp>();
-      cast && cast.getInputs().size() == 1 &&
-      isa<emitc::LValueType>(cast.getInputs()[0].getType()))
-    return cast.getInputs()[0];
-  return v;
-}
 
 // Copying a payload buffer needs CHEDDAR's deep-copy API, which is not lowered
 // yet. Reject it rather than letting the stock MemRefToEmitC pattern emit a
@@ -759,6 +768,11 @@ struct ConvertStoreArray : public OpConversionPattern<mlir::memref::StoreOp> {
   LogicalResult matchAndRewrite(
       mlir::memref::StoreOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    // An SSA eval_key is a borrowed `const EvaluationKey<word>&` and
+    // EvaluationKey is move-only, so there is nothing to store into a buffer.
+    if (isa<cheddar::EvalKeyType>(op.getMemRefType().getElementType()))
+      return op.emitOpError(
+          "storing an eval_key into a buffer is not supported");
     Type baseTy = adaptor.getMemref().getType();
     bool isPointer = isa<emitc::PointerType>(baseTy);
     if (!isPointer && !isa<emitc::LValueType>(baseTy) &&
@@ -840,15 +854,15 @@ struct ConvertSubViewSubscript
   }
 };
 
-// memref.cast between layouts of the same payload buffer is a no-op in C++.
+// memref.cast between layouts of the same payload buffer (any element type
+// `payloadTypeName` accepts) is a no-op in C++.
 struct ConvertPayloadCast : public OpConversionPattern<mlir::memref::CastOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
       mlir::memref::CastOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto resTy = dyn_cast<MemRefType>(op.getType());
-    if (!resTy || !isa<cheddar::CiphertextType, cheddar::PlaintextType,
-                       cheddar::ConstantType>(resTy.getElementType()))
+    if (!resTy || payloadTypeName(resTy.getElementType()).empty())
       return failure();
     rewriter.replaceOp(op, adaptor.getSource());
     return success();
@@ -1267,20 +1281,50 @@ struct CheddarEmitCBoundary
       }
     });
 
-    // Calls to re-typed callees no longer type-check as func.call.
+    // Calls to re-typed callees no longer type-check as func.call, and neither
+    // do calls passing a payload loaded from a buffer: that operand is the
+    // element lvalue behind the driver's materialization cast. Re-emit both as
+    // emitc.call_opaque, passing such lvalues directly.
     SmallVector<func::CallOp> callsToRewrite;
     getOperation()->walk([&](func::CallOp call) {
-      if (refified.contains(call.getCallee())) callsToRewrite.push_back(call);
+      if (refified.contains(call.getCallee()) ||
+          llvm::any_of(call.getOperands(), [](Value v) {
+            return unwrapSingleUnrealizedCast(v) != v;
+          }))
+        callsToRewrite.push_back(call);
     });
     for (func::CallOp call : callsToRewrite) {
       OpBuilder b(call);
+      SmallVector<Value> operands = llvm::map_to_vector(
+          call.getOperands(),
+          [](Value v) { return unwrapSingleUnrealizedCast(v); });
       auto rewritten = CallOpaqueOp::create(
           b, call.getLoc(), call.getResultTypes(),
           b.getStringAttr(call.getCallee()), /*args=*/ArrayAttr{},
-          /*templateArgs=*/ArrayAttr{}, call.getOperands());
+          /*templateArgs=*/ArrayAttr{}, operands);
       call.replaceAllUsesWith(rewritten.getResults());
       call.erase();
     }
+
+    // A cast out of an lvalue that still feeds a non-cast op cannot be removed
+    // by --reconcile-unrealized-casts (which only folds round trips and dead
+    // casts), so it would translate to broken C++. Fail loudly instead.
+    WalkResult leftover =
+        getOperation()->walk([](UnrealizedConversionCastOp cast) {
+          bool fromLValue = llvm::any_of(cast.getInputs(), [](Value v) {
+            return isa<emitc::LValueType>(v.getType());
+          });
+          bool onlyCastUsers =
+              llvm::all_of(cast->getUsers(), [](Operation* user) {
+                return isa<UnrealizedConversionCastOp>(user);
+              });
+          if (!fromLValue || onlyCastUsers) return WalkResult::advance();
+          cast.emitOpError(
+              "converts an emitc.lvalue for a use the Cheddar EmitC lowering "
+              "does not support");
+          return WalkResult::interrupt();
+        });
+    if (leftover.wasInterrupted()) return signalPassFailure();
 
     getOperation()->walk(
         [](Operation* op) { op->removeAttr(kDestinationOperandAttr); });

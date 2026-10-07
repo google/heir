@@ -34,3 +34,17 @@ func.func @drop_middle_dimension(
       : memref<2x1x4x!cheddar.ciphertext> to memref<2x4x!cheddar.ciphertext>
   return
 }
+
+// -----
+
+// An SSA eval_key is a borrowed reference to a move-only EvaluationKey, so it
+// cannot be stored into a buffer. The stock memref.store pattern then emits an
+// emitc.assign that fails to verify, so the conversion fails either way.
+func.func @store_eval_key(%evk: !cheddar.evk_map, %ctx: !cheddar.context,
+                          %keys: memref<2x!cheddar.eval_key>, %i: index) {
+  %k = cheddar.get_mult_key %evk, %ctx : (!cheddar.evk_map, !cheddar.context) -> !cheddar.eval_key
+  // expected-error @below {{storing an eval_key into a buffer is not supported}}
+  // expected-error @below {{'emitc.assign' op requires value's type}}
+  memref.store %k, %keys[%i] : memref<2x!cheddar.eval_key>
+  return
+}
