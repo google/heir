@@ -79,6 +79,18 @@ def getBitwidth(typ: NumbaType | MLIRType) -> int:
       )
 
 
+# Comparison operators always produce a bool result, which is narrower than
+# their operands by design. The bitwidth-matching logic in emit_binop below
+# is meant for arithmetic ops (e.g. widening an i8 to match an i32 result),
+# not comparisons, so it needs to be skipped for these.
+_COMPARISON_OPS = frozenset({
+    operator.lt,
+    operator.ge,
+    operator.eq,
+    operator.ne,
+})
+
+
 def mlirCastOp(
     from_type: NumbaType, to_type: MLIRType, value: str, loc: ir.Loc
 ) -> str:
@@ -653,7 +665,18 @@ class TextualMlirEmitter:
 
     lhs_ssa, rhs_ssa, ext, ty = self.emit_ext_if_needed(binop.lhs, binop.rhs)
 
-    if result_type is not None and isIntegerLike(result_type):
+    if binop.fn in _COMPARISON_OPS:
+      # A comparison's result type is always bool, which says nothing
+      # about whether the operands being compared are float or integer.
+      # The emitted op (arith.cmpf vs arith.cmpi) needs to match the
+      # OPERAND type, not the result type, so recompute the suffix from
+      # `ty` here instead of using the bool-derived one above. The
+      # bitwidth-matching block below is for arithmetic ops whose result
+      # width must match their operand width -- a comparison's 1-bit
+      # bool result is correct by construction, not a narrowing error,
+      # so it's skipped entirely for comparisons.
+      suffix = arithSuffix(ty)
+    elif result_type is not None and isIntegerLike(result_type):
       ty_bw = getBitwidth(ty)
       result_bw = getBitwidth(result_type)
       if result_bw < ty_bw:
