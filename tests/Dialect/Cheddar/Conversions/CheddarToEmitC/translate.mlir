@@ -45,6 +45,17 @@ func.func @rotate(%ctx: !context, %evk: !evk_map, %ct: tensor<!ciphertext>) -> t
   return %r : tensor<!ciphertext>
 }
 
+// The multiplication key is looked up on the EvkMap by reference.
+// CHECK: void relinearize(Context<word>* [[CTX:v[0-9]+]], const EvkMap<word>& [[EVK:v[0-9]+]], const Ciphertext<word>& [[CT:v[0-9]+]], Ciphertext<word>& [[OUT:v[0-9]+]])
+// CHECK: const EvaluationKey<word>& [[KEY:v[0-9]+]] = [[EVK]].GetMultiplicationKey();
+// CHECK: [[CTX]]->Relinearize([[OUT]], [[CT]], [[KEY]]);
+func.func @relinearize(%ctx: !context, %evk: !evk_map, %ct: tensor<!ciphertext>) -> tensor<!ciphertext> {
+  %key = cheddar.get_mult_key %evk, %ctx : (!evk_map, !context) -> !cheddar.eval_key
+  %d = tensor.empty() : tensor<!ciphertext>
+  %r = cheddar.relinearize %ctx, %ct, %key, %d : (!context, tensor<!ciphertext>, !cheddar.eval_key, tensor<!ciphertext>) -> tensor<!ciphertext>
+  return %r : tensor<!ciphertext>
+}
+
 // Temporaries own their buffer statically, so their reset is unconditional (no
 // runtime ownership flag guards it). The reset lands at the end of the block,
 // which here is also right after the last use.

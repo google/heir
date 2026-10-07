@@ -33,11 +33,13 @@ func.func @arith(%ctx: !context, %a: tensor<!ciphertext>, %b: tensor<!ciphertext
   return %s : tensor<!ciphertext>
 }
 
-// Support values derived from a context and a UserInterface (the runtime
-// helpers they call are checked at the top of the file).
+// Support values derived from a context and a UserInterface. The
+// multiplication key is a direct EvkMap member call; CHEDDAR keeps it in the
+// EvkMap, so the context operand of get_mult_key is unused.
 // CHECK: func.func @support_values(%[[CTX:.*]]: !emitc.ptr<!emitc.opaque<"Context<word>">>, %[[UI:.*]]: !emitc.ptr<!emitc.opaque<"UserInterface<word>">>,
 // CHECK: %[[MAP:.*]] = emitc.member_call_opaque %[[UI]] "GetEvkMap"() : !emitc.ptr<!emitc.opaque<"UserInterface<word>">>, () -> !emitc.opaque<"const EvkMap<word>&">
-// CHECK: %[[KEY:.*]] = emitc.call_opaque "heir::multiplicationKey"(%[[MAP]], %[[CTX]]) : (!emitc.opaque<"const EvkMap<word>&">, !emitc.ptr<!emitc.opaque<"Context<word>">>) -> !emitc.opaque<"const EvaluationKey<word>&">
+// CHECK-NOT: heir::multiplicationKey
+// CHECK: %[[KEY:.*]] = emitc.member_call_opaque %[[MAP]] "GetMultiplicationKey"() : !emitc.opaque<"const EvkMap<word>&">, () -> !emitc.opaque<"const EvaluationKey<word>&">
 // CHECK: "Relinearize"(%{{.*}}, %{{.*}}, %[[KEY]])
 func.func @support_values(%ctx: !context, %ui: !user_interface, %ct: tensor<!ciphertext>) -> tensor<!ciphertext> {
   %map = cheddar.get_evk_map %ui : (!user_interface) -> !evk_map

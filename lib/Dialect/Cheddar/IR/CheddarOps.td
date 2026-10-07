@@ -221,8 +221,11 @@ def Cheddar_GetEvkMapOp : Cheddar_Op<"get_evk_map", [Pure]> {
 def Cheddar_GetMultKeyOp : Cheddar_Op<"get_mult_key", [Pure]> {
   let summary = "Get the multiplication evaluation key";
   let description = [{
-    Returns the multiplication key from an evaluation-key map. A runtime that
-    keys evaluation keys by secret looks it up with the context's secret.
+    Returns the multiplication key from an evaluation-key map. Lowers to
+    `const EvaluationKey<word>& key = evkMap.GetMultiplicationKey();`. The
+    `$ctx` operand is not used by the CHEDDAR lowering: CHEDDAR stores the
+    multiplication key in the EvkMap alongside the rotation and conjugation
+    keys.
   }];
   let arguments = (ins Cheddar_EvkMap:$evkMap, Cheddar_AnyContext:$ctx);
   let results = (outs Cheddar_EvalKey:$key);

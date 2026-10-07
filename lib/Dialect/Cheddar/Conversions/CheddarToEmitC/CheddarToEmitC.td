@@ -14,9 +14,9 @@ def CheddarEmitCBoundary : Pass<"cheddar-emitc-boundary", "::mlir::ModuleOp"> {
     read. Calls to re-typed functions are re-emitted as `emitc.call_opaque`.
 
     The pass also emits, once per module, the standard and CHEDDAR headers,
-    `using namespace cheddar;` / `using word = uint64_t;`, and the definitions
-    of the small `heir::` helpers that the lowering of `cheddar.get_encoder` and
-    `cheddar.get_mult_key` calls, so the translated C++ compiles as-is.
+    `using namespace cheddar;` / `using word = uint64_t;`, and the definition
+    of the small `heir::getEncoder` helper that the lowering of
+    `cheddar.get_encoder` calls, so the translated C++ compiles as-is.
 
     (* example filepath=tests/Dialect/Cheddar/Conversions/CheddarToEmitC/doctest.mlir *)
   }];

@@ -129,19 +129,15 @@ SmallVector<Value> flattenIndices(OpBuilder& builder, Location loc,
   return {flat};
 }
 
-// C++ definitions of the `heir::` helpers the accessor patterns call, emitted
-// verbatim into the generated code by --cheddar-emitc-boundary. They isolate
-// the accessors whose spelling differs between CHEDDAR-derived APIs, so that
-// supporting another API only requires emitting a different version.
+// C++ definition of the `heir::` helper the get_encoder accessor pattern
+// calls, emitted verbatim into the generated code by --cheddar-emitc-boundary.
+// It isolates an accessor whose spelling differs between CHEDDAR-derived APIs,
+// so that supporting another API only requires emitting a different version.
 // clang-format off
 constexpr StringLiteral kCheddarRuntime = R"cpp(namespace heir {
 template <typename Context>
 const auto& getEncoder(const Context* context) {
   return context->encoder_;
-}
-template <typename Keys, typename Context>
-const auto& multiplicationKey(const Keys& keys, const Context* /*context*/) {
-  return keys.GetMultiplicationKey();
 }
 }  // namespace heir)cpp";
 // clang-format on
@@ -335,7 +331,7 @@ struct OutParamDpsPattern : public OpConversionPattern<Op> {
   std::function<Attribute(Op)> extra;
 };
 
-// Support values derived from a context or key, via helpers emitted by
+// Support values derived from a context, via helpers emitted by
 // --cheddar-emitc-boundary (see kCheddarRuntime).
 template <typename Op>
 struct ConvertRuntimeAccessor : public OpConversionPattern<Op> {
@@ -492,7 +488,7 @@ struct ConvertDecode : public OpConversionPattern<cheddar::DecodeOp> {
 // `evk.GetRotationKey(distance)`.
 //
 // The key getters (and the other accessors: GetScale, GetEvkMap,
-// heir::getEncoder, heir::multiplicationKey) are emitted as named `const T&`
+// heir::getEncoder) are emitted as named `const T&`
 // temporaries rather than inlined into their consumer. Their consumers are
 // zero-result emitc.member_call_opaque ops, and upstream's C++ emitter
 // (shouldBeInlined in TranslateToCpp.cpp) never inlines an emitc.expression
@@ -510,6 +506,26 @@ Value emitGetConjugationKey(OpBuilder& b, Location loc, Value evk) {
                         "GetConjugationKey", {})
       .getResult(0);
 }
+
+// `evk.GetMultiplicationKey()`.
+Value emitGetMultiplicationKey(OpBuilder& b, Location loc, Value evk) {
+  return emitMemberCall(b, loc, evalKeyRefType(b.getContext()), evk,
+                        "GetMultiplicationKey", {})
+      .getResult(0);
+}
+
+// cheddar.get_mult_key: CHEDDAR keeps the multiplication key in the EvkMap
+// with the rotation/conjugation keys, so the `$ctx` operand is unused.
+struct ConvertGetMultKey : public OpConversionPattern<cheddar::GetMultKeyOp> {
+  using OpConversionPattern::OpConversionPattern;
+  LogicalResult matchAndRewrite(
+      cheddar::GetMultKeyOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    rewriter.replaceOp(op, emitGetMultiplicationKey(rewriter, op.getLoc(),
+                                                    adaptor.getEvkMap()));
+    return success();
+  }
+};
 
 // HRot/HRotAdd/HConj/HConjAdd: look up the rotation/conjugation key on the
 // EvkMap operand, then call the Context method with it.
@@ -1087,14 +1103,11 @@ struct CheddarToEmitCDialectInterface : public ConvertToEmitCPatternInterface {
         typeConverter, ctx, /*benefit=*/2);
     patterns.add<RejectPayloadCopy>(typeConverter, ctx, /*benefit=*/3);
 
-    patterns
-        .add<ConvertEncode, ConvertEncodeConstant, ConvertDecode, ConvertHRot,
-             ConvertHRotAdd, ConvertHConj, ConvertHConjAdd, ConvertGetEvkMap>(
-            typeConverter, ctx);
+    patterns.add<ConvertEncode, ConvertEncodeConstant, ConvertDecode,
+                 ConvertHRot, ConvertHRotAdd, ConvertHConj, ConvertHConjAdd,
+                 ConvertGetEvkMap, ConvertGetMultKey>(typeConverter, ctx);
     patterns.add<ConvertRuntimeAccessor<cheddar::GetEncoderOp>>(
         typeConverter, ctx, "heir::getEncoder");
-    patterns.add<ConvertRuntimeAccessor<cheddar::GetMultKeyOp>>(
-        typeConverter, ctx, "heir::multiplicationKey");
 
     auto addDps = [&](StringRef name, auto opTag,
                       std::function<Attribute(decltype(opTag))> extra =
