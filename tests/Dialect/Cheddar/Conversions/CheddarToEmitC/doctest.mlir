@@ -1,4 +1,4 @@
-// RUN: heir-opt --cheddar-bufferize --fold-memref-alias-ops --cse --canonicalize --convert-to-emitc=filter-dialects=cheddar,arith,scf --cheddar-emitc-boundary --reconcile-unrealized-casts %s | FileCheck %s
+// RUN: heir-opt --cheddar-bufferize --fold-memref-alias-ops --cse --canonicalize --convert-to-emitc=filter-dialects=cheddar --cheddar-emitc-boundary --reconcile-unrealized-casts %s | FileCheck %s
 
 // A destination-passing `cheddar.add` lowers to `ctx->Add(out, a, b)`; the
 // boundary pass re-types the payload args as `Ciphertext<word>&` (out-param)

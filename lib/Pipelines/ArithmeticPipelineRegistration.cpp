@@ -733,6 +733,10 @@ void cheddarToEmitCPipelineBuilder(OpPassManager& pm) {
   // owned buffers so the C++ resets temporaries unconditionally.
   pm.addPass(createCanonicalizerPass());
 
+  // `filter-dialects` requires each listed dialect to be loaded. Earlier passes
+  // in this pipeline load arith and scf (and math, via linalg) as dependent
+  // dialects, so they are always loaded here even if the input does not use
+  // them.
   ConvertToEmitCOptions emitCOptions;
   emitCOptions.filterDialects = {"cheddar", "arith", "math", "scf"};
   emitCOptions.lowerToCpp = true;

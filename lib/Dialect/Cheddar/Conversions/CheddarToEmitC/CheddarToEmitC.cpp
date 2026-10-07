@@ -15,14 +15,11 @@
 #include "llvm/include/llvm/ADT/StringSet.h"    // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToEmitC/ToEmitCInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MemRefToEmitC/MemRefToEmitC.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Utils/MemRefUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"         // from @llvm-project
@@ -1026,8 +1023,9 @@ struct ConvertGetGlobalPointer
 // signatures/calls/returns and of memref ops on cheddar payload and cleartext
 // buffers, so `func` and `memref` must NOT be listed in `filter-dialects`
 // (their own interfaces would install conflicting patterns). Other dialects
-// (arith, math, scf) are converted by their own interfaces and should be
-// listed.
+// (arith, math, scf) are converted by their own interfaces; list those present
+// in the input. Upstream `filter-dialects` errors on dialects that are not
+// loaded.
 struct CheddarToEmitCDialectInterface : public ConvertToEmitCPatternInterface {
   CheddarToEmitCDialectInterface(Dialect* dialect)
       : ConvertToEmitCPatternInterface(dialect) {}
