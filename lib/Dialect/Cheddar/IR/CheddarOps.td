@@ -46,8 +46,9 @@ class Cheddar_DpsOp<string mnemonic, list<Trait> traits = [],
   // DCE/CSE-able) while the bufferized memref form reports read/write. The DPS
   // init memref is written; other memref operands are read. This lets the stock
   // ownership-based buffer-deallocation analyze the bufferized cheddar ops and
-  // free intermediate GPU buffers at their last use. (Defined out-of-line: the
-  // declaration comes from DeclareOpInterfaceMethods<MemoryEffectsOpInterface>.)
+  // free intermediate GPU buffers (at the end of their owning block; see
+  // EraseDealloc in CheddarToEmitC). (Defined out-of-line: the declaration
+  // comes from DeclareOpInterfaceMethods<MemoryEffectsOpInterface>.)
   let extraClassDefinition = [{
     void $cppClass::getEffects(::llvm::SmallVectorImpl<
         ::mlir::SideEffects::EffectInstance<::mlir::MemoryEffects::Effect>>

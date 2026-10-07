@@ -45,8 +45,9 @@ func.func @rotate(%ctx: !context, %evk: !evk_map, %ct: tensor<!ciphertext>) -> t
   return %r : tensor<!ciphertext>
 }
 
-// Temporaries own their buffer statically, so they are released right after
-// their last use without a runtime ownership flag guarding the reset.
+// Temporaries own their buffer statically, so their reset is unconditional (no
+// runtime ownership flag guards it). The reset lands at the end of the block,
+// which here is also right after the last use.
 // CHECK: void temporaries(Context<word>* [[CTX:v[0-9]+]], const Ciphertext<word>& [[A:v[0-9]+]], const Ciphertext<word>& [[B:v[0-9]+]], Ciphertext<word>& [[OUT:v[0-9]+]])
 // CHECK-NOT: bool
 // CHECK: Ciphertext<word> [[T:v[0-9]+]];

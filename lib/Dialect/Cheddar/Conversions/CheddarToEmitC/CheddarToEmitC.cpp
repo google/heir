@@ -615,11 +615,34 @@ struct ConvertLoadPointer : public OpConversionPattern<mlir::memref::LoadOp> {
   }
 };
 
-// memref.dealloc of a payload -> `v = T();`, releasing the device buffer at
-// last use instead of at scope exit (peak memory would otherwise be the sum of
-// all intermediates). `v = {}` does not compile: the constructors are explicit.
-// `T()` is an emitc.literal, which is always inlined, so the assignment is a
-// move from a temporary rather than a copy of a named (move-only) value.
+// memref.dealloc of a payload -> `v = T();`, which move-assigns a fresh, empty
+// object into `v` and so releases its device buffer at that point. `v = {}`
+// does not compile: the constructors are explicit. `T()` is an emitc.literal,
+// which is always inlined, so the assignment is a move from a temporary rather
+// than a copy of a named (move-only) value.
+//
+// The intent is to release each intermediate at its last use rather than at
+// scope exit, so that peak device memory is not the sum of all intermediates
+// in a scope. As things stand the reset buys nothing, and it has gaps:
+//  - Ownership-based buffer deallocation places each dealloc at the end of the
+//    block that owns the buffer (just before `func.return`, or at the end of
+//    an `scf.for` body), not after the buffer's last use. The buffer's
+//    emitc.variable is declared in that same block, so the reset runs right
+//    before the variable's destructor would; e.g. in the C++ generated for
+//    tests/Examples/cheddar/kernels.mlir and encode_decode.mlir, every
+//    function with local temporaries ends with a run of `vN = T();` just
+//    before `return;`.
+//  - Payload arrays of rank >= 2 are erased with no reset, so their elements
+//    are only released by the array's destructor. Rank 1 is reset element by
+//    element.
+//  - The non-payload lvalue case below is unreachable today: the type
+//    converter maps every primitive memref (including rank 0) to a pointer, so
+//    only payload buffers convert to lvalues.
+//
+// Open question for review: either make the reset effective by running
+// upstream `optimize-allocation-liveness` after the final canonicalize in the
+// --cheddar-to-emitc pipeline (which moves each dealloc to just after the
+// buffer's last use), or drop the resets and rely on RAII.
 struct EraseDealloc : public OpConversionPattern<mlir::memref::DeallocOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
@@ -651,7 +674,7 @@ struct EraseDealloc : public OpConversionPattern<mlir::memref::DeallocOp> {
     if (auto l = dyn_cast<emitc::LValueType>(memTy)) {
       if (isa<emitc::OpaqueType>(l.getValueType()))
         emitReset(rewriter, loc, memref);
-      // Other lvalues are scope-bound values with nothing to free.
+      // Other lvalues (unreachable today, see above) have nothing to free.
       rewriter.eraseOp(op);
       return success();
     }
