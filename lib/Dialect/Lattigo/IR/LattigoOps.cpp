@@ -158,18 +158,6 @@ static SmallVector<OpFoldResult> computeLintransRotationIndices(
   return result;
 }
 
-::llvm::SmallVector<::mlir::OpFoldResult>
-CKKSLinearTransformOp::getRotationIndices() {
-  // The diagonals arrive as a tensor before bufferization and as a memref
-  // after it, and this accessor is reachable in both states.
-  // Match on ShapedType so it does not assert on legal IR.
-  auto diagonalsType = cast<ShapedType>(getDiagonals().getType());
-  int64_t slots = diagonalsType.getShape()[1];
-  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
-  return computeLintransRotationIndices(
-      getContext(), getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
-}
-
 static LogicalResult verifyLinearTransformCommon(
     Operation* op, ShapedType diagonalsType, DenseI32ArrayAttr diagonalIndices,
     DenseI32ArrayAttr sourceRowIndices, IntegerAttr levelQ,

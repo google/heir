@@ -221,7 +221,6 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSRescaleOp op);
   LogicalResult printOperation(CKKSBootstrapOp op);
   LogicalResult printOperation(CKKSRotateOp op);
-  LogicalResult printOperation(CKKSLinearTransformOp op);
   LogicalResult printOperation(CKKSPrepareLinearTransformOp op);
   LogicalResult printOperation(CKKSApplyLinearTransformOp op);
   LogicalResult printOperation(CKKSChebyshevOp op);

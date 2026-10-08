@@ -357,66 +357,6 @@ def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap", [
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
-  DeclareOpInterfaceMethods<RotationOpInterface>
-]> {
-  let summary = "Apply a linear transform on a lattigo CKKS ciphertext";
-  let description = [{
-    This operation applies a linear transform on a CKKS ciphertext using
-    the provided float diagonals.
-
-    The transform is built at the input ciphertext's own level, so evaluating
-    it technically consumes no level: the result comes back at the input's level
-    but with a multiplied scale (requiring a separate rescale afterwards).
-
-    The linear transform is defined by a set of diagonals, where each diagonal
-    represents a specific shift and scaling of the input ciphertext slots.
-
-    The `diagonals` input is a 2D tensor where each row represents one non-zero
-    diagonal of the square matrix to evaluate. Row i of the `diagonals` holds
-    the generalized diagonal named by `diagonal_indices[i]`. The diagonal
-    values are floats that will be encoded into plaintexts during code
-    generation.
-
-    The `levelQ` attribute specifies the modulus level at which the operation
-    should be performed.
-
-    The `logBabyStepGiantStepRatio` attribute is used to optimize the linear
-    transformation using the baby-step giant-step algorithm. It defines the
-    ratio between the sizes of the baby steps and giant steps. If unset,
-    it is zero by default.
-
-    During code generation, this op will:
-    1. Create a lintrans.Diagonals map from the input tensor
-    2. Create and encode a lintrans.Transformation
-    3. Create a lintrans.Evaluator
-    4. Evaluate the transformation on the input ciphertext
-  }];
-  let arguments = (ins
-    Lattigo_CKKSEvaluator:$evaluator,
-    Lattigo_CKKSEncoder:$encoder,
-    Lattigo_RLWECiphertext:$input,
-
-    // Parameters corresponding to the lattigo lintrans.Parameters struct
-    ConfinedType<TensorOrMemRef<[AnyFloat]>, [HasAnyRankOfPred<[2]>]>:$diagonals,
-    DenseI32ArrayAttr:$diagonal_indices,
-    Builtin_IntegerAttr:$levelQ,
-    Builtin_IntegerAttr:$logBabyStepGiantStepRatio
-
-    // The remaining parameters from lintrans.Parameters can be inferred from
-    // the IR are commented out, but in case we need to expose them in the
-    // future, they are listed here.
-
-    // The same auxiliary prime used to generate evaluation keys
-    // Builtin_IntegerAttr:$levelP,
-
-    // For CKKS these are hard-coded to [1, N/2] for N = ring modulus degree
-    // Builtin_IntegerAttr:$logDimensionsRows,
-    // Builtin_IntegerAttr:$logDimensionsCols,
-  );
-  let results = (outs Lattigo_RLWECiphertext:$output);
-}
-
 def Lattigo_CKKSPrepareLinearTransformOp : Lattigo_CKKSOp<"prepare_linear_transform", [
   DeclareOpInterfaceMethods<RotationOpInterface>
 ]> {
