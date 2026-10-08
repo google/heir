@@ -177,6 +177,7 @@ def ImplementRotateAndReduce : Pass<"implement-rotate-and-reduce"> {
 
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::heir::kernel::KernelDialect",
     "mlir::scf::SCFDialect",
     "mlir::arith::ArithDialect",
     "mlir::tensor::TensorDialect"

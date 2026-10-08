@@ -1,4 +1,8 @@
-module {
+// Disable kernel.linear_transform lowering so that HEIR's rotate-and-reduce
+// BSGS expansion is used; dilated strided diagonals with repeated filter
+// weights evaluate faster with HEIR's folded BSGS expansion than Lattigo's
+// general lintrans evaluator on small inputs.
+module attributes {backend.config_override = {hasKernelLinearTransform = false}} {
   func.func @conv1d_dilated(%arg0: tensor<1x1x28xf32> {secret.secret}) -> tensor<1x4x24xf32> {
     %cst_0 = arith.constant 0.000000e+00 : f32
     %0 = tensor.empty() : tensor<1x4x24xf32>
