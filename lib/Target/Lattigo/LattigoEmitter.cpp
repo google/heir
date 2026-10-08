@@ -174,8 +174,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp, CKKSSubOp,
               CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp, CKKSRotateOp,
               CKKSRelinearizeNewOp, CKKSRescaleNewOp, CKKSRotateNewOp,
-              CKKSLinearTransformOp, CKKSPrepareLinearTransformOp,
-              CKKSApplyLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp,
+              CKKSPrepareLinearTransformOp, CKKSApplyLinearTransformOp,
+              CKKSChebyshevOp, CKKSBootstrapOp,
               CKKSNewBootstrappingParametersFromLiteralOp,
               CKKSGenEvaluationKeysBootstrappingOp,
               CKKSNewBootstrappingEvaluatorOp>(
@@ -2393,56 +2393,6 @@ void LattigoEmitter::printLinearTransformEvaluate(
     }
   }
   printErrPanic(errName);
-}
-
-LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
-  imports.insert(std::string(kLintransImport));
-
-  auto evaluatorName = getName(op.getEvaluator());
-  auto encoderName = getName(op.getEncoder());
-  auto inputName = getName(op.getInput());
-  auto outputName = getName(op.getOutput());
-  auto diagonalsName = getName(op.getDiagonals());
-
-  auto diagonalsType = cast<ShapedType>(op.getDiagonals().getType());
-  if (diagonalsType.getRank() != 2) {
-    return op.emitOpError("Expected 2D tensor for diagonals");
-  }
-
-  std::string diagonalsMapName;
-  printDiagonalsUnpack(
-      diagonalsName, diagonalsType, op.getDiagonalIndicesAttr(),
-      /*sourceRowIndicesAttr=*/nullptr,
-      "1 << " + inputName + ".LogDimensions.Cols",
-      /*staticSlots=*/std::nullopt, outputName, diagonalsMapName);
-
-  std::string ltParamsName = outputName + "_params";
-  std::string ltName = outputName + "_lt";
-  std::string errName = getErrName();
-
-  os << ltParamsName << " := lintrans.Parameters{\n";
-  os.indent();
-  os << "DiagonalsIndexList: " << diagonalsMapName
-     << ".DiagonalsIndexList(),\n";
-  os << "LevelQ: " << inputName << ".Level(),\n";
-  os << "LevelP: " << evaluatorName << ".GetRLWEParameters().MaxLevelP(),\n";
-  os << "Scale: rlwe.NewScale(" << evaluatorName << ".GetRLWEParameters().Q()["
-     << inputName << ".Level()]),\n";
-  os << "LogDimensions: " << inputName << ".LogDimensions,\n";
-  os << "LogBabyStepGiantStepRatio: "
-     << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
-  os.unindent();
-  os << "}\n";
-
-  os << ltName << " := lintrans.NewTransformation(" << evaluatorName
-     << ".GetRLWEParameters(), " << ltParamsName << ")\n";
-  os << errName << " := lintrans.Encode[float64](" << encoderName << ", "
-     << diagonalsMapName << ", " << ltName << ")\n";
-  printErrPanic(errName);
-  os << "\n";
-
-  printLinearTransformEvaluate(evaluatorName, inputName, ltName, outputName);
-  return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSPrepareLinearTransformOp op) {

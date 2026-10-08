@@ -2,7 +2,8 @@
 
 // CHECK: @linear_transform
 // CHECK-NOT: orion.linear_transform
-// CHECK: lattigo.ckks.linear_transform
+// CHECK: lattigo.ckks.prepare_linear_transform
+// CHECK: lattigo.ckks.apply_linear_transform
 
 !Z536903681_i64 = !mod_arith.int<536903681 : i64>
 !Z66813953_i64 = !mod_arith.int<66813953 : i64>

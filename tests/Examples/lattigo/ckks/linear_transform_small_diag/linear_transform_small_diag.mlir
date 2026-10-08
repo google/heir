@@ -31,15 +31,6 @@ module attributes {scheme.ckks, ckks.schemeParam = #ckks.scheme_param<logN = 13,
     return %out : !ct
   }
 
-  func.func @test_fused(%evaluator: !evaluator, %encoder: !encoder, %ct: !ct, %diagonals: tensor<4x4xf64>) -> !ct {
-    %out = lattigo.ckks.linear_transform %evaluator, %encoder, %ct, %diagonals <
-      diagonal_indices = [-1, 0, 1, 2],
-      levelQ = 3 : i32,
-      logBabyStepGiantStepRatio = 1 : i64
-    > : (!evaluator, !encoder, !ct, tensor<4x4xf64>) -> !ct
-    return %out : !ct
-  }
-
   func.func @test_full_diag(%param: !param, %encoder: !encoder, %diagonals: tensor<2x4096xf64>) -> !lt {
     %lt = lattigo.ckks.prepare_linear_transform %param, %encoder, %diagonals <
       diagonal_indices = [0, 1],

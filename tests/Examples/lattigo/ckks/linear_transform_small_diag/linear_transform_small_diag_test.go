@@ -90,20 +90,7 @@ func TestLinearTransformSmallDiag(t *testing.T) {
 		}
 	}
 
-	// Test 3: Fused test_fused (lattigo.ckks.linear_transform)
-	resultCt3 := Test_fused(evaluator, encoder, ct, matrix)
-	resultPt3 := decryptor.DecryptNew(resultCt3)
-	resultFloat64_3 := make([]float64, numSlots)
-	if err := encoder.Decode(resultPt3, resultFloat64_3); err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < numSlots; i++ {
-		if diff := math.Abs(resultFloat64_3[i] - expectedClear[i]); diff > epsilon {
-			t.Fatalf("test_fused slot %d: got %f, expected %f (diff %e)", i, resultFloat64_3[i], expectedClear[i], diff)
-		}
-	}
-
-	// Test 4: Full-width test_full_diag (W == slots, zero-copy sub-slice path)
+	// Test 3: Full-width test_full_diag (W == slots, zero-copy sub-slice path)
 	fullMatrix := make([]float64, 2*numSlots)
 	for i := 0; i < numSlots; i++ {
 		fullMatrix[i] = 1.0          // diag 0

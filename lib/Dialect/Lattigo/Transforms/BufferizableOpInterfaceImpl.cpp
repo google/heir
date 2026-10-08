@@ -191,8 +191,6 @@ void mlir::heir::lattigo::registerBufferizableOpInterfaceExternalModels(
     CKKSRotateNewOp::attachInterface<ScalarOpInterface<CKKSRotateNewOp>>(*ctx);
     CKKSMulNewOp::attachInterface<ScalarOpInterface<CKKSMulNewOp>>(*ctx);
     CKKSAddNewOp::attachInterface<ScalarOpInterface<CKKSAddNewOp>>(*ctx);
-    CKKSLinearTransformOp::attachInterface<
-        LinearTransformOpInterface<CKKSLinearTransformOp, 3>>(*ctx);
     CKKSPrepareLinearTransformOp::attachInterface<
         LinearTransformOpInterface<CKKSPrepareLinearTransformOp, 2>>(*ctx);
     RLWEEncryptOp::attachInterface<ScalarOpInterface<RLWEEncryptOp>>(*ctx);
