@@ -9471,85 +9471,6 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="lattigockkslinear_transform-heirlattigockkslineartransformop">&lt;code>lattigo.ckks.linear_transform&lt;/code> (heir::lattigo::CKKSLinearTransformOp)&lt;/h3>
-&lt;p>&lt;em>Apply a linear transform on a lattigo CKKS ciphertext&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.linear_transform` operands prop-dict attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>This operation applies a linear transform on a CKKS ciphertext using
-the provided float diagonals.&lt;/p>
-&lt;p>The transform is built at the input ciphertext&amp;rsquo;s own level, so evaluating
-it technically consumes no level: the result comes back at the input&amp;rsquo;s level
-but with a multiplied scale (requiring a separate rescale afterwards).&lt;/p>
-&lt;p>The linear transform is defined by a set of diagonals, where each diagonal
-represents a specific shift and scaling of the input ciphertext slots.&lt;/p>
-&lt;p>The &lt;code>diagonals&lt;/code> input is a 2D tensor where each row represents one non-zero
-diagonal of the square matrix to evaluate. Row i of the &lt;code>diagonals&lt;/code> holds
-the generalized diagonal named by &lt;code>diagonal_indices[i]&lt;/code>. The diagonal
-values are floats that will be encoded into plaintexts during code
-generation.&lt;/p>
-&lt;p>The &lt;code>levelQ&lt;/code> attribute specifies the modulus level at which the operation
-should be performed.&lt;/p>
-&lt;p>The &lt;code>logBabyStepGiantStepRatio&lt;/code> attribute is used to optimize the linear
-transformation using the baby-step giant-step algorithm. It defines the
-ratio between the sizes of the baby steps and giant steps. If unset,
-it is zero by default.&lt;/p>
-&lt;p>During code generation, this op will:&lt;/p>
-&lt;ol>
-&lt;li>Create a lintrans.Diagonals map from the input tensor&lt;/li>
-&lt;li>Create and encode a lintrans.Transformation&lt;/li>
-&lt;li>Create a lintrans.Evaluator&lt;/li>
-&lt;li>Evaluate the transformation on the input ciphertext&lt;/li>
-&lt;/ol>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-8">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>levelQ&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>logBabyStepGiantStepRatio&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;/table>
-&lt;h4 id="operands-27">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>encoder&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>diagonals&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-28">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
 &lt;h3 id="lattigockksmul-heirlattigockksmulop">&lt;code>lattigo.ckks.mul&lt;/code> (heir::lattigo::CKKSMulOp)&lt;/h3>
 &lt;p>&lt;em>Multiply two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -9558,7 +9479,7 @@ it is zero by default.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-28">Operands:&lt;/h4>
+&lt;h4 id="operands-27">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9585,7 +9506,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-29">Results:&lt;/h4>
+&lt;h4 id="results-28">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9608,7 +9529,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>IncreasesMulDepthOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-29">Operands:&lt;/h4>
+&lt;h4 id="operands-28">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9631,7 +9552,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-30">Results:&lt;/h4>
+&lt;h4 id="results-29">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9658,7 +9579,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-30">Operands:&lt;/h4>
+&lt;h4 id="operands-29">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9677,7 +9598,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-31">Results:&lt;/h4>
+&lt;h4 id="results-30">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9700,12 +9621,12 @@ bootstrapping must be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>btParamsLiteral&lt;/code>&lt;/td>&lt;td>::mlir::heir::lattigo::CKKSBootstrappingParametersLiteralAttr&lt;/td>&lt;td>Literal bootstrapping parameters for Lattigo CKKS&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-31">Operands:&lt;/h4>
+&lt;h4 id="operands-30">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9720,7 +9641,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-32">Results:&lt;/h4>
+&lt;h4 id="results-31">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9743,7 +9664,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-32">Operands:&lt;/h4>
+&lt;h4 id="operands-31">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9758,7 +9679,7 @@ bootstrapping must be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-33">Results:&lt;/h4>
+&lt;h4 id="results-32">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9785,7 +9706,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-33">Operands:&lt;/h4>
+&lt;h4 id="operands-32">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9804,7 +9725,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-34">Results:&lt;/h4>
+&lt;h4 id="results-33">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9827,12 +9748,12 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-10">Attributes:&lt;/h4>
+&lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>paramsLiteral&lt;/code>&lt;/td>&lt;td>::mlir::heir::lattigo::CKKSParametersLiteralAttr&lt;/td>&lt;td>Literal parameters for Lattigo CKKS&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="results-35">Results:&lt;/h4>
+&lt;h4 id="results-34">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9856,12 +9777,12 @@ the optional evaluation key set should be provided.&lt;/p>
 When absent, the
 plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-11">Attributes:&lt;/h4>
+&lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-34">Operands:&lt;/h4>
+&lt;h4 id="operands-33">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9876,7 +9797,7 @@ plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-36">Results:&lt;/h4>
+&lt;h4 id="results-35">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9898,7 +9819,7 @@ plaintext is allocated at &lt;code>params.MaxLevel()&lt;/code>.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new evaluator for evaluating polynomials in the
 Lattigo CKKS dialect.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-35">Operands:&lt;/h4>
+&lt;h4 id="operands-34">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9917,7 +9838,7 @@ Lattigo CKKS dialect.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-37">Results:&lt;/h4>
+&lt;h4 id="results-36">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9950,7 +9871,7 @@ function of the diagonal indices, slot count, and BSGS split.
 RotationOpInterface is used only for analysis purposes to determine what
 rotation keys are needed.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-12">Attributes:&lt;/h4>
+&lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
@@ -9959,7 +9880,7 @@ rotation keys are needed.&lt;/p>
 &lt;tr>&lt;td>&lt;code>logSlots&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>logBabyStepGiantStepRatio&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-36">Operands:&lt;/h4>
+&lt;h4 id="operands-35">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9982,7 +9903,7 @@ rotation keys are needed.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-38">Results:&lt;/h4>
+&lt;h4 id="results-37">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10005,7 +9926,7 @@ rotation keys are needed.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-37">Operands:&lt;/h4>
+&lt;h4 id="operands-36">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10028,7 +9949,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-39">Results:&lt;/h4>
+&lt;h4 id="results-38">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10051,7 +9972,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-38">Operands:&lt;/h4>
+&lt;h4 id="operands-37">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10070,7 +9991,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-40">Results:&lt;/h4>
+&lt;h4 id="results-39">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10093,7 +10014,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-39">Operands:&lt;/h4>
+&lt;h4 id="operands-38">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10116,7 +10037,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-41">Results:&lt;/h4>
+&lt;h4 id="results-40">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10139,7 +10060,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-40">Operands:&lt;/h4>
+&lt;h4 id="operands-39">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10158,7 +10079,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-42">Results:&lt;/h4>
+&lt;h4 id="results-41">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10185,12 +10106,12 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-13">Attributes:&lt;/h4>
+&lt;h4 id="attributes-12">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-41">Operands:&lt;/h4>
+&lt;h4 id="operands-40">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10217,7 +10138,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-43">Results:&lt;/h4>
+&lt;h4 id="results-42">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10244,12 +10165,12 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-14">Attributes:&lt;/h4>
+&lt;h4 id="attributes-13">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-42">Operands:&lt;/h4>
+&lt;h4 id="operands-41">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10272,7 +10193,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-44">Results:&lt;/h4>
+&lt;h4 id="results-43">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10295,7 +10216,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-43">Operands:&lt;/h4>
+&lt;h4 id="operands-42">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10322,7 +10243,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-45">Results:&lt;/h4>
+&lt;h4 id="results-44">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10345,7 +10266,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-44">Operands:&lt;/h4>
+&lt;h4 id="operands-43">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10368,7 +10289,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-46">Results:&lt;/h4>
+&lt;h4 id="results-45">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10391,7 +10312,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-45">Operands:&lt;/h4>
+&lt;h4 id="operands-44">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10410,7 +10331,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-47">Results:&lt;/h4>
+&lt;h4 id="results-46">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10433,12 +10354,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-15">Attributes:&lt;/h4>
+&lt;h4 id="attributes-14">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-46">Operands:&lt;/h4>
+&lt;h4 id="operands-45">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10461,7 +10382,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-48">Results:&lt;/h4>
+&lt;h4 id="results-47">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10483,12 +10404,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-16">Attributes:&lt;/h4>
+&lt;h4 id="attributes-15">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-47">Operands:&lt;/h4>
+&lt;h4 id="operands-46">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10507,7 +10428,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-49">Results:&lt;/h4>
+&lt;h4 id="results-48">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10530,7 +10451,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-48">Operands:&lt;/h4>
+&lt;h4 id="operands-47">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10549,7 +10470,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-50">Results:&lt;/h4>
+&lt;h4 id="results-49">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10573,12 +10494,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-17">Attributes:&lt;/h4>
+&lt;h4 id="attributes-16">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galoisElement&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-49">Operands:&lt;/h4>
+&lt;h4 id="operands-48">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10597,7 +10518,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-51">Results:&lt;/h4>
+&lt;h4 id="results-50">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10620,7 +10541,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-50">Operands:&lt;/h4>
+&lt;h4 id="operands-49">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10635,7 +10556,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-52">Results:&lt;/h4>
+&lt;h4 id="results-51">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10662,7 +10583,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-51">Operands:&lt;/h4>
+&lt;h4 id="operands-50">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10681,7 +10602,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-53">Results:&lt;/h4>
+&lt;h4 id="results-52">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10704,7 +10625,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code> result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-52">Operands:&lt;/h4>
+&lt;h4 id="operands-51">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10727,7 +10648,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-54">Results:&lt;/h4>
+&lt;h4 id="results-53">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10749,7 +10670,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-53">Operands:&lt;/h4>
+&lt;h4 id="operands-52">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10768,7 +10689,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-55">Results:&lt;/h4>
+&lt;h4 id="results-54">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10791,7 +10712,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-54">Operands:&lt;/h4>
+&lt;h4 id="operands-53">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10810,7 +10731,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-56">Results:&lt;/h4>
+&lt;h4 id="results-55">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10833,7 +10754,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-55">Operands:&lt;/h4>
+&lt;h4 id="operands-54">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10852,7 +10773,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-57">Results:&lt;/h4>
+&lt;h4 id="results-56">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10875,7 +10796,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-56">Operands:&lt;/h4>
+&lt;h4 id="operands-55">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10890,7 +10811,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-58">Results:&lt;/h4>
+&lt;h4 id="results-57">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10913,7 +10834,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-57">Operands:&lt;/h4>
+&lt;h4 id="operands-56">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10928,7 +10849,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-59">Results:&lt;/h4>
+&lt;h4 id="results-58">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
