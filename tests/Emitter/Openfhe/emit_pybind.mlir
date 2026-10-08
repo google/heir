@@ -17,8 +17,8 @@
 // CHECK:    py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey", py::module_local())
 // CHECK:        .def(py::init<>());
 // CHECK:    py::class_<KeyPair<DCRTPoly>>(m, "KeyPair", py::module_local())
-// CHECK:        .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
-// CHECK:        .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey);
+// CHECK:        .def_property_readonly("publicKey", [](const KeyPair<DCRTPoly> &kp) { return kp.publicKey; })
+// CHECK:        .def_property_readonly("secretKey", [](const KeyPair<DCRTPoly> &kp) { return kp.secretKey; });
 // CHECK:    py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext", py::module_local())
 // CHECK:        .def(py::init<>());
 // CHECK:    py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext", py::module_local())
