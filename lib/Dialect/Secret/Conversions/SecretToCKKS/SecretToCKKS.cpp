@@ -250,73 +250,6 @@ class SecretGenericPlaintextDivision
   }
 };
 
-struct LinearTransformOpConversion
-    : public ContextAwareOpConversionPattern<secret::GenericOp> {
-  LinearTransformOpConversion(const ContextAwareTypeConverter& typeConverter_,
-                              MLIRContext* context, PatternBenefit benefit = 1)
-      : ContextAwareOpConversionPattern<secret::GenericOp>(typeConverter_,
-                                                           context, benefit) {}
-
-  LogicalResult matchAndRewrite(
-      secret::GenericOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
-    if (op.getBody()->getOperations().size() > 2) {
-      return failure();
-    }
-
-    auto& innerOp = op.getBody()->getOperations().front();
-    auto ltOp = dyn_cast<kernel::LinearTransformOp>(innerOp);
-    if (!ltOp) {
-      return failure();
-    }
-
-    // Convert inputs
-    SmallVector<Value> inputs;
-    for (Value operand : ltOp->getOperands()) {
-      if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
-        inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
-      } else {
-        inputs.push_back(operand);
-      }
-    }
-
-    // Convert result types
-    SmallVector<Type> resultTypes;
-    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
-                                                op.getResults(), resultTypes)))
-      return op.emitOpError(
-          "failed to convert result types to CKKS ciphertext types");
-
-    // Preserve attributes (similar to SecretGenericOpConversion)
-    SmallVector<NamedAttribute> attrsToPreserve;
-    for (auto& namedAttr : ltOp->getDialectAttrs()) {
-      attrsToPreserve.push_back(namedAttr);
-    }
-    for (auto attrName : ltOp.getAttributeNames()) {
-      if (auto attr = ltOp->getAttr(attrName)) {
-        attrsToPreserve.push_back(rewriter.getNamedAttr(attrName, attr));
-      }
-    }
-
-    // Handle mgmt attrs
-    convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
-    convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
-    DenseSet<StringRef> seenNames;
-    SmallVector<NamedAttribute> dedupedAttrsToPreserve;
-    for (auto attr : llvm::reverse(attrsToPreserve)) {
-      if (seenNames.insert(attr.getName().getValue()).second) {
-        dedupedAttrsToPreserve.push_back(attr);
-      }
-    }
-    std::reverse(dedupedAttrsToPreserve.begin(), dedupedAttrsToPreserve.end());
-    auto newLtOp = kernel::LinearTransformOp::create(
-        rewriter, ltOp.getLoc(), resultTypes, inputs, dedupedAttrsToPreserve);
-
-    rewriter.replaceOp(op, newLtOp->getResults());
-    return success();
-  }
-};
-
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
@@ -381,7 +314,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericPlaintextDivision,
         SecretGenericOpConversion<kernel::EvalChebyshevOp>,
         SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
-        LinearTransformOpConversion>(typeConverter, context);
+        SecretGenericOpConversion<kernel::LinearTransformOp>>(typeConverter,
+                                                              context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());
