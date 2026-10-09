@@ -107,32 +107,6 @@ SmallVector<Value> getCiphertextOperands(ValueRange inputs) {
 
   return vals;
 }
-
-// getRustIntegerType returns the width of the closest builtin integer type.
-FailureOr<int> getRustIntegerType(int width) {
-  for (int candidate : {8, 16, 32, 64, 128}) {
-    if (width <= candidate) {
-      return candidate;
-    }
-  }
-  return failure();
-}
-
-FailureOr<DenseElementsAttr> getConstantGlobalData(memref::GetGlobalOp op) {
-  auto module = op->getParentOfType<mlir::ModuleOp>();
-  auto globalOp =
-      dyn_cast<mlir::memref::GlobalOp>(module.lookupSymbol(op.getName()));
-  if (!globalOp) {
-    return failure();
-  }
-  auto cstAttr =
-      dyn_cast_or_null<DenseElementsAttr>(globalOp.getConstantInitValue());
-  if (!cstAttr) {
-    return failure();
-  }
-  return cstAttr;
-}
-
 }  // namespace
 
 bool useLevels;
@@ -551,34 +525,12 @@ LogicalResult TfheRustEmitter::printOperation(CreateTrivialOp op) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(arith::ConstantOp op) {
-  auto valueAttr = op.getValue();
-  if (isa<IntegerType>(op.getType()) &&
-      op.getType().getIntOrFloatBitWidth() == 1) {
-    os << "let " << variableNames->getNameForValue(op.getResult())
-       << " : bool = ";
-    os << (cast<IntegerAttr>(valueAttr).getValue().isZero() ? "false" : "true")
-       << ";\n";
-    return success();
-  }
-
-  emitAssignPrefix(op.getResult());
-  if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
-    os << intAttr.getValue() << ";\n";
-  } else {
-    return op.emitError() << "Unknown constant type " << valueAttr.getType();
-  }
-  return success();
+  return printConstantOp(op, os, variableNames);
 }
 
 LogicalResult TfheRustEmitter::printOperation(arith::IndexCastOp op) {
-  emitAssignPrefix(op.getOut());
-  os << variableNames->getNameForValue(op.getIn()) << " as ";
-  if (failed(emitType(op.getOut().getType()))) {
-    return op.emitOpError()
-           << "Failed to emit index cast type " << op.getOut().getType();
-  }
-  os << ";\n";
-  return success();
+  return printIndexCastOp(op, os, variableNames,
+                          [&](Type t) { return emitType(t); });
 }
 
 LogicalResult TfheRustEmitter::printOperation(::mlir::arith::ShLIOp op) {
@@ -594,21 +546,8 @@ LogicalResult TfheRustEmitter::printOperation(::mlir::arith::ShRSIOp op) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(::mlir::arith::TruncIOp op) {
-  emitAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getIn());
-  if (isa<IntegerType>(op.getType()) &&
-      op.getType().getIntOrFloatBitWidth() == 1) {
-    // Compare with zero to truncate to a boolean.
-    os << " != 0";
-  } else {
-    os << " as ";
-    if (failed(emitType(op.getType()))) {
-      return op.emitOpError()
-             << "Failed to emit truncated type " << op.getType();
-    }
-  }
-  os << ";\n";
-  return success();
+  return printTruncIOp(op, os, variableNames,
+                       [&](Type t) { return emitType(t); });
 }
 
 LogicalResult TfheRustEmitter::printOperation(tensor::ExtractOp op) {
@@ -753,43 +692,8 @@ LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::GetGlobalOp op) {
-  MemRefType memRefType = dyn_cast<MemRefType>(op.getResult().getType());
-  if (!memRefType) {
-    return op.emitOpError()
-           << "Expected global to be a memref " << op.getName();
-  }
-  auto cstAttr = getConstantGlobalData(op);
-  if (failed(cstAttr)) {
-    return op.emitOpError() << "Failed to get constant global data";
-  }
-
-  auto type = convertType(memRefType.getElementType());
-  if (failed(type)) {
-    return op.emitOpError()
-           << "Failed to emit type for global " << op.getResult().getType();
-  }
-
-  // Globals are emitted as 1-D arrays.
-  os << "static " << variableNames->getNameForValue(op.getResult())
-     << llvm::formatv(" : [{0}; {1}]", type, memRefType.getNumElements())
-     << " = [";
-
-  // Populate data by iterating through constant data attribute
-  auto printValue = [](const APInt& value) -> std::string {
-    llvm::SmallString<40> s;
-    value.toStringSigned(s, 10);
-    return std::string(s);
-  };
-
-  auto cstIter = cstAttr.value().value_begin<APInt>();
-  auto cstIterEnd = cstAttr.value().value_end<APInt>();
-  os << std::accumulate(std::next(cstIter), cstIterEnd, printValue(*cstIter),
-                        [&](const std::string& a, const APInt& value) {
-                          return a + ", " + printValue(value);
-                        });
-
-  os << "];\n";
-  return success();
+  return printGetGlobalOp(op, os, variableNames,
+                          [&](Type t) { return convertType(t); });
 }
 
 void TfheRustEmitter::printStoreOp(memref::StoreOp op,
@@ -904,15 +808,8 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
 
         // return std::string("Vec<" + elementTy.value() + ">");
       })
-      .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
-        if (type.getWidth() == 1) {
-          return std::string("bool");
-        }
-        auto width = getRustIntegerType(type.getWidth());
-        if (failed(width)) return failure();
-        return (type.isUnsigned() ? std::string("u") : "") + "i" +
-               std::to_string(width.value());
-      })
+      .Case<IntegerType>(
+          [&](IntegerType type) { return getRustIntegerTypeStr(type); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
       .Case<LookupTableType>(
           [&](auto type) { return std::string("LookupTableOwned"); })

@@ -46,35 +46,6 @@ namespace mlir {
 namespace heir {
 namespace tfhe_rust {
 
-namespace {
-
-// getRustIntegerType returns the width of the closest builtin integer type.
-FailureOr<int> getRustIntegerType(int width) {
-  for (int candidate : {8, 16, 32, 64, 128}) {
-    if (width <= candidate) {
-      return candidate;
-    }
-  }
-  return failure();
-}
-
-FailureOr<DenseElementsAttr> getConstantGlobalData(memref::GetGlobalOp op) {
-  auto module = op->getParentOfType<mlir::ModuleOp>();
-  auto globalOp =
-      dyn_cast<mlir::memref::GlobalOp>(module.lookupSymbol(op.getName()));
-  if (!globalOp) {
-    return failure();
-  }
-  auto cstAttr =
-      dyn_cast_or_null<DenseElementsAttr>(globalOp.getConstantInitValue());
-  if (!cstAttr) {
-    return failure();
-  }
-  return cstAttr;
-}
-
-}  // namespace
-
 // Global Variable
 // Here the input size of the function arguments is stored
 int16_t DefaultTfheRustHLBitWidth = 32;
@@ -478,14 +449,8 @@ LogicalResult TfheRustHLEmitter::printOperation(arith::ConstantOp op) {
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(arith::IndexCastOp op) {
-  emitAssignPrefix(op.getOut());
-  os << variableNames->getNameForValue(op.getIn()) << " as ";
-  if (failed(emitType(op.getOut().getType()))) {
-    return op.emitOpError()
-           << "Failed to emit index cast type " << op.getOut().getType();
-  }
-  os << ";\n";
-  return success();
+  return printIndexCastOp(op, os, variableNames,
+                          [&](Type t) { return emitType(t); });
 }
 
 LogicalResult TfheRustHLEmitter::printBinaryOp(::mlir::Value result,
@@ -542,21 +507,8 @@ LogicalResult TfheRustHLEmitter::printOperation(::mlir::arith::ShRSIOp op) {
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(::mlir::arith::TruncIOp op) {
-  emitAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getIn());
-  if (isa<IntegerType>(op.getType()) &&
-      op.getType().getIntOrFloatBitWidth() == 1) {
-    // Compare with zero to truncate to a boolean.
-    os << " != 0";
-  } else {
-    os << " as ";
-    if (failed(emitType(op.getType()))) {
-      return op.emitOpError()
-             << "Failed to emit truncated type " << op.getType();
-    }
-  }
-  os << ";\n";
-  return success();
+  return printTruncIOp(op, os, variableNames,
+                       [&](Type t) { return emitType(t); });
 }
 
 // Use a BTreeMap<(usize, ...), Ciphertext>.
@@ -583,43 +535,8 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::DeallocOp op) {
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(memref::GetGlobalOp op) {
-  MemRefType memRefType = dyn_cast<MemRefType>(op.getResult().getType());
-  if (!memRefType) {
-    return op.emitOpError()
-           << "Expected global to be a memref " << op.getName();
-  }
-  auto cstAttr = getConstantGlobalData(op);
-  if (failed(cstAttr)) {
-    return op.emitOpError() << "Failed to get constant global data";
-  }
-
-  auto type = convertType(memRefType.getElementType());
-  if (failed(type)) {
-    return op.emitOpError()
-           << "Failed to emit type for global " << op.getResult().getType();
-  }
-
-  // Globals are emitted as 1-D arrays.
-  os << "static " << variableNames->getNameForValue(op.getResult())
-     << llvm::formatv(" : [{0}; {1}]", type, memRefType.getNumElements())
-     << " = [";
-
-  // Populate data by iterating through constant data attribute
-  auto printValue = [](const APInt& value) -> std::string {
-    llvm::SmallString<40> s;
-    value.toStringSigned(s, 10);
-    return std::string(s);
-  };
-
-  auto cstIter = cstAttr.value().value_begin<APInt>();
-  auto cstIterEnd = cstAttr.value().value_end<APInt>();
-  os << std::accumulate(std::next(cstIter), cstIterEnd, printValue(*cstIter),
-                        [&](const std::string& a, const APInt& value) {
-                          return a + ", " + printValue(value);
-                        });
-
-  os << "];\n";
-  return success();
+  return printGetGlobalOp(op, os, variableNames,
+                          [&](Type t) { return convertType(t); });
 }
 
 // Store into a BTreeMap<(usize, ...), Ciphertext>
