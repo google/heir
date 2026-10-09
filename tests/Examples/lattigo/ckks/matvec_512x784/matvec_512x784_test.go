@@ -3,6 +3,8 @@ package matvec512x784
 import (
 	"math"
 	"testing"
+
+	"tests/Examples/lattigo/ckks/matvec_512x784/matvec512x784_utils"
 )
 
 func TestMatvec(t *testing.T) {
@@ -17,8 +19,8 @@ func TestMatvec(t *testing.T) {
 
 	expected := float32(78.4)
 	ct0 := Matvec__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ctZeros := Matvec__encrypt__zeros(evaluator, params, ecd, enc)
-	resultCt := Matvec(evaluator, params, ecd, ct0, ctZeros)
+	linearTransforms := matvec512x784_utils.Matvec__preprocessing(params, ecd)
+	resultCt := Matvec__preprocessed(evaluator, params, ecd, ct0, linearTransforms)
 	result := Matvec__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	// Error threshold increased to 4.0 due to fallback to Halevi-Shoup kernel
 	// which has different noise characteristics.

@@ -3,6 +3,8 @@ package conv1dncwchannelpadding
 import (
 	"math"
 	"testing"
+
+	"tests/Examples/lattigo/ckks/conv1d_ncw_channel_padding/conv1dncwchannelpadding_utils"
 )
 
 // conv1dNcwFcw computes a 1D convolution over a row-major NCW input tensor with
@@ -43,7 +45,8 @@ func TestConv1dChannelPadding(t *testing.T) {
 
 	ct0 := Conv1d_channel_pad__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 	ctZeros := Conv1d_channel_pad__encrypt__zeros(evaluator, params, ecd, enc)
-	resultCt := Conv1d_channel_pad(evaluator, params, ecd, ct0, ctZeros)
+	filterPlains := conv1dncwchannelpadding_utils.Conv1d_channel_pad__preprocessing(params, ecd)
+	resultCt := Conv1d_channel_pad__preprocessed(evaluator, params, ecd, ct0, ctZeros, filterPlains)
 	result := Conv1d_channel_pad__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.01)
