@@ -68,8 +68,6 @@ int64_t SingleMemrefPreprocessingTypeConverter::getFlatBaseOffset(
   return failed(layout) ? 0 : layout->offset;
 }
 
-namespace {
-
 // The storage's element type list may repeat a type (e.g. after a backend
 // lowering collapsed several types into one); storage buffers are keyed by
 // unique type, in first-occurrence order.
@@ -98,7 +96,44 @@ FailureOr<int> getElementTypeIndex(
   return std::distance(elementTypes.begin(), it);
 }
 
-}  // namespace
+FailureOr<SiteIndex> resolveSite(
+    Operation* op, PreprocessingStorageType storageType, Type elementType,
+    uint32_t siteId, ArrayRef<ValueRange> indexRanges,
+    const PreprocessingStorageLayoutAnalysis& analysis,
+    ConversionPatternRewriter& rewriter) {
+  FailureOr<int> elementIndex = getElementTypeIndex(storageType, elementType);
+  if (failed(elementIndex)) return failure();
+  SmallVector<Value> flatIndices;
+  for (ValueRange range : indexRanges) {
+    if (range.size() != 1)
+      return op->emitOpError() << "expected exactly one SSA value per index";
+    flatIndices.push_back(range.front());
+  }
+  std::optional<SiteLayout> layout = analysis.getLayout(elementType, siteId);
+  if (!layout.has_value())
+    return op->emitOpError() << "missing layout for site ID " << siteId;
+  FailureOr<Value> index = preprocessing::getLinearIndex(
+      rewriter, op->getLoc(), op, layout->offset, flatIndices);
+  if (failed(index)) return failure();
+  return SiteIndex{*elementIndex, index.value()};
+}
+
+LogicalResult FlatEmptyOpPattern::matchAndRewrite(
+    EmptyOp op, OneToNOpAdaptor adaptor,
+    ConversionPatternRewriter& rewriter) const {
+  SmallVector<Type> resultTypes;
+  if (failed(getTypeConverter()->convertType(op.getStorage().getType(),
+                                             resultTypes))) {
+    return failure();
+  }
+  SmallVector<Value> allocOps;
+  for (Type memrefTy : resultTypes) {
+    allocOps.push_back(memref::AllocOp::create(rewriter, op.getLoc(),
+                                               cast<MemRefType>(memrefTy)));
+  }
+  rewriter.replaceOpWithMultiple(op, {allocOps});
+  return success();
+}
 
 // FlatMemrefPreprocessingTypeConverter sets up a 1-to-N type conversion for
 // PreprocessingStorageType: a single storage value conceptually holds one
@@ -278,29 +313,6 @@ struct ConvertEmptyOp : public OpConversionPattern<EmptyOp> {
   }
 };
 
-struct EmptyOpPattern : public OpConversionPattern<EmptyOp> {
-  using OneToNOpAdaptor =
-      typename OpConversionPattern<EmptyOp>::OneToNOpAdaptor;
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      EmptyOp op, OneToNOpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    SmallVector<Type> resultTypes;
-    if (failed(getTypeConverter()->convertType(op.getStorage().getType(),
-                                               resultTypes))) {
-      return failure();
-    }
-    SmallVector<Value> allocOps;
-    for (Type memrefTy : resultTypes) {
-      allocOps.push_back(memref::AllocOp::create(rewriter, op.getLoc(),
-                                                 cast<MemRefType>(memrefTy)));
-    }
-    rewriter.replaceOpWithMultiple(op, {allocOps});
-    return success();
-  }
-};
-
 struct StoreOpPattern : public OpConversionPattern<StoreOp> {
   using OneToNOpAdaptor =
       typename OpConversionPattern<StoreOp>::OneToNOpAdaptor;
@@ -312,43 +324,24 @@ struct StoreOpPattern : public OpConversionPattern<StoreOp> {
       StoreOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto storageTy = cast<PreprocessingStorageType>(op.getStorage().getType());
-    FailureOr<int> elemIndex =
-        getElementTypeIndex(storageTy, op.getElementType());
-    if (failed(elemIndex)) return failure();
-
-    SmallVector<Value> flatIndices;
-    for (ValueRange r : adaptor.getIndices()) {
-      if (r.size() != 1) {
-        return op->emitOpError() << "Expected exactly one SSA value per index";
-      }
-      flatIndices.push_back(r.front());
-    }
+    FailureOr<SiteIndex> site =
+        resolveSite(op, storageTy, op.getElementType(), op.getSiteId(),
+                    adaptor.getIndices(), analysis, rewriter);
+    if (failed(site)) return failure();
 
     if (adaptor.getValue().size() != 1) {
       return op->emitOpError()
              << "Expected exactly one SSA value for stored value";
     }
 
-    std::optional<SiteLayout> layout =
-        analysis.getLayout(op.getElementType(), op.getSiteId());
-    if (!layout.has_value()) {
-      return op->emitOpError()
-             << "Missing layout for site ID " << op.getSiteId();
-    }
-    int64_t baseOffset = layout->offset;
-
-    FailureOr<Value> index = preprocessing::getLinearIndex(
-        rewriter, op.getLoc(), op, baseOffset, flatIndices);
-    if (failed(index)) return failure();
-
     ValueRange storageValues = adaptor.getStorage();
-    if (*elemIndex >= storageValues.size()) {
+    if (site->elementIndex >= static_cast<int>(storageValues.size())) {
       return op->emitOpError() << "Storage index out of bounds";
     }
-    Value targetMemref = storageValues[*elemIndex];
+    Value targetMemref = storageValues[site->elementIndex];
     memref::StoreOp storeOp = memref::StoreOp::create(
         rewriter, op.getLoc(), adaptor.getValue().front(), targetMemref,
-        index.value());
+        site->linearIndex);
     rewriter.replaceOp(op, storeOp);
     return success();
   }
@@ -367,37 +360,18 @@ struct LoadOpPattern : public OpConversionPattern<LoadOp> {
       LoadOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto storageTy = cast<PreprocessingStorageType>(op.getStorage().getType());
-    FailureOr<int> elemIndex =
-        getElementTypeIndex(storageTy, op.getElementType());
-    if (failed(elemIndex)) return failure();
-
-    SmallVector<Value> flatIndices;
-    for (ValueRange r : adaptor.getIndices()) {
-      if (r.size() != 1) {
-        return op->emitOpError() << "Expected exactly one SSA value per index";
-      }
-      flatIndices.push_back(r.front());
-    }
-
-    std::optional<SiteLayout> layout =
-        analysis.getLayout(op.getElementType(), op.getSiteId());
-    if (!layout.has_value()) {
-      return op->emitOpError()
-             << "Missing layout for site ID " << op.getSiteId();
-    }
-    int64_t baseOffset = layout->offset;
-
-    FailureOr<Value> index = preprocessing::getLinearIndex(
-        rewriter, op.getLoc(), op, baseOffset, flatIndices);
-    if (failed(index)) return failure();
+    FailureOr<SiteIndex> site =
+        resolveSite(op, storageTy, op.getElementType(), op.getSiteId(),
+                    adaptor.getIndices(), analysis, rewriter);
+    if (failed(site)) return failure();
 
     ValueRange storageValues = adaptor.getStorage();
-    if (*elemIndex >= storageValues.size()) {
+    if (site->elementIndex >= static_cast<int>(storageValues.size())) {
       return op->emitOpError() << "Storage index out of bounds";
     }
-    Value targetMemref = storageValues[*elemIndex];
-    memref::LoadOp loadOp = memref::LoadOp::create(rewriter, op.getLoc(),
-                                                   targetMemref, index.value());
+    Value targetMemref = storageValues[site->elementIndex];
+    memref::LoadOp loadOp = memref::LoadOp::create(
+        rewriter, op.getLoc(), targetMemref, site->linearIndex);
     rewriter.replaceOp(op, loadOp);
     return success();
   }
@@ -512,7 +486,7 @@ void populatePreprocessingToFlatMemrefPatterns(
     const TypeConverter& typeConverter, RewritePatternSet& patterns,
     const PreprocessingStorageLayoutAnalysis& analysis) {
   MLIRContext* context = patterns.getContext();
-  patterns.add<EmptyOpPattern>(typeConverter, context);
+  patterns.add<FlatEmptyOpPattern>(typeConverter, context);
   patterns.add<StoreOpPattern, LoadOpPattern>(typeConverter, context, analysis);
 }
 

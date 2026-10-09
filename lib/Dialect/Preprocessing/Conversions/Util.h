@@ -4,7 +4,9 @@
 #include <cstdint>
 
 #include "lib/Analysis/PreprocessingStorageLayoutAnalysis/PreprocessingStorageLayoutAnalysis.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
+#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"      // from @llvm-project
@@ -67,6 +69,38 @@ void populatePreprocessingConversions(RewritePatternSet& patterns,
 // the base offset for the given site_id.
 FailureOr<Value> getLinearIndex(OpBuilder& builder, Location loc, Operation* op,
                                 int64_t baseOffset, ValueRange indices);
+
+// Returns the unique element types in the PreprocessingStorageType, preserving
+// first-occurrence order.
+SmallVector<Type> uniqueElementTypes(PreprocessingStorageType storageTy);
+
+// Returns the index of elementTy within the unique element types of storageTy.
+FailureOr<int> getElementTypeIndex(PreprocessingStorageType storageTy,
+                                   Type elementTy);
+
+struct SiteIndex {
+  int elementIndex;
+  Value linearIndex;
+};
+
+// Resolves the site layout and linear index within the target element buffer.
+FailureOr<SiteIndex> resolveSite(
+    Operation* op, PreprocessingStorageType storageType, Type elementType,
+    uint32_t siteId, ArrayRef<ValueRange> indexRanges,
+    const PreprocessingStorageLayoutAnalysis& analysis,
+    ConversionPatternRewriter& rewriter);
+
+// Pattern lowering preprocessing.empty to memref.alloc ops for each converted
+// memref type in a 1-to-N type conversion.
+struct FlatEmptyOpPattern : public OpConversionPattern<EmptyOp> {
+  using OneToNOpAdaptor =
+      typename OpConversionPattern<EmptyOp>::OneToNOpAdaptor;
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      EmptyOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override;
+};
 
 // Helpers for LWETo* that have to convert preprocessing ops and types.
 // At this stage, the preprocessing.storage may have multiple element types,
