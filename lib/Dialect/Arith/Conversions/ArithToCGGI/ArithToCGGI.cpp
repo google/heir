@@ -553,14 +553,15 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
       return false;
     });
 
+    addTensorConversionPatterns(typeConverter, patterns, target);
+
     // Tensor ops (and other allowed dialects) are allowed only if their
     // operands and results are the correct type
-    target.addDynamicallyLegalOp<
-        memref::SubViewOp, memref::CopyOp, tensor::FromElementsOp,
-        tensor::ExtractOp, tensor::InsertOp, bufferization::AllocTensorOp,
-        tensor::EmptyOp, tensor::ExtractSliceOp, tensor::ConcatOp,
-        tensor::CastOp, tensor::DimOp, linalg::YieldOp, linalg::GenericOp,
-        linalg::FillOp, affine::AffineForOp, affine::AffineYieldOp>(
+    target.addDynamicallyLegalOp<memref::SubViewOp, memref::CopyOp,
+                                 bufferization::AllocTensorOp, tensor::ConcatOp,
+                                 tensor::CastOp, tensor::DimOp, linalg::YieldOp,
+                                 linalg::GenericOp, linalg::FillOp,
+                                 affine::AffineForOp, affine::AffineYieldOp>(
         [&](Operation* op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
@@ -687,31 +688,27 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
       return true;
     });
 
-    patterns.add<
-        ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp, ConvertSelectOp,
-        ConvertCmpOp, ConvertSubOp, ConvertLutOp,
-        ConvertShOp<mlir::arith::ShRSIOp, cggi::ScalarShiftRightOp>,
-        ConvertShOp<mlir::arith::ShRUIOp, cggi::ScalarShiftRightOp>,
-        ConvertShOp<mlir::arith::ShLIOp, cggi::ScalarShiftLeftOp>,
-        ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
-        ConvertArithBinOp<mlir::arith::MulIOp, cggi::MulOp>,
-        ConvertArithBinOp<mlir::arith::MaxSIOp, cggi::MaxOp>,
-        ConvertArithBinOp<mlir::arith::MinSIOp, cggi::MinOp>,
-        ConvertArithBinOp<mlir::arith::MaxUIOp, cggi::MaxOp>,
-        ConvertArithBinOp<mlir::arith::MinUIOp, cggi::MinOp>,
-        ConvertBinOp<mlir::arith::XOrIOp, cggi::XorOp>,
-        ConvertAny<memref::LoadOp>, ConvertAllocOp,
-        ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
-        ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
-        ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
-        ConvertAny<tensor::DimOp>, ConvertAny<tensor::ExtractSliceOp>,
-        ConvertAny<tensor::CastOp>, ConvertAny<tensor::ConcatOp>,
-        ConvertAny<bufferization::AllocTensorOp>, ConvertAny<linalg::YieldOp>,
-        ConvertAny<linalg::GenericOp>, ConvertAny<linalg::FillOp>,
-        ConvertAny<tensor::InsertOp>, ConvertAny<tensor::EmptyOp>,
-        ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineLoadOp>,
-        ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp> >(
-        typeConverter, context);
+    patterns.add<ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp,
+                 ConvertSelectOp, ConvertCmpOp, ConvertSubOp, ConvertLutOp,
+                 ConvertShOp<mlir::arith::ShRSIOp, cggi::ScalarShiftRightOp>,
+                 ConvertShOp<mlir::arith::ShRUIOp, cggi::ScalarShiftRightOp>,
+                 ConvertShOp<mlir::arith::ShLIOp, cggi::ScalarShiftLeftOp>,
+                 ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
+                 ConvertArithBinOp<mlir::arith::MulIOp, cggi::MulOp>,
+                 ConvertArithBinOp<mlir::arith::MaxSIOp, cggi::MaxOp>,
+                 ConvertArithBinOp<mlir::arith::MinSIOp, cggi::MinOp>,
+                 ConvertArithBinOp<mlir::arith::MaxUIOp, cggi::MaxOp>,
+                 ConvertArithBinOp<mlir::arith::MinUIOp, cggi::MinOp>,
+                 ConvertBinOp<mlir::arith::XOrIOp, cggi::XorOp>,
+                 ConvertAny<memref::LoadOp>, ConvertAllocOp,
+                 ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
+                 ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
+                 ConvertAny<tensor::DimOp>, ConvertAny<tensor::CastOp>,
+                 ConvertAny<tensor::ConcatOp>,
+                 ConvertAny<bufferization::AllocTensorOp>,
+                 ConvertAny<linalg::YieldOp>, ConvertAny<linalg::GenericOp>,
+                 ConvertAny<linalg::FillOp>, ConvertAny<affine::AffineStoreOp>,
+                 ConvertAny<affine::AffineLoadOp> >(typeConverter, context);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 

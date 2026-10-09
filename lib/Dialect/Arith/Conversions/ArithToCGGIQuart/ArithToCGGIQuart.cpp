@@ -501,10 +501,11 @@ struct ArithToCGGIQuart : public impl::ArithToCGGIQuartBase<ArithToCGGIQuart> {
     target.addDynamicallyLegalDialect<mlir::arith::ArithDialect,
                                       tensor::TensorDialect>(opLegalCallback);
 
-    target.addDynamicallyLegalOp<
-        memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
-        memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
-        affine::AffineStoreOp, tensor::FromElementsOp, tensor::ExtractOp>(
+    addStructuralConversionPatterns(typeConverter, patterns, target);
+    addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
+
+    target.addDynamicallyLegalOp<affine::AffineLoadOp, affine::AffineStoreOp>(
         [&](Operation* op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
@@ -515,17 +516,10 @@ struct ArithToCGGIQuart : public impl::ArithToCGGIQuartBase<ArithToCGGIQuart> {
           return isa<IndexType>(op.getValue().getType());
         });
 
-    patterns
-        .add<ConvertQuartConstantOp, ConvertQuartExt<mlir::arith::ExtUIOp>,
-             ConvertQuartExt<mlir::arith::ExtSIOp>, ConvertQuartAddI,
-             ConvertQuartMulI, ConvertAny<memref::LoadOp>,
-             ConvertAny<memref::AllocOp>, ConvertAny<memref::DeallocOp>,
-             ConvertAny<memref::StoreOp>, ConvertAny<memref::SubViewOp>,
-             ConvertAny<memref::CopyOp>, ConvertAny<tensor::FromElementsOp>,
-             ConvertAny<tensor::ExtractOp>, ConvertAny<affine::AffineStoreOp>,
-             ConvertAny<affine::AffineLoadOp>>(typeConverter, context);
-
-    addStructuralConversionPatterns(typeConverter, patterns, target);
+    patterns.add<ConvertQuartConstantOp, ConvertQuartExt<mlir::arith::ExtUIOp>,
+                 ConvertQuartExt<mlir::arith::ExtSIOp>, ConvertQuartAddI,
+                 ConvertQuartMulI, ConvertAny<affine::AffineStoreOp>,
+                 ConvertAny<affine::AffineLoadOp>>(typeConverter, context);
 
     ConversionConfig config;
     config.allowPatternRollback = false;

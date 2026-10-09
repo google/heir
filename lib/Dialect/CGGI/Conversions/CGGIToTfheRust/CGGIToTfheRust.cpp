@@ -626,6 +626,8 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
+    addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
 
     target.addLegalDialect<tfhe_rust::TfheRustDialect>();
     target.addIllegalDialect<cggi::CGGIDialect>();
@@ -654,15 +656,11 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
 
     target.addLegalOp<mlir::arith::ConstantOp>();
 
-    target.addDynamicallyLegalOp<
-        memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
-        memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
-        tensor::InsertOp, tensor::InsertSliceOp, tensor::EmptyOp,
-        affine::AffineStoreOp, affine::AffineForOp, affine::AffineYieldOp,
-        tensor::FromElementsOp, tensor::ExtractOp>([&](Operation* op) {
-      return typeConverter.isLegal(op->getOperandTypes()) &&
-             typeConverter.isLegal(op->getResultTypes());
-    });
+    target.addDynamicallyLegalOp<affine::AffineLoadOp, affine::AffineStoreOp>(
+        [&](Operation* op) {
+          return typeConverter.isLegal(op->getOperandTypes()) &&
+                 typeConverter.isLegal(op->getResultTypes());
+        });
 
     patterns.add<
         AddServerKeyArg, AddServerKeyArgCall, ConvertEncodeOp, ConvertLut2Op,
@@ -679,15 +677,9 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
         ConvertCmpOp, ConvertCGGICtxtBinOp<cggi::AndOp, tfhe_rust::BitAndOp>,
         ConvertCGGICtxtBinOp<cggi::OrOp, tfhe_rust::BitOrOp>,
         ConvertCGGICtxtBinOp<cggi::XorOp, tfhe_rust::BitXorOp>, ConvertCastOp,
-        ConvertShROp, ConvertShLOp, ConvertAny<memref::AllocOp>,
-        ConvertProgrammableBootstrapOp, ConvertAny<memref::DeallocOp>,
-        ConvertAny<memref::StoreOp>, ConvertAny<memref::LoadOp>,
-        ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
-        ConvertAny<tensor::InsertOp>, ConvertAny<tensor::InsertSliceOp>,
-        ConvertAny<tensor::EmptyOp>, ConvertAny<tensor::FromElementsOp>,
-        ConvertAny<tensor::ExtractOp>, ConvertAny<affine::AffineLoadOp>,
-        ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineForOp>,
-        ConvertAny<affine::AffineYieldOp>>(typeConverter, context);
+        ConvertShROp, ConvertShLOp, ConvertProgrammableBootstrapOp,
+        ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineStoreOp>>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();

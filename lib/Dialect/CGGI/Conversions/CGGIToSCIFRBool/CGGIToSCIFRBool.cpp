@@ -121,19 +121,13 @@ struct CGGIToSCIFRBool : impl::CGGIToSCIFRBoolBase<CGGIToSCIFRBool> {
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
+    addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
 
     target.addLegalDialect<scifrbool::SCIFRBoolDialect>();
     target.addIllegalDialect<cggi::CGGIDialect>();
     target.addIllegalDialect<lwe::LWEDialect>();
 
-    target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
-                                 memref::StoreOp, memref::LoadOp,
-                                 memref::SubViewOp, memref::CopyOp,
-                                 tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation* op) {
-          return typeConverter.isLegal(op->getOperandTypes()) &&
-                 typeConverter.isLegal(op->getResultTypes());
-        });
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasKeyArg = op.getFunctionType().getNumInputs() > 0 &&
                        mlir::isa<scifrbool::SCIFRBoolBootstrapKeyType>(
@@ -150,11 +144,7 @@ struct CGGIToSCIFRBool : impl::CGGIToSCIFRBoolBase<CGGIToSCIFRBool> {
                  ConvertCGGITRBBinOp<cggi::NorOp, scifrbool::NorOp>,
                  ConvertCGGITRBBinOp<cggi::XorOp, scifrbool::XorOp>,
                  ConvertCGGITRBBinOp<cggi::XNorOp, scifrbool::XNorOp>,
-                 ConvertBoolNotOp, ConvertAny<memref::AllocOp>,
-                 ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
-                 ConvertAny<memref::LoadOp>, ConvertAny<memref::SubViewOp>,
-                 ConvertAny<memref::CopyOp>, ConvertAny<tensor::FromElementsOp>,
-                 ConvertAny<tensor::ExtractOp> >(typeConverter, context);
+                 ConvertBoolNotOp>(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();

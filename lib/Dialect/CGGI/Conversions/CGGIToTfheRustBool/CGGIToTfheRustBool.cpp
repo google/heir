@@ -226,6 +226,8 @@ class CGGIToTfheRustBool
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
+    addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
 
     target.addLegalDialect<tfhe_rust_bool::TfheRustBoolDialect>();
     target.addIllegalDialect<cggi::CGGIDialect>();
@@ -249,28 +251,17 @@ class CGGIToTfheRustBool
              (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op) ||
               hasServerKeyArg);
     });
-    target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
-                                 memref::StoreOp, memref::LoadOp,
-                                 memref::SubViewOp, memref::CopyOp,
-                                 tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation* op) {
-          return typeConverter.isLegal(op->getOperandTypes()) &&
-                 typeConverter.isLegal(op->getResultTypes());
-        });
 
-    patterns.add<AddBoolServerKeyArg,
-                 ConvertCGGITRBBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>,
-                 ConvertCGGITRBBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>,
-                 ConvertCGGITRBBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>,
-                 ConvertCGGITRBBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>,
-                 ConvertCGGITRBBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>,
-                 ConvertCGGITRBBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>,
-                 ConvertBoolTrivialEncryptOp, ConvertBoolNotOp, ConvertPackedOp,
-                 ConvertAny<memref::AllocOp>, ConvertAny<memref::DeallocOp>,
-                 ConvertAny<memref::StoreOp>, ConvertAny<memref::LoadOp>,
-                 ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
-                 ConvertAny<tensor::FromElementsOp>,
-                 ConvertAny<tensor::ExtractOp> >(typeConverter, context);
+    patterns
+        .add<AddBoolServerKeyArg,
+             ConvertCGGITRBBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>,
+             ConvertCGGITRBBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>,
+             ConvertCGGITRBBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>,
+             ConvertCGGITRBBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>,
+             ConvertCGGITRBBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>,
+             ConvertCGGITRBBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>,
+             ConvertBoolTrivialEncryptOp, ConvertBoolNotOp, ConvertPackedOp>(
+            typeConverter, context);
 
     ConversionConfig config;
     config.allowPatternRollback = false;
