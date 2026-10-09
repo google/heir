@@ -4,31 +4,24 @@
 #include <optional>
 #include <vector>
 
-#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/BGV/Params.h"
+#include "lib/Transforms/GenerateParam/GenerateParamCommon.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
 
 // IWYU pragma: begin_keep
@@ -51,8 +44,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       DataFlowSolver* solver,
       const typename NoiseAnalysis::SchemeParamType& schemeParam,
       const typename NoiseAnalysis::NoiseModel& noiseModel) {
-    using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
-    using LocalParamType = typename NoiseAnalysis::LocalParamType;
+    NoiseBoundHelper<NoiseAnalysis> helper{schemeParam, noiseModel, solver};
 
     // for level i, the biggest gap observed.
     std::map<int, double> levelToGap;
@@ -65,25 +57,13 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       }
     };
 
-    auto getLocalParam = [&](Value value) {
-      auto level = getLevelFromMgmtAttr(value);
-      auto dimension = getDimensionFromMgmtAttr(value);
-      return LocalParamType(&schemeParam, level.getInt(), dimension);
-    };
-
-    auto getBound = [&](Value value) {
-      auto localParam = getLocalParam(value);
-      auto noiseLattice = solver->lookupState<NoiseLatticeType>(value);
-      return noiseModel.toLogBound(localParam, noiseLattice->getValue());
-    };
-
     auto firstModSize = 0;
 
     getOperation()->walk([&](secret::GenericOp genericOp) {
       // gaps caused by mod reduce
       genericOp.getBody()->walk([&](mgmt::ModReduceOp op) {
-        auto operandBound = getBound(op.getOperand());
-        auto resultBound = getBound(op.getResult());
+        auto operandBound = helper.getBound(op.getOperand());
+        auto resultBound = helper.getBound(op.getResult());
         // the gap between the operand and result
         updateLevelToGap(getLevelFromMgmtAttr(op.getOperand()).getInt(),
                          operandBound - resultBound);
@@ -94,7 +74,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       genericOp.getBody()->walk([&](Operation* op) {
         for (Value result : op->getResults()) {
           if (getLevelFromMgmtAttr(result).getInt() == 0) {
-            auto bound = getBound(result);
+            auto bound = helper.getBound(result);
             // the bound is from v_ms + v / q, where v / q is negligible
             // so originally bound(v_ms) + 1 is enough
             // after the parameter selection with smaller primes, we have
@@ -133,32 +113,6 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     return concreteSchemeParam;
   }
 
-  void annotateSchemeParam(const bgv::SchemeParam& schemeParam) {
-    auto* context = &getContext();
-    OpBuilder builder(context);
-    getOperation()->setAttr(kRequestedSlotCountAttrName,
-                            builder.getI64IntegerAttr(minSlotCount));
-    getOperation()->setAttr(
-        kActualSlotCountAttrName,
-        builder.getI64IntegerAttr(schemeParam.getRingDim()));
-
-    getOperation()->setAttr(
-        bgv::BGVDialect::kSchemeParamAttrName,
-        bgv::SchemeParamAttr::get(
-            &getContext(), log2(schemeParam.getRingDim()),
-
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(schemeParam.getQi())),
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(schemeParam.getPi())),
-            schemeParam.getPlaintextModulus(),
-            usePublicKey ? bgv::BGVEncryptionType::pk
-                         : bgv::BGVEncryptionType::sk,
-            encryptionTechniqueExtended
-                ? bgv::BGVEncryptionTechnique::extended
-                : bgv::BGVEncryptionTechnique::standard));
-  }
-
   template <typename NoiseModel>
   void run(const NoiseModel& model) {
     std::optional<int> maxLevel = getMaxLevel(getOperation());
@@ -172,11 +126,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
                             << schemeParam << "\n");
 
     DataFlowSolver solver;
-    dataflow::loadBaselineAnalyses(solver);
-    // NoiseAnalysis depends on SecretnessAnalysis
-    solver.load<SecretnessAnalysis>();
-    solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, model);
-    if (failed(solver.initializeAndRun(getOperation()))) {
+    if (failed(runNoiseAnalysis(getOperation(), schemeParam, model, solver))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
     }
@@ -188,20 +138,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
                             << concreteSchemeParam << "\n");
 
-    annotateSchemeParam(concreteSchemeParam);
-  }
-
-  void generateFallbackParam() {
-    // generate fallback scheme parameters
-    std::optional<int> maxLevel = getMaxLevel(getOperation());
-    std::vector<double> logPrimes(maxLevel.value_or(0) + 1,
-                                  45);  // all primes of 45 bits
-
-    auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
-        logPrimes, plaintextModulus, minSlotCount, usePublicKey,
-        encryptionTechniqueExtended);
-
-    annotateSchemeParam(schemeParam);
+    annotateSchemeParam(getOperation(), concreteSchemeParam, minSlotCount,
+                        usePublicKey, encryptionTechniqueExtended);
   }
 
   void runOnOperation() override {
@@ -212,7 +150,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     }
 
     if (moduleIsOpenfhe(getOperation())) {
-      generateFallbackParam();
+      generateFallbackParam(getOperation(), minSlotCount, plaintextModulus,
+                            usePublicKey, encryptionTechniqueExtended, 45);
       return;
     }
 
@@ -237,7 +176,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       run<bgv::NoiseCanEmbModel>(model);
     } else {
       emitWarning(getOperation()->getLoc()) << "Unknown noise model.\n";
-      generateFallbackParam();
+      generateFallbackParam(getOperation(), minSlotCount, plaintextModulus,
+                            usePublicKey, encryptionTechniqueExtended, 45);
     }
   }
 };
