@@ -18,11 +18,11 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineUtils",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TensorTransforms",
         "@llvm-project//mlir:TransformUtils",
     ],
 )

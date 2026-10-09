@@ -9,6 +9,7 @@
 #include "mlir/include/mlir/Dialect/Affine/ViewLikeInterfaceUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
@@ -222,29 +223,6 @@ class CollapseShapeAfterConstant final
   }
 };
 
-struct CollapseEmptyTensor
-    : public OpRewritePattern<mlir::tensor::CollapseShapeOp> {
- public:
-  CollapseEmptyTensor(MLIRContext* context)
-      : OpRewritePattern<mlir::tensor::CollapseShapeOp>(context) {}
-
-  using OpRewritePattern::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(mlir::tensor::CollapseShapeOp collapseOp,
-                                PatternRewriter& rewriter) const override {
-    auto emptyOp =
-        dyn_cast_or_null<tensor::EmptyOp>(collapseOp.getSrc().getDefiningOp());
-    if (!emptyOp)
-      return rewriter.notifyMatchFailure(
-          collapseOp, "source of collapse must be an empty tensor");
-
-    auto resultTy = collapseOp.getResult().getType();
-    rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
-        collapseOp, resultTy.getShape(), resultTy.getElementType());
-    return success();
-  }
-};
-
 struct ExtractSliceOfSplat
     : public OpRewritePattern<mlir::tensor::ExtractSliceOp> {
  public:
@@ -309,9 +287,10 @@ struct FoldConstantTensors
     auto* module = getOperation();
 
     RewritePatternSet patterns(context);
+    tensor::populateFoldTensorEmptyPatterns(patterns);
     patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,
-                 CollapseEmptyTensor, InsertIntoFromElements,
-                 ExtractSliceOfSplat, ExtractOfExtractSlice>(context);
+                 InsertIntoFromElements, ExtractSliceOfSplat,
+                 ExtractOfExtractSlice>(context);
 
     // Run pattern matching and conversion
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
