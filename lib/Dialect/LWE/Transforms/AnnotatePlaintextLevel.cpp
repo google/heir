@@ -8,6 +8,7 @@
 #include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"            // from @llvm-project
@@ -18,6 +19,7 @@
 #include "mlir/include/mlir/IR/Visitors.h"                // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"         // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -78,9 +80,11 @@ bool forwardsThroughResults(Operation* op) {
 // One encoding can serve both only when the encryption's level also covers
 // every ct-pt use. When it does not, or when two encryptions want different
 // levels, no annotation is correct and the fallback takes over.
-std::optional<int64_t> findUseLevel(RLWEEncodeOp encodeOp) {
+FailureOr<std::optional<int64_t>> findUseLevel(RLWEEncodeOp encodeOp,
+                                               bool requireExactLevel) {
   std::optional<int64_t> combinedLevel;
   std::optional<int64_t> encryptedLevel;
+  bool analysisIncomplete = false;
   SmallVector<Value> worklist = {encodeOp.getOutput()};
   DenseSet<Operation*> visited;
 
@@ -94,28 +98,43 @@ std::optional<int64_t> findUseLevel(RLWEEncodeOp encodeOp) {
         // nothing, and leaves the plaintext to whatever its other uses need.
         std::optional<int64_t> level = highestCiphertextLevel(user);
         if (!level) continue;
-        if (encryptedLevel && *encryptedLevel != *level) return std::nullopt;
+        if (encryptedLevel && *encryptedLevel != *level) {
+          if (requireExactLevel) return failure();
+          analysisIncomplete = true;
+          continue;
+        }
         encryptedLevel = *level;
         continue;
       }
       if (user->hasTrait<IsCiphertextPlaintextOp>()) {
         // Likewise for a ct-pt op whose ciphertexts carry no modulus chain.
         if (std::optional<int64_t> level = highestCiphertextLevel(user)) {
+          if (requireExactLevel && combinedLevel && *combinedLevel != *level) {
+            return failure();
+          }
           combinedLevel =
               combinedLevel ? std::max(*combinedLevel, *level) : *level;
         }
         continue;
       }
-      if (!forwardsThroughResults(user)) return std::nullopt;
+      if (!forwardsThroughResults(user)) {
+        analysisIncomplete = true;
+        continue;
+      }
       for (Value userResult : user->getResults()) {
         worklist.push_back(userResult);
       }
     }
   }
 
-  if (!encryptedLevel) return combinedLevel;
-  if (combinedLevel && *combinedLevel > *encryptedLevel) return std::nullopt;
-  return encryptedLevel;
+  if (combinedLevel && encryptedLevel &&
+      (requireExactLevel ? *combinedLevel != *encryptedLevel
+                         : *combinedLevel > *encryptedLevel)) {
+    if (requireExactLevel) return failure();
+    return std::optional<int64_t>();
+  }
+  if (analysisIncomplete) return std::optional<int64_t>();
+  return encryptedLevel ? encryptedLevel : combinedLevel;
 }
 
 struct AnnotatePlaintextLevel
@@ -135,15 +154,32 @@ struct AnnotatePlaintextLevel
       return;
     }
 
-    module->walk([&](RLWEEncodeOp encodeOp) {
-      std::optional<int64_t> level = findUseLevel(encodeOp);
-      // Drop a level that no longer has a use to justify it
-      if (!level) {
-        encodeOp.removeLevelAttr();
-        return;
+    bool requireExactLevel = false;
+    if (auto target = getTargetConfig(module); succeeded(target)) {
+      requireExactLevel = target->requiresMatchingCiphertextPlaintextLevels;
+    }
+
+    WalkResult result = module->walk([&](RLWEEncodeOp encodeOp) {
+      FailureOr<std::optional<int64_t>> level =
+          findUseLevel(encodeOp, requireExactLevel);
+      if (failed(level)) {
+        encodeOp.emitOpError(
+            "is shared by ciphertext operations at different levels, but the "
+            "target requires plaintext and ciphertext levels to match");
+        return WalkResult::interrupt();
       }
-      encodeOp.setLevel(*level);
+      // Drop a level that no longer has a use to justify it
+      if (!*level) {
+        encodeOp.removeLevelAttr();
+        return WalkResult::advance();
+      }
+      encodeOp.setLevel(**level);
+      return WalkResult::advance();
     });
+
+    if (result.wasInterrupted()) {
+      signalPassFailure();
+    }
   }
 };
 
