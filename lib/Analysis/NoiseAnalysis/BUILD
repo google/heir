@@ -12,11 +12,20 @@ cc_library(
         "NoiseAnalysis.h",
     ],
     deps = [
+        "@heir//lib/Analysis:Utils",
+        "@heir//lib/Analysis/DimensionAnalysis",
+        "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:CallOpInterfaces",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
