@@ -201,72 +201,6 @@ class ArithToCGGITypeConverter : public TypeConverter {
   }
 };
 
-struct ConvertTruncIOp : public OpConversionPattern<mlir::arith::TruncIOp> {
-  ConvertTruncIOp(mlir::MLIRContext* context)
-      : OpConversionPattern<mlir::arith::TruncIOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      mlir::arith::TruncIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    ArithToCGGITypeConverter typeConverter(op->getContext());
-    auto outputType = typeConverter.convertType(op.getResult().getType());
-
-    auto castOp =
-        cggi::CastOp::create(b, op.getLoc(), outputType, adaptor.getIn());
-
-    rewriter.replaceOp(op, castOp);
-    return success();
-  }
-};
-
-struct ConvertExtUIOp : public OpConversionPattern<mlir::arith::ExtUIOp> {
-  ConvertExtUIOp(mlir::MLIRContext* context)
-      : OpConversionPattern<mlir::arith::ExtUIOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      mlir::arith::ExtUIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    ArithToCGGITypeConverter typeConverter(op->getContext());
-    auto outputType = typeConverter.convertType(op.getResult().getType());
-
-    auto castOp =
-        cggi::CastOp::create(b, op.getLoc(), outputType, adaptor.getIn());
-
-    rewriter.replaceOp(op, castOp);
-    return success();
-  }
-};
-
-struct ConvertExtSIOp : public OpConversionPattern<mlir::arith::ExtSIOp> {
-  ConvertExtSIOp(mlir::MLIRContext* context)
-      : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      mlir::arith::ExtSIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    ArithToCGGITypeConverter typeConverter(op->getContext());
-    auto outputType = typeConverter.convertType(op.getResult().getType());
-
-    auto castOp =
-        cggi::CastOp::create(b, op.getLoc(), outputType, adaptor.getIn());
-
-    rewriter.replaceOp(op, castOp);
-    return success();
-  }
-};
-
 struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
   ConvertCmpOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::CmpIOp>(context) {}
@@ -457,25 +391,6 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
         return success();
       }
     }
-
-    auto result = TargetCGGIOp::create(b, adaptor.getLhs().getType(),
-                                       adaptor.getLhs(), adaptor.getRhs());
-    rewriter.replaceOp(op, result);
-    return success();
-  }
-};
-
-template <typename SourceArithOp, typename TargetCGGIOp>
-struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
-  ConvertBinOp(mlir::MLIRContext* context)
-      : OpConversionPattern<SourceArithOp>(context) {}
-
-  using OpConversionPattern<SourceArithOp>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto result = TargetCGGIOp::create(b, adaptor.getLhs().getType(),
                                        adaptor.getLhs(), adaptor.getRhs());
@@ -688,7 +603,9 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     patterns.add<
-        ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp, ConvertSelectOp,
+        ConvertUnaryOp<mlir::arith::TruncIOp, cggi::CastOp>,
+        ConvertUnaryOp<mlir::arith::ExtUIOp, cggi::CastOp>,
+        ConvertUnaryOp<mlir::arith::ExtSIOp, cggi::CastOp>, ConvertSelectOp,
         ConvertCmpOp, ConvertSubOp, ConvertLutOp,
         ConvertShOp<mlir::arith::ShRSIOp, cggi::ScalarShiftRightOp>,
         ConvertShOp<mlir::arith::ShRUIOp, cggi::ScalarShiftRightOp>,

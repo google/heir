@@ -76,11 +76,38 @@ struct ConvertBinOp : public OpConversionPattern<SourceOpTy> {
   LogicalResult matchAndRewrite(
       SourceOpTy op, typename SourceOpTy::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Type resultType = this->getTypeConverter()
+                          ? this->getTypeConverter()->convertType(op.getType())
+                          : adaptor.getLhs().getType();
+    if (!resultType) return failure();
 
-    auto result = TargetOpTy::create(b, adaptor.getLhs().getType(),
-                                     adaptor.getLhs(), adaptor.getRhs());
-    rewriter.replaceOp(op, result);
+    rewriter.replaceOpWithNewOp<TargetOpTy>(op, resultType, adaptor.getLhs(),
+                                            adaptor.getRhs());
+    return success();
+  }
+};
+
+template <typename SourceOpTy, typename TargetOpTy>
+struct ConvertUnaryOp : public OpConversionPattern<SourceOpTy> {
+  ConvertUnaryOp(mlir::MLIRContext* context)
+      : OpConversionPattern<SourceOpTy>(context) {}
+
+  using OpConversionPattern<SourceOpTy>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SourceOpTy op, typename SourceOpTy::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    Type resultType;
+    if (this->getTypeConverter()) {
+      resultType =
+          this->getTypeConverter()->convertType(op.getResult().getType());
+    } else {
+      resultType = adaptor.getOperands()[0].getType();
+    }
+    if (!resultType) return failure();
+
+    rewriter.replaceOpWithNewOp<TargetOpTy>(op, resultType,
+                                            adaptor.getOperands()[0]);
     return success();
   }
 };
@@ -90,7 +117,14 @@ struct DropOp : public ConversionPattern {
   DropOp(const TypeConverter& typeConverter, MLIRContext* context,
          PatternBenefit benefit = 2)
       : ConversionPattern(typeConverter, RewritePattern::MatchAnyOpTypeTag(),
-                          /*benefit=*/2, context) {
+                          benefit, context) {
+    setDebugName("DropOp");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  DropOp(MLIRContext* context, PatternBenefit benefit = 2)
+      : ConversionPattern(RewritePattern::MatchAnyOpTypeTag(), benefit,
+                          context) {
     setDebugName("DropOp");
     setHasBoundedRewriteRecursion(true);
   }
@@ -110,6 +144,35 @@ struct DropOp : public ConversionPattern {
     }
 
     rewriter.replaceOp(op, operands);
+    return success();
+  }
+};
+
+template <typename T = void>
+struct EraseOp : public ConversionPattern {
+  EraseOp(const TypeConverter& typeConverter, MLIRContext* context,
+          PatternBenefit benefit = 1)
+      : ConversionPattern(typeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          benefit, context) {
+    setDebugName("EraseOp");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  EraseOp(MLIRContext* context, PatternBenefit benefit = 1)
+      : ConversionPattern(RewritePattern::MatchAnyOpTypeTag(), benefit,
+                          context) {
+    setDebugName("EraseOp");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  LogicalResult matchAndRewrite(
+      Operation* op, ArrayRef<Value> operands,
+      ConversionPatternRewriter& rewriter) const override {
+    if (!isa<T>(op)) {
+      return failure();
+    }
+
+    rewriter.eraseOp(op);
     return success();
   }
 };

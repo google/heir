@@ -156,44 +156,6 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
   }
 };
 
-struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
-  ConvertExtSI(mlir::MLIRContext* context)
-      : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ::mlir::arith::ExtSIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    auto result = mod_arith::ModSwitchOp::create(
-        b, op.getLoc(), typeConverter->convertType(op.getType()),
-        adaptor.getIn());
-    rewriter.replaceOp(op, result);
-    return success();
-  }
-};
-
-struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
-  ConvertExtUI(mlir::MLIRContext* context)
-      : OpConversionPattern<mlir::arith::ExtUIOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ::mlir::arith::ExtUIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    auto result = mod_arith::ModSwitchOp::create(
-        b, op.getLoc(), typeConverter->convertType(op.getType()),
-        adaptor.getIn());
-    rewriter.replaceOp(op, result);
-    return success();
-  }
-};
-
 struct ConvertLoadOp : public OpConversionPattern<mlir::memref::LoadOp> {
   ConvertLoadOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::memref::LoadOp>(context) {}
@@ -290,7 +252,9 @@ void ArithToModArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   patterns
-      .add<ConvertConstant, ConvertExtSI, ConvertExtUI,
+      .add<ConvertConstant,
+           ConvertUnaryOp<mlir::arith::ExtSIOp, mod_arith::ModSwitchOp>,
+           ConvertUnaryOp<mlir::arith::ExtUIOp, mod_arith::ModSwitchOp>,
            ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
            ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
            ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>, ConvertLoadOp,

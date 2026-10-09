@@ -155,20 +155,6 @@ class ModArithToArithTypeConverter : public TypeConverter {
   }
 };
 
-struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
-  ConvertEncapsulate(mlir::MLIRContext* context)
-      : OpConversionPattern<EncapsulateOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      EncapsulateOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0]);
-    return success();
-  }
-};
-
 struct ConvertLift : public OpConversionPattern<LiftOp> {
   ConvertLift(mlir::MLIRContext* context)
       : OpConversionPattern<LiftOp>(context) {}
@@ -654,7 +640,7 @@ void ModArithToArith::runOnOperation() {
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
   patterns.add<
-      ConvertEncapsulate, ConvertLift, ConvertReduce, ConvertAdd, ConvertSub,
+      DropOp<EncapsulateOp>, ConvertLift, ConvertReduce, ConvertAdd, ConvertSub,
       ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
       ConvertConstant, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
       ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,

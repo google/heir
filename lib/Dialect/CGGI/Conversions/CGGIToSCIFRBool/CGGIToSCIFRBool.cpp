@@ -79,37 +79,6 @@ struct AddKeyArgs : public OpConversionPattern<func::FuncOp> {
   }
 };
 
-template <typename BinOp, typename SCIFRBoolBinOp>
-struct ConvertCGGITRBBinOp : public OpConversionPattern<BinOp> {
-  using OpConversionPattern<BinOp>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-
-    rewriter.replaceOp(
-        op, SCIFRBoolBinOp::create(b, adaptor.getLhs(), adaptor.getRhs()));
-    return success();
-  }
-};
-
-struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
-  ConvertBoolNotOp(mlir::MLIRContext* context)
-      : OpConversionPattern<cggi::NotOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      cggi::NotOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-
-    rewriter.replaceOp(op, scifrbool::NotOp::create(b, adaptor.getInput()));
-    return success();
-  }
-};
-
 struct CGGIToSCIFRBool : impl::CGGIToSCIFRBoolBase<CGGIToSCIFRBool> {
   using CGGIToSCIFRBoolBase::CGGIToSCIFRBoolBase;
 
@@ -144,16 +113,17 @@ struct CGGIToSCIFRBool : impl::CGGIToSCIFRBoolBase<CGGIToSCIFRBool> {
 
     target.addLegalOp<mlir::arith::ConstantOp>();
 
-    patterns.add<AddKeyArgs, ConvertCGGITRBBinOp<cggi::AndOp, scifrbool::AndOp>,
-                 ConvertCGGITRBBinOp<cggi::NandOp, scifrbool::NandOp>,
-                 ConvertCGGITRBBinOp<cggi::OrOp, scifrbool::OrOp>,
-                 ConvertCGGITRBBinOp<cggi::NorOp, scifrbool::NorOp>,
-                 ConvertCGGITRBBinOp<cggi::XorOp, scifrbool::XorOp>,
-                 ConvertCGGITRBBinOp<cggi::XNorOp, scifrbool::XNorOp>,
-                 ConvertBoolNotOp, ConvertAny<memref::AllocOp>,
-                 ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
-                 ConvertAny<memref::LoadOp>, ConvertAny<memref::SubViewOp>,
-                 ConvertAny<memref::CopyOp>, ConvertAny<tensor::FromElementsOp>,
+    patterns.add<AddKeyArgs, ConvertBinOp<cggi::AndOp, scifrbool::AndOp>,
+                 ConvertBinOp<cggi::NandOp, scifrbool::NandOp>,
+                 ConvertBinOp<cggi::OrOp, scifrbool::OrOp>,
+                 ConvertBinOp<cggi::NorOp, scifrbool::NorOp>,
+                 ConvertBinOp<cggi::XorOp, scifrbool::XorOp>,
+                 ConvertBinOp<cggi::XNorOp, scifrbool::XNorOp>,
+                 ConvertUnaryOp<cggi::NotOp, scifrbool::NotOp>,
+                 ConvertAny<memref::AllocOp>, ConvertAny<memref::DeallocOp>,
+                 ConvertAny<memref::StoreOp>, ConvertAny<memref::LoadOp>,
+                 ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
+                 ConvertAny<tensor::FromElementsOp>,
                  ConvertAny<tensor::ExtractOp> >(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
