@@ -84,29 +84,56 @@ static Value findStorageFromMemrefPattern(Operation* op, Liveness* liveness,
   return nullptr;
 }
 
-template <typename BinOp, typename InPlaceOp>
-struct ConvertBinOp : public OpRewritePattern<BinOp> {
-  using OpRewritePattern<BinOp>::OpRewritePattern;
-
-  ConvertBinOp(mlir::MLIRContext* context, Liveness* liveness,
-               DominanceInfo* domInfo, DataFlowSolver* solver,
-               DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo,
-               AliasAnalysis* aliasAnalysis)
-      : OpRewritePattern<BinOp>(context),
+template <typename Op>
+struct ConvertInPlacePatternBase : public OpRewritePattern<Op> {
+  ConvertInPlacePatternBase(
+      mlir::MLIRContext* context, Liveness* liveness, DominanceInfo* domInfo,
+      DataFlowSolver* solver,
+      DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo,
+      AliasAnalysis* aliasAnalysis)
+      : OpRewritePattern<Op>(context),
         liveness(liveness),
         domInfo(domInfo),
         solver(solver),
         blockToStorageInfo(blockToStorageInfo),
         aliasAnalysis(aliasAnalysis) {}
 
-  LogicalResult matchAndRewrite(BinOp op,
-                                PatternRewriter& rewriter) const override {
-    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
+ protected:
+  Value getAvailableStorage(Op op, CallerProvidedStorageInfo& storageInfo,
+                            bool tryMemref = false) const {
     auto storage =
         storageInfo.getAvailableStorage(op, liveness, domInfo, solver);
-    if (!storage) {
+    if (!storage && tryMemref) {
       storage = findStorageFromMemrefPattern(op, liveness, aliasAnalysis);
     }
+    return storage;
+  }
+
+  void replaceAllocWithInPlace(Op op, Operation* inplaceOp, Value storage,
+                               CallerProvidedStorageInfo& storageInfo,
+                               PatternRewriter& rewriter) const {
+    storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);
+    setValueToLevel(solver, inplaceOp->getResult(0),
+                    getLevel(op->getResult(0), solver).value().getInt());
+    rewriter.replaceOp(op, inplaceOp);
+  }
+
+  Liveness* liveness;
+  DominanceInfo* domInfo;
+  DataFlowSolver* solver;
+  DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo;
+  AliasAnalysis* aliasAnalysis;
+};
+
+template <typename BinOp, typename InPlaceOp>
+struct ConvertBinOp : public ConvertInPlacePatternBase<BinOp> {
+  using ConvertInPlacePatternBase<BinOp>::ConvertInPlacePatternBase;
+
+  LogicalResult matchAndRewrite(BinOp op,
+                                PatternRewriter& rewriter) const override {
+    auto& storageInfo = (*this->blockToStorageInfo)[op->getBlock()];
+    auto storage =
+        this->getAvailableStorage(op, storageInfo, /*tryMemref=*/true);
     if (!storage) {
       return rewriter.notifyMatchFailure(op, "no available storage found");
     }
@@ -118,42 +145,20 @@ struct ConvertBinOp : public OpRewritePattern<BinOp> {
         rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
         op.getOperand(1), op.getOperand(2), storage);
 
-    // Update storage info, which must happen before the op is removed
-    storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);
-    setValueToLevel(solver, inplaceOp->getResult(0),
-                    getLevel(op->getResult(0), solver).value().getInt());
-    rewriter.replaceOp(op, inplaceOp);
+    this->replaceAllocWithInPlace(op, inplaceOp, storage, storageInfo,
+                                  rewriter);
     return success();
   }
-
- private:
-  Liveness* liveness;
-  DominanceInfo* domInfo;
-  DataFlowSolver* solver;
-  DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo;
-  AliasAnalysis* aliasAnalysis;
 };
 
 template <typename UnaryOp, typename InPlaceOp>
-struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
-  using OpRewritePattern<UnaryOp>::OpRewritePattern;
-
-  ConvertUnaryOp(
-      mlir::MLIRContext* context, Liveness* liveness, DominanceInfo* domInfo,
-      DataFlowSolver* solver,
-      DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo,
-      AliasAnalysis* /*aliasAnalysis*/)
-      : OpRewritePattern<UnaryOp>(context),
-        liveness(liveness),
-        domInfo(domInfo),
-        solver(solver),
-        blockToStorageInfo(blockToStorageInfo) {}
+struct ConvertUnaryOp : public ConvertInPlacePatternBase<UnaryOp> {
+  using ConvertInPlacePatternBase<UnaryOp>::ConvertInPlacePatternBase;
 
   LogicalResult matchAndRewrite(UnaryOp op,
                                 PatternRewriter& rewriter) const override {
-    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
-    auto storage =
-        storageInfo.getAvailableStorage(op, liveness, domInfo, solver);
+    auto& storageInfo = (*this->blockToStorageInfo)[op->getBlock()];
+    auto storage = this->getAvailableStorage(op, storageInfo);
     if (!storage) {
       return rewriter.notifyMatchFailure(op, "no available storage found");
     }
@@ -165,44 +170,21 @@ struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
         InPlaceOp::create(rewriter, op.getLoc(), op.getOperand(1).getType(),
                           op.getOperand(0), op.getOperand(1), storage);
 
-    storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);
-    setValueToLevel(solver, inplaceOp->getResult(0),
-                    getLevel(op->getResult(0), solver).value().getInt());
-    rewriter.replaceOp(op, inplaceOp);
+    this->replaceAllocWithInPlace(op, inplaceOp, storage, storageInfo,
+                                  rewriter);
     return success();
   }
-
- private:
-  Liveness* liveness;
-  DominanceInfo* domInfo;
-  DataFlowSolver* solver;
-  DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo;
 };
 
 template <typename RotateOp, typename InPlaceOp>
-struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
-  using OpRewritePattern<RotateOp>::OpRewritePattern;
-
-  ConvertRotateOp(
-      mlir::MLIRContext* context, Liveness* liveness, DominanceInfo* domInfo,
-      DataFlowSolver* solver,
-      DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo,
-      AliasAnalysis* aliasAnalysis)
-      : OpRewritePattern<RotateOp>(context),
-        liveness(liveness),
-        domInfo(domInfo),
-        solver(solver),
-        blockToStorageInfo(blockToStorageInfo),
-        aliasAnalysis(aliasAnalysis) {}
+struct ConvertRotateOp : public ConvertInPlacePatternBase<RotateOp> {
+  using ConvertInPlacePatternBase<RotateOp>::ConvertInPlacePatternBase;
 
   LogicalResult matchAndRewrite(RotateOp op,
                                 PatternRewriter& rewriter) const override {
-    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
+    auto& storageInfo = (*this->blockToStorageInfo)[op->getBlock()];
     auto storage =
-        storageInfo.getAvailableStorage(op, liveness, domInfo, solver);
-    if (!storage) {
-      storage = findStorageFromMemrefPattern(op, liveness, aliasAnalysis);
-    }
+        this->getAvailableStorage(op, storageInfo, /*tryMemref=*/true);
     if (!storage) {
       return rewriter.notifyMatchFailure(op, "no available storage found");
     }
@@ -227,42 +209,20 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
                                 dynamicShift,
                                 /*static_shift=*/nullptr);
 
-    // update storage info
-    storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);
-    setValueToLevel(solver, inplaceOp->getResult(0),
-                    getLevel(op->getResult(0), solver).value().getInt());
-    rewriter.replaceOp(op, inplaceOp);
+    this->replaceAllocWithInPlace(op, inplaceOp, storage, storageInfo,
+                                  rewriter);
     return success();
   }
-
- private:
-  Liveness* liveness;
-  DominanceInfo* domInfo;
-  DataFlowSolver* solver;
-  DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo;
-  AliasAnalysis* aliasAnalysis;
 };
 
 template <typename DropLevelOp, typename InPlaceOp>
-struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
-  using OpRewritePattern<DropLevelOp>::OpRewritePattern;
-
-  ConvertDropLevelOp(
-      mlir::MLIRContext* context, Liveness* liveness, DominanceInfo* domInfo,
-      DataFlowSolver* solver,
-      DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo,
-      AliasAnalysis* /*aliasAnalysis*/)
-      : OpRewritePattern<DropLevelOp>(context),
-        liveness(liveness),
-        domInfo(domInfo),
-        solver(solver),
-        blockToStorageInfo(blockToStorageInfo) {}
+struct ConvertDropLevelOp : public ConvertInPlacePatternBase<DropLevelOp> {
+  using ConvertInPlacePatternBase<DropLevelOp>::ConvertInPlacePatternBase;
 
   LogicalResult matchAndRewrite(DropLevelOp op,
                                 PatternRewriter& rewriter) const override {
-    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
-    auto storage =
-        storageInfo.getAvailableStorage(op, liveness, domInfo, solver);
+    auto& storageInfo = (*this->blockToStorageInfo)[op->getBlock()];
+    auto storage = this->getAvailableStorage(op, storageInfo);
     if (!storage) {
       return rewriter.notifyMatchFailure(op, "no available storage found");
     }
@@ -274,19 +234,10 @@ struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
         rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
         op.getOperand(1), storage, op.getLevelToDrop());
 
-    // update storage info
-    storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);
-    setValueToLevel(solver, inplaceOp->getResult(0),
-                    getLevel(op->getResult(0), solver).value().getInt());
-    rewriter.replaceOp(op, inplaceOp);
+    this->replaceAllocWithInPlace(op, inplaceOp, storage, storageInfo,
+                                  rewriter);
     return success();
   }
-
- private:
-  Liveness* liveness;
-  DominanceInfo* domInfo;
-  DataFlowSolver* solver;
-  DenseMap<Block*, CallerProvidedStorageInfo>* blockToStorageInfo;
 };
 
 #define GEN_PASS_DEF_ALLOCTOINPLACE
