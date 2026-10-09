@@ -1,7 +1,7 @@
 #ifndef LIB_DIALECT_CHEDDAR_IR_CHEDDARTYPES_TD_
 #define LIB_DIALECT_CHEDDAR_IR_CHEDDARTYPES_TD_
 
-include "CheddarDialect.td"
+include "lib/Dialect/Cheddar/IR/CheddarDialect.td"
 
 include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
