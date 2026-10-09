@@ -13,7 +13,10 @@ cc_library(
         "GenerateParamBGV.cpp",
         "GenerateParamCKKS.cpp",
     ],
-    hdrs = ["GenerateParam.h"],
+    hdrs = [
+        "GenerateParam.h",
+        "GenerateParamCommon.h",
+    ],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/DimensionAnalysis",
