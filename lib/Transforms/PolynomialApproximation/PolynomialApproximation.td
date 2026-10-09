@@ -64,13 +64,16 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     Some ops support alternative approximation strategies, such as `exp` on
     `[-2^k, 1.0]` using repeated squaring `(1 + x/2^k)^(2^k)` (when using
     `--math-exp-method=taylor`), which evaluates a degree-2^k polynomial with k
-    multiplicative levels.
+    multiplicative levels. Additionally, 1/x on a secret x in [a, b] (a > 0) is
+    approximated using a mix of a Chebyshev approximation for an initial guess
+    followed by Goldschmidt approximation iterations.
 
     (* example filepath=tests/Transforms/polynomial_approximation/doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::heir::polynomial::PolynomialDialect",
-    "mlir::arith::ArithDialect"
+    "mlir::arith::ArithDialect",
+    "mlir::scf::SCFDialect"
   ];
   let options = [
     Option<"useCompositeRelu", "use-composite-relu", "bool", "false",

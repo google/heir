@@ -5,6 +5,10 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <variant>
+#include <vector>
 
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
@@ -19,12 +23,16 @@ using kernel::CachingVisitor;
 using kernel::ConstantScalarNode;
 using kernel::ConstantTensorNode;
 using kernel::ExtractNode;
+using kernel::ForLoopNode;
 using kernel::LeafNode;
 using kernel::LeftRotateNode;
 using kernel::LiteralDouble;
 using kernel::MultiplyNode;
 using kernel::PowerNode;
+using kernel::ResultAtNode;
 using kernel::SubtractNode;
+using kernel::VariableNode;
+using kernel::YieldNode;
 
 // Visitor that evaluates an ArithmeticDag by performing actual arithmetic
 // operations. Templated on the leaf node type T.
@@ -40,14 +48,44 @@ class EvalVisitorImpl : public CachingVisitor<T, std::vector<double>> {
   }
 
   std::vector<double> operator()(const LeafNode<T>& node) override {
-    if constexpr (std::is_same_v<T, double>) {
-      return {node.value};
-    } else if constexpr (std::is_same_v<T, LiteralDouble>) {
-      return {node.value.getValue()};
-    } else {
-      assert(false && "Unsupported leaf node type");
-      return {0.0};
+    return {toDouble(node.value)};
+  }
+
+  std::vector<double> operator()(const VariableNode<T>& node) override {
+    assert(node.value.has_value() && "VariableNode value is not set");
+    return {toDouble(*node.value)};
+  }
+
+  std::vector<double> operator()(const YieldNode<T>& node) override {
+    std::vector<double> results;
+    results.reserve(node.elements.size());
+    for (const auto& element : node.elements) {
+      results.push_back(this->process(element)[0]);
     }
+    return results;
+  }
+
+  std::vector<double> operator()(const ResultAtNode<T>& node) override {
+    return {this->process(node.operand)[node.index]};
+  }
+
+  std::vector<double> operator()(const ForLoopNode<T>& node) override {
+    std::vector<double> iterValues;
+    iterValues.reserve(node.inits.size());
+    for (const auto& init : node.inits) {
+      iterValues.push_back(this->process(init)[0]);
+    }
+    for (int32_t i = node.lower; i < node.upper; i += node.step) {
+      // The body must be re-evaluated since the variables change.
+      this->clearSubtreeCache(node.body);
+      std::get<VariableNode<T>>(node.inductionVar->node_variant).value = T(i);
+      for (size_t j = 0; j < node.iterArgs.size(); ++j) {
+        std::get<VariableNode<T>>(node.iterArgs[j]->node_variant).value =
+            T(iterValues[j]);
+      }
+      iterValues = this->process(node.body);
+    }
+    return iterValues;
   }
 
   std::vector<double> operator()(const AddNode<T>& node) override {
@@ -85,6 +123,18 @@ class EvalVisitorImpl : public CachingVisitor<T, std::vector<double>> {
     // Extraction is a tensor operation, not expected in scalar evaluation
     assert(false && "ExtractNode not supported in scalar evaluation");
     return {0.0};
+  }
+
+ private:
+  static double toDouble(const T& value) {
+    if constexpr (std::is_same_v<T, double>) {
+      return value;
+    } else if constexpr (std::is_same_v<T, LiteralDouble>) {
+      return value.getValue();
+    } else {
+      assert(false && "Unsupported leaf node type");
+      return 0.0;
+    }
   }
 };
 

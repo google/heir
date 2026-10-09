@@ -216,3 +216,44 @@ cc_binary(
         "@openfhe//:pke",
     ],
 )
+
+cc_library(
+    name = "GoldschmidtLoop",
+    srcs = ["GoldschmidtLoop.cpp"],
+    hdrs = ["GoldschmidtLoop.h"],
+    deps = [
+        ":Polynomial",
+        "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Utils/Approximation:CaratheodoryFejer",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_test(
+    name = "GoldschmidtLoopFuzzTest",
+    srcs = ["GoldschmidtLoopFuzzTest.cpp"],
+    deps = [
+        ":ChebyshevPatersonStockmeyer",
+        ":GoldschmidtLoop",
+        ":Polynomial",
+        ":PolynomialTestVisitors",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+    ],
+)
+
+cc_test(
+    name = "GoldschmidtLoopTest",
+    srcs = ["GoldschmidtLoopTest.cpp"],
+    deps = [
+        ":ChebyshevPatersonStockmeyer",
+        ":GoldschmidtLoop",
+        ":Polynomial",
+        ":PolynomialTestVisitors",
+        "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+    ],
+)

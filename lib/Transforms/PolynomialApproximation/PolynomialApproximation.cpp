@@ -12,7 +12,12 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/IRMaterializingVisitor.h"
+#include "lib/Kernel/Utils.h"
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
+#include "lib/Utils/Polynomial/GoldschmidtLoop.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/APFloat.h"              // from @llvm-project
@@ -21,11 +26,13 @@
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -536,6 +543,103 @@ struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
   int64_t defaultK;
 };
 
+// Approximate `1/x` on `[a, b]` for `0 < a < b ` using Chebyshev and
+// Goldschmidt approximations. We use k total levels: floor[k/2] levels for
+// Chebyshev and the rest (minus 1 for setup) for Goldschmidt. We use "levels"
+// attribute (default 7). Rewrites arith.divf %one, %x where %x is secret.
+struct GoldschmidtApproximation : public OpRewritePattern<arith::DivFOp> {
+  GoldschmidtApproximation(MLIRContext* context, DataFlowSolver* solver,
+                           int64_t defaultK = 7)
+      : OpRewritePattern<arith::DivFOp>(context, /*benefit=*/2),
+        solver(solver),
+        defaultK(defaultK) {}
+
+  LogicalResult matchAndRewrite(arith::DivFOp op,
+                                PatternRewriter& rewriter) const override {
+    Location loc = op.getLoc();
+
+    Value x = op.getRhs();
+    Type type = x.getType();
+    if (!mlir::heir::isSecret(x, solver)) {
+      return rewriter.notifyMatchFailure(op, "operand is not secret");
+    }
+    if (!(matchPattern(op.getLhs(), m_OneFloat()))) {
+      return rewriter.notifyMatchFailure(op, "numerator is not constant 1");
+    }
+    int64_t k = defaultK;
+    if (op->hasAttr("levels")) {
+      IntegerAttr levelsAttribute =
+          dyn_cast<IntegerAttr>(op->getAttr("levels"));
+      if (levelsAttribute && levelsAttribute.getInt()) {
+        k = static_cast<int64_t>(levelsAttribute.getInt());
+      }
+    }
+
+    double validLower = 0.0;
+
+    double domainLower = kDefaultPositiveRangeLower;
+    double domainUpper = kDefaultPositiveRangeUpper;
+
+    if (k < 3) {
+      return op.emitOpError("Must allocate at least 3 levels");
+    }
+    if (op->hasAttr("domain_lower")) {
+      FloatAttr lowerAttr = dyn_cast<FloatAttr>(op->getAttr("domain_lower"));
+      if (!lowerAttr)
+        return op.emitOpError(
+            "domain_lower must be a floating-point attribute");
+      domainLower = lowerAttr.getValueAsDouble();
+    }
+    if (op->hasAttr("domain_upper")) {
+      FloatAttr upperAttr = dyn_cast<FloatAttr>(op->getAttr("domain_upper"));
+      if (!upperAttr)
+        return op.emitOpError(
+            "domain_upper must be a floating-point attribute");
+      domainUpper = upperAttr.getValueAsDouble();
+    }
+    if (!(domainLower < domainUpper))
+      return op.emitOpError(
+          "domain_lower must be strictly less than domain_upper");
+    if (domainLower <= validLower) {
+      return op.emitOpError("domain_lower must be strictly greater than 0");
+    }
+
+    polynomial::GoldschmidtLevelSplit split =
+        polynomial::splitGoldschmidtLevels(k);
+    polynomial::ChebyshevPolynomial poly =
+        polynomial::goldschmidtInitialApproximation(domainLower, domainUpper,
+                                                    split.chebyshevDegree);
+    if (failed(checkApproximationFinite(op, poly))) return failure();
+
+    MLIRContext* ctx = rewriter.getContext();
+    PolynomialType polyType =
+        PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
+    TypedChebyshevPolynomialAttr polyAttr =
+        TypedChebyshevPolynomialAttr::get(polyType, poly);
+    auto eval = EvalOp::create(rewriter, loc, polyAttr, x);
+    eval->setAttr("domain_lower", rewriter.getF64FloatAttr(domainLower));
+    eval->setAttr("domain_upper", rewriter.getF64FloatAttr(domainUpper));
+
+    // Build the Goldschmidt loop as an ArithmeticDag
+    using NodeTy = kernel::ArithmeticDagNode<kernel::SSAValue>;
+    auto xNode = NodeTy::leaf(kernel::SSAValue(x));
+    auto y0Node = NodeTy::leaf(kernel::SSAValue(eval.getResult()));
+    auto resultNode = polynomial::goldschmidtLoop<kernel::SSAValue>(
+        xNode, y0Node, split.numIterations, kernel::mlirTypeToDagType(type));
+
+    ImplicitLocOpBuilder b(loc, rewriter);
+    kernel::IRMaterializingVisitor visitor(type);
+    Value result = visitor.process(resultNode, b)[0];
+
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+ private:
+  DataFlowSolver* solver;
+  int64_t defaultK;
+};
+
 // Minimax composite-sign coefficients (Chebyshev basis on [-1, 1]) for the
 // degree schedule [15, 15, 27].
 constexpr double kCompositeSignPoly0[] = {
@@ -699,6 +803,7 @@ struct PolynomialApproximation
     if (mathExpMethod == MathExpMethod::Taylor) {
       patterns.add<ExpOpTaylorApproximation>(context, &solver, /*k=*/7);
     }
+    patterns.add<GoldschmidtApproximation>(context, &solver);
     patterns.add<SquareAndMultiplyForPowOp>(context);
     if (useCompositeRelu) {
       patterns.add<ReluViaCompositeSign>(context, &solver);
