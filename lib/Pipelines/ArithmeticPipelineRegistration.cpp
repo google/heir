@@ -549,15 +549,21 @@ void mlirToRLWEPipeline(OpPassManager& pm,
 
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
+
+  // Record the level each plaintext is used at, so backends can encode only the
+  // limbs it needs. This must run before CSE, which could otherwise merge
+  // identical encode ops used at different levels (invalidating targets that
+  // require exact level matching).
+  pm.addPass(lwe::createAnnotatePlaintextLevel());
   pm.addPass(createCSEPass());
   pm.addPass(createSymbolDCEPass());
 
   // TODO(#2554): skip this pass if the backend supports trivial encryption
   pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
 
-  // Record the level each plaintext is used at, so backends can encode only the
-  // limbs it needs. This must run after the CSE above, which merges identical
-  // encode ops, and before split-preprocessing, which severs the use chain
+  // Annotate levels again after trivial encryption is lowered to addition,
+  // which synthesizes fresh encode ops for zero-encryptions at lower levels.
+  // This must also run before split-preprocessing, which severs the use chain
   // from an encode op to the ciphertext op consuming it.
   pm.addPass(lwe::createAnnotatePlaintextLevel());
 
