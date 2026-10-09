@@ -2,16 +2,19 @@
 
 #include <cmath>
 #include <cstdint>
+#include <vector>
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
@@ -143,6 +146,31 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
   auto newRnsType = rns::RNSType::get(
       rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
   return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
+}
+
+FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext* ctx,
+                                               ArrayRef<int64_t> primes,
+                                               int minSlotCount) {
+  // monomial
+  std::vector<polynomial::IntMonomial> monomials;
+  monomials.emplace_back(1, minSlotCount);
+  monomials.emplace_back(1, 0);
+  auto result = polynomial::IntPolynomial::fromMonomials(monomials);
+  if (failed(result)) return failure();
+  polynomial::IntPolynomial xnPlusOne = result.value();
+
+  // moduli chain
+  SmallVector<Type, 4> modTypes;
+  for (int64_t prime : primes) {
+    auto type = IntegerType::get(ctx, 64);
+    modTypes.push_back(
+        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
+  }
+
+  // types
+  auto rnsType = rns::RNSType::get(ctx, modTypes);
+  return polynomial::RingAttr::get(
+      rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
 }
 
 polynomial::RingAttr getRingFromModulusChain(
