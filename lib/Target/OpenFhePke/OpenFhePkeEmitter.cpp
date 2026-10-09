@@ -1713,6 +1713,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(
     ::mlir::heir::preprocessing::LoadResourceOp op) {
+  if (op.getDirectory())
+    return op.emitOpError("resource directories are not supported by OpenFHE");
   Value resource = op.getLoadedResource();
   Type type = resource.getType();
 
