@@ -485,18 +485,6 @@ struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
   }
 };
 
-template <typename T>
-struct RemoveMgmtOp : public OpConversionPattern<T> {
-  using OpConversionPattern<T>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      T op, typename T::Adaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0]);
-    return success();
-  }
-};
-
 struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   using SecretToModArithBase::SecretToModArithBase;
 
@@ -533,13 +521,11 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
           typeConverter, context, /*benefit=*/3);
     }
 
-    patterns
-        .add<RemoveMgmtOp<mgmt::ModReduceOp>, RemoveMgmtOp<mgmt::LevelReduceOp>,
-             RemoveMgmtOp<mgmt::LevelReduceMinOp>,
-             RemoveMgmtOp<mgmt::RelinearizeOp>, RemoveMgmtOp<mgmt::BootstrapOp>,
-             RemoveMgmtOp<mgmt::AdjustScaleOp>, RemoveMgmtOp<mgmt::InitOp>>(
-            typeConverter, context,
-            /*benefit=*/2);
+    patterns.add<DropOp<mgmt::ModReduceOp>, DropOp<mgmt::LevelReduceOp>,
+                 DropOp<mgmt::LevelReduceMinOp>, DropOp<mgmt::RelinearizeOp>,
+                 DropOp<mgmt::BootstrapOp>, DropOp<mgmt::AdjustScaleOp>,
+                 DropOp<mgmt::InitOp>>(typeConverter, context,
+                                       /*benefit=*/2);
 
     patterns.add<ConvertAnyNestedGeneric>(typeConverter, context,
                                           /*benefit=*/1);

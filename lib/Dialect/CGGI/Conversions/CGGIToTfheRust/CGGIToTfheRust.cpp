@@ -603,20 +603,6 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
   }
 };
 
-struct ConvertEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
-  ConvertEncodeOp(mlir::MLIRContext* context)
-      : OpConversionPattern<lwe::EncodeOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      lwe::EncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-
 class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
@@ -665,10 +651,11 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     });
 
     patterns.add<
-        AddServerKeyArg, AddServerKeyArgCall, ConvertEncodeOp, ConvertLut2Op,
-        ConvertLut3Op, ConvertLut4Op, ConvertNotOp, ConvertTrivialEncryptOp,
-        ConvertTrivialOp, ConvertCGGITRBinOp<lwe::AddOp, tfhe_rust::AddOp>,
-        ConvertScalarMulOp, ConvertCGGITRBinOp<cggi::AddOp, tfhe_rust::AddOp>,
+        AddServerKeyArg, AddServerKeyArgCall, EraseOp<lwe::EncodeOp>,
+        ConvertLut2Op, ConvertLut3Op, ConvertLut4Op, ConvertNotOp,
+        ConvertTrivialEncryptOp, ConvertTrivialOp,
+        ConvertCGGITRBinOp<lwe::AddOp, tfhe_rust::AddOp>, ConvertScalarMulOp,
+        ConvertCGGITRBinOp<cggi::AddOp, tfhe_rust::AddOp>,
         ConvertCGGITRBinOp<cggi::MulOp, tfhe_rust::MulOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>,
