@@ -47,20 +47,6 @@ namespace mlir {
 namespace heir {
 namespace tfhe_rust_bool {
 
-namespace {
-
-// getRustIntegerType returns the width of the closest builtin integer type.
-FailureOr<int> getRustIntegerType(int width) {
-  for (int candidate : {8, 16, 32, 64, 128}) {
-    if (width <= candidate) {
-      return candidate;
-    }
-  }
-  return failure();
-}
-
-}  // namespace
-
 void registerToTfheRustBoolTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust-bool",
@@ -373,34 +359,12 @@ LogicalResult TfheRustBoolEmitter::printOperation(affine::AffineYieldOp op) {
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(arith::ConstantOp op) {
-  auto valueAttr = op.getValue();
-  if (isa<IntegerType>(op.getType()) &&
-      op.getType().getIntOrFloatBitWidth() == 1) {
-    os << "let " << variableNames->getNameForValue(op.getResult())
-       << " : bool = ";
-    os << (cast<IntegerAttr>(valueAttr).getValue().isZero() ? "false" : "true")
-       << ";\n";
-    return success();
-  }
-
-  emitAssignPrefix(op.getResult());
-  if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
-    os << intAttr.getValue() << ";\n";
-  } else {
-    return op.emitError() << "Unknown constant type " << valueAttr.getType();
-  }
-  return success();
+  return tfhe_rust::printConstantOp(op, os, variableNames);
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(arith::IndexCastOp op) {
-  emitAssignPrefix(op.getOut());
-  os << variableNames->getNameForValue(op.getIn()) << " as ";
-  if (failed(emitType(op.getOut().getType()))) {
-    return op.emitOpError()
-           << "Failed to emit index cast type " << op.getOut().getType();
-  }
-  os << ";\n";
-  return success();
+  return tfhe_rust::printIndexCastOp(op, os, variableNames,
+                                     [&](Type t) { return emitType(t); });
 }
 
 LogicalResult TfheRustBoolEmitter::printBinaryOp(::mlir::Value result,
@@ -426,21 +390,8 @@ LogicalResult TfheRustBoolEmitter::printOperation(::mlir::arith::ShRSIOp op) {
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(::mlir::arith::TruncIOp op) {
-  emitAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getIn());
-  if (isa<IntegerType>(op.getType()) &&
-      op.getType().getIntOrFloatBitWidth() == 1) {
-    // Compare with zero to truncate to a boolean.
-    os << " != 0";
-  } else {
-    os << " as ";
-    if (failed(emitType(op.getType()))) {
-      return op.emitOpError()
-             << "Failed to emit truncated type " << op.getType();
-    }
-  }
-  os << ";\n";
-  return success();
+  return tfhe_rust::printTruncIOp(op, os, variableNames,
+                                  [&](Type t) { return emitType(t); });
 }
 
 // Use a BTreeMap<(usize, ...), Ciphertext>.
@@ -610,14 +561,8 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
       .Case<PackedServerKeyType>(
           [&](auto type) { return std::string("ServerKeyEnum"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
-      .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
-        if (type.getWidth() == 1) {
-          return std::string("bool");
-        }
-        auto width = getRustIntegerType(type.getWidth());
-        if (failed(width)) return failure();
-        return (type.isUnsigned() ? std::string("u") : "") + "i" +
-               std::to_string(width.value());
+      .Case<IntegerType>([&](IntegerType type) {
+        return tfhe_rust::getRustIntegerTypeStr(type);
       })
       .Default([&](Type&) { return failure(); });
 }
