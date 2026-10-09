@@ -70,6 +70,35 @@ bool isConstantGlobal(Operation* op) {
   return isa<DenseElementsAttr>(global.getConstantInitValue());
 }
 
+// Erases an operand and its corresponding block argument from a GenericOp,
+// preserving or updating operand attributes.
+static void eraseGenericOpOperand(GenericOp op, unsigned index,
+                                  PatternRewriter& rewriter) {
+  // Read the operand attrs BEFORE erasing the operand: the accessor
+  // treats a size-mismatched (stale) array as absent, so reading after
+  // the erase would both skip the rebuild and leave the stale array on
+  // the op.
+  auto attrs = op.getAllOperandAttrsAttr();
+  rewriter.modifyOpInPlace(op, [&]() {
+    op.getBody()->eraseArgument(index);
+    op.getOperation()->eraseOperand(index);
+  });
+  if (attrs) {
+    SmallVector<Attribute> attrList;
+    for (auto [j, attr] : llvm::enumerate(attrs)) {
+      if (j != index) {
+        attrList.push_back(attr);
+      }
+    }
+    // An empty array is not "no attrs"; remove it outright so later
+    // operand appends don't see a stale array.
+    if (attrList.empty())
+      op.removeAllOperandAttrsAttr();
+    else
+      op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
+  }
+}
+
 llvm::SmallVector<Value> buildResolvedIndices(Operation* op,
                                               OperandRange opIndices,
                                               PatternRewriter& rewriter) {
@@ -176,29 +205,7 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
     if (arg.use_empty()) {
       LLVM_DEBUG(llvm::dbgs() << arg << " has no uses; removing\n");
       hasUnusedOps = true;
-      // Read the operand attrs BEFORE erasing the operand: the accessor
-      // treats a size-mismatched (stale) array as absent, so reading after
-      // the erase would both skip the rebuild and leave the stale array on
-      // the op.
-      auto attrs = op.getAllOperandAttrsAttr();
-      rewriter.modifyOpInPlace(op, [&]() {
-        body->eraseArgument(i);
-        op.getOperation()->eraseOperand(i);
-      });
-      if (attrs) {
-        SmallVector<Attribute> attrList;
-        for (auto [j, attr] : llvm::enumerate(attrs)) {
-          if (j != i) {
-            attrList.push_back(attr);
-          }
-        }
-        // An empty array is not "no attrs"; remove it outright so later
-        // operand appends don't see a stale array.
-        if (attrList.empty())
-          op.removeAllOperandAttrsAttr();
-        else
-          op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
-      }
+      eraseGenericOpOperand(op, i, rewriter);
 
       // Ensure the next iteration uses the right arg number
       --i;
@@ -272,25 +279,7 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
       BlockArgument correspondingArg = body->getArgument(i);
 
       rewriter.replaceAllUsesWith(correspondingArg, op->getOperand(i));
-      // Read the operand attrs BEFORE erasing the operand; see
-      // RemoveUnusedGenericArgs.
-      auto attrs = op.getAllOperandAttrsAttr();
-      rewriter.modifyOpInPlace(op, [&]() {
-        body->eraseArgument(i);
-        op.getOperation()->eraseOperand(i);
-      });
-      if (attrs) {
-        SmallVector<Attribute> attrList;
-        for (auto [j, attr] : llvm::enumerate(attrs)) {
-          if (j != i) {
-            attrList.push_back(attr);
-          }
-        }
-        if (attrList.empty())
-          op.removeAllOperandAttrsAttr();
-        else
-          op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
-      }
+      eraseGenericOpOperand(op, i, rewriter);
       i--;
     }
   }
