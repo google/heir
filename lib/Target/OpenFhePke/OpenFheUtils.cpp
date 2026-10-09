@@ -4,6 +4,7 @@
 
 #include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Utils/TargetUtils.h"
@@ -13,6 +14,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
@@ -42,6 +44,20 @@ std::string getModulePrelude(OpenfheScheme scheme,
                         ? "CKKS"
                         : (scheme == OpenfheScheme::BGV ? "BGV" : "BFV")));
   return std::string(import) + prelude + std::string(kLoadResourceTemplate);
+}
+
+FailureOr<OpenfheScheme> getModuleScheme(ModuleOp moduleOp) {
+  if (moduleIsBGV(moduleOp)) {
+    return OpenfheScheme::BGV;
+  }
+  if (moduleIsBFV(moduleOp)) {
+    return OpenfheScheme::BFV;
+  }
+  if (moduleIsCKKS(moduleOp)) {
+    return OpenfheScheme::CKKS;
+  }
+  moduleOp.emitError("Missing scheme attribute on module");
+  return failure();
 }
 
 FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
