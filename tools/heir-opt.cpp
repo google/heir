@@ -54,6 +54,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyDialect.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToCheddar/PreprocessingToCheddar.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
@@ -502,9 +503,10 @@ int main(int argc, char** argv) {
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustBoolPasses();
   registerCGGIToTfheRustPasses();
+  preprocessing::registerPreprocessingToCheddarPasses();
+  preprocessing::registerPreprocessingToLattigoPasses();
   preprocessing::registerPreprocessingToMemrefPasses();
   preprocessing::registerPreprocessingToOpenfhePasses();
-  preprocessing::registerPreprocessingToLattigoPasses();
   registerSecretToBGVPasses();
   registerSecretToCGGIPasses();
   registerSecretToCKKSPasses();
