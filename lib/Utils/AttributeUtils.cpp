@@ -35,52 +35,77 @@ int getOperandNumber(Operation* op, Value value) {
   return -1;
 }
 
-Attribute findAttributeForBlockArgument(BlockArgument blockArg,
-                                        StringRef attrName) {
+struct BlockArgAttrTarget {
+  enum class Kind { None, FunctionArg, OperandAttr } kind = Kind::None;
+  FunctionOpInterface funcOp = nullptr;
+  OperandAndResultAttrInterface operandAttrOp = nullptr;
+  int index = -1;
+};
+
+static BlockArgAttrTarget resolveBlockArgAttrTarget(BlockArgument blockArg) {
   auto* parentOp = blockArg.getOwner()->getParentOp();
   assert(parentOp != nullptr &&
          "Missing parent op! Was this value not properly remapped?");
 
-  return llvm::TypeSwitch<Operation*, Attribute>(parentOp)
-      .Case<FunctionOpInterface>([&](auto op) -> Attribute {
-        return op.getArgAttr(blockArg.getArgNumber(), attrName);
+  return llvm::TypeSwitch<Operation*, BlockArgAttrTarget>(parentOp)
+      .Case<FunctionOpInterface>([&](FunctionOpInterface op) {
+        return BlockArgAttrTarget{BlockArgAttrTarget::Kind::FunctionArg, op,
+                                  nullptr,
+                                  static_cast<int>(blockArg.getArgNumber())};
       })
       // AffineForOp needs a special case because its operands do not
       // line up perfectly with its block arguments.
       // This could be potentially improved by adding an interface method to
       // OperandAndResultAttrInterface to map from block arguments to operands
-      .Case<affine::AffineForOp>([&](affine::AffineForOp op) -> Attribute {
+      .Case<affine::AffineForOp>([&](affine::AffineForOp op) {
         // For op has as its first block argument the induction
         // variable, which does not correspond to a single operand.
-        if (blockArg.getArgNumber() == 0) return nullptr;
+        if (blockArg.getArgNumber() == 0) return BlockArgAttrTarget{};
 
         auto argAttrInterface = cast<OperandAndResultAttrInterface>(*op);
         auto initArg = op.getInits()[blockArg.getArgNumber() - 1];
         int operandNumber = getOperandNumber(op, initArg);
-        if (operandNumber == -1) return nullptr;
-        return argAttrInterface.getOperandAttr(operandNumber, attrName);
+        if (operandNumber == -1) return BlockArgAttrTarget{};
+        return BlockArgAttrTarget{BlockArgAttrTarget::Kind::OperandAttr,
+                                  nullptr, argAttrInterface, operandNumber};
       })
-      .Case<RegionBranchOpInterface>(
-          [&](RegionBranchOpInterface op) -> Attribute {
-            auto argAttrInterface =
-                dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
-            if (!argAttrInterface) return nullptr;
+      .Case<RegionBranchOpInterface>([&](RegionBranchOpInterface op) {
+        auto argAttrInterface =
+            dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
+        if (!argAttrInterface) return BlockArgAttrTarget{};
 
-            RegionBranchSuccessorMapping mapping;
-            op.getSuccessorOperandInputMapping(mapping,
-                                               RegionBranchPoint::parent());
-            auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
-            if (inverseMapping.count(blockArg)) {
-              return argAttrInterface.getOperandAttr(
-                  inverseMapping.lookup(blockArg)[0]->getOperandNumber(),
-                  attrName);
-            }
-            return nullptr;
-          })
-      .Case<OperandAndResultAttrInterface>([&](auto op) -> Attribute {
-        return op.getOperandAttr(blockArg.getArgNumber(), attrName);
+        RegionBranchSuccessorMapping mapping;
+        op.getSuccessorOperandInputMapping(mapping,
+                                           RegionBranchPoint::parent());
+        auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
+        if (inverseMapping.count(blockArg)) {
+          return BlockArgAttrTarget{
+              BlockArgAttrTarget::Kind::OperandAttr, nullptr, argAttrInterface,
+              static_cast<int>(
+                  inverseMapping.lookup(blockArg)[0]->getOperandNumber())};
+        }
+        return BlockArgAttrTarget{};
       })
-      .Default([](Operation* op) { return nullptr; });
+      .Case<OperandAndResultAttrInterface>(
+          [&](OperandAndResultAttrInterface op) {
+            return BlockArgAttrTarget{
+                BlockArgAttrTarget::Kind::OperandAttr, nullptr, op,
+                static_cast<int>(blockArg.getArgNumber())};
+          })
+      .Default([](Operation* op) { return BlockArgAttrTarget{}; });
+}
+
+Attribute findAttributeForBlockArgument(BlockArgument blockArg,
+                                        StringRef attrName) {
+  BlockArgAttrTarget target = resolveBlockArgAttrTarget(blockArg);
+  switch (target.kind) {
+    case BlockArgAttrTarget::Kind::FunctionArg:
+      return target.funcOp.getArgAttr(target.index, attrName);
+    case BlockArgAttrTarget::Kind::OperandAttr:
+      return target.operandAttrOp.getOperandAttr(target.index, attrName);
+    case BlockArgAttrTarget::Kind::None:
+      return nullptr;
+  }
 }
 
 Attribute getUndistinguishedResultAttr(Operation* op, int resultNumber,
@@ -150,43 +175,17 @@ FailureOr<Attribute> findAttributeAssociatedWith(Value value,
 
 void setAttributeForBlockArgument(BlockArgument blockArg, StringRef attrName,
                                   Attribute attr) {
-  auto* parentOp = blockArg.getOwner()->getParentOp();
-  assert(parentOp != nullptr &&
-         "Missing parent op! Was this value not properly remapped?");
-
-  llvm::TypeSwitch<Operation*>(parentOp)
-      .Case<FunctionOpInterface>([&](auto op) {
-        return op.setArgAttr(blockArg.getArgNumber(), attrName, attr);
-      })
-      .Case<affine::AffineForOp>([&](affine::AffineForOp op) {
-        // For op has as its first block argument the induction
-        // variable, which does not correspond to a single operand.
-        if (blockArg.getArgNumber() == 0) return;
-
-        auto argAttrInterface = cast<OperandAndResultAttrInterface>(*op);
-        auto initArg = op.getInits()[blockArg.getArgNumber() - 1];
-        int operandNumber = getOperandNumber(op, initArg);
-        if (operandNumber == -1) return;
-        return argAttrInterface.setOperandAttr(operandNumber, attrName, attr);
-      })
-      .Case<RegionBranchOpInterface>([&](RegionBranchOpInterface op) {
-        auto argAttrInterface =
-            dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
-        if (!argAttrInterface) return;
-
-        RegionBranchSuccessorMapping mapping;
-        op.getSuccessorOperandInputMapping(mapping,
-                                           RegionBranchPoint::parent());
-        auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
-        if (inverseMapping.count(blockArg)) {
-          return argAttrInterface.setOperandAttr(
-              inverseMapping.lookup(blockArg)[0]->getOperandNumber(), attrName,
-              attr);
-        }
-      })
-      .Case<OperandAndResultAttrInterface>([&](auto op) {
-        return op.setOperandAttr(blockArg.getArgNumber(), attrName, attr);
-      });
+  BlockArgAttrTarget target = resolveBlockArgAttrTarget(blockArg);
+  switch (target.kind) {
+    case BlockArgAttrTarget::Kind::FunctionArg:
+      target.funcOp.setArgAttr(target.index, attrName, attr);
+      return;
+    case BlockArgAttrTarget::Kind::OperandAttr:
+      target.operandAttrOp.setOperandAttr(target.index, attrName, attr);
+      return;
+    case BlockArgAttrTarget::Kind::None:
+      return;
+  }
 }
 
 void setAttributeForResult(Value result, StringRef attrName, Attribute attr) {
@@ -240,39 +239,17 @@ void setAttributeAssociatedWith(Value value, StringRef attrName,
 
 static void removeAttributeForBlockArgument(BlockArgument blockArg,
                                             StringRef attrName) {
-  auto* parentOp = blockArg.getOwner()->getParentOp();
-  assert(parentOp != nullptr &&
-         "Missing parent op! Was this value not properly remapped?");
-
-  llvm::TypeSwitch<Operation*>(parentOp)
-      .Case<FunctionOpInterface>(
-          [&](auto op) { op.removeArgAttr(blockArg.getArgNumber(), attrName); })
-      .Case<affine::AffineForOp>([&](affine::AffineForOp op) {
-        if (blockArg.getArgNumber() == 0) return;
-
-        auto argAttrInterface = cast<OperandAndResultAttrInterface>(*op);
-        auto initArg = op.getInits()[blockArg.getArgNumber() - 1];
-        int operandNumber = getOperandNumber(op, initArg);
-        if (operandNumber == -1) return;
-        argAttrInterface.removeOperandAttr(operandNumber, attrName);
-      })
-      .Case<RegionBranchOpInterface>([&](RegionBranchOpInterface op) {
-        auto argAttrInterface =
-            dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
-        if (!argAttrInterface) return;
-
-        RegionBranchSuccessorMapping mapping;
-        op.getSuccessorOperandInputMapping(mapping,
-                                           RegionBranchPoint::parent());
-        auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
-        if (inverseMapping.count(blockArg)) {
-          argAttrInterface.removeOperandAttr(
-              inverseMapping.lookup(blockArg)[0]->getOperandNumber(), attrName);
-        }
-      })
-      .Case<OperandAndResultAttrInterface>([&](auto op) {
-        op.removeOperandAttr(blockArg.getArgNumber(), attrName);
-      });
+  BlockArgAttrTarget target = resolveBlockArgAttrTarget(blockArg);
+  switch (target.kind) {
+    case BlockArgAttrTarget::Kind::FunctionArg:
+      target.funcOp.removeArgAttr(target.index, attrName);
+      return;
+    case BlockArgAttrTarget::Kind::OperandAttr:
+      target.operandAttrOp.removeOperandAttr(target.index, attrName);
+      return;
+    case BlockArgAttrTarget::Kind::None:
+      return;
+  }
 }
 
 static void removeAttributeForResult(Value result, StringRef attrName) {
