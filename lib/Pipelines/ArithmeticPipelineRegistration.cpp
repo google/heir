@@ -597,30 +597,46 @@ RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
   };
 }
 
+static void addRLWELoweringPasses(OpPassManager& pm,
+                                  const BackendOptions& options) {
+  // Convert to (common trivial subset of) LWE
+  // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
+  pm.addPass(bgv::createBGVToLWE());
+  pm.addPass(ckks::createCKKSToLWE());
+
+  if (!extConstOutputDir.empty()) {
+    ExternalizeConstantsOptions extConstOptions;
+    extConstOptions.outputDir = extConstOutputDir;
+    extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
+    extConstOptions.thresholdElements = extConstThreshold;
+    pm.addPass(createExternalizeConstants(extConstOptions));
+  }
+
+  // insert debug handler calls
+  lwe::AddDebugPortOptions addDebugPortOptions{
+      .entryFunction = options.entryFunction,
+      .insertDebugAfterEveryOp = options.debug,
+  };
+  pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
+}
+
+static void addCleanupPasses(OpPassManager& pm, bool removeDeadValues = false) {
+  pm.addPass(createRemoveUnusedPureCall());
+  if (removeDeadValues) {
+    pm.addPass(createRemoveDeadValuesPass());
+  }
+  pm.addPass(createCSEPass());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createSymbolDCEPass());
+}
+
 BackendPipelineBuilder toOpenFhePipelineBuilder() {
   return [=](OpPassManager& pm, const BackendOptions& options) {
     // Canonicalize to ensure the ciphertext operands are in the first operand
     // of ct-pt ops.
     pm.addPass(createCanonicalizerPass());
 
-    // Convert the common trivial subset of CKKS/BGV to LWE
-    pm.addPass(bgv::createBGVToLWE());
-    pm.addPass(ckks::createCKKSToLWE());
-
-    if (!extConstOutputDir.empty()) {
-      ExternalizeConstantsOptions extConstOptions;
-      extConstOptions.outputDir = extConstOutputDir;
-      extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
-      extConstOptions.thresholdElements = extConstThreshold;
-      pm.addPass(createExternalizeConstants(extConstOptions));
-    }
-
-    // insert debug handler calls
-    lwe::AddDebugPortOptions addDebugPortOptions{
-        .entryFunction = options.entryFunction,
-        .insertDebugAfterEveryOp = options.debug,
-    };
-    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
+    addRLWELoweringPasses(pm, options);
 
     // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
@@ -650,35 +666,13 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(createCSEPass());
     pm.addPass(openfhe::createAllocToInPlace());
 
-    pm.addPass(createRemoveUnusedPureCall());
-    pm.addPass(createRemoveDeadValuesPass());
-    pm.addPass(createCSEPass());
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createSymbolDCEPass());
+    addCleanupPasses(pm, /*removeDeadValues=*/true);
   };
 }
 
 BackendPipelineBuilder toLattigoPipelineBuilder() {
   return [=](OpPassManager& pm, const BackendOptions& options) {
-    // Convert to (common trivial subset of) LWE
-    // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
-    pm.addPass(bgv::createBGVToLWE());
-    pm.addPass(ckks::createCKKSToLWE());
-
-    if (!extConstOutputDir.empty()) {
-      ExternalizeConstantsOptions extConstOptions;
-      extConstOptions.outputDir = extConstOutputDir;
-      extConstOptions.runtimeLoadDir = extConstRuntimeLoadDir;
-      extConstOptions.thresholdElements = extConstThreshold;
-      pm.addPass(createExternalizeConstants(extConstOptions));
-    }
-
-    // insert debug handler calls
-    lwe::AddDebugPortOptions addDebugPortOptions{
-        .entryFunction = options.entryFunction,
-        .insertDebugAfterEveryOp = options.debug,
-    };
-    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
+    addRLWELoweringPasses(pm, options);
 
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
@@ -697,10 +691,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(
         lattigo::createConfigureCryptoContext(configureCryptoContextOptions));
 
-    pm.addPass(createRemoveUnusedPureCall());
-    pm.addPass(createCSEPass());
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createSymbolDCEPass());
+    addCleanupPasses(pm);
 
     // Bufferize without deallocation because golang has garbage collection.
     prepareForBufferize(pm);
