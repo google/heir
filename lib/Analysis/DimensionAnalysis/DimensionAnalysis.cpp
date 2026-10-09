@@ -95,10 +95,11 @@ LogicalResult DimensionAnalysis::visitOperation(
 void DimensionAnalysis::visitExternalCall(
     CallOpInterface call, ArrayRef<const DimensionLattice*> argumentLattices,
     ArrayRef<DimensionLattice*> resultLattices) {
-  auto callback = std::bind(&DimensionAnalysis::propagateIfChangedWrapper, this,
-                            std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<DimensionState, DimensionLattice>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 //===----------------------------------------------------------------------===//

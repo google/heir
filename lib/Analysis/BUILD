@@ -9,6 +9,7 @@ cc_library(
     name = "Utils",
     hdrs = ["Utils.h"],
     deps = [
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:CallOpInterfaces",
         "@llvm-project//mlir:Support",
