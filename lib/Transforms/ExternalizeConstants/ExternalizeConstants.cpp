@@ -134,7 +134,8 @@ struct ExternalizeConstants
                                                   tensorType.getElementType());
       auto loadOp = preprocessing::LoadResourceOp::create(
           rewriter, constantOp.getLoc(), TypeRange{tensorType},
-          rewriter.getStringAttr(runtimePath.str()), destination);
+          rewriter.getStringAttr(runtimePath.str()), /*directory=*/Value(),
+          destination);
 
       rewriter.replaceOp(constantOp, loadOp->getResult(0));
       return WalkResult::advance();

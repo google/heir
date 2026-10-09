@@ -2,6 +2,7 @@
 #define LIB_DIALECT_PREPROCESSING_TRANSFORMS_PASSES_H_
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/Preprocessing/Transforms/UseDynamicResourceDir.h"
 #include "lib/Dialect/Preprocessing/Transforms/ValidatePreprocessing.h"
 // IWYU pragma: end_keep
 
