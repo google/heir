@@ -30,6 +30,7 @@
 #include "lib/Dialect/Kernel/IR/KernelDialect.h"
 #include "lib/Dialect/Kernel/Transforms/Passes.h"
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
+#include "lib/Dialect/LWE/Conversions/LWEToCheddar/LWEToCheddar.h"
 #include "lib/Dialect/LWE/Conversions/LWEToJaxiteWord/LWEToJaxiteWord.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
@@ -488,6 +489,7 @@ int main(int argc, char** argv) {
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();
+  lwe::registerLWEToCheddarPasses();
   lwe::registerLWEToJaxiteWordPasses();
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
