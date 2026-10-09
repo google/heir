@@ -40,6 +40,41 @@ std::optional<ValueRange> PackedLut3Op::getLookupTableInputs() {
   return std::nullopt;
 }
 
+static int64_t getMaxCoefficient(lwe::LWECiphertextType type) {
+  auto plaintextBitwidth = type.getPlaintextSpace()
+                               .getRing()
+                               .getCoefficientType()
+                               .getIntOrFloatBitWidth();
+  return (1 << plaintextBitwidth) - 1;
+}
+
+template <typename T>
+static LogicalResult verifyCoefficients(Operation* op, ArrayRef<T> coefficients,
+                                        int64_t maxCoeff) {
+  for (auto c : coefficients) {
+    if (c > maxCoeff) {
+      InFlightDiagnostic diag =
+          op->emitOpError("coefficient pushes error bits into message space");
+      diag.attachNote() << "coefficient is " << c;
+      diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
+      return diag;
+    }
+  }
+  return success();
+}
+
+static LogicalResult verifyLutActiveBits(Operation* op, const APInt& lut,
+                                         int64_t maxCoeff) {
+  if (lut.getActiveBits() > maxCoeff + 1) {
+    InFlightDiagnostic diag =
+        op->emitOpError("LUT is larger than available cleartext bit width");
+    diag.attachNote() << "LUT has " << lut.getActiveBits() << " active bits";
+    diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+    return diag;
+  }
+  return success();
+}
+
 LogicalResult LutLinCombOp::verify() {
   if (getInputs().size() != getCoefficients().size())
     return emitOpError("number of coefficients must match number of inputs");
@@ -49,55 +84,19 @@ LogicalResult LutLinCombOp::verify() {
   // Tablegen allows AnyType due to error using Variadic on TypeOrContainer
   // types.
   if (!type) return emitOpError("expected LWE ciphertext element type");
-  auto plaintextBitwidth = type.getPlaintextSpace()
-                               .getRing()
-                               .getCoefficientType()
-                               .getIntOrFloatBitWidth();
 
-  int64_t maxCoeff = (1 << plaintextBitwidth) - 1;
-  for (auto c : getCoefficients()) {
-    if (c > maxCoeff) {
-      InFlightDiagnostic diag =
-          emitOpError("coefficient pushes error bits into message space");
-      diag.attachNote() << "coefficient is " << c;
-      diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
-      return diag;
-    }
-  }
+  int64_t maxCoeff = getMaxCoefficient(type);
+  if (failed(verifyCoefficients(*this, getCoefficients(), maxCoeff)))
+    return failure();
 
-  if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
-    InFlightDiagnostic diag =
-        emitOpError("LUT is larger than available cleartext bit width");
-    diag.attachNote() << "LUT has "
-                      << getLookupTable().getValue().getActiveBits()
-                      << " active bits";
-    diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
-    return diag;
-  }
-
-  return success();
+  return verifyLutActiveBits(*this, getLookupTable().getValue(), maxCoeff);
 }
 
 LogicalResult ProgrammableBootstrapOp::verify() {
-  lwe::LWECiphertextType type =
+  auto type =
       cast<lwe::LWECiphertextType>(getElementTypeOrSelf(getOutput().getType()));
-  auto plaintextBitwidth = type.getPlaintextSpace()
-                               .getRing()
-                               .getCoefficientType()
-                               .getIntOrFloatBitWidth();
-
-  int64_t maxCoeff = (1 << plaintextBitwidth) - 1;
-  if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
-    InFlightDiagnostic diag =
-        emitOpError("LUT is larger than available cleartext bit width");
-    diag.attachNote() << "LUT has "
-                      << getLookupTable().getValue().getActiveBits()
-                      << " active bits";
-    diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
-    return diag;
-  }
-
-  return success();
+  int64_t maxCoeff = getMaxCoefficient(type);
+  return verifyLutActiveBits(*this, getLookupTable().getValue(), maxCoeff);
 }
 
 LogicalResult MultiLutLinCombOp::verify() {
@@ -106,34 +105,14 @@ LogicalResult MultiLutLinCombOp::verify() {
   if (getOutputs().size() != getLookupTables().size())
     return emitOpError("number of outputs must match number of LUTs");
 
-  lwe::LWECiphertextType type =
-      cast<lwe::LWECiphertextType>(getOutputs().front().getType());
-  auto plaintextBitwidth = type.getPlaintextSpace()
-                               .getRing()
-                               .getCoefficientType()
-                               .getIntOrFloatBitWidth();
-
-  int64_t maxCoeff = (1 << plaintextBitwidth) - 1;
-  for (auto c : getCoefficients()) {
-    if (c > maxCoeff) {
-      InFlightDiagnostic diag =
-          emitOpError("coefficient pushes error bits into message space");
-      diag.attachNote() << "coefficient is " << c;
-      diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
-      return diag;
-    }
-  }
+  auto type = cast<lwe::LWECiphertextType>(getOutputs().front().getType());
+  int64_t maxCoeff = getMaxCoefficient(type);
+  if (failed(verifyCoefficients(*this, getCoefficients(), maxCoeff)))
+    return failure();
 
   for (int64_t lut : getLookupTables()) {
-    APInt apintLut = APInt(64, lut);
-    if (apintLut.getActiveBits() > maxCoeff + 1) {
-      InFlightDiagnostic diag =
-          emitOpError("LUT is larger than available cleartext bit width");
-      diag.attachNote() << "LUT has " << apintLut.getActiveBits()
-                        << " active bits";
-      diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
-      return diag;
-    }
+    if (failed(verifyLutActiveBits(*this, APInt(64, lut), maxCoeff)))
+      return failure();
   }
 
   return success();
@@ -193,83 +172,27 @@ bool isPackedGateOp(Operation* key, Operation* op) {
 
 // BatchVectorizableOpInterface impl
 
-bool AndOp::isBatchCompatible(Operation* rhs) {
-  return isPackedGateOp(this->getOperation(), rhs);
-}
+#define CGGI_BINARY_GATE_BATCH_VECTORIZABLE(OpTy)                   \
+  bool OpTy::isBatchCompatible(Operation* rhs) {                    \
+    return isPackedGateOp(this->getOperation(), rhs);               \
+  }                                                                 \
+  FailureOr<Operation*> OpTy::buildBatchedOperation(                \
+      MLIRContext* context, OpBuilder& builder,                     \
+      SmallVector<Value> vectorizedOperands,                        \
+      SmallVector<Operation*> batchedOperations) {                  \
+    return buildBatchedBooleanGateOperation(                        \
+        context, builder, this->getOperation(), vectorizedOperands, \
+        batchedOperations);                                         \
+  }
 
-FailureOr<Operation*> AndOp::buildBatchedOperation(
-    MLIRContext* context, OpBuilder& builder,
-    SmallVector<Value> vectorizedOperands,
-    SmallVector<Operation*> batchedOperations) {
-  return buildBatchedBooleanGateOperation(
-      context, builder, this->getOperation(), vectorizedOperands,
-      batchedOperations);
-}
+CGGI_BINARY_GATE_BATCH_VECTORIZABLE(AndOp)
+CGGI_BINARY_GATE_BATCH_VECTORIZABLE(NandOp)
+CGGI_BINARY_GATE_BATCH_VECTORIZABLE(NorOp)
+CGGI_BINARY_GATE_BATCH_VECTORIZABLE(OrOp)
+CGGI_BINARY_GATE_BATCH_VECTORIZABLE(XorOp)
+CGGI_BINARY_GATE_BATCH_VECTORIZABLE(XNorOp)
 
-bool NandOp::isBatchCompatible(Operation* rhs) {
-  return isPackedGateOp(this->getOperation(), rhs);
-}
-
-FailureOr<Operation*> NandOp::buildBatchedOperation(
-    MLIRContext* context, OpBuilder& builder,
-    SmallVector<Value> vectorizedOperands,
-    SmallVector<Operation*> batchedOperations) {
-  return buildBatchedBooleanGateOperation(
-      context, builder, this->getOperation(), vectorizedOperands,
-      batchedOperations);
-}
-
-bool NorOp::isBatchCompatible(Operation* rhs) {
-  return isPackedGateOp(this->getOperation(), rhs);
-}
-
-FailureOr<Operation*> NorOp::buildBatchedOperation(
-    MLIRContext* context, OpBuilder& builder,
-    SmallVector<Value> vectorizedOperands,
-    SmallVector<Operation*> batchedOperations) {
-  return buildBatchedBooleanGateOperation(
-      context, builder, this->getOperation(), vectorizedOperands,
-      batchedOperations);
-}
-
-bool OrOp::isBatchCompatible(Operation* rhs) {
-  return isPackedGateOp(this->getOperation(), rhs);
-}
-
-FailureOr<Operation*> OrOp::buildBatchedOperation(
-    MLIRContext* context, OpBuilder& builder,
-    SmallVector<Value> vectorizedOperands,
-    SmallVector<Operation*> batchedOperations) {
-  return buildBatchedBooleanGateOperation(
-      context, builder, this->getOperation(), vectorizedOperands,
-      batchedOperations);
-}
-
-bool XorOp::isBatchCompatible(Operation* rhs) {
-  return isPackedGateOp(this->getOperation(), rhs);
-}
-
-FailureOr<Operation*> XorOp::buildBatchedOperation(
-    MLIRContext* context, OpBuilder& builder,
-    SmallVector<Value> vectorizedOperands,
-    SmallVector<Operation*> batchedOperations) {
-  return buildBatchedBooleanGateOperation(
-      context, builder, this->getOperation(), vectorizedOperands,
-      batchedOperations);
-}
-
-bool XNorOp::isBatchCompatible(Operation* rhs) {
-  return isPackedGateOp(this->getOperation(), rhs);
-}
-
-FailureOr<Operation*> XNorOp::buildBatchedOperation(
-    MLIRContext* context, OpBuilder& builder,
-    SmallVector<Value> vectorizedOperands,
-    SmallVector<Operation*> batchedOperations) {
-  return buildBatchedBooleanGateOperation(
-      context, builder, this->getOperation(), vectorizedOperands,
-      batchedOperations);
-}
+#undef CGGI_BINARY_GATE_BATCH_VECTORIZABLE
 
 bool NotOp::isBatchCompatible(Operation* rhs) {
   auto lhs = this->getOperation();
