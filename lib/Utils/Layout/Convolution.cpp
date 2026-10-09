@@ -554,8 +554,8 @@ FailureOr<std::vector<IntegerRelation>> get2dConvChwFchwFilterAsSequence(
   int64_t maxRow = paddedOutputChannels * totalRowSize;
   int64_t maxCol = inputChannels * totalColSize;
 
-  int64_t paddedRows = isPowerOfTwo(maxRow) ? maxRow : nextPowerOfTwo(maxRow);
-  int64_t paddedCols = isPowerOfTwo(maxCol) ? maxCol : nextPowerOfTwo(maxCol);
+  int64_t paddedRows = llvm::PowerOf2Ceil(maxRow);
+  int64_t paddedCols = llvm::PowerOf2Ceil(maxCol);
   int64_t numDiagonals = std::min(paddedRows, paddedCols);
 
   int64_t step3F =
@@ -736,9 +736,7 @@ presburger::IntegerRelation get1dConvResultRelation(RankedTensorType outputType,
   }
 
   int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
-  int64_t paddedSize = isPowerOfTwo(ambientElements)
-                           ? ambientElements
-                           : nextPowerOfTwo(ambientElements);
+  int64_t paddedSize = llvm::PowerOf2Ceil(ambientElements);
 
   // Create the interchange permutation [idx_in] -> [idx_out] and add a domain
   // var = 0 to align with the range of the flattenedOutput relation.
@@ -805,9 +803,7 @@ presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
   }
 
   int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
-  int64_t paddedSize = isPowerOfTwo(ambientElements)
-                           ? ambientElements
-                           : nextPowerOfTwo(ambientElements);
+  int64_t paddedSize = llvm::PowerOf2Ceil(ambientElements);
 
   std::string mapToCtSlot = llvm::formatv(
       "{{ [in_ct, idx_out] -> [ct, slot] : in_ct = 0 and "
@@ -842,9 +838,7 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
 
   int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
 
-  int64_t paddedSize = isPowerOfTwo(ambientElements)
-                           ? ambientElements
-                           : nextPowerOfTwo(ambientElements);
+  int64_t paddedSize = llvm::PowerOf2Ceil(ambientElements);
 
   // Construct a row interchange relation: [ct, slot] -> [ct', slot']
   //

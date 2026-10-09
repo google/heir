@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/IndexingUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -15,14 +16,7 @@ namespace heir {
 
 int64_t getFlattenedIndex(RankedTensorType tensorType,
                           SmallVector<int64_t> indices) {
-  auto rank = tensorType.getRank();
-  int flatIndex = 0;
-  int stride = 1;
-  for (int i = rank - 1; i >= 0; --i) {
-    flatIndex += indices[i] * stride;
-    stride *= tensorType.getDimSize(i);
-  }
-  return flatIndex;
+  return mlir::linearize(indices, computeSuffixProduct(tensorType.getShape()));
 }
 
 FailureOr<int64_t> getFlattenedIndex(RankedTensorType tensorType,
@@ -37,20 +31,7 @@ FailureOr<int64_t> getFlattenedIndex(RankedTensorType tensorType,
 
 SmallVector<int64_t> getIndicesFromRowMajorShape(int64_t flattenedIndex,
                                                  SmallVector<int64_t> shape) {
-  int64_t mod = 1;
-  for (int i = 0; i < shape.size(); ++i) {
-    mod *= shape[i];
-  }
-
-  SmallVector<int64_t> indices;
-  int64_t remainder = flattenedIndex;
-  for (int i = 0; i < shape.size(); i++) {
-    mod /= shape[i];
-    auto index = remainder / mod;
-    indices.push_back(index);
-    remainder -= index * mod;
-  }
-  return indices;
+  return mlir::delinearize(flattenedIndex, computeSuffixProduct(shape));
 }
 
 SmallVector<ReassociationIndices> getReassociationForReshapeAtDim(

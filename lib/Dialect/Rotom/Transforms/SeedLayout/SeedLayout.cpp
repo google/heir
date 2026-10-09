@@ -11,6 +11,7 @@
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"          // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
@@ -126,7 +127,7 @@ struct SeedLayout : public impl::SeedLayoutBase<SeedLayout> {
       SmallVector<int64_t> dims;
       dims.reserve(rank);
       for (int64_t d : shape) {
-        dims.push_back(nextPowerOfTwo(d));
+        dims.push_back(llvm::PowerOf2Ceil(d));
       }
 
       // Find all valid tuples (i_0, ..., i_k) such that the product of all i_j

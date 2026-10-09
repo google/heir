@@ -18,7 +18,8 @@
 #include "lib/Kernel/KernelName.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/MathUtils.h"
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -650,8 +651,8 @@ implementHaleviShoup(const T& vector, const T& matrix,
 
   auto summedShifts = rotateAndReduceResult;
 
-  int64_t matrixNumRows = nextPowerOfTwo(originalMatrixShape[0]);
-  int64_t matrixNumCols = nextPowerOfTwo(originalMatrixShape[1]);
+  int64_t matrixNumRows = llvm::PowerOf2Ceil(originalMatrixShape[0]);
+  int64_t matrixNumCols = llvm::PowerOf2Ceil(originalMatrixShape[1]);
 
   if (matrixNumRows == matrixNumCols) {
     return summedShifts;

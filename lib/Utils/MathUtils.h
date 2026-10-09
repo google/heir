@@ -5,9 +5,10 @@
 #include <cstdint>
 #include <optional>
 
-#include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/APInt.h"     // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/APFloat.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -15,20 +16,9 @@ namespace heir {
 /// inverse error function
 double erfinv(double a);
 
-inline uint64_t nextPowerOfTwo(uint64_t v) {
-  v--;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v |= v >> 32;
-  v++;
-
-  return v;
+inline bool isPowerOfTwo(int64_t n) {
+  return n > 0 && llvm::isPowerOf2_64(static_cast<uint64_t>(n));
 }
-
-inline bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
 
 // Levels consumed by Lattigo's polynomial evaluator for a Chebyshev polynomial
 // of the given degree: one per level of the binary evaluation tree.

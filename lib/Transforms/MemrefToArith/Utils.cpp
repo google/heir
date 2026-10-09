@@ -9,6 +9,7 @@
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/IndexingUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
@@ -55,22 +56,12 @@ std::optional<uint64_t> getFlattenedAccessIndex(
 llvm::SmallVector<int64_t> unflattenIndex(int64_t index,
                                           const llvm::ArrayRef<int64_t> strides,
                                           int64_t offset) {
-  llvm::SmallVector<int64_t> indices;
-  int64_t ndx = index - offset;
-  for (int64_t stride : strides) {
-    indices.push_back(ndx / stride);
-    ndx = ndx % stride;
-  }
-  return indices;
+  return mlir::delinearize(index - offset, strides);
 }
 
 int64_t flattenIndex(const llvm::ArrayRef<int64_t> indices,
                      const llvm::ArrayRef<int64_t> strides, int64_t offset) {
-  int64_t index = offset;
-  for (size_t i = 0; i < strides.size(); ++i) {
-    index += indices[i] * strides[i];
-  }
-  return index;
+  return mlir::linearize(indices, strides) + offset;
 }
 
 }  // namespace heir

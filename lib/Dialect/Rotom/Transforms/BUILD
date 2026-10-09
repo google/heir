@@ -50,10 +50,7 @@ cc_library(
         ":seed_layout_pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
-        "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
@@ -63,7 +60,6 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

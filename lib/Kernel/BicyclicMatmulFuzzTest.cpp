@@ -12,6 +12,7 @@
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
@@ -31,7 +32,7 @@ std::vector<std::vector<int>> runBicyclicMatmul(const std::vector<int>& vecA,
                                                 int64_t p) {
   MLIRContext context;
   int64_t minSlots = m * n + n * p + m * p;
-  int64_t numSlots = nextPowerOfTwo(minSlots);
+  int64_t numSlots = llvm::PowerOf2Ceil(minSlots);
 
   auto layoutA = getBicyclicLayoutRelation(
       RankedTensorType::get({m, n}, mlir::IndexType::get(&context)), numSlots);

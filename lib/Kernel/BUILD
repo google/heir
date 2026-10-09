@@ -75,6 +75,7 @@ cc_library(
         ":Kernel",
         "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -216,9 +217,9 @@ cc_test(
         "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -235,6 +236,7 @@ cc_test(
         "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -254,6 +256,7 @@ cc_test(
         "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

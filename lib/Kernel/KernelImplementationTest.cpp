@@ -993,7 +993,7 @@ void checkPaddedConv1dCwFcw(int64_t padding, const tensor3d& expected,
       evaluateLayout(filterLayout.value(), getFilterValueFn);
   // The matrix shape must be derived the same way the filter was diagonalized,
   // i.e. against the unpadded data type with padding = p: implementHaleviShoup
-  // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
+  // sizes the squat-diagonal collapse from llvm::PowerOf2Ceil of these dims.
   auto expandedFilterShape = get1dConvCwFcwFilterExpandedType(
       filterType, dataType, stride, padding, interchangeRows);
 
@@ -1075,7 +1075,7 @@ void checkPaddedConv2dChwFchw(int64_t stride, int64_t filterSize,
       evaluateLayout(filterLayout.value(), getFilterValueFn);
   // The matrix shape must be derived the same way the filter was diagonalized,
   // i.e. against the unpadded data type with padding = p: implementHaleviShoup
-  // sizes the squat-diagonal collapse from nextPowerOfTwo of these dims.
+  // sizes the squat-diagonal collapse from llvm::PowerOf2Ceil of these dims.
   auto expandedFilterShape = get2dConvChwFchwFilterExpandedType(
       filterType, dataType, padding, strides);
 

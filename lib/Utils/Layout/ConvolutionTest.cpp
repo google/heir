@@ -12,7 +12,8 @@
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
@@ -867,8 +868,8 @@ std::vector<std::vector<int>> reference1dConvCwFcwMatrix(
 // than dropped.
 std::vector<std::vector<int>> undiagonalizeMatrix(
     const std::vector<std::vector<int>>& packed, int64_t rows, int64_t cols) {
-  int64_t paddedRows = (int64_t)nextPowerOfTwo(rows);
-  int64_t paddedCols = (int64_t)nextPowerOfTwo(cols);
+  int64_t paddedRows = (int64_t)llvm::PowerOf2Ceil(rows);
+  int64_t paddedCols = (int64_t)llvm::PowerOf2Ceil(cols);
   std::vector<std::vector<int>> dense(paddedRows,
                                       std::vector<int>(paddedCols, 0));
   for (int64_t ct = 0; ct < (int64_t)packed.size(); ++ct) {
@@ -882,8 +883,8 @@ std::vector<std::vector<int>> undiagonalizeMatrix(
 // Pads `matrix` out to paddedRows x paddedCols with zeros.
 std::vector<std::vector<int>> padMatrixToPowerOfTwo(
     const std::vector<std::vector<int>>& matrix) {
-  int64_t paddedRows = (int64_t)nextPowerOfTwo(matrix.size());
-  int64_t paddedCols = (int64_t)nextPowerOfTwo(matrix[0].size());
+  int64_t paddedRows = (int64_t)llvm::PowerOf2Ceil(matrix.size());
+  int64_t paddedCols = (int64_t)llvm::PowerOf2Ceil(matrix[0].size());
   std::vector<std::vector<int>> result(paddedRows,
                                        std::vector<int>(paddedCols, 0));
   for (size_t i = 0; i < matrix.size(); ++i) {
@@ -957,8 +958,8 @@ void checkConv1dCwFcwDiagonalized(MLIRContext& context, int64_t outputChannels,
   auto colBound = expandedRelation.getConstantBound64(
       BoundType::UB, expandedRelation.getVarKindOffset(VarKind::Range) + 1);
   ASSERT_TRUE(rowBound.has_value() && colBound.has_value());
-  EXPECT_EQ(nextPowerOfTwo(rowBound.value() + 1), nextPowerOfTwo(rows));
-  EXPECT_EQ(nextPowerOfTwo(colBound.value() + 1), nextPowerOfTwo(cols));
+  EXPECT_EQ(llvm::PowerOf2Ceil(rowBound.value() + 1), llvm::PowerOf2Ceil(rows));
+  EXPECT_EQ(llvm::PowerOf2Ceil(colBound.value() + 1), llvm::PowerOf2Ceil(cols));
 
   // ... and so must the diagonalized relation that production actually uses.
   auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(

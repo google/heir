@@ -166,10 +166,7 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
   // flattened_expr mod numSlots = b
   auto rhsMod = addModConstraint(result, flattenedCoeffs, numSlots);
 
-  // slot mod paddedSize = a
-  int64_t paddedSize = isPowerOfTwo(tensorType.getNumElements())
-                           ? tensorType.getNumElements()
-                           : nextPowerOfTwo(tensorType.getNumElements());
+  int64_t paddedSize = llvm::PowerOf2Ceil(tensorType.getNumElements());
   SmallVector<int64_t> slotModCoeffs(result.getNumCols(), 0);
   slotModCoeffs[result.getVarKindOffset(VarKind::Range) + 1] = 1;
   auto lhsMod = addModConstraint(result, slotModCoeffs, paddedSize);
@@ -193,9 +190,8 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   // the result's columns.
   assert(std::max(rows, cols) <= minSlotCount);
 
-  // The number of rows must divide the number of columns.
-  int64_t paddedCols = isPowerOfTwo(cols) ? cols : nextPowerOfTwo(cols);
-  int64_t paddedRows = isPowerOfTwo(rows) ? rows : nextPowerOfTwo(rows);
+  int64_t paddedCols = llvm::PowerOf2Ceil(cols);
+  int64_t paddedRows = llvm::PowerOf2Ceil(rows);
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       matrixType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
@@ -459,8 +455,8 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                  {result.getVarKindOffset(VarKind::Range), 1}},
                 /*equality=*/true);
 
-  // The slotMod = slot % nextPowerOfTwo(cols)
-  auto paddedCols = nextPowerOfTwo(matrixType.getDimSize(1));
+  // The slotMod = slot % llvm::PowerOf2Ceil(cols)
+  auto paddedCols = llvm::PowerOf2Ceil(matrixType.getDimSize(1));
   SmallVector<int64_t> slotCoeffs(result.getNumCols(), 0);
   slotCoeffs[result.getVarKindOffset(VarKind::Range) + 1] = 1;
   auto slotMod = addModConstraint(result, slotCoeffs, paddedCols);

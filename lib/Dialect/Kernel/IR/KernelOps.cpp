@@ -13,6 +13,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/MathUtils.h"
+#include "llvm/include/llvm/Support/MathExtras.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"         // from @llvm-project
 
@@ -31,11 +32,6 @@
 #include "lib/Dialect/Kernel/IR/KernelOps.cpp.inc"
 
 namespace {
-uint32_t ceil_log2(uint32_t x) {
-  if (x <= 1) return 0;
-  return std::bit_width(x - 1);
-}
-
 // Ported from OpenFHE's ComputeDegreesPS in
 // third_party/openfhe/src/pke/lib/scheme/ckksrns/ckksrns-utils.cpp
 std::pair<uint32_t, uint32_t> computeDegreesPS(uint32_t n) {
@@ -127,10 +123,10 @@ int EvalChebyshevOp::getLevelsToDrop() {
       if (degree == 0) {
         baseDepth = 0;
       } else if (degree < 5) {
-        baseDepth = ceil_log2(degree) + 1;
+        baseDepth = llvm::Log2_64_Ceil(degree) + 1;
       } else {
         auto [k, m] = computeDegreesPS(degree);
-        baseDepth = ceil_log2(k) + m;
+        baseDepth = llvm::Log2_64_Ceil(k) + m;
       }
       break;
     default:
