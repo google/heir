@@ -237,6 +237,15 @@ inline Type encrytpedIntTypeFromWidth(MLIRContext* ctx, int width) {
   }
 }
 
+// Saves the dialect attributes of func::CallOps in op before conversion.
+SmallVector<SmallVector<NamedAttribute>> saveFuncCallOpDialectAttrs(
+    Operation* op);
+
+// Restores the dialect attributes of func::CallOps in op after conversion.
+void restoreFuncCallOpDialectAttrs(
+    Operation* op,
+    ArrayRef<SmallVector<NamedAttribute>> funcCallOpDialectAttrs);
+
 }  // namespace heir
 }  // namespace mlir
 

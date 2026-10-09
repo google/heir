@@ -81,15 +81,6 @@ FailureOr<Value> getContextualCryptoContext(Operation* op) {
 }
 
 namespace {
-// NOTE: we can not use containsDialect
-// for FuncOp declaration, which does not have a body
-template <typename... Dialects>
-bool containsArgumentOfDialect(func::FuncOp funcOp) {
-  return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-    return DialectEqual<Dialects...>()(
-        &getElementTypeOrSelf(argType).getDialect());
-  });
-}
 
 inline bool isDebugPort(StringRef debugPortName) {
   return debugPortName.rfind("__heir_debug") == 0;
@@ -421,39 +412,9 @@ struct ConvertKernelEvalChebyshevOp
 
 struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
   // See https://github.com/llvm/llvm-project/pull/127772
-  // During dialect conversion, the attribute of the func::CallOp is not
-  // preserved. We save the dialect attributes of func::CallOp before
-  // conversion and restore them after conversion.
-  //
-  // Note that this is not safe as after conversion the order of func::CallOp
-  // may change. However, this is the best we can do for now as we do not have
-  // a map from the old func::CallOp to the new func::CallOp.
-  SmallVector<SmallVector<NamedAttribute>> funcCallOpDialectAttrs;
-
-  void saveFuncCallOpDialectAttrs() {
-    funcCallOpDialectAttrs.clear();
-    auto* module = getOperation();
-    module->walk([&](func::CallOp callOp) {
-      SmallVector<NamedAttribute> dialectAttrs;
-      for (auto namedAttr : callOp->getDialectAttrs()) {
-        dialectAttrs.push_back(namedAttr);
-      }
-      funcCallOpDialectAttrs.push_back(dialectAttrs);
-    });
-  }
-
-  void restoreFuncCallOpDialectAttrs() {
-    auto* module = getOperation();
-    auto* funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
-    module->walk([&](func::CallOp callOp) {
-      callOp->setDialectAttrs(*funcCallOpDialectAttrsIter);
-      ++funcCallOpDialectAttrsIter;
-    });
-  }
-
   void runOnOperation() override {
     // Save the dialect attributes of func::CallOp before conversion.
-    saveFuncCallOpDialectAttrs();
+    auto funcCallOpDialectAttrs = saveFuncCallOpDialectAttrs(getOperation());
 
     MLIRContext* context = &getContext();
     auto* module = getOperation();
@@ -580,7 +541,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     }
 
     // Restore the dialect attributes of func::CallOp after conversion.
-    restoreFuncCallOpDialectAttrs();
+    restoreFuncCallOpDialectAttrs(getOperation(), funcCallOpDialectAttrs);
   }
 };
 
