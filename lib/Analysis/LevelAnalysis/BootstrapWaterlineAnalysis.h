@@ -86,10 +86,6 @@ class BootstrapWaterlineAnalysis
       ArrayRef<const BootstrapWaterlineLattice*> argumentLattices,
       ArrayRef<BootstrapWaterlineLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
-  }
-
  private:
   DataFlowSolver& solverRef;
   int waterline;

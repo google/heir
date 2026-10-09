@@ -347,11 +347,12 @@ void ScaleAnalysis<ScaleModelT>::visitExternalCall(
     CallOpInterface call,
     ArrayRef<const ScaleLattice<ScaleModelT>*> argumentLattices,
     ArrayRef<ScaleLattice<ScaleModelT>*> resultLattices) {
-  auto callback = std::bind(&ScaleAnalysis::propagateIfChangedWrapper, this,
-                            std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<ScaleState<ScaleModelT>,
                                   ScaleLattice<ScaleModelT>>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 // instantiation

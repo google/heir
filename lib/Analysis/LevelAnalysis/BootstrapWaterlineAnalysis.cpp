@@ -101,12 +101,12 @@ void BootstrapWaterlineAnalysis::visitExternalCall(
     CallOpInterface call,
     ArrayRef<const BootstrapWaterlineLattice*> argumentLattices,
     ArrayRef<BootstrapWaterlineLattice*> resultLattices) {
-  auto callback =
-      std::bind(&BootstrapWaterlineAnalysis::propagateIfChangedWrapper, this,
-                std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<BootstrapWaterlineState,
                                   BootstrapWaterlineLattice>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 }  // namespace heir
