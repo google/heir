@@ -1,8 +1,8 @@
 #ifndef LIB_DIALECT_CHEDDAR_IR_CHEDDAROPS_TD_
 #define LIB_DIALECT_CHEDDAR_IR_CHEDDAROPS_TD_
 
-include "CheddarDialect.td"
-include "CheddarTypes.td"
+include "lib/Dialect/Cheddar/IR/CheddarDialect.td"
+include "lib/Dialect/Cheddar/IR/CheddarTypes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/Interfaces/DestinationStyleOpInterface.td"
