@@ -52,16 +52,9 @@ class JaxiteWordTypeConverter : public TypeConverter {
 
 namespace {
 
-bool containsCryptoArgument(func::FuncOp funcOp) {
-  return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-    return DialectEqual<lwe::LWEDialect, ckks::CKKSDialect>()(
-        &getElementTypeOrSelf(argType).getDialect());
-  });
-}
-
 bool funcNeedsCryptoContextAndKeys(func::FuncOp funcOp) {
   return containsDialects<lwe::LWEDialect, ckks::CKKSDialect>(funcOp) ||
-         containsCryptoArgument(funcOp);
+         containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>(funcOp);
 }
 
 void insertCryptoContextAndKeys(func::FuncOp funcOp) {
