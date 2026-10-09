@@ -78,101 +78,8 @@ struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
 
     auto inplaceOp =
         InPlaceOp::create(rewriter, op.getLoc(), op.getResult().getType(),
-                          op.getCryptoContext(), op.getCiphertext());
+                          op->getOperands(), op->getAttrs());
 
-    storageInfo->replaceAllocWithInPlace(op, inplaceOp);
-    rewriter.replaceOp(op, inplaceOp);
-    return success();
-  }
-
- private:
-  Liveness* liveness;
-  OperandMutatedStorageInfo* storageInfo;
-};
-
-struct ConvertLevelReduceOp : public OpRewritePattern<LevelReduceOp> {
-  using OpRewritePattern<LevelReduceOp>::OpRewritePattern;
-
-  ConvertLevelReduceOp(mlir::MLIRContext* context, Liveness* liveness,
-                       OperandMutatedStorageInfo* storageInfo)
-      : OpRewritePattern<LevelReduceOp>(context),
-        liveness(liveness),
-        storageInfo(storageInfo) {}
-
-  LogicalResult matchAndRewrite(LevelReduceOp op,
-                                PatternRewriter& rewriter) const override {
-    if (!storageInfo->isSafeToMutateInPlace(op, op.getCiphertext(), liveness)) {
-      return rewriter.notifyMatchFailure(
-          op,
-          "Not replacing op with in-place version because the mutated "
-          "operand is still live");
-    }
-
-    auto inplaceOp = LevelReduceInPlaceOp::create(
-        rewriter, op.getLoc(), op.getResult().getType(), op.getCryptoContext(),
-        op.getCiphertext(), op.getLevelToDrop());
-    storageInfo->replaceAllocWithInPlace(op, inplaceOp);
-    rewriter.replaceOp(op, inplaceOp);
-    return success();
-  }
-
- private:
-  Liveness* liveness;
-  OperandMutatedStorageInfo* storageInfo;
-};
-
-struct ConvertMulConstOp : public OpRewritePattern<MulConstOp> {
-  using OpRewritePattern<MulConstOp>::OpRewritePattern;
-
-  ConvertMulConstOp(mlir::MLIRContext* context, Liveness* liveness,
-                    OperandMutatedStorageInfo* storageInfo)
-      : OpRewritePattern<MulConstOp>(context),
-        liveness(liveness),
-        storageInfo(storageInfo) {}
-
-  LogicalResult matchAndRewrite(MulConstOp op,
-                                PatternRewriter& rewriter) const override {
-    if (!storageInfo->isSafeToMutateInPlace(op, op.getCiphertext(), liveness)) {
-      return rewriter.notifyMatchFailure(
-          op,
-          "Not replacing op with in-place version because the mutated "
-          "operand is still live");
-    }
-
-    auto inplaceOp = MulConstInPlaceOp::create(
-        rewriter, op.getLoc(), op.getResult().getType(), op.getCryptoContext(),
-        op.getCiphertext(), op.getConstant());
-    storageInfo->replaceAllocWithInPlace(op, inplaceOp);
-    rewriter.replaceOp(op, inplaceOp);
-    return success();
-  }
-
- private:
-  Liveness* liveness;
-  OperandMutatedStorageInfo* storageInfo;
-};
-
-struct ConvertKeySwitchOp : public OpRewritePattern<KeySwitchOp> {
-  using OpRewritePattern<KeySwitchOp>::OpRewritePattern;
-
-  ConvertKeySwitchOp(mlir::MLIRContext* context, Liveness* liveness,
-                     OperandMutatedStorageInfo* storageInfo)
-      : OpRewritePattern<KeySwitchOp>(context),
-        liveness(liveness),
-        storageInfo(storageInfo) {}
-
-  LogicalResult matchAndRewrite(KeySwitchOp op,
-                                PatternRewriter& rewriter) const override {
-    if (!storageInfo->isSafeToMutateInPlace(op, op.getCiphertext(), liveness)) {
-      return rewriter.notifyMatchFailure(
-          op,
-          "Not replacing op with in-place version because the mutated "
-          "operand is still live");
-    }
-
-    auto inplaceOp = KeySwitchInPlaceOp::create(
-        rewriter, op.getLoc(), op.getResult().getType(), op.getCryptoContext(),
-        op.getCiphertext(), op.getEvalKey());
     storageInfo->replaceAllocWithInPlace(op, inplaceOp);
     rewriter.replaceOp(op, inplaceOp);
     return success();
@@ -204,7 +111,9 @@ struct AllocToInPlace : impl::AllocToInPlaceBase<AllocToInPlace> {
                  ConvertUnaryOp<SquareOp, SquareInPlaceOp>,
                  ConvertUnaryOp<RelinOp, RelinInPlaceOp>,
                  ConvertUnaryOp<ModReduceOp, ModReduceInPlaceOp>,
-                 ConvertMulConstOp, ConvertLevelReduceOp, ConvertKeySwitchOp>(
+                 ConvertUnaryOp<MulConstOp, MulConstInPlaceOp>,
+                 ConvertUnaryOp<LevelReduceOp, LevelReduceInPlaceOp>,
+                 ConvertUnaryOp<KeySwitchOp, KeySwitchInPlaceOp>>(
         context, &liveness, &storageInfo);
 
     // The greedy policy relies on the order of processing the operations.
