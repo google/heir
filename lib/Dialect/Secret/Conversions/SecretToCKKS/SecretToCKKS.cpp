@@ -3,10 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
@@ -18,12 +16,9 @@
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/Conversions/Patterns.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
@@ -57,138 +52,27 @@ namespace mlir::heir {
 #define GEN_PASS_DEF_SECRETTOCKKS
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h.inc"
 
-namespace {
-
-// Returns an RLWE ring given the specified number of bits needed and polynomial
-// modulus degree.
-FailureOr<polynomial::RingAttr> getRlweRNSRing(
-    MLIRContext* ctx, const std::vector<int64_t>& primes, int minSlotCount) {
-  // monomial
-  std::vector<polynomial::IntMonomial> monomials;
-  monomials.emplace_back(1, minSlotCount);
-  monomials.emplace_back(1, 0);
-  auto result = polynomial::IntPolynomial::fromMonomials(monomials);
-  if (failed(result)) return failure();
-  polynomial::IntPolynomial xnPlusOne = result.value();
-
-  // moduli chain
-  SmallVector<Type, 4> modTypes;
-  for (auto prime : primes) {
-    auto type = IntegerType::get(ctx, 64);
-    modTypes.push_back(
-        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
-  }
-
-  // types
-  auto rnsType = rns::RNSType::get(ctx, modTypes);
-  return polynomial::RingAttr::get(
-      rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
-}
-
-polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
-                                             int level) {
-  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
-
-  auto newRnsType = rns::RNSType::get(
-      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
-  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
-}
-
-}  // namespace
-
-class SecretToCKKSTypeConverter
-    : public UniquelyNamedAttributeAwareTypeConverter {
+class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing)
-      : UniquelyNamedAttributeAwareTypeConverter(
-            mgmt::MgmtDialect::kArgMgmtAttrName) {
-    addConversion([](Type type, Attribute attr) -> std::optional<Type> {
-      if (isa<secret::SecretType>(type)) return std::nullopt;
-      return type;
-    });
-    addConversion(
-        [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
-          // For cases like tensor.empty + mgmt.init, we need to convert this
-          // to a ciphertext type.
-          //
-          // Care must be taken to ensure that types that have already been
-          // converted (i.e., their element type is a ciphertext or plaintext
-          // type) are returned as-is, or else legality checking will consider
-          // ops with these types illegal.
-          if (isa<lwe::LWECiphertextType, lwe::LWEPlaintextType>(
-                  type.getElementType()))
-            return type;
-          return convertSecretTypeWithMgmtAttr(secret::SecretType::get(type),
-                                               mgmtAttr);
-        });
-    addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
-      return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
-    });
+      : SecretToRlweTypeConverter(ctx, rlweRing) {}
 
-    ring_ = rlweRing;
-  }
-
-  Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
-                                     mgmt::MgmtAttr mgmtAttr) const {
-    auto* ctx = type.getContext();
-    auto level = mgmtAttr.getLevel();
-    auto dimension = mgmtAttr.getDimension();
-    auto scale = mgmtAttr.getScale();
-    auto tensorValueType = dyn_cast<RankedTensorType>(type.getValueType());
-
+ protected:
+  polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const override {
     // Note that slot number for CKKS is always half of the ring dimension.
-    // so ring_.getPolynomialModulus() is not useful here
+    // so ring.getPolynomialModulus() is not useful here
     // TODO(#2764): use packing information to get the correct slot number
-    auto plaintextRing = polynomial::RingAttr::get(
-        ctx, Float64Type::get(ctx), ring_.getPolynomialModulus());
-
-    SmallVector<IntegerAttr, 6> modulusChain;
-    for (auto modArithType :
-         cast<rns::RNSType>(ring_.getCoefficientType()).getBasisTypes()) {
-      auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
-      modulusChain.push_back(modulus);
-    }
-
-    Type messageType = type.getValueType();
-    if (tensorValueType && tensorValueType.getRank() > 1) {
-      // The value type here is a ciphertext-semantic tensor (i.e., packed) and
-      // so the "message type" is what is packed in each ciphertext, i.e., a
-      // single dimensional tensor corresponding to the last axis.
-      // TODO(#2280): this is where we are forced to use the packed cleartexts
-      messageType = RankedTensorType::get(
-          {tensorValueType.getDimSize(tensorValueType.getRank() - 1)},
-          tensorValueType.getElementType());
-    }
-
-    auto ctType = lwe::LWECiphertextType::get(
-        ctx,
-        lwe::PlaintextSpaceAttr::get(
-            ctx, plaintextRing,
-            lwe::InverseCanonicalEncodingAttr::get(ctx, scale)),
-        lwe::CiphertextSpaceAttr::get(ctx,
-                                      getRlweRNSRingWithLevel(ring_, level),
-                                      lwe::LweEncryptionType::mix, dimension),
-        lwe::KeyAttr::get(ctx, 0),
-        lwe::ModulusChainAttr::get(ctx, modulusChain, level));
-
-    if (tensorValueType) {
-      // A rank-1 tensor is interpreted as a single ciphertext
-      if (tensorValueType.getRank() == 1) {
-        return ctType;
-      }
-
-      // A rank-2+ tensor is a tensor of ciphertexts, where the last axis
-      // becomes the ciphertext type. This is the most common case where
-      // data is packed in a set of ciphertexts.
-      return RankedTensorType::get(tensorValueType.getShape().drop_back(),
-                                   ctType);
-    }
-
-    return ctType;
+    return polynomial::RingAttr::get(ctx, Float64Type::get(ctx),
+                                     ring.getPolynomialModulus());
   }
 
- private:
-  polynomial::RingAttr ring_;
+  Attribute getEncodingAttr(MLIRContext* ctx, int64_t scale) const override {
+    return lwe::InverseCanonicalEncodingAttr::get(ctx, scale);
+  }
+
+  lwe::LweEncryptionType getEncryptionType() const override {
+    return lwe::LweEncryptionType::mix;
+  }
 };
 
 class SecretGenericPlaintextDivision
@@ -338,8 +222,9 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
 
     // pass option minSlotCount is actually the number of slots
     // TODO(#1402): use a proper name for CKKS
-    auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   1 << schemeParamAttr.getLogN());
+    auto rlweRing =
+        lwe::getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
+                            1 << schemeParamAttr.getLogN());
     if (failed(rlweRing)) {
       return signalPassFailure();
     }

@@ -33,6 +33,12 @@ Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
 polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
                                              int level);
 
+// Returns an RLWE RNS ring given the specified prime moduli and minimum slot
+// count (used as degree for X^N + 1 polynomial modulus).
+FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext* ctx,
+                                               ArrayRef<int64_t> primes,
+                                               int minSlotCount);
+
 // Get the ring attribute corresponding to the current level of the given
 // modulus chain.
 polynomial::RingAttr getRingFromModulusChain(
