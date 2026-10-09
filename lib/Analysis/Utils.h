@@ -1,8 +1,6 @@
 #ifndef LIB_ANALYSIS_UTILS_H_
 #define LIB_ANALYSIS_UTILS_H_
 
-#include <functional>
-
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
@@ -25,11 +23,10 @@ inline bool isBlockLive(Block* block, DataFlowSolver* solver) {
 // changed by the external call, but can also be useful for some analyses like
 // secretness, where the result of the call is secret if any operand is secret.
 template <typename StateT, typename LatticeT>
-void visitExternalCall(CallOpInterface call,
-                       ArrayRef<const LatticeT*> argumentLattices,
-                       ArrayRef<LatticeT*> resultLattices,
-                       const std::function<void(AnalysisState*, ChangeResult)>&
-                           propagateIfChanged) {
+void visitExternalCall(
+    CallOpInterface call, ArrayRef<const LatticeT*> argumentLattices,
+    ArrayRef<LatticeT*> resultLattices,
+    llvm::function_ref<void(AnalysisState*, ChangeResult)> propagateIfChanged) {
   StateT resultState = StateT();
 
   for (const LatticeT* operand : argumentLattices) {

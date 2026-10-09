@@ -131,10 +131,6 @@ class MulDepthAnalysis
                          ArrayRef<const MulDepthLattice*> argumentLattices,
                          ArrayRef<MulDepthLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
-  }
-
  private:
   int mulDepthBudget;
 };

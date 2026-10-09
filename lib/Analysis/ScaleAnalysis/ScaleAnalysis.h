@@ -169,10 +169,6 @@ class ScaleAnalysis
       ArrayRef<const ScaleLattice<ScaleModelT>*> argumentLattices,
       ArrayRef<ScaleLattice<ScaleModelT>*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    this->propagateIfChanged(state, changed);
-  }
-
  private:
   const SchemeParamType schemeParam;
   int64_t inputScale;

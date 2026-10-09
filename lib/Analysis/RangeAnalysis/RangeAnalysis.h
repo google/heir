@@ -93,10 +93,6 @@ class RangeAnalysis
                          ArrayRef<const RangeLattice*> argumentLattices,
                          ArrayRef<RangeLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
-  }
-
  private:
   Log2Arithmetic inputRange;
 };

@@ -130,10 +130,11 @@ LogicalResult SecretnessAnalysis::visitOperation(
 void SecretnessAnalysis::visitExternalCall(
     CallOpInterface call, ArrayRef<const SecretnessLattice*> argumentLattices,
     ArrayRef<SecretnessLattice*> resultLattices) {
-  auto callback = std::bind(&SecretnessAnalysis::propagateIfChangedWrapper,
-                            this, std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<Secretness, SecretnessLattice>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 void annotateSecretness(Operation* top, DataFlowSolver* solver, bool verbose) {
