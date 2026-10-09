@@ -407,36 +407,14 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
            "Cannot remove a value that is not yielded");
   }
 
-  SmallVector<Attribute> newResultAttrs;
   SmallVector<int, 4> indicesToErase;
-  for (unsigned int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
-    if (std::find(yieldedValuesToRemove.begin(), yieldedValuesToRemove.end(),
-                  getYieldOp()->getOperand(i)) != yieldedValuesToRemove.end()) {
+  for (unsigned int i = 0; i < yieldOp.getNumOperands(); ++i) {
+    if (llvm::is_contained(yieldedValuesToRemove, yieldOp.getOperand(i))) {
       indicesToErase.push_back(i);
-    } else {
-      remainingResults.push_back(getResult(i));
-      newResultAttrs.push_back(getResultAttrDict(i));
     }
   }
 
-  // Erase unused values in reverse to ensure deletion doesn't affect the next
-  // indices to delete.
-  for (int i : llvm::reverse(indicesToErase)) {
-    getYieldOp().getValuesMutable().erase(i);
-  }
-  // Update the result attr dictionary to remove the deleted results
-  if (this->getAllResultAttrsAttr()) {
-    this->setResultAttrsAttr(
-        ArrayAttr::get(this->getContext(), newResultAttrs));
-  }
-
-  auto newResultTypes = llvm::to_vector<4>(
-      llvm::map_range(yieldOp.getValues().getTypes(), [](Type t) -> Type {
-        SecretType newTy = secret::SecretType::get(t);
-        return newTy;
-      }));
-
-  return cloneWithNewResultTypes(newResultTypes, rewriter);
+  return removeYieldedValues(indicesToErase, rewriter, remainingResults);
 }
 
 GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
@@ -451,16 +429,18 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
   SmallVector<Attribute> newResultAttrs;
   newResultAttrs.reserve(getNumResults() - yieldedIndicesToRemove.size());
   for (size_t i = 0; i < getYieldOp()->getNumOperands(); ++i) {
-    if (std::find(yieldedIndicesToRemove.begin(), yieldedIndicesToRemove.end(),
-                  i) == yieldedIndicesToRemove.end()) {
+    if (!llvm::is_contained(yieldedIndicesToRemove, i)) {
       remainingResults.push_back(getResult(i));
       newResultAttrs.push_back(getResultAttrDict(i));
     }
   }
 
-  // Erase unused values in reverse to ensure deletion doesn't affect the next
-  // indices to delete.
-  for (int i : llvm::reverse(yieldedIndicesToRemove)) {
+  // Erase unused values in reverse order of indices to ensure deletion
+  // doesn't affect subsequent indices.
+  SmallVector<int> sortedIndices(yieldedIndicesToRemove.begin(),
+                                 yieldedIndicesToRemove.end());
+  llvm::sort(sortedIndices);
+  for (int i : llvm::reverse(sortedIndices)) {
     getYieldOp().getValuesMutable().erase(i);
   }
   // Update the result attr dictionary to remove the deleted results
