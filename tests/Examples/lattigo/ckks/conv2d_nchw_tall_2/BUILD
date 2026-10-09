@@ -12,6 +12,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:conv2d_nchw_tall_2.mlir",
+    split_preprocessing = True,
 )
 
 go_test(
@@ -19,4 +20,5 @@ go_test(
     size = "small",
     srcs = ["conv2d_nchw_tall_2_test.go"],
     embed = [":conv2dnchwtall2"],
+    deps = [":conv2dnchwtall2_utils"],
 )

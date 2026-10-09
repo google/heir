@@ -29,8 +29,7 @@ func TestBugMinrepro(t *testing.T) {
 	}
 
 	ct0 := Bug_minrepro__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ctZeros := Bug_minrepro__encrypt__zeros(evaluator, params, ecd, enc)
-	resultCt := Bug_minrepro(evaluator, params, ecd, ct0, ctZeros)
+	resultCt := Bug_minrepro(evaluator, params, ecd, ct0)
 	result := Bug_minrepro__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.5)

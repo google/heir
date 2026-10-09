@@ -3,6 +3,8 @@ package conv1dncwpadded
 import (
 	"math"
 	"testing"
+
+	"tests/Examples/lattigo/ckks/conv1d_ncw_padded/conv1dncwpadded_utils"
 )
 
 func TestConv1DPadded(t *testing.T) {
@@ -20,8 +22,8 @@ func TestConv1DPadded(t *testing.T) {
 	}
 
 	ct0 := Conv1d_ncw_padded__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ctZeros := Conv1d_ncw_padded__encrypt__zeros(evaluator, params, ecd, enc)
-	resultCt := Conv1d_ncw_padded(evaluator, params, ecd, ct0, ctZeros)
+	linearTransforms, biasPlains := conv1dncwpadded_utils.Conv1d_ncw_padded__preprocessing(params, ecd)
+	resultCt := Conv1d_ncw_padded__preprocessed(evaluator, params, ecd, ct0, linearTransforms, biasPlains)
 	result := Conv1d_ncw_padded__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.05)
 	for i := range expected {

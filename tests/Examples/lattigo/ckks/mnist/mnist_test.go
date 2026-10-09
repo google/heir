@@ -135,7 +135,7 @@ func TestMNIST(t *testing.T) {
 
 	// Preprocess weights
 	startPreprocess := time.Now()
-	preprocessedWeights := mnist_utils.Mnist__preprocessing(params, encoder, weights[3], weights[2], weights[1], weights[0])
+	preprocessedWeights, linearTransforms := mnist_utils.Mnist__preprocessing(params, encoder, weights[3], weights[2], weights[1], weights[0])
 	t.Logf("mnist_utils.Mnist__preprocessing took %v", time.Since(startPreprocess))
 
 	// Test with 1 sample since the computation is slow with the
@@ -158,13 +158,9 @@ func TestMNIST(t *testing.T) {
 		ctInput := Mnist__encrypt__arg4(evaluator, params, encoder, encryptor, inputFloat32)
 		t.Logf("Mnist__encrypt__arg4 took %v", time.Since(startEncrypt))
 
-		startZero1 := time.Now()
-		ctZeros := Mnist__encrypt__zeros(evaluator, params, encoder, encryptor)
-		t.Logf("Mnist__encrypt__zeros took %v", time.Since(startZero1))
-
 		startTime := time.Now()
 		// Calling the generated preprocessed mnist function
-		resCt := Mnist__preprocessed(evaluator, params, encoder, weights[0], weights[1], weights[2], weights[3], ctInput, ctZeros, preprocessedWeights)
+		resCt := Mnist__preprocessed(evaluator, params, encoder, weights[0], weights[1], weights[2], weights[3], ctInput, preprocessedWeights, linearTransforms)
 		duration := time.Since(startTime)
 		t.Logf("Sample %d (Mnist__preprocessed) took %v", i, duration)
 
