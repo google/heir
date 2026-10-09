@@ -55,6 +55,7 @@ cc_library(
     deps = [
         "@heir//lib/Analysis/Cpp:ConstQualifierAnalysis",
         "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
@@ -83,7 +84,6 @@ cc_library(
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:ControlFlowDialect",
-        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MathDialect",
