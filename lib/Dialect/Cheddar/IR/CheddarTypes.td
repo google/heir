@@ -41,7 +41,7 @@ def Cheddar_BootContext : Cheddar_Type<"BootContext", "boot_context"> {
     bootstrapping support, created via BootContext::Create(param, boot_param).
     A BootContext is-a Context in CHEDDAR, so it is accepted anywhere a Context
     is via the `Cheddar_AnyContext` constraint; only `cheddar.boot` requires it
-    specifically (so the emitter can call `BootContext::Boot` with no downcast).
+    specifically (so the lowering can call `BootContext::Boot` with no downcast).
   }];
   let asmName = "boot_ctx";
 }
