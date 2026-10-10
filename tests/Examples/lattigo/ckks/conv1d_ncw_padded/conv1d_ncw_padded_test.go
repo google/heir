@@ -20,8 +20,7 @@ func TestConv1DPadded(t *testing.T) {
 	}
 
 	ct0 := Conv1d_ncw_padded__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ctZeros := Conv1d_ncw_padded__encrypt__zeros(evaluator, params, ecd, enc)
-	resultCt := Conv1d_ncw_padded(evaluator, params, ecd, ct0, ctZeros)
+	resultCt := Conv1d_ncw_padded(evaluator, params, ecd, ct0)
 	result := Conv1d_ncw_padded__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.05)
 	for i := range expected {

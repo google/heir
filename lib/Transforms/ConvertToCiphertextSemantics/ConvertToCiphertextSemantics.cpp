@@ -88,11 +88,13 @@ namespace heir {
 namespace {
 using kernel::ArithmeticDagNode;
 using kernel::implementHaleviShoup;
+using kernel::implementSquatDiagonalFold;
 using kernel::IRMaterializingVisitor;
 using kernel::SSAValue;
 using ::mlir::heir::kernel::ArithmeticDagNode;
 using ::mlir::heir::kernel::implementHaleviShoup;
 using ::mlir::heir::kernel::implementRotateAndReduce;
+using ::mlir::heir::kernel::implementSquatDiagonalFold;
 using ::mlir::heir::kernel::IRMaterializingVisitor;
 using ::mlir::heir::kernel::SSAValue;
 using presburger::IntegerRelation;
@@ -965,6 +967,11 @@ class ConvertLinalgTranspose
     return success();
   }
 };
+static Value emitCompactLinearTransform(
+    ContextAwareConversionPatternRewriter& rewriter, Location loc,
+    TypedValue<RankedTensorType> input, TypedValue<RankedTensorType> matrix,
+    ArrayRef<int64_t> matrixShape, Attribute layoutAttr,
+    const std::map<int, bool>& zeroDiagonals);
 
 struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
  public:
@@ -1009,6 +1016,20 @@ struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
     LLVM_DEBUG(llvm::dbgs()
                << "Got " << zeroDiagonals.size()
                << " zero diagonals for filter: " << matrix << "\n");
+
+    // Backends that evaluate a linear transform directly take the compact
+    // form, exactly as the convolution paths do.
+    auto target = getTargetConfig(op->getParentOfType<ModuleOp>());
+    Attribute resultLayout = op->getAttr(kLayoutAttrName);
+    if (resultLayout && succeeded(target) && target->hasKernelLinearTransform) {
+      Value compact = emitCompactLinearTransform(
+          rewriter, op.getLoc(), input, matrix,
+          cast<RankedTensorType>(op.getInputs()[0].getType()).getShape(),
+          resultLayout, zeroDiagonals);
+      addBiasAndReplace(rewriter, op, compact, adaptor.getOutputs()[0],
+                        resultLayout);
+      return;
+    }
 
     auto dagType = kernel::mlirTypeToDagType(input.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
@@ -1217,6 +1238,66 @@ struct PreserveLinalgMatvecAsLinearTransform
     return success();
   }
 };
+
+// Emits the Halevi-Shoup transform as a compact rotate_and_reduce carrying the
+// diagonals, rather than expanding it into a rotate/multiply/accumulate DAG.
+// The op is marked as a linear transform so implement-rotate-and-reduce leaves
+// it for a backend that can evaluate one directly (which also keeps it opaque
+// to bootstrap placement). Zero diagonals of a mostly-zero matrix are dropped
+// and their offsets recorded, so the backend neither encodes nor rotates for
+// them.
+//
+// A squat packing (rows < cols) still needs the partial-rotate-and-reduce
+// afterwards, mirroring implementHaleviShoup.
+static Value emitCompactLinearTransform(
+    ContextAwareConversionPatternRewriter& rewriter, Location loc,
+    TypedValue<RankedTensorType> input, TypedValue<RankedTensorType> matrix,
+    ArrayRef<int64_t> matrixShape, Attribute layoutAttr,
+    const std::map<int, bool>& zeroDiagonals) {
+  int64_t numDiagonals = matrix.getType().getShape()[0];
+
+  SmallVector<int32_t> nonzeroIndices;
+  for (int64_t i = 0; i < numDiagonals; ++i) {
+    if (!zeroDiagonals.count(i)) nonzeroIndices.push_back(i);
+  }
+  // An all-present list is the same as no list.
+  if (static_cast<int64_t>(nonzeroIndices.size()) == numDiagonals) {
+    nonzeroIndices.clear();
+  }
+
+  bool isFloat = isa<FloatType>(input.getType().getElementType());
+  auto rar = tensor_ext::RotateAndReduceOp::create(
+      rewriter, loc, input, matrix, /*period=*/int64_t{1},
+      /*steps=*/numDiagonals,
+      /*reduceOp=*/llvm::StringRef(isFloat ? "arith.addf" : "arith.addi"));
+  rar->setAttr(tensor_ext::TensorExtDialect::kLintransAttrName,
+               rewriter.getUnitAttr());
+  if (!nonzeroIndices.empty()) {
+    rar->setAttr(tensor_ext::TensorExtDialect::kDiagonalIndicesAttrName,
+                 rewriter.getDenseI32ArrayAttr(nonzeroIndices));
+  }
+  rar->setAttr(kLayoutAttrName, layoutAttr);
+  setMaterializedAttr(rar);
+
+  auto transformed = cast<TypedValue<RankedTensorType>>(rar.getResult());
+  auto leaf = ArithmeticDagNode<SSAValue>::leaf(SSAValue(transformed));
+  auto foldKernel = implementSquatDiagonalFold<SSAValue>(
+      leaf, std::vector<int64_t>(matrixShape.begin(), matrixShape.end()),
+      kernel::mlirTypeToDagType(transformed.getType()), /*unroll=*/true);
+  // A square packing needs no fold, and the builder hands the leaf straight
+  // back.
+  if (foldKernel == leaf) return transformed;
+
+  IRMaterializingVisitor visitor(input.getType(), [&](Operation* createdOp) {
+    setMaterializedAttr(createdOp);
+  });
+  ImplicitLocOpBuilder b(loc, rewriter);
+  Value finalOutput = visitor.process(foldKernel, b)[0];
+  auto* finalOutputOp = finalOutput.getDefiningOp();
+  finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+  setMaterializedAttr(finalOutputOp);
+  return finalOutput;
+}
 
 struct ConvertLinalgConv1D : public ConversionBase<linalg::Conv1DOp> {
  public:
@@ -1539,6 +1620,27 @@ struct ConvertLinalgConv1DNcwFcw
                << "Got " << zeroDiagonals.size()
                << " zero diagonals for filter: " << matrix << "\n");
 
+    std::vector<int64_t> matrixShapeForLayout(
+        expandedMatrixType->getShape().begin(),
+        expandedMatrixType->getShape().end());
+    // Layout propagation can record the result layout as a list of layouts to
+    // compose, as the expanded kernel below also handles.
+    Attribute resultLayout = op->getAttr(kLayoutAttrName);
+    if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(resultLayout)) {
+      resultLayout = LayoutAttr::composeLayouts(arrayAttr, op.getContext());
+    }
+
+    // Backends that evaluate a linear transform directly take the compact form.
+    auto target = getTargetConfig(op->getParentOfType<ModuleOp>());
+    if (resultLayout && succeeded(target) && target->hasKernelLinearTransform) {
+      Value compact = emitCompactLinearTransform(rewriter, op.getLoc(), data,
+                                                 matrix, matrixShapeForLayout,
+                                                 resultLayout, zeroDiagonals);
+      addBiasAndReplace(rewriter, op, compact, adaptor.getOutputs()[0],
+                        resultLayout);
+      return success();
+    }
+
     auto dagType = kernel::mlirTypeToDagType(data.getType(),
                                              data.getType().getShape().back());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
@@ -1682,12 +1784,31 @@ struct ConvertLinalgConv2DNchwFchw
                << "Got " << zeroDiagonals.size()
                << " zero diagonals for filter: " << matrix << "\n");
 
+    std::vector<int64_t> matrixShapeForLayout =
+        expandedMatrixType->getShape().vec();
+    // Layout propagation can record the result layout as a list of layouts to
+    // compose, as the expanded kernel below also handles.
+    Attribute resultLayout = op->getAttr(kLayoutAttrName);
+    if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(resultLayout)) {
+      resultLayout = LayoutAttr::composeLayouts(arrayAttr, op.getContext());
+    }
+
+    // Backends that evaluate a linear transform directly take the compact form.
+    auto target = getTargetConfig(op->getParentOfType<ModuleOp>());
+    if (resultLayout && succeeded(target) && target->hasKernelLinearTransform) {
+      Value compact = emitCompactLinearTransform(rewriter, op.getLoc(), data,
+                                                 matrix, matrixShapeForLayout,
+                                                 resultLayout, zeroDiagonals);
+      addBiasAndReplace(rewriter, op, compact, adaptor.getOutputs()[0],
+                        resultLayout);
+      return success();
+    }
+
     auto dagType = kernel::mlirTypeToDagType(data.getType(),
                                              data.getType().getShape().back());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
-        implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType->getShape(), dagType,
-                             zeroDiagonals,
+        implementHaleviShoup(vectorLeaf, matrixLeaf, matrixShapeForLayout,
+                             dagType, zeroDiagonals,
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
