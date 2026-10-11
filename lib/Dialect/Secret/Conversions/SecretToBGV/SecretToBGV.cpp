@@ -3,32 +3,25 @@
 #include <cstdint>
 #include <optional>
 #include <utility>
-#include <vector>
 
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/Conversions/Patterns.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
-#include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -51,143 +44,32 @@ namespace mlir::heir {
 
 auto& kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 
-namespace {
-
-// Returns an RLWE RNS ring given the specified number of bits needed and
-// polynomial modulus degree.
-FailureOr<polynomial::RingAttr> getRlweRNSRing(
-    MLIRContext* ctx, const std::vector<int64_t>& primes, int minSlotCount) {
-  // monomial
-  std::vector<polynomial::IntMonomial> monomials;
-  monomials.emplace_back(1, minSlotCount);
-  monomials.emplace_back(1, 0);
-  auto result = polynomial::IntPolynomial::fromMonomials(monomials);
-  if (failed(result)) return failure();
-  polynomial::IntPolynomial xnPlusOne = result.value();
-
-  // moduli chain
-  SmallVector<Type, 4> modTypes;
-  for (int64_t prime : primes) {
-    auto type = IntegerType::get(ctx, 64);
-    modTypes.push_back(
-        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
-  }
-
-  // types
-  auto rnsType = rns::RNSType::get(ctx, modTypes);
-  return polynomial::RingAttr::get(
-      rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
-}
-
-polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
-                                             int level) {
-  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
-
-  auto newRnsType = rns::RNSType::get(
-      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
-  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
-}
-
-}  // namespace
-
-class SecretToBGVTypeConverter
-    : public UniquelyNamedAttributeAwareTypeConverter {
+class SecretToBGVTypeConverter : public SecretToRlweTypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
                            int64_t ptm, bool isBFV)
-      : UniquelyNamedAttributeAwareTypeConverter(
-            mgmt::MgmtDialect::kArgMgmtAttrName),
-        ring(rlweRing),
+      : SecretToRlweTypeConverter(ctx, rlweRing),
         plaintextModulus(ptm),
-        isBFV(isBFV) {
-    addConversion([](Type type, Attribute attr) -> std::optional<Type> {
-      if (isa<secret::SecretType>(type)) return std::nullopt;
-      return type;
-    });
-    addConversion(
-        [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
-          // For cases like tensor.empty + mgmt.init, we need to convert this
-          // to a ciphertext type.
-          //
-          // Care must be taken to ensure that types that have already been
-          // converted (i.e., their element type is a ciphertext or plaintext
-          // type) are returned as-is, or else legality checking will consider
-          // ops with these types illegal.
-          if (isa<lwe::LWECiphertextType, lwe::LWEPlaintextType>(
-                  type.getElementType()))
-            return type;
-          return convertSecretTypeWithMgmtAttr(secret::SecretType::get(type),
-                                               mgmtAttr);
-        });
-    addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
-      return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
-    });
-  }
+        isBFV(isBFV) {}
 
-  Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
-                                     mgmt::MgmtAttr mgmtAttr) const {
-    auto* ctx = type.getContext();
-    auto level = mgmtAttr.getLevel();
-    auto dimension = mgmtAttr.getDimension();
-    auto scale = mgmtAttr.getScale();
-    auto tensorValueType = dyn_cast<RankedTensorType>(type.getValueType());
-
-    auto plaintextRing = polynomial::RingAttr::get(
+ protected:
+  polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const override {
+    return polynomial::RingAttr::get(
         ctx,
         mod_arith::ModArithType::get(
             ctx, IntegerAttr::get(IntegerType::get(ctx, 64), plaintextModulus)),
         ring.getPolynomialModulus());
+  }
 
-    SmallVector<IntegerAttr> modulusChain;
-    for (auto modArithType :
-         cast<rns::RNSType>(ring.getCoefficientType()).getBasisTypes()) {
-      auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
-      modulusChain.push_back(modulus);
-    }
+  Attribute getEncodingAttr(MLIRContext* ctx, int64_t scale) const override {
+    return lwe::FullCRTPackingEncodingAttr::get(ctx, scale);
+  }
 
-    auto encryptionType =
-        isBFV ? lwe::LweEncryptionType::msb : lwe::LweEncryptionType::lsb;
-
-    auto messageType = type.getValueType();
-    if (tensorValueType && tensorValueType.getRank() > 1) {
-      // The value type here is a ciphertext-semantic tensor (i.e., packed) and
-      // so the "message type" is what is packed in each ciphertext, i.e., a
-      // single dimensional tensor corresponding to the last axis.
-      // TODO(#2280): this is where we are forced to use the packed cleartexts
-      messageType = RankedTensorType::get(
-          {tensorValueType.getDimSize(tensorValueType.getRank() - 1)},
-          tensorValueType.getElementType());
-    }
-
-    auto ctType = lwe::LWECiphertextType::get(
-        ctx,
-        lwe::PlaintextSpaceAttr::get(
-            ctx, plaintextRing,
-            lwe::FullCRTPackingEncodingAttr::get(ctx, scale)),
-        lwe::CiphertextSpaceAttr::get(ctx, getRlweRNSRingWithLevel(ring, level),
-                                      encryptionType, dimension),
-        lwe::KeyAttr::get(ctx, 0),
-        lwe::ModulusChainAttr::get(ctx, modulusChain, level));
-
-    if (tensorValueType) {
-      // A rank-1 tensor is interpreted as a single ciphertext
-      if (tensorValueType.getRank() == 1) {
-        return ctType;
-      }
-
-      // A rank-2+ tensor is a tensor of ciphertexts, where the last axis
-      // becomes the ciphertext type. This is the most common case where
-      // data is packed in a set of ciphertexts.
-      return RankedTensorType::get(tensorValueType.getShape().drop_back(),
-                                   ctType);
-    }
-
-    llvm_unreachable("unexpected non-tensor secret type");
-    return ctType;
+  lwe::LweEncryptionType getEncryptionType() const override {
+    return isBFV ? lwe::LweEncryptionType::msb : lwe::LweEncryptionType::lsb;
   }
 
  private:
-  polynomial::RingAttr ring;
   int64_t plaintextModulus;
   bool isBFV;
 };
@@ -221,8 +103,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         schemeParamAttr.getEncryptionType() == bgv::BGVEncryptionType::pk;
 
     auto plaintextModulus = schemeParamAttr.getPlaintextModulus();
-    auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
-                                   1 << schemeParamAttr.getLogN());
+    auto rlweRing =
+        lwe::getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
+                            1 << schemeParamAttr.getLogN());
     if (failed(rlweRing)) {
       return signalPassFailure();
     }

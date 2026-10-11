@@ -2,9 +2,12 @@
 #define LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 
 #include "lib/Dialect/Debug/IR/DebugOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
@@ -102,6 +105,25 @@ struct ConvertEmpty : public ContextAwareOpConversionPattern<mgmt::InitOp> {
   LogicalResult matchAndRewrite(
       mgmt::InitOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const override;
+};
+
+// Common type converter base for converting Secret types to RLWE schemes
+// (such as BGV and CKKS).
+class SecretToRlweTypeConverter
+    : public UniquelyNamedAttributeAwareTypeConverter {
+ public:
+  SecretToRlweTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing);
+  virtual ~SecretToRlweTypeConverter() = default;
+
+  virtual Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
+                                             mgmt::MgmtAttr mgmtAttr) const;
+
+ protected:
+  virtual polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const = 0;
+  virtual Attribute getEncodingAttr(MLIRContext* ctx, int64_t scale) const = 0;
+  virtual lwe::LweEncryptionType getEncryptionType() const = 0;
+
+  polynomial::RingAttr ring;
 };
 
 // Set up the common conversion patterns and target rules for all
