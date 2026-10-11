@@ -18,7 +18,6 @@ cc_library(
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Target/TfheRust:Utils",
-        "@heir//lib/Transforms/MemrefToArith:Utils",
         "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
