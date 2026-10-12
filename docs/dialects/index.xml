@@ -3921,15 +3921,27 @@ DenseI64ArrayAttr, # Q
 DenseI64ArrayAttr, # P
 int, # logDefaultScale
 CKKSEncryptionType, # encryptionType
-CKKSEncryptionTechnique # encryptionTechnique
+CKKSEncryptionTechnique, # encryptionTechnique
+DenseI32ArrayAttr # moduliPerLevel
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
 &lt;p>The attribute is a struct with the following fields:&lt;/p>
 &lt;ul>
-&lt;li>&lt;code>int&lt;/code> logN: The log of the degree of the polynomial modulus.&lt;/li>
-&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> Q: The array of primes in the ciphertext modulus.&lt;/li>
-&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> P: The array of primes in the special modulus, used for key switching.&lt;/li>
-&lt;li>&lt;code>int&lt;/code> logDefaultScale: The log of the default scale.&lt;/li>
+&lt;li>`logN1: The log of the degree of the polynomial modulus.&lt;/li>
+&lt;li>&lt;code>Q&lt;/code>: The array of moduli whose product is the ciphertext modulus,
+ordered from level 0 (the base modulus remaining after all rescalings)
+up to the maximum level L (the fresh encryption level).&lt;/li>
+&lt;li>&lt;code>P&lt;/code>: The array of moduli in the special modulus, used for key switching.&lt;/li>
+&lt;li>&lt;code>logDefaultScale&lt;/code>: The log of the default scale.&lt;/li>
+&lt;li>&lt;code>encryptionType&lt;/code>: The encryption type (optional, defaults to &lt;code>pk&lt;/code>).&lt;/li>
+&lt;li>&lt;code>encryptionTechnique&lt;/code>: The encryption technique (optional, defaults to &lt;code>standard&lt;/code>).&lt;/li>
+&lt;li>&lt;code>moduliPerLevel&lt;/code>: Optional array specifying how many moduli in &lt;code>Q&lt;/code> belong to each
+level, ordered from level 0. I.e., if &lt;code>moduliPerLevel = {2, 3}&lt;/code>, then the first
+level uses moduli &lt;code>Q[0], Q[1]&lt;/code>, and the second level uses moduli &lt;code>Q[2], Q[3], Q[4]&lt;/code>.
+This is useful for variants of CKKS that require 32-bit word arithmetic, and employ
+techniques like composite rescaling to achieve intermediate widths of rescaling.
+When omitted, defaults to all 1s. When provided, all entries must be
+positive and their sum must equal &lt;code>Q.size()&lt;/code>.&lt;/li>
 &lt;/ul>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
@@ -3969,6 +3981,11 @@ CKKSEncryptionTechnique # encryptionTechnique
 &lt;tr>
 &lt;td style="text-align:center">encryptionTechnique&lt;/td>
 &lt;td style="text-align:center">&lt;code>CKKSEncryptionTechnique&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">moduliPerLevel&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
