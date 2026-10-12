@@ -235,18 +235,12 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
-  OpenfheScheme scheme;
-  if (moduleIsBGV(moduleOp)) {
-    scheme = OpenfheScheme::BGV;
-  } else if (moduleIsBFV(moduleOp)) {
-    scheme = OpenfheScheme::BFV;
-  } else if (moduleIsCKKS(moduleOp)) {
-    scheme = OpenfheScheme::CKKS;
-  } else {
-    return emitError(moduleOp.getLoc(), "Missing scheme attribute on module");
+  auto scheme = getModuleScheme(moduleOp);
+  if (failed(scheme)) {
+    return failure();
   }
 
-  os << getModulePrelude(scheme, importType_) << "\n";
+  os << getModulePrelude(scheme.value(), importType_) << "\n";
 
   for (Operation& op : moduleOp) {
     if (failed(translate(op))) {

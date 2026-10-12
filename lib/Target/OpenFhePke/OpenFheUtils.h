@@ -6,6 +6,7 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
@@ -51,6 +52,10 @@ enum class OpenfheImportType {
 
 std::string getModulePrelude(OpenfheScheme scheme,
                              OpenfheImportType importType);
+
+// Detect the OpenfheScheme (BGV, BFV, CKKS) of a ModuleOp from its attributes.
+// Emits an error diagnostic and returns failure if no valid scheme is found.
+::mlir::FailureOr<OpenfheScheme> getModuleScheme(::mlir::ModuleOp moduleOp);
 
 std::string getWeightsPrelude();
 
