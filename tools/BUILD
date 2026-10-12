@@ -51,6 +51,7 @@ cc_binary(
         "@heir//lib/Dialect/Cheddar/IR:Dialect",
         "@heir//lib/Dialect/Cheddar/Transforms:BufferizableOpInterfaceImpl",
         "@heir//lib/Dialect/Cheddar/Transforms:CheddarBufferize",
+        "@heir//lib/Dialect/Cheddar/Transforms:FuseOps",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/Debug/Transforms",
