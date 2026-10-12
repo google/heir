@@ -123,20 +123,6 @@ FailureOr<TypedValue<Ty>> findUniqueOpResult(Operation* op) {
   return failure();
 }
 
-// NOTE: we can not use containsDialect
-// for FuncOp declaration, which does not have a body
-template <typename... Dialects>
-bool containsArgumentOfDialect(Operation* op) {
-  auto funcOp = dyn_cast<func::FuncOp>(op);
-  if (!funcOp) {
-    return false;
-  }
-  return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-    return DialectEqual<Dialects...>()(
-        &getElementTypeOrSelf(argType).getDialect());
-  });
-}
-
 bool containsBootstrap(Operation* op) {
   auto funcOp = dyn_cast<func::FuncOp>(op);
   if (!funcOp) {
@@ -1066,38 +1052,9 @@ using ConvertCKKSBootstrappingOp =
 struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
   // See https://github.com/llvm/llvm-project/pull/127772
   // During dialect conversion, the attribute of the func::CallOp is not
-  // preserved. We save the dialect attributes of func::CallOp before
-  // conversion and restore them after conversion.
-  //
-  // Note that this is not safe as after conversion the order of func::CallOp
-  // may change. However, this is the best we can do for now as we do not have
-  // a map from the old func::CallOp to the new func::CallOp.
-  SmallVector<SmallVector<NamedAttribute>> funcCallOpDialectAttrs;
-
-  void saveFuncCallOpDialectAttrs() {
-    funcCallOpDialectAttrs.clear();
-    auto* module = getOperation();
-    module->walk([&](func::CallOp callOp) {
-      SmallVector<NamedAttribute> dialectAttrs;
-      for (auto namedAttr : callOp->getDialectAttrs()) {
-        dialectAttrs.push_back(namedAttr);
-      }
-      funcCallOpDialectAttrs.push_back(dialectAttrs);
-    });
-  }
-
-  void restoreFuncCallOpDialectAttrs() {
-    auto* module = getOperation();
-    auto* funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
-    module->walk([&](func::CallOp callOp) {
-      callOp->setDialectAttrs(*funcCallOpDialectAttrsIter);
-      ++funcCallOpDialectAttrsIter;
-    });
-  }
-
   void runOnOperation() override {
     // Save the dialect attributes of func::CallOp before conversion.
-    saveFuncCallOpDialectAttrs();
+    auto funcCallOpDialectAttrs = saveFuncCallOpDialectAttrs(getOperation());
 
     // Every lattigo ciphertext has the same opaque type, so a ciphertext
     // argument that does not start at the top of the modulus chain is
@@ -1378,7 +1335,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     walkAndApplyPatterns(module, std::move(postPatterns2));
 
     // Restore the dialect attributes of func::CallOp after conversion.
-    restoreFuncCallOpDialectAttrs();
+    restoreFuncCallOpDialectAttrs(getOperation(), funcCallOpDialectAttrs);
   }
 };
 

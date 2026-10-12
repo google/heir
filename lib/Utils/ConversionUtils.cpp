@@ -13,6 +13,7 @@
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
@@ -522,6 +523,31 @@ FailureOr<Value> getContextualArgFromFunc(Operation* op, Type argType) {
     }
   }
   return failure();
+}
+
+SmallVector<SmallVector<NamedAttribute>> saveFuncCallOpDialectAttrs(
+    Operation* op) {
+  SmallVector<SmallVector<NamedAttribute>> funcCallOpDialectAttrs;
+  op->walk([&](func::CallOp callOp) {
+    SmallVector<NamedAttribute> dialectAttrs;
+    for (auto namedAttr : callOp->getDialectAttrs()) {
+      dialectAttrs.push_back(namedAttr);
+    }
+    funcCallOpDialectAttrs.push_back(dialectAttrs);
+  });
+  return funcCallOpDialectAttrs;
+}
+
+void restoreFuncCallOpDialectAttrs(
+    Operation* op,
+    ArrayRef<SmallVector<NamedAttribute>> funcCallOpDialectAttrs) {
+  auto funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
+  op->walk([&](func::CallOp callOp) {
+    if (funcCallOpDialectAttrsIter != funcCallOpDialectAttrs.end()) {
+      callOp->setDialectAttrs(*funcCallOpDialectAttrsIter);
+      ++funcCallOpDialectAttrsIter;
+    }
+  });
 }
 
 }  // namespace heir

@@ -15,6 +15,7 @@
 #include "mlir/include/mlir/IR/Dialect.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"         // from @llvm-project
@@ -168,6 +169,25 @@ bool containsArgumentOfType(Operation* op, TypePredicate predicate);
 template <typename... TypeTys>
 bool containsArgumentOfType(Operation* op) {
   return containsArgumentOfType(op, TypeEqual<TypeTys...>());
+}
+
+// Returns true if the op contains argument types from the given dialects.
+template <typename... Dialects>
+bool containsArgumentOfDialect(Operation* op) {
+  auto predicate = [](Type type) {
+    return DialectEqual<Dialects...>()(
+        &getElementTypeOrSelf(type).getDialect());
+  };
+  if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+    return llvm::any_of(funcOp.getArgumentTypes(), predicate);
+  }
+  return llvm::any_of(op->getRegions(), [&](Region& region) {
+    return llvm::any_of(region.getBlocks(), [&](Block& block) {
+      return llvm::any_of(block.getArguments(), [&](BlockArgument arg) {
+        return predicate(arg.getType());
+      });
+    });
+  });
 }
 
 // A helper to iterate over the space of indices of a multidimensional tensor
