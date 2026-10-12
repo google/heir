@@ -1,6 +1,7 @@
 // RUN: heir-opt %s --populate-scale-ckks | FileCheck %s
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
+  // CHECK: func.func @mul
   func.func @mul(%arg0: !secret.secret<f32>) -> !secret.secret<f32> {
     %0 = secret.generic(%arg0 : !secret.secret<f32> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 45>}) {
     ^body(%input0: f32):

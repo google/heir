@@ -193,7 +193,8 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
                          : ckks::CKKSEncryptionType::sk,
             encryptionTechniqueExtended
                 ? ckks::CKKSEncryptionTechnique::extended
-                : ckks::CKKSEncryptionTechnique::standard));
+                : ckks::CKKSEncryptionTechnique::standard,
+            /*moduliPerLevel=*/nullptr));
   }
 };
 

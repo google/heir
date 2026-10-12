@@ -115,3 +115,15 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
     return %ct_2 : !ct_L1_
   }
 }
+
+// -----
+
+// expected-error@+1 {{sum of moduliPerLevel (3) must match the number of primes in Q (2)}}
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45, moduliPerLevel = [1, 2]>, scheme.ckks} {
+}
+
+// -----
+
+// expected-error@+1 {{moduliPerLevel entries must be positive, got 0}}
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45, moduliPerLevel = [0, 2]>, scheme.ckks} {
+}
