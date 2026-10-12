@@ -206,7 +206,7 @@ size_t standardChop(SmallVector<APFloat> coeffs, double tol) {
       return coeffs.size();
     }
     APFloat e1 = envelope[j - 1];
-    APFloat e2 = envelope[j2 - 2];
+    APFloat e2 = envelope[j2 - 1];
     double r = 3 * (1 - std::log(e1.convertToDouble()) / std::log(tol));
     if (e1.isZero() || (e2 / e1).convertToDouble() > r) {
       // a plateau has been found: go to Step 3
@@ -250,7 +250,7 @@ size_t standardChop(SmallVector<APFloat> coeffs, double tol) {
   }
   if (j3 < j2) {
     j2 = j3 + 1;
-    envelope[j2] = APFloat(std::pow(tol, 7.0 / 6.0));
+    envelope[j2 - 1] = APFloat(std::pow(tol, 7.0 / 6.0));
   }
 
   SmallVector<double> cc;
