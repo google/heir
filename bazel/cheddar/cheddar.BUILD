@@ -78,3 +78,9 @@ cc_library(
         "@rules_cuda//cuda:runtime",
     ],
 )
+
+filegroup(
+    name = "param_files",
+    srcs = glob(["parameters/*.json"]),
+    visibility = ["//visibility:public"],
+)
