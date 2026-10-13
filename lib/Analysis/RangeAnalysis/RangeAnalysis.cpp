@@ -166,10 +166,11 @@ LogicalResult RangeAnalysis::visitOperation(
 void RangeAnalysis::visitExternalCall(
     CallOpInterface call, ArrayRef<const RangeLattice*> argumentLattices,
     ArrayRef<RangeLattice*> resultLattices) {
-  auto callback = std::bind(&RangeAnalysis::propagateIfChangedWrapper, this,
-                            std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<RangeState, RangeLattice>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 //===----------------------------------------------------------------------===//

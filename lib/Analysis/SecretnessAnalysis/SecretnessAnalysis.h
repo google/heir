@@ -116,10 +116,6 @@ class SecretnessAnalysis
   void visitExternalCall(CallOpInterface call,
                          ArrayRef<const SecretnessLattice*> argumentLattices,
                          ArrayRef<SecretnessLattice*> resultLattices) override;
-
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
-  }
 };
 
 /**

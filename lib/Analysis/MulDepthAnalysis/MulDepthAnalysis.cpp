@@ -103,10 +103,11 @@ LogicalResult MulDepthAnalysis::visitOperation(
 void MulDepthAnalysis::visitExternalCall(
     CallOpInterface call, ArrayRef<const MulDepthLattice*> argumentLattices,
     ArrayRef<MulDepthLattice*> resultLattices) {
-  auto callback = std::bind(&MulDepthAnalysis::propagateIfChangedWrapper, this,
-                            std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<MulDepthState, MulDepthLattice>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 int64_t getMaxMulDepth(Operation* op, DataFlowSolver& solver) {

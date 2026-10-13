@@ -194,10 +194,11 @@ LogicalResult LevelAnalysis::visitOperation(
 void LevelAnalysis::visitExternalCall(
     CallOpInterface call, ArrayRef<const LevelLattice*> argumentLattices,
     ArrayRef<LevelLattice*> resultLattices) {
-  auto callback = std::bind(&LevelAnalysis::propagateIfChangedWrapper, this,
-                            std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<LevelState, LevelLattice>(
-      call, argumentLattices, resultLattices, callback);
+      call, argumentLattices, resultLattices,
+      [this](AnalysisState* state, ChangeResult changed) {
+        this->propagateIfChanged(state, changed);
+      });
 }
 
 //===----------------------------------------------------------------------===//
