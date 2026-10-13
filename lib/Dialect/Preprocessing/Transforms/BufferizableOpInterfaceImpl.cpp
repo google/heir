@@ -51,7 +51,8 @@ struct LoadResourceOpInterface
     if (failed(destination)) return failure();
 
     LoadResourceOp::create(rewriter, op->getLoc(), TypeRange{},
-                           loadResourceOp.getPathAttr(), *destination);
+                           loadResourceOp.getPathAttr(),
+                           loadResourceOp.getDirectory(), *destination);
     bufferization::replaceOpWithBufferizedValues(rewriter, op, *destination);
     return success();
   }

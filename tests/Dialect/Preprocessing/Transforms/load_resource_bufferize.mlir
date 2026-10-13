@@ -26,3 +26,12 @@ func.func @test_write_after_load(%value: i32) -> tensor<4xi32> {
   %updated = tensor.insert %value into %loaded[%index] : tensor<4xi32>
   return %updated : tensor<4xi32>
 }
+
+// CHECK: func.func @test_load_from_directory(%[[DIR:[^:]+]]: !preprocessing.resource_dir) -> memref<4xi32>
+// CHECK: preprocessing.load_resource "some/path.bin" from %[[DIR]] into %{{[^ ]+}} : (!preprocessing.resource_dir, memref<4xi32>) -> ()
+func.func @test_load_from_directory(%dir: !preprocessing.resource_dir) -> tensor<4xi32> {
+  %destination = tensor.empty() : tensor<4xi32>
+  %0 = preprocessing.load_resource "some/path.bin" from %dir into %destination
+      : (!preprocessing.resource_dir, tensor<4xi32>) -> tensor<4xi32>
+  return %0 : tensor<4xi32>
+}

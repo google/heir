@@ -2847,6 +2847,8 @@ struct TranslateOptions {
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
 
 LogicalResult LattigoEmitter::printOperation(preprocessing::LoadResourceOp op) {
+  if (op.getDirectory())
+    return op.emitOpError("resource directories are not supported by Lattigo");
   return success();
 }
 

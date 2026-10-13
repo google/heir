@@ -26,3 +26,13 @@ func.func @static_ok() -> tensor<4xi32> {
       : (tensor<4xi32>) -> tensor<4xi32>
   return %0 : tensor<4xi32>
 }
+
+// -----
+
+// Static shape with directory operand is accepted.
+func.func @static_ok_with_dir(%dir: !preprocessing.resource_dir) -> tensor<4xi32> {
+  %destination = tensor.empty() : tensor<4xi32>
+  %0 = preprocessing.load_resource "p/static.bin" from %dir into %destination
+      : (!preprocessing.resource_dir, tensor<4xi32>) -> tensor<4xi32>
+  return %0 : tensor<4xi32>
+}

@@ -29,4 +29,14 @@ def PreprocessingStorage : Preprocessing_Type<"PreprocessingStorage", "storage">
   let assemblyFormat = "`<` $elementTypes `>`";
 }
 
+def Preprocessing_ResourceDir : Preprocessing_Type<"ResourceDir", "resource_dir"> {
+  let summary = "The directory external resources are loaded from";
+  let description = [{
+    An opaque handle to the directory that `preprocessing.load_resource`
+    resolves its relative path against. `preprocessing-use-dynamic-resource-dir`
+    adds one as a trailing argument to every function that loads resources, so
+    the caller of the public function names the directory at runtime.
+  }];
+}
+
 #endif  // LIB_DIALECT_PREPROCESSING_IR_PREPROCESSINGTYPES_TD_

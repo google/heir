@@ -699,6 +699,8 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
 
 LogicalResult TfheRustEmitter::printOperation(
     ::mlir::heir::preprocessing::LoadResourceOp op) {
+  if (op.getDirectory())
+    return op.emitOpError("resource directories are not supported by tfhe-rs");
   Value resource = op.getLoadedResource();
   Type type = resource.getType();
 

@@ -90,10 +90,13 @@ def Preprocessing_LoadResourceOp : Preprocessing_Op<"load_resource", [
     Tensor results are treated as read-only during bufferization. A later write
     is placed in separate storage.
 
-    This op is inserted by the `externalize-constants` pass.
+    This op is inserted by the `externalize-constants` pass. The optional
+    `directory` operand, added by `preprocessing-use-dynamic-resource-dir`, is the
+    directory `path` is resolved against at runtime.
   }];
   let arguments = (ins
     StrAttr:$path,
+    Optional<Preprocessing_ResourceDir>:$directory,
     AnyTypeOf<[AnyTensor, AnyMemRef]>:$destination
   );
   let results = (outs Variadic<AnyTensor>:$result);
@@ -121,8 +124,10 @@ def Preprocessing_LoadResourceOp : Preprocessing_Op<"load_resource", [
                              ::mlir::SideEffects::DefaultResource::get());
     }
   }];
-  let assemblyFormat =
-      "$path `into` $destination attr-dict `:` functional-type(operands, results)";
+  let assemblyFormat = [{
+    $path (`from` $directory^)? `into` $destination attr-dict
+    `:` functional-type(operands, results)
+  }];
 }
 
 #endif  // LIB_DIALECT_PREPROCESSING_IR_PREPROCESSINGOPS_TD_
