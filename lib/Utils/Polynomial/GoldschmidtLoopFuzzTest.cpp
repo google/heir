@@ -120,6 +120,12 @@ FUZZ_TEST(GoldschmidtLoopFuzzTest, approximatesInverse)
     .WithDomains(fuzztest::InRange(1e-2, 10.0), fuzztest::InRange(1.01, 100.0),
                  fuzztest::InRange<int64_t>(3, 9), fuzztest::InRange(0.0, 1.0));
 
+// Previously hit an out-of-bounds write
+TEST(GoldschmidtLoopFuzzTest, approximatesInverseRegression) {
+  approximatesInverse(0.45195318560823861, 7.5843746959278322, 9,
+                      0.48439147856488718);
+}
+
 }  // namespace
 }  // namespace polynomial
 }  // namespace heir
