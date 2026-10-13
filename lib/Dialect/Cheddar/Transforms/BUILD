@@ -56,6 +56,34 @@ add_heir_transforms(
     td_file = "FuseOps.td",
 )
 
+cc_library(
+    name = "ConfigureCryptoContext",
+    srcs = ["ConfigureCryptoContext.cpp"],
+    hdrs = ["ConfigureCryptoContext.h"],
+    deps = [
+        ":configure_crypto_context_inc_gen",
+        "@heir//lib/Analysis/RotationAnalysis",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/Cheddar/IR:Dialect",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:TransformUtils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+add_heir_transforms(
+    generated_target_name = "configure_crypto_context_inc_gen",
+    header_filename = "ConfigureCryptoContext.h.inc",
+    pass_name = "ConfigureCryptoContext",
+    td_file = "ConfigureCryptoContext.td",
+)
+
 gentbl_cc_library(
     name = "fuse_ops_rewriters_inc_gen",
     tbl_outs = {"FuseOpsPatterns.cpp.inc": ["-gen-rewriters"]},

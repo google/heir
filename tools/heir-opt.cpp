@@ -20,6 +20,7 @@
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
 #include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Cheddar/Transforms/CheddarBufferize.h"
+#include "lib/Dialect/Cheddar/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Cheddar/Transforms/FuseOps.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
@@ -393,6 +394,7 @@ int main(int argc, char** argv) {
       "Bufferize cheddar programs into out-params with One-Shot Bufferize",
       cheddar::buildCheddarBufferizationPipeline);
   cheddar::registerCheddarFuseOpsPasses();
+  cheddar::registerConfigureCryptoContext();
   kernel::registerKernelPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();

@@ -10,7 +10,7 @@
 func.func @test_make_parameter() -> !cheddar.parameter {
   // CHECK: cheddar.make_parameter
   // CHECK-SAME: logN = 14
-  %p = cheddar.make_parameter <logN = 14 : i64, logScale = 45 : i64, mainPrimes = [1, 2, 3], auxPrimes = [4, 5]> : !cheddar.parameter
+  %p = cheddar.make_parameter <logN = 14, logScale = 45, mainPrimes = [1, 2, 3], auxPrimes = [4, 5]> : !cheddar.parameter
   return %p : !cheddar.parameter
 }
 

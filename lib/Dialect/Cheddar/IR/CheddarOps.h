@@ -2,6 +2,7 @@
 #define LIB_DIALECT_CHEDDAR_IR_CHEDDAROPS_H_
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/Cheddar/IR/CheddarAttributes.h"
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
 #include "lib/Dialect/Cheddar/IR/CheddarTypes.h"
 #include "lib/Dialect/HEIRInterfaces.h"
