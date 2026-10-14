@@ -1,0 +1,19 @@
+{
+  "logN": 12,
+  "Q": [
+    553648129,
+    70368744161281,
+    70368744177665,
+    70368744210433
+  ],
+  "P": [
+    1152921504606994433
+  ],
+  "logDefaultScale": 45,
+  "encryptionType": "sk",
+  "encryptionTechnique": "extended",
+  "moduliPerLevel": [
+    2,
+    2
+  ]
+}

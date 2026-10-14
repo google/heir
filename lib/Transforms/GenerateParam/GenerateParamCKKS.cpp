@@ -103,6 +103,57 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
   void runOnOperation() override {
     LDBG() << "Starting generate-param-ckks pass";
 
+    std::optional<int> maxLevel = getMaxLevel(getOperation());
+    LDBG() << "Max level identified as " << maxLevel;
+
+    if (!parameterFile.empty()) {
+      if (getOperation()->hasAttr(ckks::CKKSDialect::kSchemeParamAttrName)) {
+        getOperation()->emitOpError()
+            << "cannot specify parameter-file when module already has "
+               "ckks.scheme_param attribute";
+        signalPassFailure();
+        return;
+      }
+      auto loadedAttr = ckks::loadSchemeParamAttrFromFile(
+          &getContext(), parameterFile,
+          [&]() { return getOperation()->emitError(); });
+      if (failed(loadedAttr)) {
+        signalPassFailure();
+        return;
+      }
+      OpBuilder builder(&getContext());
+      getOperation()->setAttr(kRequestedSlotCountAttrName,
+                              builder.getI64IntegerAttr(minSlotCount));
+      getOperation()->setAttr(
+          kActualSlotCountAttrName,
+          builder.getI64IntegerAttr(1LL << (loadedAttr->getLogN() - 1)));
+      getOperation()->setAttr(ckks::CKKSDialect::kSchemeParamAttrName,
+                              *loadedAttr);
+    }
+
+    if (auto schemeParamAttr =
+            getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
+                ckks::CKKSDialect::kSchemeParamAttrName)) {
+      // TODO: put this in validate-noise once CKKS noise model is in
+      auto schemeParam = ckks::getSchemeParamFromAttr(schemeParamAttr);
+      if (schemeParam.getLevel() < maxLevel.value_or(0)) {
+        getOperation()->emitOpError()
+            << "The level in the scheme param is smaller than the max level.\n";
+        signalPassFailure();
+        return;
+      }
+      if (schemeParam.getRingDim() / 2 < minSlotCount) {
+        getOperation()->emitOpError()
+            << "The slot count in the scheme param ("
+            << (schemeParam.getRingDim() / 2)
+            << ") is smaller than the minimum slot count ("
+            << static_cast<int>(minSlotCount) << ").\n";
+        signalPassFailure();
+        return;
+      }
+      return;
+    }
+
     if (firstModBits == 0 || validateFirstModBits) {
       auto extraBits = getExtraBitsForLevel0();
       if (!extraBits.has_value()) {
@@ -126,23 +177,6 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       }
     }
     LDBG() << "First modulus finalized as having " << firstModBits << " bits";
-
-    std::optional<int> maxLevel = getMaxLevel(getOperation());
-    LDBG() << "Max level identified as " << maxLevel;
-
-    if (auto schemeParamAttr =
-            getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
-                ckks::CKKSDialect::kSchemeParamAttrName)) {
-      // TODO: put this in validate-noise once CKKS noise model is in
-      auto schemeParam = ckks::getSchemeParamFromAttr(schemeParamAttr);
-      if (schemeParam.getLevel() < maxLevel.value_or(0)) {
-        getOperation()->emitOpError()
-            << "The level in the scheme param is smaller than the max level.\n";
-        signalPassFailure();
-        return;
-      }
-      return;
-    }
 
     // The data occupies minSlotCount slots regardless of how large the ring
     // has to be, so the layouts' packing width is recorded before any bump

@@ -3,11 +3,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Parameters/RLWEParams.h"
+#include "llvm/include/llvm/Support/MemoryBuffer.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/SourceMgr.h"      // from @llvm-project
+#include "llvm/include/llvm/Support/YAMLTraits.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
@@ -101,6 +105,119 @@ SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr) {
       RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl,
                       usePublicKey, encryptionTechniqueExtended),
       logDefaultScale);
+}
+
+struct YamlCKKSSchemeParam {
+  int logN = 0;
+  std::vector<int64_t> Q;
+  std::vector<int64_t> P;
+  int logDefaultScale = 0;
+  mlir::heir::ckks::CKKSEncryptionType encryptionType =
+      mlir::heir::ckks::CKKSEncryptionType::pk;
+  mlir::heir::ckks::CKKSEncryptionTechnique encryptionTechnique =
+      mlir::heir::ckks::CKKSEncryptionTechnique::standard;
+  std::vector<int32_t> moduliPerLevel;
+};
+
+}  // namespace ckks
+}  // namespace heir
+}  // namespace mlir
+
+namespace llvm {
+namespace yaml {
+
+template <>
+struct ScalarEnumerationTraits<mlir::heir::ckks::CKKSEncryptionType> {
+  static void enumeration(IO& io, mlir::heir::ckks::CKKSEncryptionType& val) {
+    io.enumCase(val, "pk", mlir::heir::ckks::CKKSEncryptionType::pk);
+    io.enumCase(val, "sk", mlir::heir::ckks::CKKSEncryptionType::sk);
+  }
+};
+
+template <>
+struct ScalarEnumerationTraits<mlir::heir::ckks::CKKSEncryptionTechnique> {
+  static void enumeration(IO& io,
+                          mlir::heir::ckks::CKKSEncryptionTechnique& val) {
+    io.enumCase(val, "standard",
+                mlir::heir::ckks::CKKSEncryptionTechnique::standard);
+    io.enumCase(val, "extended",
+                mlir::heir::ckks::CKKSEncryptionTechnique::extended);
+  }
+};
+
+template <>
+struct MappingTraits<mlir::heir::ckks::YamlCKKSSchemeParam> {
+  static void mapping(IO& io, mlir::heir::ckks::YamlCKKSSchemeParam& params) {
+    io.mapRequired("logN", params.logN);
+    io.mapRequired("Q", params.Q);
+    io.mapRequired("P", params.P);
+    io.mapRequired("logDefaultScale", params.logDefaultScale);
+    io.mapOptional("encryptionType", params.encryptionType,
+                   mlir::heir::ckks::CKKSEncryptionType::pk);
+    io.mapOptional("encryptionTechnique", params.encryptionTechnique,
+                   mlir::heir::ckks::CKKSEncryptionTechnique::standard);
+    io.mapOptional("moduliPerLevel", params.moduliPerLevel);
+  }
+};
+
+}  // namespace yaml
+}  // namespace llvm
+
+namespace mlir {
+namespace heir {
+namespace ckks {
+
+FailureOr<SchemeParamAttr> parseSchemeParamAttrFromYaml(
+    MLIRContext* context, llvm::StringRef yamlStr,
+    llvm::function_ref<InFlightDiagnostic()> emitError) {
+  std::string diagMsg;
+  auto diagHandler = [](const llvm::SMDiagnostic& diag, void* context) {
+    auto* msg = static_cast<std::string*>(context);
+    if (!msg->empty()) *msg += "\n";
+    *msg += diag.getMessage().str();
+  };
+
+  llvm::yaml::Input yin(yamlStr, /*Ctxt=*/nullptr, diagHandler, &diagMsg);
+  YamlCKKSSchemeParam params;
+  yin >> params;
+  if (yin.error()) {
+    emitError() << "failed to parse CKKS parameter YAML: "
+                << (diagMsg.empty() ? yin.error().message() : diagMsg);
+    return failure();
+  }
+
+  if (params.logN <= 0) {
+    emitError() << "logN must be positive, got " << params.logN;
+    return failure();
+  }
+
+  DenseI64ArrayAttr qAttr = DenseI64ArrayAttr::get(context, params.Q);
+  DenseI64ArrayAttr pAttr = DenseI64ArrayAttr::get(context, params.P);
+  DenseI32ArrayAttr moduliPerLevelAttr =
+      params.moduliPerLevel.empty()
+          ? DenseI32ArrayAttr()
+          : DenseI32ArrayAttr::get(context, params.moduliPerLevel);
+
+  auto attr = SchemeParamAttr::getChecked(
+      emitError, context, params.logN, qAttr, pAttr, params.logDefaultScale,
+      params.encryptionType, params.encryptionTechnique, moduliPerLevelAttr);
+  if (!attr) {
+    return failure();
+  }
+  return attr;
+}
+
+FailureOr<SchemeParamAttr> loadSchemeParamAttrFromFile(
+    MLIRContext* context, llvm::StringRef filename,
+    llvm::function_ref<InFlightDiagnostic()> emitError) {
+  auto buffer = llvm::MemoryBuffer::getFile(filename);
+  if (!buffer) {
+    emitError() << "cannot read CKKS parameter file " << filename << ": "
+                << buffer.getError().message();
+    return failure();
+  }
+  return parseSchemeParamAttrFromYaml(context, (*buffer)->getBuffer(),
+                                      emitError);
 }
 
 }  // namespace ckks

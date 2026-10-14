@@ -498,6 +498,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       generateParamOptions.scalingModBits = options.scalingModBits;
       generateParamOptions.minSlotCount = options.minSlotCount;
       generateParamOptions.usePublicKey = options.usePublicKey;
+      generateParamOptions.parameterFile = options.parameterFile;
       pm.addPass(createGenerateParamCKKS(generateParamOptions));
 
       PopulateScaleCKKSOptions populateScaleCKKSOptions;
@@ -744,6 +745,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.plaintextExecutionResultFileName =
       options.plaintextExecutionResultFileName;
   suboptions.codegenStrategy = options.codegenStrategy;
+  suboptions.parameterFile = options.parameterFile;
 
   mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
                                                                 suboptions);

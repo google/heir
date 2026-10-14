@@ -73,6 +73,12 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       *this, "scaling-mod-bits",
       llvm::cl::desc("The number of bits in the scaling modulus for CKKS"),
       llvm::cl::init(45)};
+  PassOptions::Option<std::string> parameterFile{
+      *this, "parameter-file",
+      llvm::cl::desc(
+          "Path to a YAML or JSON file containing static CKKS scheme "
+          "parameters"),
+      llvm::cl::init("")};
   PassOptions::Option<int> bfvModBits{
       *this, "bfv-mod-bits",
       llvm::cl::desc("The number of bits for all moduli for B/FV"),
