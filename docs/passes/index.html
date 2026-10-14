@@ -13,7 +13,7 @@ This pass rewrites activation patterns, such as ReLU implemented as a select and
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
 func.func @relu(%arg0: f32) -> f32 { %cst_0 = arith.constant 0.000000e+00 : f32 %0 = arith.cmpf ugt, %arg0, %cst_0 : f32 %1 = arith.select %0, %arg0, %cst_0 : f32 return %1 : f32 } Output:
-module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="30160"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
+module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="30180"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
 This pass rewrites activation patterns, such as ReLU implemented as a select and compare, to simpler operations like min/max.
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
@@ -1270,6 +1270,7 @@ factor.</p><h4 id=example-23>Example</h4><p>Command: <code>heir-opt --generate-p
 -encryption-technique-extended : If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)
 -input-range                   : The range of the plaintexts for input ciphertexts for the CKKS scheme; default to [-1, 1]. For other ranges like [-D, D], use D.
 -reduced-error                 : If true, uses the prime selection logic in Reduced Error paper (https://eprint.iacr.org/2020/1118).
+-parameter-file                : Path to a YAML or JSON file containing static CKKS scheme parameters to load instead of generating parameters.
 </code></pre><h3 id=-ilp-bootstrap-placement><code>-ilp-bootstrap-placement</code></h3><p><em>Optimize placement of bootstrap ops using ILP</em></p><p>This pass uses an integer linear program to determine feasible levels
 and Orbit-style scales for each term in the MLIR, and thus the
 placement of mod-down, rescale, upscale, and bootstrap operations.</p><p>The pass runs on
