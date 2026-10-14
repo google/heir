@@ -11,7 +11,10 @@ def Cheddar_Dialect : Dialect {
     CHEDDAR GPU FHE library API.
 
     CHEDDAR is a CKKS-only GPU-accelerated FHE library. It supports both 32-bit
-    and 64-bit word types, with 32-bit being the primary fast path on GPUs.
+    and 64-bit word types, with 32-bit being the primary fast path on GPUs; the
+    lowering currently fixes `word = uint64_t`.
+
+    `--cheddar-to-emitc` lowers this dialect to EmitC against CHEDDAR's API.
 
     See [the Cheddar GitHub repository](https://github.com/scale-snu/cheddar-fhe)
   }];

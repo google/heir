@@ -1,6 +1,7 @@
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToEmitC/ToEmitCInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
@@ -32,6 +33,12 @@ void CheddarDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/Cheddar/IR/CheddarOps.cpp.inc"
       >();
+
+  // The actual interface implementation is attached as an external model by
+  // `registerCheddarConvertToEmitCInterface` (see CheddarToEmitC), so that the
+  // dialect library doesn't depend on the conversion library.
+  declarePromisedInterface<mlir::ConvertToEmitCPatternInterface,
+                           CheddarDialect>();
 }
 
 }  // namespace cheddar
