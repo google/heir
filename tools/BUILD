@@ -250,6 +250,7 @@ cc_binary(
         "@heir//lib/Target/TfheRustHL:TfheRustHLEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:TargetCpp",
         "@llvm-project//mlir:TranslateLib",
     ],
 )
@@ -326,6 +327,16 @@ bzl_library(
 bzl_library(
     name = "heir_openfhe_bzl",
     srcs = ["heir-openfhe.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":heir_opt_bzl",
+        ":heir_translate_bzl",
+    ],
+)
+
+bzl_library(
+    name = "heir_cheddar_bzl",
+    srcs = ["heir-cheddar.bzl"],
     visibility = ["//visibility:public"],
     deps = [
         ":heir_opt_bzl",
