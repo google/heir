@@ -88,6 +88,7 @@ using tensor::CollapseShapeOp;
 using tensor::ExpandShapeOp;
 using tensor::InsertOp;
 using tensor_ext::AssignLayoutOp;
+using tensor_ext::BroadcastedReduceOp;
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
 
@@ -281,6 +282,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(TransposeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
+  LogicalResult visitOperation(BroadcastedReduceOp op);
   LogicalResult visitOperation(Conv1DOp op);
   LogicalResult visitOperation(Conv1DNcwFcwOp op);
   LogicalResult visitOperation(Conv2DOp op);
@@ -486,7 +488,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // tensor ops
       .Case<tensor::ExtractOp, tensor::InsertOp, tensor::InsertSliceOp,
             tensor::ExtractSliceOp, tensor::PadOp, CollapseShapeOp,
-            ExpandShapeOp>([&](auto op) { return visitOperation(op); })
+            ExpandShapeOp, BroadcastedReduceOp>(
+          [&](auto op) { return visitOperation(op); })
       // AddI, AddF, mgmt.* all pass the layout through unchanged.
       .Default([&](Operation* op) {
         passLayoutThroughOp(op);
@@ -1780,6 +1783,36 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
     assignedLayouts.insert({result, resultLayout});
     debugAssignLayout(result, resultLayout);
   }
+  setResultLayoutAttr(op);
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(BroadcastedReduceOp op) {
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+  builder.setInsertionPoint(op);
+
+  Value tensor = op.getTensor();
+  LayoutAttr thisLayout = getComposedLayoutAttr(tensor);
+
+  // enforce row-major layout
+  RankedTensorType thisType = cast<RankedTensorType>(tensor.getType());
+  if (!isRelationRowMajor(thisType, minSlotCount,
+                          thisLayout.getIntegerRelation())) {
+    LLVM_DEBUG(llvm::dbgs() << "BroadcastedReduceOp tensor is not row major\n");
+    auto [toReplace, newLayoutAttr] =
+        convertToLayout(ctx, builder, op, tensor, thisLayout,
+                        getRowMajorLayoutRelation(thisType, minSlotCount));
+    debugAssignLayout(toReplace, newLayoutAttr);
+    assignedLayouts.insert({toReplace, newLayoutAttr});
+    thisLayout = newLayoutAttr;
+  }
+
+  // propagate layout to output (layout-preserving)
+  Value result = op.getOutput();
+  assignedLayouts.insert({result, thisLayout});
+  debugAssignLayout(result, thisLayout);
+
   setResultLayoutAttr(op);
   return success();
 }
