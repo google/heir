@@ -79,20 +79,26 @@ def AnnotatePlaintextLevel : Pass<"lwe-annotate-plaintext-level", "mlir::ModuleO
     Backends allocate a plaintext at the top of the modulus chain unless told
     otherwise, but encoding cost is dominated by per-RNS-limb work, so a
     plaintext only ever combined with a level 3 ciphertext is cheaper to encode
-    with 4 limbs than with all of them. For a ct-pt op the result is unchanged
-    either way: combining a ciphertext and a plaintext yields the lower of the
-    two levels, so annotating with the *highest* level among such uses is the
-    smallest choice that serves them all.
+    with 4 limbs than with all of them.
 
-    `lwe.rlwe_encrypt` is not a ct-pt op and does not follow that rule. It has
-    no ciphertext operand to be clamped against, so the backend builds the
-    ciphertext at the plaintext's own level and the annotation is exact rather
-    than a lower bound. Annotating an encryption therefore changes what the
-    client emits, not just how many limbs it encodes: where the entry level sits
-    below the top of the chain, the ciphertext now enters at the level its type
-    declares instead of at `MaxLevel`. A plaintext that both feeds an encryption
-    and is combined with a higher-level ciphertext has no correct level, and is
-    left to the fallback.
+    For backends that combine a ciphertext and plaintext at the lower operand
+    level, the result is unchanged either way: combining a ciphertext and a
+    plaintext yields the lower of the two levels, so annotating with the
+    *highest* level among such uses is the smallest choice that serves them
+    all. For backends that require the ciphertext and plaintext operands of a
+    ct-pt op to be at the exact same level (e.g. Cheddar), a plaintext shared
+    across operations at different levels cannot be annotated with a single
+    level that satisfies every use, and the pass signals failure.
+
+    `lwe.rlwe_encrypt` is not a ct-pt op and has no ciphertext operand to be
+    clamped against, so the backend builds the ciphertext at the plaintext's
+    own level and the annotation is exact rather than a lower bound. Annotating
+    an encryption therefore changes what the client emits, not just how many
+    limbs it encodes: where the entry level sits below the top of the chain,
+    the ciphertext now enters at the level its type declares instead of at
+    `MaxLevel`. A plaintext that both feeds an encryption and is combined with
+    a higher-level ciphertext has no correct level, and is left to the
+    fallback.
 
     Run this after CSE. Identical encode ops that CSE has merged are cheaper as
     one plaintext at the highest level than as several at their own levels,
