@@ -4,12 +4,14 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordOps.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordTypes.h"
+#include "lib/Dialect/JaxiteWord/IR/LevelUtils.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
@@ -31,8 +33,12 @@ namespace mlir {
 namespace heir {
 namespace jaxiteword {
 
+constexpr double kDefaultScalingFactor = 563019763943521.0;
+
 struct Config {
   SmallVector<int64_t> rotIndices;
+  SmallVector<int64_t> rotationRequirementIndices;
+  SmallVector<int64_t> rotationLevelOffsets;
   int64_t degree;
   int64_t numSlots;
   double scalingFactor;
@@ -54,16 +60,27 @@ struct ConfigureCryptoContext
  private:
   Config config;
 
-  SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
+  void findAllRotationRequirements(func::FuncOp op) {
     std::set<int64_t> distinctRotIndices;
+    std::set<std::pair<int64_t, int64_t>> distinctRequirements;
     walkFuncAndCallees(op, [&](Operation* op) {
       if (auto rotOp = dyn_cast<jaxiteword::RotOp>(op)) {
         distinctRotIndices.insert(rotOp.getIndex());
+        distinctRequirements.insert(
+            {getCrossLevelOffset(rotOp.getCiphertext(), rotOp,
+                                 /*extraOffset=*/0),
+             rotOp.getIndex()});
       }
       return WalkResult::advance();
     });
-    return SmallVector<int64_t>(distinctRotIndices.begin(),
-                                distinctRotIndices.end());
+    config.rotIndices.assign(distinctRotIndices.begin(),
+                             distinctRotIndices.end());
+    config.rotationLevelOffsets.clear();
+    config.rotationRequirementIndices.clear();
+    for (auto [levelOffset, index] : distinctRequirements) {
+      config.rotationLevelOffsets.push_back(levelOffset);
+      config.rotationRequirementIndices.push_back(index);
+    }
   }
 
   LogicalResult generateGenFunc(func::FuncOp op, const std::string& genFuncName,
@@ -120,6 +137,10 @@ struct ConfigureCryptoContext
     ProgramInitializationOp::create(builder, cryptoContext, publicKey,
                                     secretKey, evaluationKey,
                                     /*totalRotationIndices=*/config.rotIndices,
+                                    /*rotationRequirementIndices=*/
+                                    config.rotationRequirementIndices,
+                                    /*rotationLevelOffsets=*/
+                                    config.rotationLevelOffsets,
                                     /*dnum=*/config.dnum,
                                     /*r=*/config.r,
                                     /*c=*/config.c,
@@ -159,7 +180,8 @@ struct ConfigureCryptoContext
 
     config.degree = 0;
     config.numSlots = 0;
-    config.scalingFactor = scalingFactor;
+    config.scalingFactor =
+        scalingFactor > 0.0 ? scalingFactor : kDefaultScalingFactor;
     config.qTowers = {};
     config.pTowers = {};
 
@@ -168,8 +190,10 @@ struct ConfigureCryptoContext
       int logN = schemeParamAttr.getLogN();
       config.degree = 1 << logN;
       config.numSlots = 1 << (logN - 1);
-      config.scalingFactor =
-          std::pow(2.0, schemeParamAttr.getLogDefaultScale());
+      if (scalingFactor <= 0.0) {
+        config.scalingFactor =
+            std::pow(2.0, schemeParamAttr.getLogDefaultScale());
+      }
 
       auto qArr = schemeParamAttr.getQ().asArrayRef();
       config.qTowers.assign(qArr.begin(), qArr.end());
@@ -180,7 +204,7 @@ struct ConfigureCryptoContext
       module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
 
-    config.rotIndices = findAllRotIndices(op);
+    findAllRotationRequirements(op);
 
     config.dnum = dnum;
     config.batch = batch;
