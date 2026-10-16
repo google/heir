@@ -13,7 +13,7 @@ This pass rewrites activation patterns, such as ReLU implemented as a select and
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
 func.func @relu(%arg0: f32) -> f32 { %cst_0 = arith.constant 0.000000e+00 : f32 %0 = arith.cmpf ugt, %arg0, %cst_0 : f32 %1 = arith.select %0, %arg0, %cst_0 : f32 return %1 : f32 } Output:
-module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="30302"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
+module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="30351"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
 This pass rewrites activation patterns, such as ReLU implemented as a select and compare, to simpler operations like min/max.
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
@@ -1849,18 +1849,22 @@ plaintext is used at, found by walking forward from the encode op through
 plaintext-typed values.</p><p>Backends allocate a plaintext at the top of the modulus chain unless told
 otherwise, but encoding cost is dominated by per-RNS-limb work, so a
 plaintext only ever combined with a level 3 ciphertext is cheaper to encode
-with 4 limbs than with all of them. For a ct-pt op the result is unchanged
-either way: combining a ciphertext and a plaintext yields the lower of the
-two levels, so annotating with the <em>highest</em> level among such uses is the
-smallest choice that serves them all.</p><p><code>lwe.rlwe_encrypt</code> is not a ct-pt op and does not follow that rule. It has
-no ciphertext operand to be clamped against, so the backend builds the
-ciphertext at the plaintext&rsquo;s own level and the annotation is exact rather
-than a lower bound. Annotating an encryption therefore changes what the
-client emits, not just how many limbs it encodes: where the entry level sits
-below the top of the chain, the ciphertext now enters at the level its type
-declares instead of at <code>MaxLevel</code>. A plaintext that both feeds an encryption
-and is combined with a higher-level ciphertext has no correct level, and is
-left to the fallback.</p><p>Run this after CSE. Identical encode ops that CSE has merged are cheaper as
+with 4 limbs than with all of them.</p><p>For backends that combine a ciphertext and plaintext at the lower operand
+level, the result is unchanged either way: combining a ciphertext and a
+plaintext yields the lower of the two levels, so annotating with the
+<em>highest</em> level among such uses is the smallest choice that serves them
+all. For backends that require the ciphertext and plaintext operands of a
+ct-pt op to be at the exact same level (e.g. Cheddar), a plaintext shared
+across operations at different levels cannot be annotated with a single
+level that satisfies every use, and the pass signals failure.</p><p><code>lwe.rlwe_encrypt</code> is not a ct-pt op and has no ciphertext operand to be
+clamped against, so the backend builds the ciphertext at the plaintext&rsquo;s
+own level and the annotation is exact rather than a lower bound. Annotating
+an encryption therefore changes what the client emits, not just how many
+limbs it encodes: where the entry level sits below the top of the chain,
+the ciphertext now enters at the level its type declares instead of at
+<code>MaxLevel</code>. A plaintext that both feeds an encryption and is combined with
+a higher-level ciphertext has no correct level, and is left to the
+fallback.</p><p>Run this after CSE. Identical encode ops that CSE has merged are cheaper as
 one plaintext at the highest level than as several at their own levels,
 since each encode pays a fixed cost on top of the per-limb work.</p><h4 id=example-31>Example</h4><p>Command: <code>heir-opt --lwe-annotate-plaintext-level --split-input-file tests/Dialect/LWE/Transforms/annotate_plaintext_level.mlir</code></p><p>Input:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#000;font-weight:700>!</span><span style=color:#f57900>Z1005037682689_i64_ =</span> <span style=color:#000;font-weight:700>!</span>mod_arith<span style=color:#000;font-weight:700>.</span>int<span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>1005037682689</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i64</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>!</span><span style=color:#f57900>Z1032955396097_i64_ =</span> <span style=color:#000;font-weight:700>!</span>mod_arith<span style=color:#000;font-weight:700>.</span>int<span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>1032955396097</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i64</span><span style=color:#000;font-weight:700>&gt;</span>
