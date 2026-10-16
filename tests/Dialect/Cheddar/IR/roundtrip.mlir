@@ -401,3 +401,38 @@ func.func @test_eval_poly(
   %result = cheddar.eval_poly %ctx, %ct, %evk, %out <coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 5 : i64, outputLevel = 4 : i64> : (!cheddar.context, tensor<!cheddar.ciphertext>, !cheddar.evk_map, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
+
+// CHECK: @test_parameter_set_attr
+// CHECK-SAME: #cheddar.parameter_set<logN = 16, logScale = 35, mainPrimes = [1060765697, 1209139201], auxPrimes = [2147352577, 2146959361], terminalPrimes = [30539777], levelConfig = [1, 0, 2, 0], wordBits = 32, defaultEncryptionLevel = 1, additionalBase = [0, 0], denseHammingWeight = 32768, sparseHammingWeight = 32, numCtsLevels = 4, numStcLevels = 3>
+func.func @test_parameter_set_attr() attributes {
+  param = #cheddar.parameter_set<
+    logN = 16,
+    logScale = 35,
+    mainPrimes = [1060765697, 1209139201],
+    auxPrimes = [2147352577, 2146959361],
+    terminalPrimes = [30539777],
+    levelConfig = [1, 0, 2, 0],
+    wordBits = 32,
+    defaultEncryptionLevel = 1,
+    additionalBase = [0, 0],
+    denseHammingWeight = 32768,
+    sparseHammingWeight = 32,
+    numCtsLevels = 4,
+    numStcLevels = 3
+  >
+} {
+  return
+}
+
+// CHECK: @test_minimal_parameter_set_attr
+// CHECK-SAME: #cheddar.parameter_set<logN = 14, logScale = 40, mainPrimes = [1000], auxPrimes = [2000]>
+func.func @test_minimal_parameter_set_attr() attributes {
+  param = #cheddar.parameter_set<
+    logN = 14,
+    logScale = 40,
+    mainPrimes = [1000],
+    auxPrimes = [2000]
+  >
+} {
+  return
+}
