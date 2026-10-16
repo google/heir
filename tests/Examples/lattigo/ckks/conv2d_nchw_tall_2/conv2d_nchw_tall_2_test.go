@@ -3,6 +3,8 @@ package conv2dnchwtall2
 import (
 	"math"
 	"testing"
+
+	"tests/Examples/lattigo/ckks/conv2d_nchw_tall_2/conv2dnchwtall2_utils"
 )
 
 func TestConv2D(t *testing.T) {
@@ -23,8 +25,8 @@ func TestConv2D(t *testing.T) {
 	}
 
 	ct0 := Conv2d_nchw__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ctZeros := Conv2d_nchw__encrypt__zeros(evaluator, params, ecd, enc)
-	resultCt := Conv2d_nchw(evaluator, params, ecd, ct0, ctZeros)
+	linearTransforms, filterPlains := conv2dnchwtall2_utils.Conv2d_nchw__preprocessing(params, ecd)
+	resultCt := Conv2d_nchw__preprocessed(evaluator, params, ecd, ct0, linearTransforms, filterPlains)
 	result := Conv2d_nchw__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.5)
 	for i := 0; i < 128; i++ {
