@@ -12,6 +12,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "conv2d_nchw_channel_padding.mlir",
+    split_preprocessing = True,
 )
 
 go_test(
