@@ -29,6 +29,13 @@ func.func @test_add_plain(%ctx: !jaxiteword.crypto_context<>, %ct : !ct_L2, %pt 
   return %out : !ct_L2
 }
 
+// CHECK: def test_encode_level(
+// CHECK: encode_at_level({{.*}}, {{.*}}.max_level, scale=_rescale_divisor({{.*}}, {{.*}}.max_level))
+func.func @test_encode_level(%ctx: !jaxiteword.crypto_context<>, %input: tensor<8xf64>) -> !pt {
+  %pt = jaxiteword.encode %ctx, %input {rescaleLevel = 1 : i64} : (!jaxiteword.crypto_context<>, tensor<8xf64>) -> !pt
+  return %pt : !pt
+}
+
 // CHECK: def test_sub(
 // CHECK: .he_sub[
 // CHECK-SAME: ].sub(

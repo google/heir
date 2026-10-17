@@ -15,6 +15,15 @@ import numpy as np
 from polynomial import Polynomial
 import ckks_ctx as ckks
 
+def _rescale_divisor(ctx, level):
+  cd = ctx.parameters["composite_degree"]
+  q = ctx.q_towers
+  start = level - cd + 1
+  result = 1
+  for qi in q[start:level + 1]:
+    result *= int(qi)
+  return result
+
 )python";
 
 }  // namespace jaxiteword
