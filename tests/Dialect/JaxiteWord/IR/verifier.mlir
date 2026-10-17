@@ -24,4 +24,24 @@ module {
     %0 = jaxiteword.add_plain %ctx, %ct, %pt : (!jaxiteword.crypto_context<>, !ct_L1, !pt) -> !ct_L0
     return %0 : !ct_L0
   }
+
+  func.func @program_initialization_mismatched_requirements(
+      %ctx: !jaxiteword.crypto_context<>,
+      %pk: !jaxiteword.public_key<>,
+      %sk: !jaxiteword.private_key<>,
+      %ek: !jaxiteword.eval_key<>) {
+    // expected-error@+1 {{requires rotationRequirementIndices and rotationLevelOffsets to have equal lengths}}
+    jaxiteword.program_initialization %ctx, %pk, %sk, %ek {totalRotationIndices = array<i64: 1, 2>, rotationRequirementIndices = array<i64: 1, 2>, rotationLevelOffsets = array<i64: 0>, dnum = 3 : i32, r = 4 : i32, c = 4 : i32, batch = 1 : i32} : (!jaxiteword.crypto_context<>, !jaxiteword.public_key<>, !jaxiteword.private_key<>, !jaxiteword.eval_key<>) -> ()
+    return
+  }
+
+  func.func @program_initialization_negative_offset(
+      %ctx: !jaxiteword.crypto_context<>,
+      %pk: !jaxiteword.public_key<>,
+      %sk: !jaxiteword.private_key<>,
+      %ek: !jaxiteword.eval_key<>) {
+    // expected-error@+1 {{requires nonnegative rotation level offsets}}
+    jaxiteword.program_initialization %ctx, %pk, %sk, %ek {totalRotationIndices = array<i64: 1>, rotationRequirementIndices = array<i64: 1>, rotationLevelOffsets = array<i64: -1>, dnum = 3 : i32, r = 4 : i32, c = 4 : i32, batch = 1 : i32} : (!jaxiteword.crypto_context<>, !jaxiteword.public_key<>, !jaxiteword.private_key<>, !jaxiteword.eval_key<>) -> ()
+    return
+  }
 }
