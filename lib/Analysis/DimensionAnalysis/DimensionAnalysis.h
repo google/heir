@@ -104,10 +104,6 @@ class DimensionAnalysis
   void visitExternalCall(CallOpInterface call,
                          ArrayRef<const DimensionLattice*> argumentLattices,
                          ArrayRef<DimensionLattice*> resultLattices) override;
-
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
-  }
 };
 
 /// Back propagate dimension to plaintext operands.

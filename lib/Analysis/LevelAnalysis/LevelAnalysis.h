@@ -236,10 +236,6 @@ class LevelAnalysis
                          ArrayRef<const LevelLattice*> argumentLattices,
                          ArrayRef<LevelLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
-    propagateIfChanged(state, changed);
-  }
-
  private:
   DataFlowSolver& solverRef;
   int levelBudget;
