@@ -12,6 +12,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "conv1d_ncw_channel_padding.mlir",
+    split_preprocessing = True,
 )
 
 go_test(
@@ -19,4 +20,5 @@ go_test(
     size = "small",
     srcs = ["conv1d_ncw_channel_padding_test.go"],
     embed = [":conv1dncwchannelpadding"],
+    deps = [":conv1dncwchannelpadding_utils"],
 )

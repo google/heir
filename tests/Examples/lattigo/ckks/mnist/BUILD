@@ -12,6 +12,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common/mnist:mnist.mlir",
+    split_preprocessing = True,
 )
 
 go_test(
