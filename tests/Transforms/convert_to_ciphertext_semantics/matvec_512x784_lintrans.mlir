@@ -6,8 +6,8 @@
 // the rotate-and-add halving afterwards.
 //
 // CHECK: @matvec
-// CHECK: tensor_ext.rotate_and_reduce
-// CHECK-SAME: tensor_ext.lintrans
+// CHECK: kernel.linear_transform
+// CHECK-SAME: diagonal_indices
 // CHECK-NOT: scf.for
 // The squat post-reduction: one halving rotate-and-add for 512x1024, then the
 // bias add.

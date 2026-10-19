@@ -1250,10 +1250,6 @@ struct PreserveLinalgMatvecAsLinearTransform
 
     int64_t numDiagonals = convertedMatrixType.getShape()[0];
     int64_t numCols = matrixType.getDimSize(1);
-    if (numDiagonals < numCols) {
-      return rewriter.notifyMatchFailure(
-          op, "requires post-processing (numDiagonals < numCols)");
-    }
 
     int64_t slots = convertedMatrixType.getShape()[1];
     auto elementType = matrixType.getElementType();
@@ -1324,8 +1320,29 @@ struct PreserveLinalgMatvecAsLinearTransform
     setMaterializedAttr(linearTransformOp);
     linearTransformOp->setAttr(kLayoutAttrName, resultLayout.value());
 
-    addBiasAndReplace(rewriter, op, linearTransformOp.getResult(),
-                      adaptor.getOutputs()[0], resultLayout.value());
+    Value transformResult = linearTransformOp.getResult();
+    if (numDiagonals < numCols) {
+      auto transformed = cast<TypedValue<RankedTensorType>>(transformResult);
+      auto leaf = ArithmeticDagNode<SSAValue>::leaf(SSAValue(transformed));
+      auto foldKernel = implementSquatDiagonalFold<SSAValue>(
+          leaf,
+          std::vector<int64_t>(matrixType.getShape().begin(),
+                               matrixType.getShape().end()),
+          kernel::mlirTypeToDagType(transformed.getType()), /*unroll=*/true);
+      if (foldKernel != leaf) {
+        IRMaterializingVisitor visitor(
+            adaptor.getInputs()[1].getType(),
+            [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
+        ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+        transformResult = visitor.process(foldKernel, b)[0];
+        auto* finalOp = transformResult.getDefiningOp();
+        finalOp->setAttr(kLayoutAttrName, resultLayout.value());
+        setMaterializedAttr(finalOp);
+      }
+    }
+
+    addBiasAndReplace(rewriter, op, transformResult, adaptor.getOutputs()[0],
+                      resultLayout.value());
     return success();
   }
 };
