@@ -234,6 +234,7 @@ struct ILPBootstrapPlacement
     analysisOptions.bootstrapLevelLowerBound = bootstrapLevelLowerBound;
     analysisOptions.compress = compress;
     analysisOptions.partitionMinSize = partitionMinSize;
+    analysisOptions.bypassDepthThreshold = bypassDepthThreshold;
     analysisOptions.costModel = effectiveCostModel;
     analysisOptions.scaleMode = scaleConfig.analysisScaleMode();
     ILPBootstrapPlacementAnalysis analysis(genericOp, solver, analysisOptions);
