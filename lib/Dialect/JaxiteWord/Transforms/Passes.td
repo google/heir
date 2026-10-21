@@ -43,4 +43,19 @@ def ConfigureCryptoContext : Pass<"jaxiteword-configure-crypto-context"> {
   ];
 }
 
+def AnnotateEncodeRescaleLevels
+    : Pass<"jaxiteword-annotate-encode-rescale-levels"> {
+  let summary = "Annotate plaintext encodes with the ciphertext level whose rescale consumes them";
+  let description = [{
+    Finds plaintext encodes used by ciphertext-plaintext multiplications whose
+    result is immediately modulus-reduced, and records the input ciphertext's
+    modulus-chain level on the encode. The JaxiteWord emitter uses this to
+    encode plaintext weights at the modulus dropped by the following rescale.
+  }];
+  let dependentDialects = [
+    "mlir::heir::jaxiteword::JaxiteWordDialect",
+    "mlir::heir::lwe::LWEDialect"
+  ];
+}
+
 #endif  // LIB_DIALECT_JAXITEWORD_TRANSFORMS_PASSES_TD_
