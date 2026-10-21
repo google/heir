@@ -162,6 +162,7 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
 
   let dependentDialects = [
     "mlir::heir::ckks::CKKSDialect",
+    "mlir::heir::cheddar::CheddarDialect",
   ];
 
   let options = [

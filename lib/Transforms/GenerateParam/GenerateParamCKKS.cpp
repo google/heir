@@ -8,10 +8,12 @@
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
+#include "lib/Dialect/Cheddar/IR/CheddarAttributes.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/Cheddar/ParameterFile.h"
 #include "lib/Utils/LogArithmetic.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
@@ -27,6 +29,7 @@
 #include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
@@ -107,17 +110,56 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     LDBG() << "Max level identified as " << maxLevel;
 
     if (!parameterFile.empty()) {
-      if (getOperation()->hasAttr(ckks::CKKSDialect::kSchemeParamAttrName)) {
+      if (getOperation()->hasAttr(ckks::CKKSDialect::kSchemeParamAttrName) ||
+          getOperation()->hasAttr(cheddar::kParameterSetAttrName)) {
         getOperation()->emitOpError()
             << "cannot specify parameter-file when module already has "
                "ckks.scheme_param attribute";
         signalPassFailure();
         return;
       }
-      auto loadedAttr = ckks::loadSchemeParamAttrFromFile(
-          &getContext(), parameterFile,
-          [&]() { return getOperation()->emitError(); });
-      if (failed(loadedAttr)) {
+      OpBuilder builder(&getContext());
+      if (moduleIsCheddar(getOperation())) {
+        auto loadedParamSet = cheddar::loadParameterSetFromFile(
+            &getContext(), parameterFile,
+            [&]() { return getOperation()->emitError(); });
+        if (failed(loadedParamSet)) {
+          signalPassFailure();
+          return;
+        }
+        if (failed(cheddar::populateSchemeParamFromParameterSet(
+                cast<ModuleOp>(getOperation()), *loadedParamSet))) {
+          signalPassFailure();
+          return;
+        }
+        getOperation()->setAttr(kRequestedSlotCountAttrName,
+                                builder.getI64IntegerAttr(minSlotCount));
+        getOperation()->setAttr(
+            kActualSlotCountAttrName,
+            builder.getI64IntegerAttr(1LL << (loadedParamSet->getLogN() - 1)));
+      } else {
+        auto loadedAttr = ckks::loadSchemeParamAttrFromFile(
+            &getContext(), parameterFile,
+            [&]() { return getOperation()->emitError(); });
+        if (failed(loadedAttr)) {
+          signalPassFailure();
+          return;
+        }
+        getOperation()->setAttr(kRequestedSlotCountAttrName,
+                                builder.getI64IntegerAttr(minSlotCount));
+        getOperation()->setAttr(
+            kActualSlotCountAttrName,
+            builder.getI64IntegerAttr(1LL << (loadedAttr->getLogN() - 1)));
+        getOperation()->setAttr(ckks::CKKSDialect::kSchemeParamAttrName,
+                                *loadedAttr);
+      }
+    } else if (auto paramSetAttr =
+                   getOperation()->getAttrOfType<cheddar::ParameterSetAttr>(
+                       cheddar::kParameterSetAttrName);
+               paramSetAttr && !getOperation()->hasAttr(
+                                   ckks::CKKSDialect::kSchemeParamAttrName)) {
+      if (failed(cheddar::populateSchemeParamFromParameterSet(
+              cast<ModuleOp>(getOperation()), paramSetAttr))) {
         signalPassFailure();
         return;
       }
@@ -126,9 +168,7 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
                               builder.getI64IntegerAttr(minSlotCount));
       getOperation()->setAttr(
           kActualSlotCountAttrName,
-          builder.getI64IntegerAttr(1LL << (loadedAttr->getLogN() - 1)));
-      getOperation()->setAttr(ckks::CKKSDialect::kSchemeParamAttrName,
-                              *loadedAttr);
+          builder.getI64IntegerAttr(1LL << (paramSetAttr.getLogN() - 1)));
     }
 
     if (auto schemeParamAttr =
