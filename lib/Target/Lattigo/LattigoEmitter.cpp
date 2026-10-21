@@ -2630,7 +2630,7 @@ void LattigoEmitter::printErrPanic(std::string_view errName) {
 LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
                                              ::mlir::ValueRange operands,
                                              std::string_view op, bool err) {
-  std::string errName = getErrName();
+  [[maybe_unused]] std::string errName = getErrName();
   std::string resultName = getName(result);
   if (err) {
     emitAssignmentWithErr(

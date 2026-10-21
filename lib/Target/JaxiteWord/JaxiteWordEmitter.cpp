@@ -402,7 +402,7 @@ LogicalResult JaxiteWordEmitter::printOperation(DecryptOp op) {
   auto ctx = variableNames->getNameForValue(op.getCryptoContext());
   auto sk = variableNames->getNameForValue(op.getSecretKey());
   auto ct = variableNames->getNameForValue(op.getCiphertext());
-  auto result = variableNames->getNameForValue(op.getResult());
+  [[maybe_unused]] auto result = variableNames->getNameForValue(op.getResult());
   os << ctx << ".secret_key = " << sk << "\n";
   emitAssignPrefix(op.getResult());
   os << ctx << ".decrypt(" << ct << ")\n";

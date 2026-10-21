@@ -786,7 +786,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::ExtractOp op) {
 // Need to produce a Vec<&Ciphertext>
 LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
   auto resultType = op.getResult().getType();
-  std::string res = convertType(resultType).value();
+  [[maybe_unused]] std::string res = convertType(resultType).value();
 
   emitAssignPrefix(op.getResult());
 

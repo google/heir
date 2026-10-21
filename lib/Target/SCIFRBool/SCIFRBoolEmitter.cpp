@@ -292,7 +292,7 @@ LogicalResult SCIFRBoolEmitter::printOperation(SectionOp op) {
        << m_oprToStrm[sectionOpResultName].back() << ");\n";
   m_os << "engineBoolean.m_engine->finalizeAndRun();\n";
   for (Value arg : op.getOperands()) {
-    std::string argType = convertType(arg.getType()).value();
+    [[maybe_unused]] std::string argType = convertType(arg.getType()).value();
     std::string argName = getNameForValue(arg);
     if (llvm::isa<RankedTensorType>(arg.getType())) {
       for (auto extractedVal : m_extractedValues[argName]) {
