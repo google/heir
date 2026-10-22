@@ -26,6 +26,7 @@ class RotationAnalysis {
 
  private:
   LogicalResult handleScfFor(scf::ForOp forOp);
+  LogicalResult analyzeRotationOpIfAffine(RotationOpInterface rotationOp);
   LogicalResult analyzeRotationOp(RotationOpInterface rotationOp);
 
   bool wasVisited(RotationOpInterface op) {
