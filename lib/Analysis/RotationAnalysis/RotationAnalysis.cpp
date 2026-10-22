@@ -12,9 +12,9 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Layout/Utils.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"          // from @llvm-project
+#include "lib/Utils/RotationUtils.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
@@ -22,22 +22,22 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
-#include "mlir/include/mlir/Support/WalkResult.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"     // from @llvm-project
 
 #define DEBUG_TYPE "rotation-analysis"
 
@@ -53,7 +53,7 @@ struct LinearExpr {
   DenseMap<Value, int64_t> coeffs;
   int64_t constant = 0;
 };
-}
+}  // namespace
 
 static void accumulate(LinearExpr& dst, const LinearExpr& src, int64_t scale) {
   for (const auto& [value, coeff] : src.coeffs) {
@@ -62,7 +62,7 @@ static void accumulate(LinearExpr& dst, const LinearExpr& src, int64_t scale) {
   dst.constant += scale * src.constant;
 }
 
-/// Decomposes `ofr` into a LinearExpr of non-constant leaf values 
+/// Decomposes `ofr` into a LinearExpr of non-constant leaf values
 static FailureOr<LinearExpr> getLinearExpr(OpFoldResult ofr) {
   LinearExpr expr;
   if (auto cst = getConstantIntValue(ofr)) {
@@ -85,8 +85,7 @@ static FailureOr<LinearExpr> getLinearExpr(OpFoldResult ofr) {
   if (auto subOp = value.getDefiningOp<arith::SubIOp>()) {
     FailureOr<LinearExpr> lhs = getLinearExpr(subOp.getLhs());
     FailureOr<LinearExpr> rhs = getLinearExpr(subOp.getRhs());
-    if (failed(lhs) || failed(rhs)) 
-      return failure();
+    if (failed(lhs) || failed(rhs)) return failure();
     accumulate(expr, *lhs, 1);
     accumulate(expr, *rhs, -1);
     return expr;
@@ -109,7 +108,7 @@ static FailureOr<LinearExpr> getLinearExpr(OpFoldResult ofr) {
 }
 
 static LogicalResult addScfForOpDomain(affine::FlatAffineValueConstraints& cst,
-                                scf::ForOp forOp) {
+                                       scf::ForOp forOp) {
   auto lb = getConstantIntValue(forOp.getLowerBound());
   auto ub = getConstantIntValue(forOp.getUpperBound());
   auto step = getConstantIntValue(forOp.getStep());
@@ -118,7 +117,7 @@ static LogicalResult addScfForOpDomain(affine::FlatAffineValueConstraints& cst,
   Value iv = forOp.getInductionVar();
   unsigned ivPos;
   if (!cst.findVar(iv, &ivPos)) return failure();
-  
+
   // Add lower and upper bound constraints
   cst.addBound(presburger::BoundType::LB, iv, *lb);
   cst.addBound(presburger::BoundType::UB, iv, *ub - 1);
@@ -142,8 +141,7 @@ LogicalResult RotationAnalysis::analyzeRotationOpIfAffine(
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
       op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
   if (!numSlotsAttr) {
-    LDBG() << "Unable to determine the total number of slots "
-           << op;
+    LDBG() << "Unable to determine the total number of slots " << op;
     return failure();
   }
 
@@ -170,7 +168,7 @@ LogicalResult RotationAnalysis::analyzeRotationOpIfAffine(
     }
   }
 
-  // Add constraint for each linearized rotation index 
+  // Add constraint for each linearized rotation index
   unsigned numLoopDims = ivs.size();
   for (OpFoldResult ofr : rotationOp.getRotationIndices()) {
     FailureOr<LinearExpr> linearizedExpr = getLinearExpr(ofr);
@@ -186,7 +184,8 @@ LogicalResult RotationAnalysis::analyzeRotationOpIfAffine(
     for (const auto& [leafValue, coeff] : linearizedExpr->coeffs) {
       unsigned pos;
       if (!cst.findVar(leafValue, &pos)) {
-        LDBG() << "Rotation index depends on a value that is not an scf.for induction variable "
+        LDBG() << "Rotation index depends on a value that is not an scf.for "
+                  "induction variable "
                << leafValue;
         return failure();
       }
