@@ -10,9 +10,46 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":AnnotateEncodeRescaleLevels",
         ":ConfigureCryptoContext",
+        ":OutlineCompiledRegions",
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:LevelUtils",
+    ],
+)
+
+cc_library(
+    name = "OutlineCompiledRegions",
+    srcs = ["OutlineCompiledRegions.cpp"],
+    hdrs = ["OutlineCompiledRegions.h"],
+    deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+    ],
+)
+
+cc_library(
+    name = "AnnotateEncodeRescaleLevels",
+    srcs = ["AnnotateEncodeRescaleLevels.cpp"],
+    hdrs = ["AnnotateEncodeRescaleLevels.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -25,6 +62,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:LevelUtils",
         "@heir//lib/Utils",
         "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",

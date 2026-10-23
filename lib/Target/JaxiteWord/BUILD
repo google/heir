@@ -17,6 +17,7 @@ cc_library(
     deps = [
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:LevelUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
@@ -26,6 +27,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TranslateLib",
