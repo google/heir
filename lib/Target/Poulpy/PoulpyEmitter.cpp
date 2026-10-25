@@ -428,9 +428,8 @@ LogicalResult PoulpyEmitter::printOperation(EncodeOp encodeOp) {
 
 LogicalResult PoulpyEmitter::printOperation(DecodeOp decodeOp) {
   os << variableNames->getNameForValue(decodeOp.getModule())
-     << ".ckks_decode_reim_into("
-     << ref(decodeOp.getPlaintext(), variableNames) << ", "
-     << refMut(decodeOp.getReal(), variableNames) << ", "
+     << ".ckks_decode_reim_into(" << ref(decodeOp.getPlaintext(), variableNames)
+     << ", " << refMut(decodeOp.getReal(), variableNames) << ", "
      << refMut(decodeOp.getImag(), variableNames) << ", &mut "
      << variableNames->getNameForValue(decodeOp.getScratch())
      << ".borrow())?;\n";
