@@ -97,6 +97,142 @@ func.func @mul_assign(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %tsk: !tsk)
   return
 }
 
+// CHECK: pub fn add_pt_vec<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @add_pt_vec(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %pt: !pt) {
+  // CHECK: [[m]].ckks_add_pt_vec_into(&mut *[[dst]], &*[[a]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.add_pt_vec %m, %dst, %a, %pt, %s : (!module, !ct, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn add_pt_vec_assign<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @add_pt_vec_assign(%m: !module, %s: !scratch, %dst: !ct, %pt: !pt) {
+  // CHECK: [[m]].ckks_add_pt_vec_assign(&mut *[[dst]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.add_pt_vec_assign %m, %dst, %pt, %s : (!module, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn sub_pt_vec<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @sub_pt_vec(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %pt: !pt) {
+  // CHECK: [[m]].ckks_sub_pt_vec_into(&mut *[[dst]], &*[[a]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.sub_pt_vec %m, %dst, %a, %pt, %s : (!module, !ct, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn sub_pt_vec_assign<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @sub_pt_vec_assign(%m: !module, %s: !scratch, %dst: !ct, %pt: !pt) {
+  // CHECK: [[m]].ckks_sub_pt_vec_assign(&mut *[[dst]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.sub_pt_vec_assign %m, %dst, %pt, %s : (!module, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn mul_pt_vec<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @mul_pt_vec(%m: !module, %s: !scratch, %dst: !ct, %a: !ct, %pt: !pt) {
+  // CHECK: [[m]].ckks_mul_pt_vec_into(&mut *[[dst]], &*[[a]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.mul_pt_vec %m, %dst, %a, %pt, %s : (!module, !ct, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn mul_pt_vec_assign<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @mul_pt_vec_assign(%m: !module, %s: !scratch, %dst: !ct, %pt: !pt) {
+  // CHECK: [[m]].ckks_mul_pt_vec_assign(&mut *[[dst]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.mul_pt_vec_assign %m, %dst, %pt, %s : (!module, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// The destination is sized from the ciphertext operand, not the plaintext.
+// CHECK: pub fn mul_pt_vec_alloc<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<Ct<BE>> {
+func.func @mul_pt_vec_alloc(%m: !module, %s: !scratch, %a: !ct, %pt: !pt) -> !ct {
+  %dst = memref.alloc() : !ct
+  // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[a]].base2k(), [[a]].max_k());
+  // CHECK-NEXT: [[m]].ckks_mul_pt_vec_into(&mut [[dst]], &*[[a]], &*[[pt]], &mut [[s]].borrow())?;
+  poulpy.mul_pt_vec %m, %dst, %a, %pt, %s : (!module, !ct, !ct, !pt, !scratch) -> ()
+  // CHECK-NEXT: Ok([[dst]])
+  return %dst : !ct
+}
+
+// CHECK: pub fn neg<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @neg(%m: !module, %s: !scratch, %dst: !ct, %src: !ct) {
+  // CHECK: [[m]].ckks_neg_into(&mut *[[dst]], &*[[src]], &mut [[s]].borrow())?;
+  poulpy.neg %m, %dst, %src, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn neg_assign<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @neg_assign(%m: !module, %s: !scratch, %dst: !ct) {
+  // CHECK: [[m]].ckks_neg_assign(&mut *[[dst]])?;
+  poulpy.neg_assign %m, %dst, %s : (!module, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn neg_alloc<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct<BE>
+// CHECK-NEXT: ) -> Result<Ct<BE>> {
+func.func @neg_alloc(%m: !module, %s: !scratch, %src: !ct) -> !ct {
+  %dst = memref.alloc() : !ct
+  // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].max_k());
+  // CHECK-NEXT: [[m]].ckks_neg_into(&mut [[dst]], &*[[src]], &mut [[s]].borrow())?;
+  poulpy.neg %m, %dst, %src, %s : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok([[dst]])
+  return %dst : !ct
+}
+
 // CHECK: pub fn mul_add<BE: PoulpyBackend>(
 // CHECK: [[m:v[0-9]+]]: &Module<BE>
 // CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>

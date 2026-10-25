@@ -86,3 +86,20 @@ func.func @roundtrip(%m: !module, %s: !scratch, %sk: !sk, %re: tensor<4xf64>, %i
   %re_out, %im_out = poulpy.decode %m, %re_empty, %im_empty, %pt2, %s : (!module, tensor<4xf64>, tensor<4xf64>, !pt, !scratch) -> (tensor<4xf64>, tensor<4xf64>)
   return %re_out, %im_out : tensor<4xf64>, tensor<4xf64>
 }
+
+// CHECK: pub fn plain_then_neg<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[a:v[0-9]+]]: &Ct<BE>
+// CHECK: [[pt:v[0-9]+]]: &Pt<BE>
+// CHECK-NEXT: ) -> Result<Ct<BE>> {
+// CHECK-NEXT: let mut [[sum:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[a]].base2k(), [[a]].max_k());
+// CHECK-NEXT: [[m]].ckks_add_pt_vec_into(&mut [[sum]], &*[[a]], &*[[pt]], &mut [[s]].borrow())?;
+// CHECK-NEXT: [[m]].ckks_neg_assign(&mut [[sum]])?;
+// CHECK-NEXT: Ok([[sum]])
+func.func @plain_then_neg(%m: !module, %s: !scratch, %a: !ct, %pt: !pt) -> !ct {
+  %empty = tensor.empty() : !ct
+  %sum = poulpy.add_pt_vec %m, %empty, %a, %pt, %s : (!module, !ct, !ct, !pt, !scratch) -> !ct
+  %negated = poulpy.neg_assign %m, %sum, %s : (!module, !ct, !scratch) -> !ct
+  return %negated : !ct
+}

@@ -77,6 +77,14 @@ class PoulpyEmitter {
   LogicalResult printOperation(SubAssignOp op);
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulAssignOp op);
+  LogicalResult printOperation(AddPtVecOp op);
+  LogicalResult printOperation(AddPtVecAssignOp op);
+  LogicalResult printOperation(SubPtVecOp op);
+  LogicalResult printOperation(SubPtVecAssignOp op);
+  LogicalResult printOperation(MulPtVecOp op);
+  LogicalResult printOperation(MulPtVecAssignOp op);
+  LogicalResult printOperation(NegOp op);
+  LogicalResult printOperation(NegAssignOp op);
   LogicalResult printOperation(RotateOp op);
   LogicalResult printOperation(RotateAssignOp op);
   LogicalResult printOperation(MulPow2Op op);

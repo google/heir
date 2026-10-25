@@ -87,10 +87,12 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, func::CallOp, AddOp,
-                AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
-                RotateAssignOp, MulPow2Op, MulPow2AssignOp, DivPow2Op,
-                DivPow2AssignOp, CompactLimbsOp, EncodeOp, DecodeOp, EncryptOp,
-                DecryptOp, ModuleCreateOp, ScratchAllocOp, memref::AllocOp,
+                AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, AddPtVecOp,
+                AddPtVecAssignOp, SubPtVecOp, SubPtVecAssignOp, MulPtVecOp,
+                MulPtVecAssignOp, NegOp, NegAssignOp, RotateOp, RotateAssignOp,
+                MulPow2Op, MulPow2AssignOp, DivPow2Op, DivPow2AssignOp,
+                CompactLimbsOp, EncodeOp, DecodeOp, EncryptOp, DecryptOp,
+                ModuleCreateOp, ScratchAllocOp, memref::AllocOp,
                 memref::CopyOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
@@ -110,7 +112,9 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
   funcOp.walk([&](Operation* op) {
     llvm::TypeSwitch<Operation&, void>(*op)
         .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp,
-              RotateOp, RotateAssignOp, MulPow2Op, MulPow2AssignOp, DivPow2Op,
+              AddPtVecOp, AddPtVecAssignOp, SubPtVecOp, SubPtVecAssignOp,
+              MulPtVecOp, MulPtVecAssignOp, NegOp, NegAssignOp, RotateOp,
+              RotateAssignOp, MulPow2Op, MulPow2AssignOp, DivPow2Op,
               DivPow2AssignOp, CompactLimbsOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Case<DecodeOp>([&](DecodeOp op) {
@@ -327,6 +331,55 @@ LogicalResult PoulpyEmitter::printOperation(MulOp mulOp) {
 LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
   return emitBinaryAssignOp(mulAssignOp, "ckks_mul_assign",
                             {ref(mulAssignOp.getTsk(), variableNames)});
+}
+
+LogicalResult PoulpyEmitter::printOperation(AddPtVecOp op) {
+  return emitBinaryOp(op, "ckks_add_pt_vec_into");
+}
+
+LogicalResult PoulpyEmitter::printOperation(AddPtVecAssignOp op) {
+  return emitBinaryAssignOp(op, "ckks_add_pt_vec_assign");
+}
+
+LogicalResult PoulpyEmitter::printOperation(SubPtVecOp op) {
+  return emitBinaryOp(op, "ckks_sub_pt_vec_into");
+}
+
+LogicalResult PoulpyEmitter::printOperation(SubPtVecAssignOp op) {
+  return emitBinaryAssignOp(op, "ckks_sub_pt_vec_assign");
+}
+
+LogicalResult PoulpyEmitter::printOperation(MulPtVecOp op) {
+  return emitBinaryOp(op, "ckks_mul_pt_vec_into");
+}
+
+LogicalResult PoulpyEmitter::printOperation(MulPtVecAssignOp op) {
+  return emitBinaryAssignOp(op, "ckks_mul_pt_vec_assign");
+}
+
+LogicalResult PoulpyEmitter::printOperation(NegOp negOp) {
+  auto dst = negOp.getDst();
+  auto src = negOp.getSrc();
+
+  materializeIfPending(dst, negOp.getModule(), src,
+                       /*useSemanticWidth=*/false);
+
+  emitCall(negOp.getModule(), "ckks_neg_into", dst, {ref(src, variableNames)},
+           negOp.getScratch());
+
+  return success();
+}
+
+// NOTE: like ckks_div_pow2_assign, ckks_neg_assign takes no scratch argument.
+LogicalResult PoulpyEmitter::printOperation(NegAssignOp negAssignOp) {
+  auto dst = negAssignOp.getDst();
+
+  if (failed(checkPendingState(dst, negAssignOp, /*shouldBePending=*/false)))
+    return failure();
+
+  emitCall(negAssignOp.getModule(), "ckks_neg_assign", dst, {});
+
+  return success();
 }
 
 LogicalResult PoulpyEmitter::printOperation(RotateOp rotateOp) {

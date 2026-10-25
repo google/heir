@@ -112,6 +112,62 @@ module {
     return
   }
 
+  // CHECK: func @test_add_pt_vec
+  func.func @test_add_pt_vec(%mod: !module, %dst: memref<!ct>, %a: memref<!ct>, %pt: memref<!pt>, %scratch: !scratch) {
+    // CHECK: poulpy.add_pt_vec
+    poulpy.add_pt_vec %mod, %dst, %a, %pt, %scratch : (!module, memref<!ct>, memref<!ct>, memref<!pt>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_add_pt_vec_assign
+  func.func @test_add_pt_vec_assign(%mod: !module, %dst: memref<!ct>, %pt: memref<!pt>, %scratch: !scratch) {
+    // CHECK: poulpy.add_pt_vec_assign
+    poulpy.add_pt_vec_assign %mod, %dst, %pt, %scratch : (!module, memref<!ct>, memref<!pt>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_sub_pt_vec
+  func.func @test_sub_pt_vec(%mod: !module, %dst: memref<!ct>, %a: memref<!ct>, %pt: memref<!pt>, %scratch: !scratch) {
+    // CHECK: poulpy.sub_pt_vec
+    poulpy.sub_pt_vec %mod, %dst, %a, %pt, %scratch : (!module, memref<!ct>, memref<!ct>, memref<!pt>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_sub_pt_vec_assign
+  func.func @test_sub_pt_vec_assign(%mod: !module, %dst: memref<!ct>, %pt: memref<!pt>, %scratch: !scratch) {
+    // CHECK: poulpy.sub_pt_vec_assign
+    poulpy.sub_pt_vec_assign %mod, %dst, %pt, %scratch : (!module, memref<!ct>, memref<!pt>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_mul_pt_vec
+  func.func @test_mul_pt_vec(%mod: !module, %dst: memref<!ct>, %a: memref<!ct>, %pt: memref<!pt>, %scratch: !scratch) {
+    // CHECK: poulpy.mul_pt_vec
+    poulpy.mul_pt_vec %mod, %dst, %a, %pt, %scratch : (!module, memref<!ct>, memref<!ct>, memref<!pt>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_mul_pt_vec_assign
+  func.func @test_mul_pt_vec_assign(%mod: !module, %dst: memref<!ct>, %pt: memref<!pt>, %scratch: !scratch) {
+    // CHECK: poulpy.mul_pt_vec_assign
+    poulpy.mul_pt_vec_assign %mod, %dst, %pt, %scratch : (!module, memref<!ct>, memref<!pt>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_neg
+  func.func @test_neg(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %scratch: !scratch) {
+    // CHECK: poulpy.neg
+    poulpy.neg %mod, %dst, %src, %scratch : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_neg_assign
+  func.func @test_neg_assign(%mod: !module, %dst: memref<!ct>, %scratch: !scratch) {
+    // CHECK: poulpy.neg_assign
+    poulpy.neg_assign %mod, %dst, %scratch : (!module, memref<!ct>, !scratch) -> ()
+    return
+  }
+
   // CHECK: func @test_rotate
   func.func @test_rotate(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %akm: !akm, %scratch: !scratch) {
     // CHECK: poulpy.rotate

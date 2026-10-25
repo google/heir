@@ -260,6 +260,132 @@ def Poulpy_MulAssignOp : Poulpy_ReadWriteDpsOp<"mul_assign"> {
   let results = (outs Poulpy_CtResult:$result);
 }
 
+// maps to ckks_add_pt_vec_into
+def Poulpy_AddPtVecOp : Poulpy_DpsOp<"add_pt_vec"> {
+  let summary = "Computes `dst = a + b`, where `b` is a plaintext.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_CtLike:$a,
+    Poulpy_PtLike:$b,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_add_pt_vec_assign
+def Poulpy_AddPtVecAssignOp : Poulpy_ReadWriteDpsOp<"add_pt_vec_assign"> {
+  let summary = "Computes `dst += a`, where `a` is a plaintext.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_PtLike:$a,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_sub_pt_vec_into
+def Poulpy_SubPtVecOp : Poulpy_DpsOp<"sub_pt_vec"> {
+  let summary = "Computes `dst = a - b`, where `b` is a plaintext.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_CtLike:$a,
+    Poulpy_PtLike:$b,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_sub_pt_vec_assign
+def Poulpy_SubPtVecAssignOp : Poulpy_ReadWriteDpsOp<"sub_pt_vec_assign"> {
+  let summary = "Computes `dst -= a`, where `a` is a plaintext.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_PtLike:$a,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_mul_pt_vec_into
+def Poulpy_MulPtVecOp : Poulpy_DpsOp<"mul_pt_vec"> {
+  let summary = "Computes `dst = a * b`, where `b` is a plaintext.";
+  let description = [{
+    Consumes the plaintext's `log_delta` bits of `log_budget`: Poulpy folds the
+    plaintext in at its full declared width, so encode it at the precision to
+    fold in.
+
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSMulOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_CtLike:$a,
+    Poulpy_PtLike:$b,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_mul_pt_vec_assign
+def Poulpy_MulPtVecAssignOp : Poulpy_ReadWriteDpsOp<"mul_pt_vec_assign"> {
+  let summary = "Computes `dst *= a`, where `a` is a plaintext.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSMulOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_PtLike:$a,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_neg_into
+def Poulpy_NegOp : Poulpy_DpsOp<"neg"> {
+  let summary = "Computes `dst = -src`.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSNegOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_CtLike:$src,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
+// maps to ckks_neg_assign
+def Poulpy_NegAssignOp : Poulpy_ReadWriteDpsOp<"neg_assign"> {
+  let summary = "Computes `dst = -dst` in-place.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSNegOps.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CtLike:$dst,
+    Poulpy_ScratchType:$scratch
+  );
+  let results = (outs Poulpy_CtResult:$result);
+}
+
 // maps to ckks_rotate_into
 def Poulpy_RotateOp : Poulpy_DpsOp<"rotate"> {
   let summary = "Computes `dst = rotate(src, k)`: shifts all complex slots by `k` positions.";
