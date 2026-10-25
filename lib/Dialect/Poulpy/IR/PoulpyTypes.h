@@ -3,7 +3,6 @@
 
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyDialect.h"
-#include "lib/Dialect/Poulpy/IR/PoulpyEnums.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.h.inc"

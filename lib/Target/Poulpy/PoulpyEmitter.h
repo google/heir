@@ -42,7 +42,6 @@ class PoulpyEmitter {
   llvm::DenseSet<Value> mutatedValues;
   llvm::DenseSet<Value> pendingAllocs;
 
-  bool encoderEmitted = false;
   int sourceCounter = 0;
 
   void computeMutatedValues(func::FuncOp funcOp);
@@ -50,7 +49,6 @@ class PoulpyEmitter {
                             bool useSemanticWidth);
   LogicalResult checkPendingState(Value dst, Operation* op,
                                   bool shouldBePending);
-  void emitEncoderIfNeeded(Value module);
 
   void emitCall(Value module, StringRef rustFn, Value dst,
                 ArrayRef<std::string> args, Value scratch = {});
@@ -81,9 +79,6 @@ class PoulpyEmitter {
   LogicalResult printOperation(RescaleOp op);
   LogicalResult printOperation(RescaleAssignOp op);
   LogicalResult printOperation(CompactLimbsOp op);
-  LogicalResult printOperation(AddUnnormalizedOp op);
-  LogicalResult printOperation(SubUnnormalizedOp op);
-  LogicalResult printOperation(NormalizeOp op);
   LogicalResult printOperation(EncodeOp op);
   LogicalResult printOperation(DecodeOp op);
   LogicalResult printOperation(EncryptOp op);

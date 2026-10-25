@@ -18,29 +18,17 @@ namespace heir {
 namespace poulpy {
 
 namespace {
-FailureOr<std::string> detectBackend(ModuleOp* op) {
-  std::optional<PoulpyBackend> found;
-  for (auto funcOp : op->getOps<func::FuncOp>()) {
-    // TODO(mmoro): also check ModuleCreateOp results for backend information
-    // (a "setup" function may create its own module rather than receive one
-    // as an argument)
-    for (Type argType : funcOp.getArgumentTypes()) {
-      auto moduleType = dyn_cast<ModuleType>(argType);
-      if (!moduleType) continue;
-      PoulpyBackend backend = moduleType.getBackend();
-      if (found.has_value() && found != backend) {
-        return op->emitError("poulpy module contains multiple backends");
-      }
-      found = backend;
-    }
-  }
-  switch (found.value_or(PoulpyBackend::FFT64Ref)) {
-    case PoulpyBackend::FFT64Ref:
-      return std::string("FFT64Ref");
-    case PoulpyBackend::NTT4x30Ref:
-      return std::string("NTT4x30Ref");
-  }
-  llvm_unreachable("unhandled PoulpyBackend");
+// The emitted code is generic over the backend: a function whose signature
+// carries a poulpy value takes `<BE: PoulpyBackend>`, and calls infer `BE` from
+// their arguments.
+bool isGenericOverBackend(func::FuncOp funcOp) {
+  auto isPoulpyType = [](Type type) {
+    if (auto memRefType = dyn_cast<MemRefType>(type))
+      type = memRefType.getElementType();
+    return isa<PoulpyDialect>(&type.getDialect());
+  };
+  return llvm::any_of(funcOp.getArgumentTypes(), isPoulpyType) ||
+         llvm::any_of(funcOp.getResultTypes(), isPoulpyType);
 }
 
 std::string valueOrClonedValue(Value value,
@@ -98,9 +86,9 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, func::CallOp, AddOp,
                 AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
-                AddUnnormalizedOp, SubUnnormalizedOp, NormalizeOp, EncodeOp,
-                DecodeOp, EncryptOp, DecryptOp, ModuleCreateOp, ScratchAllocOp,
-                memref::AllocOp>([&](auto op) { return printOperation(op); })
+                EncodeOp, DecodeOp, EncryptOp, DecryptOp, ModuleCreateOp,
+                ScratchAllocOp, memref::AllocOp>(
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -120,7 +108,7 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
     llvm::TypeSwitch<Operation&, void>(*op)
         .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp,
               RotateOp, RotateAssignOp, RescaleOp, RescaleAssignOp,
-              CompactLimbsOp, AddUnnormalizedOp, SubUnnormalizedOp>(
+              CompactLimbsOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Case<DecodeOp>([&](DecodeOp op) {
           mutatedValues.insert(op.getReal());
@@ -138,32 +126,24 @@ void PoulpyEmitter::materializeIfPending(Value dst, Value module,
                                          Value layoutSource,
                                          bool useSemanticWidth) {
   if (pendingAllocs.erase(dst)) {
-    // The unnormalized ops are the only ones whose dst is typed as an
-    // unnormalized ciphertext, so the wrapper follows from the type.
-    bool wrapUnnormalized = isa<UnnormalizedCiphertextType>(
-        cast<MemRefType>(dst.getType()).getElementType());
     auto layoutName = variableNames->getNameForValue(layoutSource);
-    auto dstName = variableNames->getNameForValue(dst);
-    auto moduleName = variableNames->getNameForValue(module);
-    os << "let mut " << dstName << " = ";
-    if (wrapUnnormalized) os << "CtUnnorm::new(";
-    os << moduleName << ".ckks_ciphertext_alloc(" << layoutName << ".base2k(), "
-       << layoutName << (useSemanticWidth ? ".k())" : ".max_k())");
-    if (wrapUnnormalized) os << ")";
-    os << ";\n";
+    os << "let mut " << variableNames->getNameForValue(dst) << " = "
+       << variableNames->getNameForValue(module) << ".ckks_ciphertext_alloc("
+       << layoutName << ".base2k(), " << layoutName
+       << (useSemanticWidth ? ".k()" : ".max_k()") << ");\n";
   }
 }
 
-// The _assign ops read-before-write dst, so it must already be materialized,
-// normalize produces a brand new value, so its result must NOT be
-// materialized yet
+// The _assign ops read-before-write dst, so it must already be materialized.
+// encode, encrypt and decrypt allocate their result themselves, so it must NOT
+// be materialized yet.
 LogicalResult PoulpyEmitter::checkPendingState(Value dst, Operation* op,
                                                bool shouldBePending) {
   if (pendingAllocs.contains(dst) == shouldBePending) return success();
 
   if (shouldBePending) {
     return op->emitError(
-        "normalize result must come from an unmaterialized memref.alloc");
+        "result must come from an unmaterialized memref.alloc");
   }
   InFlightDiagnostic diag =
       op->emitError("dst has not been initialized before this use");
@@ -171,22 +151,8 @@ LogicalResult PoulpyEmitter::checkPendingState(Value dst, Operation* op,
   return diag;
 }
 
-void PoulpyEmitter::emitEncoderIfNeeded(Value module) {
-  if (encoderEmitted) return;
-  encoderEmitted = true;
-  os << "let encoder = Encoder::<FFT64ReimTable<f64>>::new::<f64>("
-     << variableNames->getNameForValue(module) << ".n() / 2)?;\n";
-}
-
 LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
-  os << kModulePrelude << "\n";
-  auto backend = detectBackend(&moduleOp);
-  if (failed(backend)) {
-    moduleOp.emitOpError("Error while detecting backend");
-    return failure();
-  }
-  os << "type BE = " << backend.value() << ";\n";
-  os << kTypeAliases << "\n";
+  os << kModulePrelude << kTypeAliases << "\n";
   for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -197,9 +163,10 @@ LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
 
 LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
   computeMutatedValues(funcOp);
-  encoderEmitted = false;
   sourceCounter = 0;
-  os << "pub fn " << funcOp.getName() << "(\n";
+  os << "pub fn " << funcOp.getName();
+  if (isGenericOverBackend(funcOp)) os << "<BE: PoulpyBackend>";
+  os << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
     auto argName = variableNames->getNameForValue(arg);
@@ -359,14 +326,6 @@ LogicalResult PoulpyEmitter::printOperation(MulAssignOp mulAssignOp) {
                             {ref(mulAssignOp.getTsk(), variableNames)});
 }
 
-LogicalResult PoulpyEmitter::printOperation(AddUnnormalizedOp op) {
-  return emitBinaryOp(op, "ckks_add_into_unnormalized");
-}
-
-LogicalResult PoulpyEmitter::printOperation(SubUnnormalizedOp op) {
-  return emitBinaryOp(op, "ckks_sub_into_unnormalized");
-}
-
 LogicalResult PoulpyEmitter::printOperation(RotateOp rotateOp) {
   auto dst = rotateOp.getDst();
   auto src = rotateOp.getSrc();
@@ -442,29 +401,9 @@ LogicalResult PoulpyEmitter::printOperation(CompactLimbsOp compactLimbsOp) {
   return success();
 }
 
-LogicalResult PoulpyEmitter::printOperation(NormalizeOp normalizeOp) {
-  auto module = normalizeOp.getModule();
-  auto res = normalizeOp.getRes();
-  auto a = normalizeOp.getA();
-  auto scratch = normalizeOp.getScratch();
-
-  if (failed(checkPendingState(res, normalizeOp, /*shouldBePending=*/true)))
-    return failure();
-  pendingAllocs.erase(res);
-
-  os << "let mut " << variableNames->getNameForValue(res) << " = "
-     << valueOrClonedValue(a, variableNames) << ".normalize("
-     << ref(module, variableNames) << ", &mut "
-     << variableNames->getNameForValue(scratch) << ".borrow());\n";
-
-  return success();
-}
-
 LogicalResult PoulpyEmitter::printOperation(EncodeOp encodeOp) {
   auto module = encodeOp.getModule();
   auto plaintext = encodeOp.getPlaintext();
-  auto real = encodeOp.getReal();
-  auto imag = encodeOp.getImag();
   int64_t logDelta = encodeOp.getLogDelta();
   int64_t logBudget = encodeOp.getLogBudget();
   int64_t base2k = encodeOp.getBase2k();
@@ -473,32 +412,28 @@ LogicalResult PoulpyEmitter::printOperation(EncodeOp encodeOp) {
     return failure();
   pendingAllocs.erase(plaintext);
 
-  emitEncoderIfNeeded(module);
-
-  auto moduleName = variableNames->getNameForValue(module);
   auto ptName = variableNames->getNameForValue(plaintext);
-  os << "let mut " << ptName << " = " << moduleName
+  os << "let mut " << ptName << " = " << variableNames->getNameForValue(module)
      << ".ckks_pt_vec_alloc(Base2K(" << base2k << "u32), TorusPrecision("
      << (logDelta + logBudget) << "u32));\n";
   os << ptName << ".set_meta(CKKSMeta { log_delta: " << logDelta
-     << "usize, log_sparsity: 0usize });\n";
-  os << "encoder.encode_reim(" << refMut(plaintext, variableNames) << ", "
-     << ref(real, variableNames) << ", " << ref(imag, variableNames) << ")?;\n";
+     << "usize, log_sparsity: 0usize, slots: SlotsKind::Complex });\n";
+  emitCall(module, "ckks_encode_reim_into", plaintext,
+           {ref(encodeOp.getReal(), variableNames),
+            ref(encodeOp.getImag(), variableNames)},
+           encodeOp.getScratch());
 
   return success();
 }
 
 LogicalResult PoulpyEmitter::printOperation(DecodeOp decodeOp) {
-  auto module = decodeOp.getModule();
-  auto real = decodeOp.getReal();
-  auto imag = decodeOp.getImag();
-  auto plaintext = decodeOp.getPlaintext();
-
-  emitEncoderIfNeeded(module);
-
-  os << "encoder.decode_reim(" << ref(plaintext, variableNames) << ", "
-     << refMut(real, variableNames) << ", " << refMut(imag, variableNames)
-     << ")?;\n";
+  os << variableNames->getNameForValue(decodeOp.getModule())
+     << ".ckks_decode_reim_into("
+     << ref(decodeOp.getPlaintext(), variableNames) << ", "
+     << refMut(decodeOp.getReal(), variableNames) << ", "
+     << refMut(decodeOp.getImag(), variableNames) << ", &mut "
+     << variableNames->getNameForValue(decodeOp.getScratch())
+     << ".borrow())?;\n";
 
   return success();
 }
@@ -515,20 +450,10 @@ LogicalResult PoulpyEmitter::printOperation(EncryptOp encryptOp) {
     return failure();
   pendingAllocs.erase(ciphertext);
 
-  auto moduleName = variableNames->getNameForValue(module);
   os << "let mut " << variableNames->getNameForValue(ciphertext) << " = "
-     << moduleName << ".ckks_ciphertext_alloc(Base2K(" << base2k
-     << "u32), TorusPrecision(" << ctK << "u32));\n";
-
-  os << "let enc_layout" << sourceCounter
-     << " = EncryptionLayout::new_from_default_sigma(GLWELayout {\n";
-  os.indent();
-  os << "n: " << moduleName << ".ring_degree(), base2k: Base2K(" << base2k
-     << "u32), k: TorusPrecision(" << ctK
-     << "u32), rank: " << variableNames->getNameForValue(secretKey)
-     << ".rank(),\n";
-  os.unindent();
-  os << "})?;\n";
+     << variableNames->getNameForValue(module)
+     << ".ckks_ciphertext_alloc(Base2K(" << base2k << "u32), TorusPrecision("
+     << ctK << "u32));\n";
 
   // TODO(mmoro): These seeds are deterministic placeholders, not real
   // randomness. Thread a real CSPRNG seed once a client-interface pass
@@ -541,7 +466,6 @@ LogicalResult PoulpyEmitter::printOperation(EncryptOp encryptOp) {
   emitCall(module, "ckks_encrypt_sk", ciphertext,
            {ref(encryptOp.getPlaintext(), variableNames),
             ref(secretKey, variableNames),
-            "&enc_layout" + std::to_string(sourceCounter),
             "&mut source" + std::to_string(sourceCounter),
             "&mut source" + std::to_string(sourceCounter + 1)},
            encryptOp.getScratch());
@@ -562,7 +486,7 @@ LogicalResult PoulpyEmitter::printOperation(DecryptOp decryptOp) {
 
   os << "let mut " << variableNames->getNameForValue(plaintext) << " = "
      << variableNames->getNameForValue(module)
-     << ".ckks_pt_vec_alloc_from_infos(" << ref(ciphertext, variableNames)
+     << ".ckks_plaintext_alloc_from_infos(" << ref(ciphertext, variableNames)
      << ");\n";
 
   emitCall(module, "ckks_decrypt", plaintext,
@@ -624,26 +548,24 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
         }
         if (memRefType.getRank() != 0) return failure();
         if (isa<CiphertextType>(elementType)) {
-          return std::string(isArg ? (isMutated ? "&mut Ct" : "&Ct") : "Ct");
-        }
-        if (isa<UnnormalizedCiphertextType>(elementType)) {
-          return std::string(isArg ? (isMutated ? "&mut CtUnnorm" : "&CtUnnorm")
-                                   : "CtUnnorm");
+          return std::string(isArg ? (isMutated ? "&mut Ct<BE>" : "&Ct<BE>")
+                                   : "Ct<BE>");
         }
         if (isa<PlaintextType>(elementType)) {
-          return std::string(isArg ? (isMutated ? "&mut Pt" : "&Pt") : "Pt");
+          return std::string(isArg ? (isMutated ? "&mut Pt<BE>" : "&Pt<BE>")
+                                   : "Pt<BE>");
         }
         return failure();
       })
       .Case<SecretKeyType>([&](SecretKeyType) -> FailureOr<std::string> {
-        return std::string("&Sk");
+        return std::string("&Sk<BE>");
       })
       .Case<TensorKeyType>([&](TensorKeyType) -> FailureOr<std::string> {
-        return std::string("&Tsk");
+        return std::string("&Tsk<BE>");
       })
       .Case<AutomorphismKeyMapType>(
           [&](AutomorphismKeyMapType) -> FailureOr<std::string> {
-            return std::string("&Akm");
+            return std::string("&Akm<BE>");
           })
       .Default([&](Type&) { return failure(); });
 }

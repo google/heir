@@ -1,6 +1,6 @@
 // RUN: not heir-translate %s --emit-poulpy 2>&1 | FileCheck %s
 
-!module = !poulpy.module<ntt4x30_ref>
+!module = !poulpy.module
 !scratch = !poulpy.scratch
 !ct = memref<!poulpy.ciphertext>
 

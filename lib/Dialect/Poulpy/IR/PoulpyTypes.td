@@ -2,7 +2,6 @@
 #define LIB_DIALECT_POULPY_IR_POULPYTYPES_TD_
 
 include "PoulpyDialect.td"
-include "PoulpyEnums.td"
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
@@ -19,16 +18,14 @@ class Poulpy_Type<string name, string typeMnemonic, list<Trait> traits = []>
 def Poulpy_ModuleType : Poulpy_Type<"Module", "module"> {
   let summary = "An evaluator context for the poulpy backend";
   let description = [{
+    The generated code is generic over the backend `BE`; the caller picks it
+    when instantiating the generated functions.
+
     See https://docs.rs/poulpy-hal/latest/poulpy_hal/layouts/struct.Module.html
   }];
-  let parameters = (ins
-    DefaultValuedParameter<"::mlir::heir::poulpy::PoulpyBackend",
-    "::mlir::heir::poulpy::PoulpyBackend::FFT64Ref">:$backend
-  );
-  let assemblyFormat = "`<` $backend `>`";
 }
 
-// maps to CKKSCiphertext<D, Normalized>
+// maps to CKKSCiphertextOwned<BE>
 def Poulpy_CiphertextType : Poulpy_Type<"Ciphertext", "ciphertext",
   [MemRefElementTypeInterface, SecretTypeInterface]> {
   let summary = "CKKS ciphertext storage plus semantic precision metadata.";
@@ -37,17 +34,7 @@ def Poulpy_CiphertextType : Poulpy_Type<"Ciphertext", "ciphertext",
   }];
 }
 
-// maps to CKKSCiphertext<D, Unnormalized>
-// pub type UnnormalizedCKKSCiphertext<D> = CKKSCiphertext<D, Unnormalized>;
-def Poulpy_UnnormalizedCiphertextType : Poulpy_Type<"UnnormalizedCiphertext", "unnormalized_ciphertext",
-  [MemRefElementTypeInterface, SecretTypeInterface]> {
-  let summary = "A CKKS ciphertext produced by an unnormalized linear operation";
-  let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/layouts/ciphertext/type.UnnormalizedCKKSCiphertext.html
-  }];
-}
-
-// maps to CKKSPlaintext<D>
+// maps to CKKSPlaintextOwned<BE>
 def Poulpy_PlaintextType : Poulpy_Type<"Plaintext", "plaintext",
   [MemRefElementTypeInterface, PlaintextTypeInterface]> {
   let summary = "A plaintext in the ZNX (torus) domain in the poulpy backend";

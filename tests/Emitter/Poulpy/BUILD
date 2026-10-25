@@ -1,5 +1,5 @@
 load("@heir//tools:heir-translate.bzl", "heir_translate")
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:lit.bzl", "glob_lit_tests")
 
 package(default_applicable_licenses = ["@heir//:license"])
@@ -27,7 +27,16 @@ rust_library(
         "@crates//:anyhow",
         "@crates//:poulpy-ckks",
         "@crates//:poulpy-core",
-        "@crates//:poulpy-cpu-ref",
         "@crates//:poulpy-hal",
+    ],
+)
+
+# The emitted code is generic over the backend; instantiate it with concrete ones.
+rust_test(
+    name = "emit_poulpy_instantiate_test",
+    srcs = ["emit_poulpy_instantiate_test.rs"],
+    deps = [
+        ":emit_poulpy_compiles",
+        "@crates//:poulpy-cpu-portable",
     ],
 )

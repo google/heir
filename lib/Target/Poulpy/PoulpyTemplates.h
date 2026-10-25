@@ -11,32 +11,33 @@ constexpr std::string_view kModulePrelude =
 
 use anyhow::Result;
 use std::collections::HashMap;
-use poulpy_ckks::{
-    CKKSMeta, SetCKKSInfos,
-    api::{CKKSAddOps, CKKSSubOps, CKKSMulOps, CKKSRotateOps, CKKSCopyOps,
-          CKKSPow2Ops, CKKSEncrypt, CKKSDecrypt},
-    encoding::Encoder,
-    layouts::{CKKSCiphertext, CKKSModuleAlloc, CKKSPlaintext,
-              UnnormalizedCKKSCiphertext},
-};
+use poulpy_ckks::prelude::*;
+use poulpy_ckks::layouts::{CKKSCiphertextOwned, CKKSPlaintextOwned};
+use poulpy_ckks::oep::{CKKSEncodingImpl, CKKSImpl};
 use poulpy_core::layouts::prepared::{GLWESecretPrepared, GLWETensorKeyPrepared};
-use poulpy_core::layouts::{Base2K, GetDegree, GLWEAutomorphismKeyPrepared,
-                           GLWEInfos, GLWELayout, LWEInfos, TorusPrecision};
-use poulpy_core::EncryptionLayout;
-use poulpy_cpu_ref::{FFT64Ref, FFT64ReimTable, NTT4x30Ref};
+use poulpy_core::layouts::{Base2K, GLWEAutomorphismKeyPrepared, GLWEInfos,
+                           LWEInfos, TorusPrecision};
 use poulpy_hal::{
     api::{ScratchOwnedAlloc, ScratchOwnedBorrow},
     layouts::{Backend, Module, ScratchOwned},
+    oep::HalModuleImpl,
     source::Source,
-};)poulpy";
+};
+
+/// The backend capabilities the generated code relies on. The caller picks
+/// the backend, e.g. `f::<NTT4x30Portable>(...)`.
+pub trait PoulpyBackend:
+    CKKSImpl + CKKSEncodingImpl<f64> + HalModuleImpl + Backend<OwnedBuf: Clone> {}
+impl<T: CKKSImpl + CKKSEncodingImpl<f64> + HalModuleImpl + Backend<OwnedBuf: Clone>>
+    PoulpyBackend for T {}
+)poulpy";
 
 constexpr std::string_view kTypeAliases = R"poulpy(
-type Ct = CKKSCiphertext<<BE as Backend>::OwnedBuf>;
-type CtUnnorm = UnnormalizedCKKSCiphertext<<BE as Backend>::OwnedBuf>;
-type Pt = CKKSPlaintext<<BE as Backend>::OwnedBuf>;
-type Sk = GLWESecretPrepared<<BE as Backend>::OwnedBuf, BE>;
-type Tsk = GLWETensorKeyPrepared<<BE as Backend>::OwnedBuf, BE>;
-type Akm = HashMap<i64, GLWEAutomorphismKeyPrepared<<BE as Backend>::OwnedBuf, BE>>;
+type Ct<BE> = CKKSCiphertextOwned<BE>;
+type Pt<BE> = CKKSPlaintextOwned<BE>;
+type Sk<BE> = GLWESecretPrepared<<BE as Backend>::OwnedBuf, BE>;
+type Tsk<BE> = GLWETensorKeyPrepared<<BE as Backend>::OwnedBuf, BE>;
+type Akm<BE> = HashMap<i64, GLWEAutomorphismKeyPrepared<<BE as Backend>::OwnedBuf, BE>>;
 )poulpy";
 }  // namespace poulpy
 }  // namespace heir

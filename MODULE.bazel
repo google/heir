@@ -248,24 +248,25 @@ crate.spec(
 )
 crate.spec(
     package = "poulpy-ckks",
-    version = "0.7.0",
+    version = "0.9.0",
 )
 crate.spec(
     package = "poulpy-core",
-    version = "0.7.0",
+    version = "0.9.0",
 )
 crate.spec(
     package = "poulpy-hal",
-    version = "0.7.0",
+    version = "0.9.0",
 )
 crate.spec(
     features = ["enable-ckks"],
-    package = "poulpy-cpu-ref",
-    version = "0.7.0",
+    package = "poulpy-cpu-portable",
+    version = "0.9.0",
 )
 
-# poulpy-hal and poulpy-ckks use nightly features (trait_alias, f128); allow
-# them on the stable toolchain for these two crates only.
+# poulpy-hal and poulpy-ckks use nightly features (trait_alias, f128), and so
+# does libm's f128 math that poulpy-ckks enables; allow them on the stable
+# toolchain for these crates only.
 crate.annotation(
     crate = "poulpy-hal",
     rustc_env = {"RUSTC_BOOTSTRAP": "1"},
@@ -273,6 +274,22 @@ crate.annotation(
 crate.annotation(
     crate = "poulpy-ckks",
     rustc_env = {"RUSTC_BOOTSTRAP": "1"},
+)
+
+# libm's build script enables f128 only when CARGO_CFG_TARGET_HAS_RELIABLE_F128
+# is set, which rules_rust never exports (it drops valueless cfgs). rustc
+# reports this cfg on every platform HEIR builds on.
+crate.annotation(
+    build_script_env = {"CARGO_CFG_TARGET_HAS_RELIABLE_F128": ""},
+    crate = "libm",
+    rustc_env = {"RUSTC_BOOTSTRAP": "1"},
+)
+
+# TODO: drop once a poulpy-core release builds on the pinned rust toolchain.
+crate.annotation(
+    crate = "poulpy-core",
+    patch_args = ["-p1"],
+    patches = ["@heir//patches:poulpy-core.patch"],
 )
 crate.from_specs()
 use_repo(crate, "crates")

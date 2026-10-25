@@ -20,7 +20,6 @@ cc_library(
         "PoulpyTypes.h",
     ],
     deps = [
-        ":Enums",
         ":PoulpyOps",
         ":PoulpyTypes",
         ":dialect_inc_gen",
@@ -28,16 +27,6 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-    ],
-)
-
-cc_library(
-    name = "Enums",
-    srcs = ["PoulpyEnums.cpp"],
-    hdrs = ["PoulpyEnums.h"],
-    deps = [
-        ":enums_inc_gen",
         "@llvm-project//mlir:IR",
     ],
 )
@@ -52,7 +41,6 @@ cc_library(
         "PoulpyTypes.h",
     ],
     deps = [
-        ":Enums",
         ":dialect_inc_gen",
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
@@ -71,7 +59,6 @@ cc_library(
         "PoulpyTypes.h",
     ],
     deps = [
-        ":Enums",
         ":PoulpyTypes",
         ":dialect_inc_gen",
         ":ops_inc_gen",
@@ -85,7 +72,6 @@ td_library(
     name = "td_files",
     srcs = [
         "PoulpyDialect.td",
-        "PoulpyEnums.td",
         "PoulpyOps.td",
         "PoulpyTypes.td",
     ],
@@ -103,16 +89,6 @@ add_heir_dialect_library(
     dialect = "Poulpy",
     kind = "dialect",
     td_file = "PoulpyDialect.td",
-    deps = [
-        ":td_files",
-    ],
-)
-
-add_heir_dialect_library(
-    name = "enums_inc_gen",
-    dialect = "Poulpy",
-    kind = "enum",
-    td_file = "PoulpyEnums.td",
     deps = [
         ":td_files",
     ],

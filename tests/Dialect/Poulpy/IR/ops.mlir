@@ -2,9 +2,8 @@
 
 // This simply tests for syntax.
 
-!module    = !poulpy.module<fft64_ref>
+!module    = !poulpy.module
 !ct        = !poulpy.ciphertext
-!unnorm_ct = !poulpy.unnormalized_ciphertext
 !pt        = !poulpy.plaintext
 !scratch   = !poulpy.scratch
 !sk        = !poulpy.secret_key
@@ -29,10 +28,9 @@ module {
   }
 
   // CHECK: func @test_types
-  // Exercises MemRefElementTypeInterface on ciphertext, unnormalized_ciphertext, and plaintext.
+  // Exercises MemRefElementTypeInterface on ciphertext and plaintext.
   func.func @test_types(
     %ct_buf: memref<!ct>,
-    %unnorm_buf: memref<!unnorm_ct>,
     %pt_buf: memref<!pt>,
     %scratch: !scratch,
     %sk: !sk,
@@ -45,16 +43,16 @@ module {
   }
 
   // CHECK: func @test_encode
-  func.func @test_encode(%mod: !module, %pt: memref<!pt>, %re: memref<f64>, %im: memref<f64>) {
+  func.func @test_encode(%mod: !module, %pt: memref<!pt>, %re: memref<f64>, %im: memref<f64>, %scratch: !scratch) {
     // CHECK: poulpy.encode
-    poulpy.encode %mod, %pt, %re, %im <logDelta = 40, logBudget = 20, base2k = 52> : (!module, memref<!pt>, memref<f64>, memref<f64>) -> ()
+    poulpy.encode %mod, %pt, %re, %im, %scratch <logDelta = 40, logBudget = 20, base2k = 52> : (!module, memref<!pt>, memref<f64>, memref<f64>, !scratch) -> ()
     return
   }
 
   // CHECK: func @test_decode
-  func.func @test_decode(%mod: !module, %re: memref<f64>, %im: memref<f64>, %pt: memref<!pt>) {
+  func.func @test_decode(%mod: !module, %re: memref<f64>, %im: memref<f64>, %pt: memref<!pt>, %scratch: !scratch) {
     // CHECK: poulpy.decode
-    poulpy.decode %mod, %re, %im, %pt : (!module, memref<f64>, memref<f64>, memref<!pt>) -> ()
+    poulpy.decode %mod, %re, %im, %pt, %scratch : (!module, memref<f64>, memref<f64>, memref<!pt>, !scratch) -> ()
     return
   }
 
@@ -86,13 +84,6 @@ module {
     return
   }
 
-  // CHECK: func @test_add_unnormalized
-  func.func @test_add_unnormalized(%mod: !module, %dst: memref<!unnorm_ct>, %a: memref<!ct>, %b: memref<!ct>, %scratch: !scratch) {
-    // CHECK: poulpy.add_unnormalized
-    poulpy.add_unnormalized %mod, %dst, %a, %b, %scratch : (!module, memref<!unnorm_ct>, memref<!ct>, memref<!ct>, !scratch) -> ()
-    return
-  }
-
   // CHECK: func @test_sub
   func.func @test_sub(%mod: !module, %dst: memref<!ct>, %a: memref<!ct>, %b: memref<!ct>, %scratch: !scratch) {
     // CHECK: poulpy.sub
@@ -104,13 +95,6 @@ module {
   func.func @test_sub_assign(%mod: !module, %dst: memref<!ct>, %a: memref<!ct>, %scratch: !scratch) {
     // CHECK: poulpy.sub_assign
     poulpy.sub_assign %mod, %dst, %a, %scratch : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
-    return
-  }
-
-  // CHECK: func @test_sub_unnormalized
-  func.func @test_sub_unnormalized(%mod: !module, %dst: memref<!unnorm_ct>, %a: memref<!ct>, %b: memref<!ct>, %scratch: !scratch) {
-    // CHECK: poulpy.sub_unnormalized
-    poulpy.sub_unnormalized %mod, %dst, %a, %b, %scratch : (!module, memref<!unnorm_ct>, memref<!ct>, memref<!ct>, !scratch) -> ()
     return
   }
 
@@ -153,13 +137,6 @@ module {
   func.func @test_rescale_assign(%mod: !module, %dst: memref<!ct>, %scratch: !scratch) {
     // CHECK: poulpy.rescale_assign
     poulpy.rescale_assign %mod, %dst, %scratch <bits = 40> : (!module, memref<!ct>, !scratch) -> ()
-    return
-  }
-
-  // CHECK: func @test_normalize
-  func.func @test_normalize(%mod: !module, %dst: memref<!ct>, %src: memref<!unnorm_ct>, %scratch: !scratch) {
-    // CHECK: poulpy.normalize
-    poulpy.normalize %mod, %dst, %src, %scratch : (!module, memref<!ct>, memref<!unnorm_ct>, !scratch) -> ()
     return
   }
 

@@ -14,7 +14,6 @@ class Poulpy_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 def Poulpy_CiphertextMemRef : MemRefOf<[Poulpy_CiphertextType]>;
-def Poulpy_UnnormalizedCiphertextMemRef : MemRefOf<[Poulpy_UnnormalizedCiphertextType]>;
 def Poulpy_PlaintextMemRef : MemRefOf<[Poulpy_PlaintextType]>;
 
 // maps to ModuleNew::<BE>::new(n)
@@ -37,34 +36,36 @@ def Poulpy_ScratchAllocOp : Poulpy_Op<"scratch_alloc", [Pure]> {
   let results = (outs Poulpy_ScratchType:$scratch);
 }
 
-// maps to module.ckks_pt_vec_alloc + pt.set_meta + encoder.encode_reim
+// maps to module.ckks_pt_vec_alloc + pt.set_meta + module.ckks_encode_reim_into
 def Poulpy_EncodeOp : Poulpy_Op<"encode"> {
   let summary = "Encode real and imaginary slot vectors into a plaintext";
   let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/encoding/reim/struct.Encoder.html
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSEncodingOps.html
   }];
   let arguments = (ins
     Poulpy_ModuleType:$module,
     Poulpy_PlaintextMemRef:$plaintext,
     AnyMemRef:$real,
     AnyMemRef:$imag,
+    Poulpy_ScratchType:$scratch,
     I64Attr:$logDelta,
     I64Attr:$logBudget,
     I64Attr:$base2k
   );
 }
 
-// maps to encoder.decode_reim
+// maps to module.ckks_decode_reim_into
 def Poulpy_DecodeOp : Poulpy_Op<"decode"> {
   let summary = "Decode a plaintext into real and imaginary slot vectors";
   let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/encoding/reim/struct.Encoder.html
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSEncodingOps.html
   }];
   let arguments = (ins
     Poulpy_ModuleType:$module,
     AnyMemRef:$real,
     AnyMemRef:$imag,
-    Poulpy_PlaintextMemRef:$plaintext
+    Poulpy_PlaintextMemRef:$plaintext,
+    Poulpy_ScratchType:$scratch
   );
 }
 
@@ -72,7 +73,7 @@ def Poulpy_DecodeOp : Poulpy_Op<"decode"> {
 def Poulpy_EncryptOp : Poulpy_Op<"encrypt"> {
   let summary = "Secret-key encryption of a CKKS plaintext";
   let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSEncrypt.html
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSEncryptOps.html
   }];
   let arguments = (ins
     Poulpy_ModuleType:$module,
@@ -89,7 +90,7 @@ def Poulpy_EncryptOp : Poulpy_Op<"encrypt"> {
 def Poulpy_DecryptOp : Poulpy_Op<"decrypt"> {
   let summary = "Secret-key decryption of a CKKS ciphertext";
   let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSDecrypt.html
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSDecryptOps.html
   }];
   let arguments = (ins
     Poulpy_ModuleType:$module,
@@ -129,21 +130,6 @@ def Poulpy_AddAssignOp : Poulpy_Op<"add_assign"> {
   );
 }
 
-// maps to ckks_add_into_unnormalized
-def Poulpy_AddUnnormalizedOp : Poulpy_Op<"add_unnormalized"> {
-  let summary = "Computes `dst = a + b` without normalizing `dst`.";
-  let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSAddOps.html
-  }];
-  let arguments = (ins
-    Poulpy_ModuleType:$module,
-    Poulpy_UnnormalizedCiphertextMemRef:$dst,
-    Poulpy_CiphertextMemRef:$a,
-    Poulpy_CiphertextMemRef:$b,
-    Poulpy_ScratchType:$scratch
-  );
-}
-
 // maps to ckks_sub_into
 def Poulpy_SubOp : Poulpy_Op<"sub"> {
   let summary = "Computes `dst = a - b`.";
@@ -169,21 +155,6 @@ def Poulpy_SubAssignOp : Poulpy_Op<"sub_assign"> {
     Poulpy_ModuleType:$module,
     Poulpy_CiphertextMemRef:$dst,
     Poulpy_CiphertextMemRef:$a,
-    Poulpy_ScratchType:$scratch
-  );
-}
-
-// maps to ckks_sub_into_unnormalized
-def Poulpy_SubUnnormalizedOp : Poulpy_Op<"sub_unnormalized"> {
-  let summary = "Computes `dst = a - b` without normalizing `dst`.";
-  let description = [{
-    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSSubOps.html
-  }];
-  let arguments = (ins
-    Poulpy_ModuleType:$module,
-    Poulpy_UnnormalizedCiphertextMemRef:$dst,
-    Poulpy_CiphertextMemRef:$a,
-    Poulpy_CiphertextMemRef:$b,
     Poulpy_ScratchType:$scratch
   );
 }
@@ -275,20 +246,6 @@ def Poulpy_RescaleAssignOp : Poulpy_Op<"rescale_assign"> {
     Poulpy_ModuleType:$module,
     Poulpy_CiphertextMemRef:$dst,
     I64Attr:$bits,
-    Poulpy_ScratchType:$scratch
-  );
-}
-
-// maps to glwe_normalize
-def Poulpy_NormalizeOp : Poulpy_Op<"normalize"> {
-  let summary = "Propagate carries in an unnormalized ciphertext, producing a normalized result.";
-  let description = [{
-    See https://docs.rs/poulpy-core/latest/poulpy_core/api/trait.GLWENormalize.html
-  }];
-  let arguments = (ins
-    Poulpy_ModuleType:$module,
-    Poulpy_CiphertextMemRef:$res,
-    Poulpy_UnnormalizedCiphertextMemRef:$a,
     Poulpy_ScratchType:$scratch
   );
 }

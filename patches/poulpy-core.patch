@@ -1,0 +1,56 @@
+--- a/src/reference/operations/glwe.rs
++++ b/src/reference/operations/glwe.rs
+@@ -1280,20 +1280,12 @@
+         BP: CnvPVecRToBackendRef<BE>,
+         H: GetTensorKey<BE>,
+     {
+-        glwe_mul_relinearize_one_pass(
+-            self,
+-            cnv_offset,
+-            res,
+-            res_k,
+-            Some(a),
+-            MulRight::<A, BP>::Prepared {
+-                prep: b,
+-                size: b_size,
+-                k: b_k,
+-            },
+-            tsk,
+-            scratch,
+-        )
++        let right: MulRight<'_, A, BP> = MulRight::Prepared {
++            prep: b,
++            size: b_size,
++            k: b_k,
++        };
++        glwe_mul_relinearize_one_pass(self, cnv_offset, res, res_k, Some(a), right, tsk, scratch)
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+@@ -1312,20 +1304,12 @@
+         AP: CnvPVecRToBackendRef<BE>,
+         H: GetTensorKey<BE>,
+     {
+-        glwe_mul_relinearize_one_pass(
+-            self,
+-            cnv_offset,
+-            res,
+-            res_k,
+-            None::<&NoOperand<BE>>,
+-            MulRight::<NoOperand<BE>, AP>::Prepared {
+-                prep: a,
+-                size: a_size,
+-                k: a_k,
+-            },
+-            tsk,
+-            scratch,
+-        )
++        let right: MulRight<'_, NoOperand<BE>, AP> = MulRight::Prepared {
++            prep: a,
++            size: a_size,
++            k: a_k,
++        };
++        glwe_mul_relinearize_one_pass(self, cnv_offset, res, res_k, None::<&NoOperand<BE>>, right, tsk, scratch)
+     }
+ 
+     fn glwe_mul_columns_reference(
