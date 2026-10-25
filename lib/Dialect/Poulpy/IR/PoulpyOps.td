@@ -221,10 +221,45 @@ def Poulpy_RotateAssignOp : Poulpy_Op<"rotate_assign"> {
   );
 }
 
+// maps to ckks_mul_pow2_into
+def Poulpy_MulPow2Op : Poulpy_Op<"mul_pow2"> {
+  let summary = "Computes `dst = src * 2^bits`.";
+  let description = [{
+    Multiplies the encrypted message by `2^bits` at the same `log_delta`.
+
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CiphertextMemRef:$dst,
+    Poulpy_CiphertextMemRef:$src,
+    I64Attr:$bits,
+    Poulpy_ScratchType:$scratch
+  );
+}
+
+// maps to ckks_mul_pow2_assign
+def Poulpy_MulPow2AssignOp : Poulpy_Op<"mul_pow2_assign"> {
+  let summary = "Computes `dst *= 2^bits` in-place.";
+  let description = [{
+    See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html
+  }];
+  let arguments = (ins
+    Poulpy_ModuleType:$module,
+    Poulpy_CiphertextMemRef:$dst,
+    I64Attr:$bits,
+    Poulpy_ScratchType:$scratch
+  );
+}
+
 // maps to ckks_div_pow2_into
-def Poulpy_RescaleOp : Poulpy_Op<"rescale"> {
+def Poulpy_DivPow2Op : Poulpy_Op<"div_pow2"> {
   let summary = "Computes `dst = src / 2^bits`.";
   let description = [{
+    Divides the encrypted message by `2^bits`, moving `bits` from `log_budget`
+    to `log_delta`. This is not a CKKS rescale, which keeps the message: Poulpy
+    rescales inside multiplication.
+
     See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html
   }];
   let arguments = (ins
@@ -237,7 +272,7 @@ def Poulpy_RescaleOp : Poulpy_Op<"rescale"> {
 }
 
 // maps to ckks_div_pow2_assign
-def Poulpy_RescaleAssignOp : Poulpy_Op<"rescale_assign"> {
+def Poulpy_DivPow2AssignOp : Poulpy_Op<"div_pow2_assign"> {
   let summary = "Computes `dst /= 2^bits` in-place.";
   let description = [{
     See https://docs.rs/poulpy-ckks/latest/poulpy_ckks/api/trait.CKKSPow2Ops.html
