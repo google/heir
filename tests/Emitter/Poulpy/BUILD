@@ -1,3 +1,4 @@
+load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:lit.bzl", "glob_lit_tests")
@@ -23,6 +24,32 @@ heir_translate(
 rust_library(
     name = "emit_poulpy_compiles",
     srcs = ["emit_poulpy.rs"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:poulpy-ckks",
+        "@crates//:poulpy-core",
+        "@crates//:poulpy-hal",
+    ],
+)
+
+# The same check for tensor-form IR after poulpy-bufferize.
+heir_opt(
+    name = "emit_poulpy_bufferized_opt",
+    src = "emit_poulpy_bufferized.mlir",
+    generated_filename = "emit_poulpy_bufferized_opt.mlir",
+    pass_flags = ["--poulpy-bufferize"],
+)
+
+heir_translate(
+    name = "emit_poulpy_bufferized_rs",
+    src = ":emit_poulpy_bufferized_opt.mlir",
+    generated_filename = "emit_poulpy_bufferized.rs",
+    pass_flags = ["--emit-poulpy"],
+)
+
+rust_library(
+    name = "emit_poulpy_bufferized_compiles",
+    srcs = ["emit_poulpy_bufferized.rs"],
     deps = [
         "@crates//:anyhow",
         "@crates//:poulpy-ckks",

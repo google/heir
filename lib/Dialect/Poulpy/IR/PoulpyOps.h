@@ -4,6 +4,8 @@
 #include "lib/Dialect/Poulpy/IR/PoulpyDialect.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h.inc"

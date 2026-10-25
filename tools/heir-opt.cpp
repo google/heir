@@ -55,6 +55,8 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyDialect.h"
+#include "lib/Dialect/Poulpy/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Poulpy/Transforms/PoulpyBufferize.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToCheddar/PreprocessingToCheddar.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
@@ -393,6 +395,9 @@ int main(int argc, char** argv) {
       "Bufferize cheddar programs into out-params with One-Shot Bufferize",
       cheddar::buildCheddarBufferizationPipeline);
   cheddar::registerCheddarFuseOpsPasses();
+  PassPipelineRegistration<>(
+      "poulpy-bufferize", "Bufferize poulpy programs with One-Shot Bufferize",
+      poulpy::buildPoulpyBufferizationPipeline);
   kernel::registerKernelPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
@@ -530,6 +535,7 @@ int main(int argc, char** argv) {
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   cheddar::registerBufferizableOpInterfaceExternalModels(registry);
+  poulpy::registerBufferizableOpInterfaceExternalModels(registry);
   preprocessing::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);

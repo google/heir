@@ -160,4 +160,15 @@ module {
     poulpy.compact_limbs %mod, %dst, %src, %scratch : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
     return
   }
+
+  // Before bufferization the ops take tensors and return the destination.
+  // CHECK: func @test_tensor_form
+  func.func @test_tensor_form(%mod: !module, %a: tensor<!ct>, %b: tensor<!ct>, %tk: !tk, %scratch: !scratch) -> tensor<!ct> {
+    %empty = tensor.empty() : tensor<!ct>
+    // CHECK: poulpy.add {{.*}} -> tensor<!poulpy.ciphertext>
+    %sum = poulpy.add %mod, %empty, %a, %b, %scratch : (!module, tensor<!ct>, tensor<!ct>, tensor<!ct>, !scratch) -> tensor<!ct>
+    // CHECK: poulpy.mul_assign {{.*}} -> tensor<!poulpy.ciphertext>
+    %prod = poulpy.mul_assign %mod, %sum, %b, %tk, %scratch : (!module, tensor<!ct>, tensor<!ct>, !tk, !scratch) -> tensor<!ct>
+    return %prod : tensor<!ct>
+  }
 }

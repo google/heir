@@ -35,7 +35,10 @@ std::string valueOrClonedValue(Value value,
                                SelectVariableNames* variableNames) {
   auto expression = variableNames->getNameForValue(value);
   if (isa<BlockArgument>(value)) {
-    expression += ".clone()";
+    // f64 arguments are borrowed slices, the others borrowed poulpy values.
+    auto memRefType = dyn_cast<MemRefType>(value.getType());
+    bool isSlice = memRefType && memRefType.getElementType().isF64();
+    expression += isSlice ? ".to_vec()" : ".clone()";
   }
   return expression;
 }
@@ -87,8 +90,8 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
                 AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
                 RotateAssignOp, MulPow2Op, MulPow2AssignOp, DivPow2Op,
                 DivPow2AssignOp, CompactLimbsOp, EncodeOp, DecodeOp, EncryptOp,
-                DecryptOp, ModuleCreateOp, ScratchAllocOp, memref::AllocOp>(
-              [&](auto op) { return printOperation(op); })
+                DecryptOp, ModuleCreateOp, ScratchAllocOp, memref::AllocOp,
+                memref::CopyOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -547,6 +550,19 @@ LogicalResult PoulpyEmitter::printOperation(memref::AllocOp allocOp) {
   return success();
 }
 
+// Bufferization copies a buffer into a fresh allocation before updating the
+// copy in place, e.g. for an _assign op on an argument that is still live.
+LogicalResult PoulpyEmitter::printOperation(memref::CopyOp copyOp) {
+  Value target = copyOp.getTarget();
+  if (!pendingAllocs.erase(target)) {
+    return copyOp.emitOpError(
+        "target must come from an unmaterialized memref.alloc");
+  }
+  os << "let mut " << variableNames->getNameForValue(target) << " = "
+     << variableNames->getNameForValue(copyOp.getSource()) << ".clone();\n";
+  return success();
+}
+
 FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
                                                   bool isMutated) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
@@ -563,6 +579,7 @@ FailureOr<std::string> PoulpyEmitter::convertType(Type type, bool isArg,
           if (memRefType.getRank() != 1 || memRefType.isDynamicDim(0)) {
             return failure();
           }
+          if (!isArg) return std::string("Vec<f64>");
           return std::string(isMutated ? "&mut [f64]" : "&[f64]");
         }
         if (memRefType.getRank() != 0) return failure();
