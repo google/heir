@@ -243,12 +243,36 @@ crate.spec(
     version = "1.5.0",
 )
 crate.spec(
+    package = "anyhow",
+    version = "1.0.103",
+)
+crate.spec(
     package = "poulpy-ckks",
     version = "0.7.0",
 )
 crate.spec(
+    package = "poulpy-core",
+    version = "0.7.0",
+)
+crate.spec(
+    package = "poulpy-hal",
+    version = "0.7.0",
+)
+crate.spec(
+    features = ["enable-ckks"],
     package = "poulpy-cpu-ref",
     version = "0.7.0",
+)
+
+# poulpy-hal and poulpy-ckks use nightly features (trait_alias, f128); allow
+# them on the stable toolchain for these two crates only.
+crate.annotation(
+    crate = "poulpy-hal",
+    rustc_env = {"RUSTC_BOOTSTRAP": "1"},
+)
+crate.annotation(
+    crate = "poulpy-ckks",
+    rustc_env = {"RUSTC_BOOTSTRAP": "1"},
 )
 crate.from_specs()
 use_repo(crate, "crates")
