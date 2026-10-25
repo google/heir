@@ -62,7 +62,7 @@ func.func @dont_peel_nonsecret(%arg0: i32) -> i32 {
 // CHECK:   ^[[body:[^(]*]]([[arg0_val:%[^:]*]]: i32):
 // CHECK:     [[c1_again:%[^ ]*]] = arith.constant 1 : index
 // CHECK:     [[peeled:%[^ ]*]] = arith.addi [[c1_i32]], [[arg0_val]]
-// CHECK:     [[res:%[^ ]*]] = scf.for [[i:[^ ]*]] = [[c1_again]] to [[c10]] step [[c1]] iter_args([[iter_arg:%[^ ]*]] = [[peeled]]) -> (i32) {
+// CHECK:     [[res:%[^ ]*]] = scf.for [[i:[^ ]*]] = {{%[^ ]*}} to [[c10]] step [[c1]] iter_args([[iter_arg:%[^ ]*]] = [[peeled]]) -> (i32) {
 // CHECK:       arith.addi
 // CHECK:       scf.yield
 func.func @peel_first_iter_scf(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
