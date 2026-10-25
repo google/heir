@@ -189,41 +189,80 @@ func.func @rot_mul_add(%mod: !module, %scratch: !scratch, %tsk: !tsk, %akm: !akm
   return %prod : !ct
 }
 
-// CHECK: pub fn rescale<BE: PoulpyBackend>(
+// CHECK: pub fn mul_pow2<BE: PoulpyBackend>(
 // CHECK: [[m:v[0-9]+]]: &Module<BE>
 // CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
 // CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
 // CHECK: [[src:v[0-9]+]]: &Ct<BE>
 // CHECK-NEXT: ) -> Result<()> {
-func.func @rescale(%m: !module, %s: !scratch, %dst: !ct, %src: !ct) {
+func.func @mul_pow2(%m: !module, %s: !scratch, %dst: !ct, %src: !ct) {
+  // CHECK: [[m]].ckks_mul_pow2_into(&mut *[[dst]], &*[[src]], 3usize, &mut [[s]].borrow())?;
+  poulpy.mul_pow2 %m, %dst, %src, %s <bits = 3> : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn mul_pow2_assign<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @mul_pow2_assign(%m: !module, %s: !scratch, %dst: !ct) {
+  // CHECK: [[m]].ckks_mul_pow2_assign(&mut *[[dst]], 3usize, &mut [[s]].borrow())?;
+  poulpy.mul_pow2_assign %m, %dst, %s <bits = 3> : (!module, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn mul_pow2_alloc<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @mul_pow2_alloc(%m: !module, %s: !scratch, %src: !ct) {
+  %dst = memref.alloc() : !ct
+  // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].max_k());
+  // CHECK-NEXT: [[m]].ckks_mul_pow2_into(&mut [[dst]], &*[[src]], 4usize, &mut [[s]].borrow())?;
+  poulpy.mul_pow2 %m, %dst, %src, %s <bits = 4> : (!module, !ct, !ct, !scratch) -> ()
+  // CHECK-NEXT: Ok(())
+  return
+}
+
+// CHECK: pub fn div_pow2<BE: PoulpyBackend>(
+// CHECK: [[m:v[0-9]+]]: &Module<BE>
+// CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
+// CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
+// CHECK: [[src:v[0-9]+]]: &Ct<BE>
+// CHECK-NEXT: ) -> Result<()> {
+func.func @div_pow2(%m: !module, %s: !scratch, %dst: !ct, %src: !ct) {
   // CHECK: [[m]].ckks_div_pow2_into(&mut *[[dst]], &*[[src]], 3usize, &mut [[s]].borrow())?;
-  poulpy.rescale %m, %dst, %src, %s <bits = 3> : (!module, !ct, !ct, !scratch) -> ()
+  poulpy.div_pow2 %m, %dst, %src, %s <bits = 3> : (!module, !ct, !ct, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }
 
-// CHECK: pub fn rescale_assign<BE: PoulpyBackend>(
+// CHECK: pub fn div_pow2_assign<BE: PoulpyBackend>(
 // CHECK: [[m:v[0-9]+]]: &Module<BE>
 // CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
 // CHECK: [[dst:v[0-9]+]]: &mut Ct<BE>
 // CHECK-NEXT: ) -> Result<()> {
-func.func @rescale_assign(%m: !module, %s: !scratch, %dst: !ct) {
+func.func @div_pow2_assign(%m: !module, %s: !scratch, %dst: !ct) {
   // CHECK: [[m]].ckks_div_pow2_assign(&mut *[[dst]], 3usize)?;
-  poulpy.rescale_assign %m, %dst, %s <bits = 3> : (!module, !ct, !scratch) -> ()
+  poulpy.div_pow2_assign %m, %dst, %s <bits = 3> : (!module, !ct, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }
 
-// CHECK: pub fn rescale_alloc<BE: PoulpyBackend>(
+// CHECK: pub fn div_pow2_alloc<BE: PoulpyBackend>(
 // CHECK: [[m:v[0-9]+]]: &Module<BE>
 // CHECK: [[s:v[0-9]+]]: &mut ScratchOwned<BE>
 // CHECK: [[src:v[0-9]+]]: &Ct<BE>
 // CHECK-NEXT: ) -> Result<()> {
-func.func @rescale_alloc(%m: !module, %s: !scratch, %src: !ct) {
+func.func @div_pow2_alloc(%m: !module, %s: !scratch, %src: !ct) {
   %dst = memref.alloc() : !ct
   // CHECK: let mut [[dst:v[0-9]+]] = [[m]].ckks_ciphertext_alloc([[src]].base2k(), [[src]].max_k());
   // CHECK-NEXT: [[m]].ckks_div_pow2_into(&mut [[dst]], &*[[src]], 4usize, &mut [[s]].borrow())?;
-  poulpy.rescale %m, %dst, %src, %s <bits = 4> : (!module, !ct, !ct, !scratch) -> ()
+  poulpy.div_pow2 %m, %dst, %src, %s <bits = 4> : (!module, !ct, !ct, !scratch) -> ()
   // CHECK-NEXT: Ok(())
   return
 }

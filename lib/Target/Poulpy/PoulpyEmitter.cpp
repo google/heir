@@ -85,9 +85,9 @@ LogicalResult PoulpyEmitter::translate(Operation& op) {
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, func::CallOp, AddOp,
                 AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp, RotateOp,
-                RotateAssignOp, RescaleOp, RescaleAssignOp, CompactLimbsOp,
-                EncodeOp, DecodeOp, EncryptOp, DecryptOp, ModuleCreateOp,
-                ScratchAllocOp, memref::AllocOp>(
+                RotateAssignOp, MulPow2Op, MulPow2AssignOp, DivPow2Op,
+                DivPow2AssignOp, CompactLimbsOp, EncodeOp, DecodeOp, EncryptOp,
+                DecryptOp, ModuleCreateOp, ScratchAllocOp, memref::AllocOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
@@ -107,8 +107,8 @@ void PoulpyEmitter::computeMutatedValues(func::FuncOp funcOp) {
   funcOp.walk([&](Operation* op) {
     llvm::TypeSwitch<Operation&, void>(*op)
         .Case<AddOp, AddAssignOp, SubOp, SubAssignOp, MulOp, MulAssignOp,
-              RotateOp, RotateAssignOp, RescaleOp, RescaleAssignOp,
-              CompactLimbsOp>(
+              RotateOp, RotateAssignOp, MulPow2Op, MulPow2AssignOp, DivPow2Op,
+              DivPow2AssignOp, CompactLimbsOp>(
             [&](auto op) { mutatedValues.insert(op.getDst()); })
         .Case<DecodeOp>([&](DecodeOp op) {
           mutatedValues.insert(op.getReal());
@@ -355,33 +355,53 @@ LogicalResult PoulpyEmitter::printOperation(RotateAssignOp rotateAssignOp) {
   return success();
 }
 
-LogicalResult PoulpyEmitter::printOperation(RescaleOp rescaleOp) {
-  auto dst = rescaleOp.getDst();
-  auto src = rescaleOp.getSrc();
-
-  materializeIfPending(dst, rescaleOp.getModule(), src,
+template <typename OpTy>
+LogicalResult PoulpyEmitter::emitPow2Op(OpTy op, StringRef rustFn) {
+  materializeIfPending(op.getDst(), op.getModule(), op.getSrc(),
                        /*useSemanticWidth=*/false);
 
   emitCall(
-      rescaleOp.getModule(), "ckks_div_pow2_into", dst,
-      {ref(src, variableNames), std::to_string(rescaleOp.getBits()) + "usize"},
-      rescaleOp.getScratch());
+      op.getModule(), rustFn, op.getDst(),
+      {ref(op.getSrc(), variableNames), std::to_string(op.getBits()) + "usize"},
+      op.getScratch());
 
   return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(MulPow2Op mulPow2Op) {
+  return emitPow2Op(mulPow2Op, "ckks_mul_pow2_into");
+}
+
+LogicalResult PoulpyEmitter::printOperation(MulPow2AssignOp mulPow2AssignOp) {
+  auto dst = mulPow2AssignOp.getDst();
+
+  if (failed(
+          checkPendingState(dst, mulPow2AssignOp, /*shouldBePending=*/false)))
+    return failure();
+
+  emitCall(mulPow2AssignOp.getModule(), "ckks_mul_pow2_assign", dst,
+           {std::to_string(mulPow2AssignOp.getBits()) + "usize"},
+           mulPow2AssignOp.getScratch());
+
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(DivPow2Op divPow2Op) {
+  return emitPow2Op(divPow2Op, "ckks_div_pow2_into");
 }
 
 // NOTE: ckks_div_pow2_assign takes no scratch argument, unlike every other
 // _assign op. The dialect op still carries a scratch operand for structural
 // uniformity, it's just not part of the Rust call.
-LogicalResult PoulpyEmitter::printOperation(RescaleAssignOp rescaleAssignOp) {
-  auto dst = rescaleAssignOp.getDst();
+LogicalResult PoulpyEmitter::printOperation(DivPow2AssignOp divPow2AssignOp) {
+  auto dst = divPow2AssignOp.getDst();
 
   if (failed(
-          checkPendingState(dst, rescaleAssignOp, /*shouldBePending=*/false)))
+          checkPendingState(dst, divPow2AssignOp, /*shouldBePending=*/false)))
     return failure();
 
-  emitCall(rescaleAssignOp.getModule(), "ckks_div_pow2_assign", dst,
-           {std::to_string(rescaleAssignOp.getBits()) + "usize"});
+  emitCall(divPow2AssignOp.getModule(), "ckks_div_pow2_assign", dst,
+           {std::to_string(divPow2AssignOp.getBits()) + "usize"});
 
   return success();
 }

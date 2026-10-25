@@ -59,6 +59,8 @@ class PoulpyEmitter {
   template <typename OpTy>
   LogicalResult emitBinaryAssignOp(OpTy op, StringRef rustFn,
                                    ArrayRef<std::string> extraArgs = {});
+  template <typename OpTy>
+  LogicalResult emitPow2Op(OpTy op, StringRef rustFn);
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
@@ -76,8 +78,10 @@ class PoulpyEmitter {
   LogicalResult printOperation(MulAssignOp op);
   LogicalResult printOperation(RotateOp op);
   LogicalResult printOperation(RotateAssignOp op);
-  LogicalResult printOperation(RescaleOp op);
-  LogicalResult printOperation(RescaleAssignOp op);
+  LogicalResult printOperation(MulPow2Op op);
+  LogicalResult printOperation(MulPow2AssignOp op);
+  LogicalResult printOperation(DivPow2Op op);
+  LogicalResult printOperation(DivPow2AssignOp op);
   LogicalResult printOperation(CompactLimbsOp op);
   LogicalResult printOperation(EncodeOp op);
   LogicalResult printOperation(DecodeOp op);

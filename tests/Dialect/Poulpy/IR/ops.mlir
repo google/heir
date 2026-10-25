@@ -126,17 +126,31 @@ module {
     return
   }
 
-  // CHECK: func @test_rescale
-  func.func @test_rescale(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %scratch: !scratch) {
-    // CHECK: poulpy.rescale
-    poulpy.rescale %mod, %dst, %src, %scratch <bits = 40> : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
+  // CHECK: func @test_mul_pow2
+  func.func @test_mul_pow2(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %scratch: !scratch) {
+    // CHECK: poulpy.mul_pow2
+    poulpy.mul_pow2 %mod, %dst, %src, %scratch <bits = 40> : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
     return
   }
 
-  // CHECK: func @test_rescale_assign
-  func.func @test_rescale_assign(%mod: !module, %dst: memref<!ct>, %scratch: !scratch) {
-    // CHECK: poulpy.rescale_assign
-    poulpy.rescale_assign %mod, %dst, %scratch <bits = 40> : (!module, memref<!ct>, !scratch) -> ()
+  // CHECK: func @test_mul_pow2_assign
+  func.func @test_mul_pow2_assign(%mod: !module, %dst: memref<!ct>, %scratch: !scratch) {
+    // CHECK: poulpy.mul_pow2_assign
+    poulpy.mul_pow2_assign %mod, %dst, %scratch <bits = 40> : (!module, memref<!ct>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_div_pow2
+  func.func @test_div_pow2(%mod: !module, %dst: memref<!ct>, %src: memref<!ct>, %scratch: !scratch) {
+    // CHECK: poulpy.div_pow2
+    poulpy.div_pow2 %mod, %dst, %src, %scratch <bits = 40> : (!module, memref<!ct>, memref<!ct>, !scratch) -> ()
+    return
+  }
+
+  // CHECK: func @test_div_pow2_assign
+  func.func @test_div_pow2_assign(%mod: !module, %dst: memref<!ct>, %scratch: !scratch) {
+    // CHECK: poulpy.div_pow2_assign
+    poulpy.div_pow2_assign %mod, %dst, %scratch <bits = 40> : (!module, memref<!ct>, !scratch) -> ()
     return
   }
 
