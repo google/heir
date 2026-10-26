@@ -13,7 +13,10 @@ permissions:
 
 jobs:
   coverage:
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest: apt.llvm.org lags behind new Ubuntu
+    # releases, and install_clang_version.sh needs an LLVM apt suite that
+    # exists for the runner's codename.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

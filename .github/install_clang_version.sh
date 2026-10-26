@@ -13,8 +13,13 @@ CLANG_VERSION=$1
 CODENAME=$(lsb_release -cs)
 
 # Instructions from https://apt.llvm.org/
-wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-echo "deb http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-${CLANG_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+# `apt-key` is deprecated and removed from newer Ubuntu images, so install the
+# signing key into a dedicated keyring and reference it via `signed-by`.
+KEYRING=/etc/apt/keyrings/llvm-snapshot.gpg
+sudo install -d -m 0755 /etc/apt/keyrings
+wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor --yes -o "${KEYRING}"
+sudo chmod a+r "${KEYRING}"
+echo "deb [signed-by=${KEYRING}] https://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-${CLANG_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
 sudo apt update
 sudo apt-get install -y clang-${CLANG_VERSION} lld-${CLANG_VERSION} libomp-${CLANG_VERSION}-dev
 
