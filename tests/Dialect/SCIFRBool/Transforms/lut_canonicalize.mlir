@@ -1,4 +1,4 @@
-// RUN: heir-opt --canonicalize %s --cggi-tigris-estimator
+// RUN: heir-opt --canonicalize %s --cggi-tigris-estimator | FileCheck %s
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
 
@@ -31,7 +31,8 @@ func.func @require_post_pass_toposort_lut3(%arg0: tensor<8x!ct_ty>) -> !ct_ty {
   %1 = tensor.extract %arg0[%c1] : tensor<8x!ct_ty>
   %2 = tensor.extract %arg0[%c2] : tensor<8x!ct_ty>
 
-  // CHECK: cggi.lut_lincomb %extracted, %extracted_0, %extracted_1 <coefficients = [1, 2, 4], lookup_table = 8 : ui8>
+  // CHECK: func.func @require_post_pass_toposort_lut3
+  // CHECK: cggi.lut3 %extracted, %extracted_0, %extracted_1 <lookup_table = 8 : ui8>
   %r1 = cggi.lut3 %0, %1, %2 <lookup_table = 8 : ui8> : !ct_ty
 
   return %r1 : !ct_ty
@@ -46,7 +47,10 @@ func.func @require_post_pass_toposort_lut2(%arg0: tensor<8x!ct_ty>) -> !ct_ty {
   %1 = tensor.extract %arg0[%c1] : tensor<8x!ct_ty>
   %2 = tensor.extract %arg0[%c2] : tensor<8x!ct_ty>
 
-  // CHECK: cggi.lut_lincomb %extracted, %extracted_0 <coefficients = [1, 2], lookup_table = 8 : ui8>
+  // CHECK: func.func @require_post_pass_toposort_lut2
+  // CHECK: %extracted_0 = tensor.extract %arg0[%c1]
+  // CHECK-NOT: tensor.extract
+  // CHECK: cggi.lut2 %extracted, %extracted_0 <lookup_table = 8 : ui8>
   %r1 = cggi.lut2 %0, %1 <lookup_table = 8 : ui8> : !ct_ty
 
   return %r1 : !ct_ty
