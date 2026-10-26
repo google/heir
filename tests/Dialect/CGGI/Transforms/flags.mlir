@@ -1,4 +1,4 @@
-// RUN: heir-opt --straight-line-vectorize="dialect=cggi" %s
+// RUN: heir-opt --straight-line-vectorize="dialect=cggi" %s | FileCheck %s
 
 #key = #lwe.key<slot_index = 0>
 #poly = #polynomial.int_polynomial<x>
