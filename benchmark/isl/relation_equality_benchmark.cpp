@@ -60,6 +60,12 @@ double tierIslIsEqual(const IntegerRelation& lhs, const IntegerRelation& rhs) {
   return equal == isl_bool_true;
 }
 
+// The Presburger library's own equality test.
+double tierPresburgerIsEqual(const IntegerRelation& lhs,
+                             const IntegerRelation& rhs) {
+  return lhs.isEqual(rhs);
+}
+
 double tierIsRelationEqual(const IntegerRelation& lhs,
                            const IntegerRelation& rhs) {
   return isRelationEqual(lhs, rhs);
@@ -139,10 +145,16 @@ void registerBenchmarks() {
       {"ProveUnequalByVolume", tierProveUnequalByVolume},
       {"IslIsEqual", tierIslIsEqual},
       {"IsRelationEqual", tierIsRelationEqual},
+      {"PresburgerIsEqual", tierPresburgerIsEqual},
   };
 
   for (const NamedPair& pair : *pairs) {
     for (const auto& [tierName, tier] : tiers) {
+      // IntegerRelation::isEqual does not finish within 10 minutes on either
+      // NestedFloor pair.
+      if (std::string(tierName) == "PresburgerIsEqual" &&
+          pair.name.rfind("NestedFloor", 0) == 0)
+        continue;
       benchmark::RegisterBenchmark(
           "BM_" + std::string(tierName) + "/" + pair.name,
           [&pair, tier](benchmark::State& state) {

@@ -76,8 +76,45 @@ cc_binary(
         "@google_benchmark//:benchmark_main",
         "@heir//lib/Utils/Layout:IslConversion",
         "@heir//lib/Utils/Layout:Utils",
+        "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_binary(
+    name = "constant_bound_benchmark",
+    srcs = ["constant_bound_benchmark.cpp"],
+    deps = [
+        ":relations",
+        "@google_benchmark//:benchmark_main",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_binary(
+    name = "compute_divs_benchmark",
+    srcs = ["compute_divs_benchmark.cpp"],
+    deps = [
+        ":relations",
+        "@google_benchmark//:benchmark_main",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@isl",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_binary(
+    name = "dense_check_benchmark",
+    srcs = ["dense_check_benchmark.cpp"],
+    deps = [
+        ":relations",
+        "@google_benchmark//:benchmark_main",
+        "@isl",
     ],
 )
