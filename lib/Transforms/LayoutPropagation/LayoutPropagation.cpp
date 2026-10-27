@@ -1752,34 +1752,6 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
   return success();
 }
 
-bool checkReductionThenBroadcast(ReduceOp op, int64_t ciphertextSize) {
-  if (!llvm::hasSingleElement(op->getUsers())) {
-    return false;
-  }
-
-  auto nextBroadcast =
-      llvm::dyn_cast_or_null<BroadcastOp>(*op->getUsers().begin());
-  if (!nextBroadcast) {
-    return false;
-  }
-  if (nextBroadcast.getDimensions() != op.getDimensions()) {
-    return false;
-  }
-  auto broadcastResultType =
-      llvm::cast<RankedTensorType>(nextBroadcast->getResult(0).getType());
-  return broadcastResultType.getDimSize(
-             nextBroadcast.getDimensions().front()) == ciphertextSize;
-}
-
-bool checkBroadcastAfterReduction(BroadcastOp op, int64_t ciphertextSize) {
-  auto reduceOp =
-      llvm::dyn_cast_or_null<ReduceOp>(*op.getInput().getDefiningOp());
-  if (!reduceOp) {
-    return false;
-  }
-  return checkReductionThenBroadcast(reduceOp, ciphertextSize);
-}
-
 LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
   MLIRContext* ctx = &getContext();
   mlir::IRRewriter builder(ctx);
@@ -1802,17 +1774,11 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
       thisLayout = newLayoutAttr;
     }
 
-    if (checkReductionThenBroadcast(op, minSlotCount)) {
-      // don't drop dimensions
-      assignedLayouts.insert({result, thisLayout});
-      debugAssignLayout(result, thisLayout);
-    } else {
-      // drop dimension on output
-      LayoutAttr resultLayout =
-          convertLayoutForReduce(thisLayout, op.getDimensions());
-      assignedLayouts.insert({result, resultLayout});
-      debugAssignLayout(result, resultLayout);
-    }
+    // drop dimension on output
+    LayoutAttr resultLayout =
+        convertLayoutForReduce(thisLayout, op.getDimensions());
+    assignedLayouts.insert({result, resultLayout});
+    debugAssignLayout(result, resultLayout);
   }
   setResultLayoutAttr(op);
   return success();
