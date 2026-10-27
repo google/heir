@@ -65,6 +65,9 @@ struct InstanceGroups {
   std::map<std::vector<int64_t>, std::map<int64_t, Reads>> readsByKey;
   // Per output ciphertext and slot: the number of instances writing it.
   std::vector<std::vector<int64_t>> coverage;
+  // Per output ciphertext: whether it holds an output element no instance
+  // writes.
+  std::vector<bool> writesPartially;
 };
 
 // Groups the instances of `spec` by walking its loop nest. Fails if the output

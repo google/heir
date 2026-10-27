@@ -205,6 +205,11 @@ class SlotTable {
   std::pair<int64_t, int64_t> nearest(ArrayRef<int64_t> index, int64_t target,
                                       int64_t numSlots) const;
 
+  // The positions of every element.
+  ArrayRef<SmallVector<std::pair<int64_t, int64_t>, 1>> positions() const {
+    return slots;
+  }
+
  private:
   int64_t flatten(ArrayRef<int64_t> index) const;
 
@@ -350,6 +355,13 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
             "without reductions";
         return failure();
       }
+    }
+  }
+  groups.writesPartially.assign(numCts, false);
+  for (const auto& positions : outputSlots.positions()) {
+    for (auto [ct, slot] : positions) {
+      if (ct < numCts && coverage[ct][slot] == 0)
+        groups.writesPartially[ct] = true;
     }
   }
   return groups;

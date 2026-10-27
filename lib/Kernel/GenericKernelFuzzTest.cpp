@@ -305,8 +305,11 @@ class RandomOpBuilder {
       outputExprs.push_back(getAffineDimExpr(j, context));
       outputShape.push_back(op.loopRanges[j]);
     }
-    // Ops without reductions may write a window of a larger result.
-    bool partial = op.kind == GenericReductionKind::None && coin();
+    // Ops without reductions and idempotent reductions may write a window of
+    // a larger result.
+    bool partial = (op.kind == GenericReductionKind::None ||
+                    op.kind == GenericReductionKind::Idempotent) &&
+                   !outputExprs.empty() && coin();
     if (partial) {
       int64_t offset = pick(3);
       outputExprs[0] = outputExprs[0] + offset;
@@ -361,14 +364,19 @@ class RandomOpBuilder {
       bodies = {Body::First, Body::Product};
     op.body = bodies[pick(bodies.size())];
 
-    // The init: undefined (only for full writes that do not read it), the
+    // The init: undefined (only for full writes that do not read it, or for
+    // full idempotent reductions, which never read their identity), the
     // identity, or arbitrary.
     std::vector<GenericInitKind> initKinds = {GenericInitKind::Neutral,
                                               GenericInitKind::Other};
-    if (op.kind == GenericReductionKind::None && !partial &&
-        op.body != Body::PlusInit) {
+    if ((op.kind == GenericReductionKind::None && !partial &&
+         op.body != Body::PlusInit) ||
+        (op.kind == GenericReductionKind::Idempotent && !partial)) {
       initKinds.push_back(GenericInitKind::Empty);
     }
+    // The kernel rejects partial idempotent reductions into their identity.
+    if (op.kind == GenericReductionKind::Idempotent && partial)
+      initKinds = {GenericInitKind::Other};
     op.initKind = initKinds[pick(initKinds.size())];
     Tensor init(outputShape, op.kind == GenericReductionKind::Mul ||
                                      op.kind == GenericReductionKind::Idempotent

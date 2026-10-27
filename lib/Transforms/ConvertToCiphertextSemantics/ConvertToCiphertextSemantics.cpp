@@ -3656,19 +3656,44 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
     return init;
   }
 
+  // Whether `value` is the identity of the idempotent `combineOp`.
+  static bool isIdentityOf(Operation* combineOp, Value value) {
+    APInt i;
+    bool isInt = matchPattern(value, m_ConstantInt(&i));
+    return TypeSwitch<Operation*, bool>(combineOp)
+        .Case<arith::MaximumFOp, arith::MaxNumFOp>(
+            [&](auto) { return matchPattern(value, m_NegInfFloat()); })
+        .Case<arith::MinimumFOp, arith::MinNumFOp>(
+            [&](auto) { return matchPattern(value, m_PosInfFloat()); })
+        .Case<arith::MaxSIOp>(
+            [&](auto) { return isInt && i.isMinSignedValue(); })
+        .Case<arith::MinSIOp>(
+            [&](auto) { return isInt && i.isMaxSignedValue(); })
+        .Case<arith::MaxUIOp, arith::OrIOp>(
+            [&](auto) { return isInt && i.isZero(); })
+        .Case<arith::MinUIOp, arith::AndIOp>(
+            [&](auto) { return isInt && i.isAllOnes(); })
+        .Default([](Operation*) { return false; });
+  }
+
   static kernel::GenericInitKind getInitKind(Value init,
-                                             GenericReductionKind kind) {
+                                             GenericReductionKind kind,
+                                             Operation* combineOp) {
     init = initSource(init);
     if (init.getDefiningOp<tensor::EmptyOp>())
       return kernel::GenericInitKind::Empty;
     if (auto fill = init.getDefiningOp<linalg::FillOp>()) {
       init = fill.getInputs()[0];
     }
-    bool neutral =
-        kind == GenericReductionKind::Mul
-            ? matchPattern(init, m_One()) || matchPattern(init, m_OneFloat())
-            : matchPattern(init, m_Zero()) ||
-                  matchPattern(init, m_AnyZeroFloat());
+    bool neutral = false;
+    if (kind == GenericReductionKind::Idempotent) {
+      neutral = isIdentityOf(combineOp, init);
+    } else if (kind == GenericReductionKind::Mul) {
+      neutral = matchPattern(init, m_One()) || matchPattern(init, m_OneFloat());
+    } else {
+      neutral =
+          matchPattern(init, m_Zero()) || matchPattern(init, m_AnyZeroFloat());
+    }
     return neutral ? kernel::GenericInitKind::Neutral
                    : kernel::GenericInitKind::Other;
   }
@@ -3923,7 +3948,8 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
                    resultLayout.getIntegerRelation()};
 
     config.kind = kind;
-    config.initKind = getInitKind(op.getDpsInits()[0], kind);
+    config.initKind =
+        getInitKind(op.getDpsInits()[0], kind, bodyInfo->combineOp);
     // Ops without reductions may read the init in place through the out
     // argument.
     config.bodyReadsInit = kind == GenericReductionKind::None &&
