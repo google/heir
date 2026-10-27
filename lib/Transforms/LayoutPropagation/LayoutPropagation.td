@@ -42,6 +42,14 @@ def LayoutPropagation : Pass<"layout-propagation"> {
   of duties allows this pass to be reused as a pure dataflow analysis, in which
   case it annotates an un-annotated IR with layout attributes.
 
+  Secret structured ops without a dedicated kernel are first generalized to
+  `linalg.generic`, whose cleartext inputs get no layout. For a
+  `linalg.generic`, a partial write (e.g. a piece of a concatenation) keeps the
+  layout of its init; otherwise each result element is kept in the slots of
+  the secret input element read in the same iteration (for reductions, the
+  first of them), falling back to the init's or the default layout. An
+  explicit `tensor_ext.layout` attribute on the op overrides this.
+
   (* example filepath=tests/Transforms/layout_propagation/doctest.mlir *)
   }];
   let options = [
