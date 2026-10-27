@@ -647,14 +647,6 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
-  // Only support rank-reduced types for now, i.e., where the expanded shape
-  // only adds static dimensions of size 1.
-  SliceVerificationResult res =
-      isRankReducedType(op.getResultType(), op.getSrcType());
-  if (res != SliceVerificationResult::Success)
-    return op->emitError(
-        "Only rank-reduced types are supported for ExpandShapeOp");
-
   auto tensor = op.getSrc();
   LayoutAttr inputLayout = getComposedLayoutAttr(tensor);
   IntegerRelation relation = inputLayout.getIntegerRelation();
