@@ -2979,15 +2979,8 @@ class ConvertTensorCollapseShape
   LogicalResult matchAndRewrite(
       tensor::CollapseShapeOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    // if the layouts are equal (modulo the rank reduction) then this can be a
-    // no-op. check if the layouts are equal after collapsing the dimensions.
-    // then if the input and output types are the same, just replace with input.
-    SliceVerificationResult res =
-        isRankReducedType(op.getSrcType(), op.getResultType());
-    if (res != SliceVerificationResult::Success)
-      return rewriter.notifyMatchFailure(
-          op, "Only rank-reduced types are supported for CollapseShapeOp");
-
+    // If the result layout keeps every element in its slot, this is a no-op on
+    // the ciphertexts.
     auto srcType = adaptor.getSrc().getType();
     FailureOr<Attribute> tensorLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSrc());
@@ -3049,15 +3042,8 @@ class ConvertTensorExpandShape
   LogicalResult matchAndRewrite(
       tensor::ExpandShapeOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    // if the layouts are equal (modulo the rank reduction) then this can be a
-    // no-op. check if the layouts are equal after collapsing the dimensions.
-    // then if the input and output types are the same, just replace with input.
-    SliceVerificationResult res =
-        isRankReducedType(op.getResultType(), op.getSrcType());
-    if (res != SliceVerificationResult::Success)
-      return rewriter.notifyMatchFailure(
-          op, "Only rank-reduced types are supported for CollapseShapeOp");
-
+    // If the result layout keeps every element in its slot, this is a no-op on
+    // the ciphertexts.
     auto srcType = adaptor.getSrc().getType();
     FailureOr<Attribute> sourceLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSrc());
