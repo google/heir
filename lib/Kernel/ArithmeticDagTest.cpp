@@ -156,6 +156,21 @@ struct FlattenedStringVisitor {
 
   std::string operator()(const EmptyNode& node) const { return "empty()"; }
 
+  std::string operator()(const GatherNode<std::string>& node) const {
+    return "gather(" + (node.source ? node.source->visit(*this) : "") + ")";
+  }
+
+  std::string operator()(const ElementwiseOpNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << "elementwise(";
+    for (size_t i = 0; i < node.operands.size(); ++i) {
+      if (i > 0) ss << ", ";
+      ss << node.operands[i]->visit(*this);
+    }
+    ss << ")";
+    return ss.str();
+  }
+
   std::string operator()(const VariableNode<std::string>& node) const {
     if (varNames.find(&node) == varNames.end()) {
       varNames[&node] = "i" + std::to_string(varCounter++);
