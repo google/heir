@@ -113,7 +113,13 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
 
   TypedAttr attr;
-  if (auto floatTy = dyn_cast<mlir::FloatType>(tensorTy.getElementType())) {
+  Type elementType = tensorTy.getElementType();
+  if (elementType.isF32()) {
+    SmallVector<float> values(node.value.begin(), node.value.end());
+    attr = DenseElementsAttr::get(tensorTy, ArrayRef(values));
+  } else if (elementType.isF64()) {
+    attr = DenseElementsAttr::get(tensorTy, ArrayRef(node.value));
+  } else if (auto floatTy = dyn_cast<mlir::FloatType>(elementType)) {
     SmallVector<APFloat> values;
     for (double v : node.value) {
       APFloat apVal(v);
@@ -124,7 +130,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     attr = DenseElementsAttr::get(tensorTy, values);
   } else {
     // Node values are doubles and we must convert them to integers
-    auto intTy = cast<mlir::IntegerType>(tensorTy.getElementType());
+    auto intTy = cast<mlir::IntegerType>(elementType);
     SmallVector<APInt> values;
     for (double v : node.value) {
       APInt apVal(intTy.getWidth(), std::floor(v));
