@@ -118,6 +118,18 @@ FailureOr<presburger::IntegerRelation> inferInducedOutputLayout(
     const presburger::IntegerRelation& inputLayout, AffineMap outputMap,
     ArrayRef<int64_t> outputShape, bool reduceToLexmin, std::string& reason);
 
+// The input layout that needs no rotations: an input element sits in the
+// slot of every output element whose iteration reads it, in ciphertext
+// ct_o * R + r, where r is the row-major index of the reduction loops (R
+// iterations in total). This multiplies the number of ciphertexts by R and
+// replicates elements read by several outputs, which callers must weigh.
+// Fails, with `reason`, when that is not a layout (an element without a slot,
+// two elements in one slot, or more than one basic map).
+FailureOr<presburger::IntegerRelation> pullBackInputLayout(
+    ArrayRef<int64_t> loopRanges, ArrayRef<bool> isReduction,
+    AffineMap inputMap, ArrayRef<int64_t> inputShape, AffineMap outputMap,
+    const presburger::IntegerRelation& outputLayout, std::string& reason);
+
 }  // namespace heir
 }  // namespace mlir
 

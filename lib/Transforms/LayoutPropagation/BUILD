@@ -14,6 +14,7 @@ cc_library(
     deps = [
         ":Utils",
         ":new_pass_inc_gen",
+        "@heir//lib/Analysis/LayoutFoldingAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Secret/IR:Dialect",

@@ -643,5 +643,57 @@ FailureOr<IntegerRelation> inferInducedOutputLayout(
                           "induced", reason);
 }
 
+FailureOr<IntegerRelation> pullBackInputLayout(
+    ArrayRef<int64_t> loopRanges, ArrayRef<bool> isReduction,
+    AffineMap inputMap, ArrayRef<int64_t> inputShape, AffineMap outputMap,
+    const IntegerRelation& outputLayout, std::string& reason) {
+  // convertBasicMapToRelation frees this context on success, so every other
+  // ISL object must be released before that call.
+  isl_ctx* ctx = isl_ctx_alloc();
+  auto fail = [&](std::string why) -> FailureOr<IntegerRelation> {
+    reason = std::move(why);
+    isl_ctx_free(ctx);
+    return failure();
+  };
+
+  MLIRContext* mlirCtx = inputMap.getContext();
+  AffineExpr reductionIndex = getAffineConstantExpr(0, mlirCtx);
+  int64_t numReductions = 1;
+  for (int64_t j = loopRanges.size() - 1; j >= 0; --j) {
+    if (!isReduction[j]) continue;
+    reductionIndex =
+        reductionIndex + numReductions * getAffineDimExpr(j, mlirCtx);
+    numReductions *= loopRanges[j];
+  }
+  FailureOr<IntegerRelation> reductionRel = getIndexingMapRelation(
+      AffineMap::get(loopRanges.size(), 0, reductionIndex), loopRanges);
+  FailureOr<IntegerRelation> inputIndex =
+      getIndexingMapRelation(inputMap, loopRanges);
+  FailureOr<IntegerRelation> outputIndex =
+      getIndexingMapRelation(outputMap, loopRanges);
+  FailureOr<isl_map*> output =
+      getAccessMap(StructuredOperand{outputMap, outputLayout}, loopRanges, ctx,
+                   "the output", reason);
+  if (failed(output)) return fail(reason);
+  if (failed(reductionRel) || failed(inputIndex) || failed(outputIndex)) {
+    isl_map_free(*output);
+    return fail("the indexing maps are not affine");
+  }
+  // d -> (ct_o * R + r, slot_o), then input element -> that position.
+  isl_map* positions = isl_map_apply_range(
+      isl_map_flat_range_product(*output, toIslMap(*reductionRel, ctx)),
+      isl_map_read_from_str(
+          ctx,
+          llvm::formatv("{ [co, so, r] -> [co * {0} + r, so] }", numReductions)
+              .str()
+              .c_str()));
+  isl_map* pulled = isl_map_coalesce(
+      isl_map_apply_domain(positions, toIslMap(*inputIndex, ctx)));
+  isl_set* domain = getElementsWithPlacedPartner(*inputIndex, *outputIndex,
+                                                 outputLayout, ctx);
+  return toLayoutRelation(ctx, pulled, domain, inputShape, "pulled-back",
+                          reason);
+}
+
 }  // namespace heir
 }  // namespace mlir
