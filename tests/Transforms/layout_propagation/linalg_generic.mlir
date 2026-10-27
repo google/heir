@@ -47,3 +47,30 @@ func.func @depthwise_conv(%arg0: !secret.secret<tensor<1x6x2xf32>>) -> !secret.s
   } -> !secret.secret<tensor<1x4x2xf32>>
   return %0 : !secret.secret<tensor<1x4x2xf32>>
 }
+
+// -----
+
+// x + x^T reads %x twice, through the identity and the transpose. Only the
+// transposed read is converted (to column-major); the other keeps %x.
+
+#id = affine_map<(d0, d1) -> (d0, d1)>
+#tr = affine_map<(d0, d1) -> (d1, d0)>
+
+// CHECK: func.func @x_plus_transpose
+// CHECK: ^body(%[[x:.*]]: tensor<4x4xf32>):
+// CHECK: %[[converted:.*]] = tensor_ext.convert_layout %[[x]]
+// CHECK: linalg.generic
+// CHECK-SAME: ins(%[[x]], %[[converted]] :
+func.func @x_plus_transpose(%arg0: !secret.secret<tensor<4x4xf32>>) -> !secret.secret<tensor<4x4xf32>> {
+  %e = tensor.empty() : tensor<4x4xf32>
+  %r = secret.generic(%arg0: !secret.secret<tensor<4x4xf32>>) {
+  ^body(%x: tensor<4x4xf32>):
+    %1 = linalg.generic {indexing_maps = [#id, #tr, #id], iterator_types = ["parallel", "parallel"]} ins(%x, %x : tensor<4x4xf32>, tensor<4x4xf32>) outs(%e : tensor<4x4xf32>) {
+    ^bb0(%p: f32, %q: f32, %o: f32):
+      %2 = arith.addf %p, %q : f32
+      linalg.yield %2 : f32
+    } -> tensor<4x4xf32>
+    secret.yield %1 : tensor<4x4xf32>
+  } -> !secret.secret<tensor<4x4xf32>>
+  return %r : !secret.secret<tensor<4x4xf32>>
+}
