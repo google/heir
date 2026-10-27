@@ -82,6 +82,18 @@ cc_library(
 )
 
 cc_library(
+    name = "GenericKernelImplementation",
+    hdrs = ["GenericKernelImplementation.h"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        "@heir//lib/Utils/Layout:GenericKernel",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "Utils",
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
@@ -189,6 +201,27 @@ cc_test(
         ":TestingUtils",
         "@fuzztest//fuzztest",
         "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
+    name = "GenericKernelFuzzTest",
+    srcs = ["GenericKernelFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":GenericKernelImplementation",
+        "@fuzztest//fuzztest",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:GenericKernel",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:AsmParser",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 
