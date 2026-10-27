@@ -2252,6 +2252,14 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   return {true, std::nullopt};
 }
 
+// Whether the slice spans every dimension of the result that it does not
+// insert at a single index, which pushSliceLayoutThroughInsertSlice requires.
+static bool spansNonUnitDims(tensor::InsertSliceOp op) {
+  return llvm::all_of_zip(
+      op.getStaticSizes(), op.getResultType().getShape(),
+      [](int64_t size, int64_t dim) { return size == 1 || size == dim; });
+}
+
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     tensor::InsertSliceOp op) {
   // The arguments of a tensor::InsertSliceOp are the tensors to insert and the
@@ -2265,6 +2273,9 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   if (!assignedLayouts.contains(dest)) {
     return {false, op->emitError("destination tensor has no assigned layout")};
   }
+  // A smaller slice (e.g. a piece of a concatenation) cannot give the dest its
+  // layout; the dest keeps its own, and the lowering moves the slice into it.
+  if (!spansNonUnitDims(op)) return {true, std::nullopt};
 
   LayoutAttr insertLayout = getComposedLayoutAttr(insert);
   LayoutAttr destLayout = getComposedLayoutAttr(dest);

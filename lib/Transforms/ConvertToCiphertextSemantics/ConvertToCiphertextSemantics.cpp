@@ -546,6 +546,45 @@ class ConvertAssignLayout
   mutable llvm::DenseMap<FunctionKey, func::FuncOp> functionCache;
 };
 
+// Remaps a ciphertext-semantic value from one layout to another. The result
+// has `resultType`, which may hold a different number of ciphertexts than the
+// input.
+Value remapToLayout(ImplicitLocOpBuilder& b, Value input, LayoutAttr fromLayout,
+                    LayoutAttr toLayout, RankedTensorType resultType) {
+  std::shared_ptr<IntegerRelation> composedLayout =
+      fromLayout.getIntegerRelation().clone();
+  composedLayout->inverse();
+  composedLayout->compose(toLayout.getIntegerRelation());
+  LayoutAttr newLayoutAttr =
+      LayoutAttr::getFromIntegerRelation(b.getContext(), *composedLayout);
+
+  // A remap keeps the shape of its input, so an input with fewer ciphertexts
+  // than the result is first extended by ciphertexts the remap never reads.
+  auto inputType = cast<RankedTensorType>(input.getType());
+  int64_t numCts = resultType.getDimSize(0);
+  if (inputType.getDimSize(0) < numCts) {
+    auto extendedType = RankedTensorType::get({numCts, inputType.getDimSize(1)},
+                                              inputType.getElementType());
+    Value empty = tensor::EmptyOp::create(b, extendedType.getShape(),
+                                          extendedType.getElementType());
+    SmallVector<OpFoldResult> offsets(2, b.getIndexAttr(0));
+    SmallVector<OpFoldResult> sizes = {b.getIndexAttr(inputType.getDimSize(0)),
+                                       b.getIndexAttr(inputType.getDimSize(1))};
+    SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
+    auto extended =
+        tensor::InsertSliceOp::create(b, input, empty, offsets, sizes, strides);
+    setMaterializedAttr(extended);
+    input = extended;
+  }
+  auto remapAndExtract =
+      remapAndExtractResult(b, input, newLayoutAttr, resultType);
+
+  setMaterializedAttr(remapAndExtract);
+  setAttributeAssociatedWith(remapAndExtract->getResults()[0], kLayoutAttrName,
+                             toLayout);
+  return remapAndExtract->getResults()[0];
+}
+
 class ConvertConvertLayout
     : public ContextAwareOpConversionPattern<tensor_ext::ConvertLayoutOp> {
  public:
@@ -570,43 +609,12 @@ class ConvertConvertLayout
     // This is persisted as an operation rather than lowered eagerly to a shift
     // network so as to allow VosVosErkinShiftNetworks to cache its work across
     // multiple instances of the same conversion.
-    std::shared_ptr<IntegerRelation> composedLayout =
-        fromLayout.getIntegerRelation().clone();
-    composedLayout->inverse();
-    composedLayout->compose(toLayout.getIntegerRelation());
-
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    LayoutAttr newLayoutAttr =
-        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout);
     auto resultCiphertextSemanticType = cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResult().getType(), toLayout));
-    // A remap keeps the shape of its input, so an input with fewer ciphertexts
-    // than the result is first extended by ciphertexts the remap never reads.
-    Value input = adaptor.getValue();
-    auto inputType = cast<RankedTensorType>(input.getType());
-    int64_t numCts = resultCiphertextSemanticType.getDimSize(0);
-    if (inputType.getDimSize(0) < numCts) {
-      auto extendedType = RankedTensorType::get(
-          {numCts, inputType.getDimSize(1)}, inputType.getElementType());
-      Value empty = tensor::EmptyOp::create(b, extendedType.getShape(),
-                                            extendedType.getElementType());
-      SmallVector<OpFoldResult> offsets(2, b.getIndexAttr(0));
-      SmallVector<OpFoldResult> sizes = {
-          b.getIndexAttr(inputType.getDimSize(0)),
-          b.getIndexAttr(inputType.getDimSize(1))};
-      SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
-      auto extended = tensor::InsertSliceOp::create(b, input, empty, offsets,
-                                                    sizes, strides);
-      setMaterializedAttr(extended);
-      input = extended;
-    }
-    auto remapAndExtract = remapAndExtractResult(b, input, newLayoutAttr,
-                                                 resultCiphertextSemanticType);
-
-    setMaterializedAttr(remapAndExtract);
-    setAttributeAssociatedWith(remapAndExtract->getResults()[0],
-                               kLayoutAttrName, toLayout);
-    rewriter.replaceOp(op, remapAndExtract->getResults()[0]);
+    rewriter.replaceOp(
+        op, remapToLayout(b, adaptor.getValue(), fromLayout, toLayout,
+                          resultCiphertextSemanticType));
     return success();
   };
 };
@@ -2430,17 +2438,6 @@ class ConvertTensorInsertSlice
     IntegerRelation scalarRel = scalarLayout.getIntegerRelation();
     IntegerRelation destRel = destLayout.getIntegerRelation();
 
-    // Initial support for this kernel requires that the scalar source slice
-    // changes layout to match the destination tensor layout at the subspace
-    // defined by the slicing.
-    if (!scalarRel.getRangeSet().isSubsetOf(destRel.getRangeSet())) {
-      return op.emitError()
-             << "tensor.insert requires slice layout to be a subset of the "
-                "dest layout, but "
-                "got slice layout "
-             << scalarLayout << " and tensor layout " << destLayout << "\n";
-    }
-
     SmallVector<int64_t> staticStrides =
         SmallVector<int64_t>(op.getStaticStrides());
     if (!llvm::all_of(staticStrides, [](int64_t s) { return s == 1; })) {
@@ -2485,9 +2482,15 @@ class ConvertTensorInsertSlice
       LLVM_DEBUG(llvm::dbgs()
                  << "converting insert_slice source from " << scalarLayout
                  << " to " << newScalarLayout << "\n");
-      convertedSource = tensor_ext::ConvertLayoutOp::create(
-          b, op.getLoc(), adaptor.getSource(), scalarLayout, newScalarLayout);
+      convertedSource =
+          remapToLayout(b, adaptor.getSource(), scalarLayout, newScalarLayout,
+                        cast<RankedTensorType>(getTypeConverter()->convertType(
+                            op.getSourceType(), newScalarLayout)));
     }
+    // Ciphertext i of the converted slice belongs in destination ciphertext
+    // ctLowerBound + i.
+    int64_t numSliceCts =
+        cast<RankedTensorType>(convertedSource.getType()).getDimSize(0);
 
     // For each ciphertext in the destination, mask the points originating from
     // the slice with ones and the remaining points from the destination with
@@ -2510,6 +2513,8 @@ class ConvertTensorInsertSlice
                                 ciphertextSemanticType.getElementType());
     auto numCt = ciphertextSemanticType.getDimSize(0);
     auto slots = ciphertextSemanticType.getDimSize(1);
+    auto rowType = RankedTensorType::get(
+        {1, slots}, ciphertextSemanticType.getElementType());
     for (auto ct = 0; ct < numCt; ++ct) {
       Value scalarMask = results.first[ct];
       Value destMask = results.second[ct];
@@ -2524,10 +2529,25 @@ class ConvertTensorInsertSlice
       sizes.push_back(b.getIndexAttr(slots));
       SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
       Operation* extractedDest = tensor::ExtractSliceOp::create(
-          b, op.getLoc(), cast<RankedTensorType>(convertedSource.getType()),
-          adaptor.getDest(), ctOffsets, sizes, strides);
+          b, op.getLoc(), rowType, adaptor.getDest(), ctOffsets, sizes,
+          strides);
+      // The slice reaches no slot of this ciphertext.
+      int64_t sliceCt = ct - ctLowerBound.value();
+      if (sliceCt < 0 || sliceCt >= numSliceCts) {
+        Operation* insertOp = tensor::InsertSliceOp::create(
+            b, extractedDest->getResult(0), result, ctOffsets, sizes, strides);
+        setMaterializedAttr({extractedDest, insertOp});
+        result = insertOp->getResult(0);
+        continue;
+      }
+      SmallVector<OpFoldResult> sliceOffsets = {b.getIndexAttr(sliceCt),
+                                                b.getIndexAttr(0)};
+      Operation* extractedSlice = tensor::ExtractSliceOp::create(
+          b, op.getLoc(), rowType, convertedSource, sliceOffsets, sizes,
+          strides);
       Operation* scalarMul = makeAppropriatelyTypedMulOp(
-          b, op.getLoc(), scalarMask, convertedSource, {getArithFMF(b)});
+          b, op.getLoc(), scalarMask, extractedSlice->getResult(0),
+          {getArithFMF(b)});
       Operation* destMul = makeAppropriatelyTypedMulOp(
           b, op.getLoc(), destMask, extractedDest->getResult(0),
           {getArithFMF(b)});
@@ -2538,8 +2558,8 @@ class ConvertTensorInsertSlice
       // Insert the final result into the ciphertext at position ct.
       Operation* insertOp = tensor::InsertSliceOp::create(
           b, finalAdd->getResult(0), result, ctOffsets, sizes, strides);
-      setMaterializedAttr(
-          {extractedDest, scalarMul, destMul, finalAdd, insertOp});
+      setMaterializedAttr({extractedDest, extractedSlice, scalarMul, destMul,
+                           finalAdd, insertOp});
       result = insertOp->getResult(0);
     }
 
