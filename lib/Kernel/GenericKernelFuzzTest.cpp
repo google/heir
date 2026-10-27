@@ -7,6 +7,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <variant>
 #include <vector>
@@ -221,23 +222,29 @@ LiteralValue pack(const Operand& operand, int64_t numSlots) {
       operand.layout, get, SmallVector<int64_t>{operand.numCts, numSlots}));
 }
 
-// Builds the kernel DAG for `op`: secret inputs packed in their layouts,
-// cleartext inputs as their flat data.
-FailureOr<NodePtr> buildKernel(const Op& op, std::string& reason) {
+GenericKernelSpec getSpec(const Op& op) {
   GenericKernelSpec spec;
   spec.loopRanges = op.loopRanges;
   spec.numSlots = op.numSlots;
-  std::vector<NodePtr> inputs;
   for (const Operand& input : op.inputs) {
     spec.inputs.push_back({input.map, input.layout});
-    if (input.cleartext) {
+    if (input.cleartext)
       spec.inputs.back().cleartextShape = llvm::to_vector(input.tensor.shape);
-      inputs.push_back(NodeTy::leaf(LiteralValue(input.tensor.data)));
-    } else {
-      inputs.push_back(NodeTy::leaf(pack(input, op.numSlots)));
-    }
   }
   spec.output = {op.output.map, op.output.layout};
+  return spec;
+}
+
+// Builds the kernel DAG for `op`: secret inputs packed in their layouts,
+// cleartext inputs as their flat data.
+FailureOr<NodePtr> buildKernel(const Op& op, std::string& reason) {
+  GenericKernelSpec spec = getSpec(op);
+  std::vector<NodePtr> inputs;
+  for (const Operand& input : op.inputs) {
+    inputs.push_back(input.cleartext
+                         ? NodeTy::leaf(LiteralValue(input.tensor.data))
+                         : NodeTy::leaf(pack(input, op.numSlots)));
+  }
   GenericKernelConfig config;
   config.kind = op.kind;
   config.initKind = op.initKind;
@@ -491,6 +498,31 @@ void genericKernelMatchesNaive(uint64_t seed) {
 }
 
 FUZZ_TEST(GenericKernelFuzzTest, genericKernelMatchesNaive)
+    .WithDomains(fuzztest::Arbitrary<uint64_t>());
+
+// The symbolic count of groups agrees with the walk.
+void groupCountMatchesWalk(uint64_t seed) {
+  MLIRContext context;
+  Op op = RandomOpBuilder(seed, &context).build();
+  GenericKernelSpec spec = getSpec(op);
+  std::string reason;
+  FailureOr<InstanceGroups> groups =
+      groupInstances(spec, op.output.numCts, GenericReductionKind::Add, reason);
+  ASSERT_TRUE(succeeded(groups)) << reason;
+  FailureOr<GroupCount> count = countInstanceGroups(spec, reason);
+  ASSERT_TRUE(succeeded(count)) << reason;
+  EXPECT_EQ(count->numKeys, static_cast<int64_t>(groups->readsByKey.size()));
+  // Distinct nonzero rotations per secret input.
+  std::set<std::tuple<size_t, int64_t, int64_t>> rotations;
+  for (const auto& [key, slots] : groups->readsByKey) {
+    for (size_t k = 1; k + 1 < key.size(); k += 2) {
+      if (key[k + 1] != 0) rotations.insert({k, key[k], key[k + 1]});
+    }
+  }
+  EXPECT_EQ(count->numRotations, static_cast<int64_t>(rotations.size()));
+}
+
+FUZZ_TEST(GenericKernelFuzzTest, groupCountMatchesWalk)
     .WithDomains(fuzztest::Arbitrary<uint64_t>());
 
 }  // namespace

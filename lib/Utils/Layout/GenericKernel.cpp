@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -26,13 +28,16 @@
 #include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
 
 // ISL
-#include "include/isl/ctx.h"         // from @isl
-#include "include/isl/map.h"         // from @isl
-#include "include/isl/map_type.h"    // from @isl
-#include "include/isl/set.h"         // from @isl
-#include "include/isl/space.h"       // from @isl
-#include "include/isl/space_type.h"  // from @isl
-#include "include/isl/val.h"         // from @isl
+#include "include/isl/aff.h"          // from @isl
+#include "include/isl/ctx.h"          // from @isl
+#include "include/isl/local_space.h"  // from @isl
+#include "include/isl/map.h"          // from @isl
+#include "include/isl/map_type.h"     // from @isl
+#include "include/isl/point.h"        // from @isl
+#include "include/isl/set.h"          // from @isl
+#include "include/isl/space.h"        // from @isl
+#include "include/isl/space_type.h"   // from @isl
+#include "include/isl/val.h"          // from @isl
 
 namespace mlir {
 namespace heir {
@@ -359,6 +364,166 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
     }
   }
   return groups;
+}
+
+FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
+                                          std::string& reason) {
+  if (failed(validateGenericKernelSpec(spec, reason))) return failure();
+  IslContext isl;
+  isl_ctx* ctx = isl.ctx;
+  auto fail = [&](StringRef why) -> FailureOr<GroupCount> {
+    reason = why.str();
+    return failure();
+  };
+  const unsigned numLoops = spec.loopRanges.size();
+
+  // The instances (d, ct_o, slot_o) place the output element of iteration d.
+  // Taking the preimage of the layout under the indexing map, rather than
+  // composing them, adds no existential variables.
+  FailureOr<IntegerRelation> outputIndex =
+      getIndexingMapRelation(spec.output.indexingMap, spec.loopRanges);
+  if (failed(outputIndex))
+    return fail("indexing map of the output is not affine");
+  isl_set* instances =
+      isl_set_flatten(isl_map_wrap(isl_map_preimage_domain_pw_multi_aff(
+          toIslMap(spec.output.layout, ctx),
+          isl_pw_multi_aff_from_map(toIslMap(*outputIndex, ctx)))));
+  isl_space* instanceSpace = isl_set_get_space(instances);
+  auto instanceCoord = [&](unsigned pos) {
+    return isl_pw_aff_var_on_domain(
+        isl_local_space_from_space(isl_space_copy(instanceSpace)), isl_dim_set,
+        pos);
+  };
+  // The key [ct_o, (ct_i, shift_i) per secret input] of an instance.
+  isl_pw_multi_aff* key = isl_pw_multi_aff_from_pw_aff(instanceCoord(numLoops));
+  unsigned numSecretInputs = 0;
+  for (auto [i, input] : llvm::enumerate(spec.inputs)) {
+    if (input.isCleartext()) continue;
+    FailureOr<IntegerRelation> index =
+        getIndexingMapRelation(input.indexingMap, spec.loopRanges);
+    if (failed(index)) {
+      isl_pw_multi_aff_free(key);
+      isl_set_free(instances);
+      isl_space_free(instanceSpace);
+      return fail(
+          llvm::formatv("indexing map of input {0} is not affine", i).str());
+    }
+    unsigned rank = input.layout.getNumDomainVars();
+    // Per element x and output slot so, the smallest (ct, rotation) over the
+    // replicas of x: the replica in x's first ciphertext at or after so, else
+    // the first one in it, reached by wrapping around.
+    isl_map* layout = toIslMap(input.layout, ctx);
+    isl_pw_multi_aff* firstReplica =
+        isl_map_lexmin_pw_multi_aff(isl_map_copy(layout));
+    isl_pw_aff* firstCt = isl_pw_multi_aff_get_pw_aff(firstReplica, 0);
+    isl_pw_multi_aff_free(firstReplica);
+    isl_map* anySlot = isl_map_universe(isl_space_alloc(ctx, 0, rank, 1));
+    layout = isl_map_intersect(
+        layout,
+        isl_map_flat_range_product(isl_map_from_pw_aff(firstCt), anySlot));
+    // Only the lexmin at or after the slot bounds it: bounding the wrapped one
+    // too splits its pieces so that the enumeration below visits millions of
+    // witnesses per key on some convs.
+    layout = isl_map_add_dims(layout, isl_dim_in, 1);
+    isl_map* atOrAfter = isl_map_order_ge(isl_map_copy(layout), isl_dim_out, 1,
+                                          isl_dim_in, rank);
+    atOrAfter = isl_map_lower_bound_si(atOrAfter, isl_dim_in, rank, 0);
+    atOrAfter =
+        isl_map_upper_bound_si(atOrAfter, isl_dim_in, rank, spec.numSlots - 1);
+    isl_pw_multi_aff* above = isl_map_lexmin_pw_multi_aff(atOrAfter);
+    isl_pw_multi_aff* wrapped = isl_map_lexmin_pw_multi_aff(layout);
+    isl_pw_aff* slot = isl_pw_aff_var_on_domain(
+        isl_local_space_from_space(
+            isl_space_domain(isl_pw_multi_aff_get_space(above))),
+        isl_dim_set, rank);
+    above = isl_pw_multi_aff_set_pw_aff(
+        above, 1,
+        isl_pw_aff_sub(isl_pw_multi_aff_get_pw_aff(above, 1),
+                       isl_pw_aff_copy(slot)));
+    wrapped = isl_pw_multi_aff_set_pw_aff(
+        wrapped, 1,
+        isl_pw_aff_add_constant_val(
+            isl_pw_aff_sub(isl_pw_multi_aff_get_pw_aff(wrapped, 1), slot),
+            isl_val_int_from_si(ctx, spec.numSlots)));
+    wrapped = isl_pw_multi_aff_subtract_domain(
+        wrapped, isl_pw_multi_aff_domain(isl_pw_multi_aff_copy(above)));
+    // The instance (d, ct_o, slot_o) reads element index(d) into slot_o.
+    isl_pw_multi_aff* element = isl_pw_multi_aff_pullback_pw_multi_aff(
+        isl_pw_multi_aff_from_map(toIslMap(*index, ctx)),
+        isl_pw_multi_aff_project_out_map(isl_space_copy(instanceSpace),
+                                         isl_dim_set, numLoops, 2));
+    isl_pw_multi_aff* inputKey = isl_pw_multi_aff_pullback_pw_multi_aff(
+        isl_pw_multi_aff_union_add(above, wrapped),
+        isl_pw_multi_aff_flat_range_product(
+            isl_pw_multi_aff_copy(element),
+            isl_pw_multi_aff_from_pw_aff(instanceCoord(numLoops + 1))));
+    // Elements the layout does not place read as zero, with key (-1, 0). They
+    // are found among the data indices, not the instances.
+    isl_set* unplaced = isl_set_preimage_pw_multi_aff(
+        isl_set_subtract(isl_map_range(toIslMap(*index, ctx)),
+                         isl_map_domain(toIslMap(input.layout, ctx))),
+        element);
+    isl_multi_val* zeroKey = isl_multi_val_zero(isl_space_set_alloc(ctx, 0, 2));
+    zeroKey = isl_multi_val_set_val(zeroKey, 0, isl_val_negone(ctx));
+    inputKey = isl_pw_multi_aff_union_add(
+        inputKey,
+        isl_pw_multi_aff_multi_val_on_domain(
+            isl_set_intersect(unplaced, isl_set_copy(instances)), zeroKey));
+    key = isl_pw_multi_aff_flat_range_product(key, inputKey);
+    ++numSecretInputs;
+  }
+  isl_space_free(instanceSpace);
+  key = isl_pw_multi_aff_intersect_domain(key, instances);
+
+  // Enumerate the keys one basic map at a time, each lifted so that its
+  // existential variables become coordinates: the scan then has no divisions
+  // to compute. The rotations are the keys' (ct_i, shift_i) with a nonzero
+  // shift.
+  struct Collector {
+    unsigned numCoords;
+    std::set<std::vector<int64_t>> keys;
+  } collector{1 + 2 * numSecretInputs, {}};
+  // Rebuilding the function from its map lets ISL simplify the pieces, which
+  // projects most instance coordinates out of their ranges; otherwise each
+  // range keeps them as existential variables and the lifted scan below
+  // visits every instance.
+  isl_map* keyMap = isl_map_from_pw_multi_aff(
+      isl_pw_multi_aff_from_map(isl_map_from_pw_multi_aff(key)));
+  isl_stat status = isl_map_foreach_basic_map(
+      keyMap,
+      [](__isl_take isl_basic_map* piece, void* user) {
+        isl_set* keys = isl_set_from_basic_set(
+            isl_basic_set_lift(isl_basic_map_range(piece)));
+        isl_stat status = isl_set_foreach_point(
+            keys,
+            [](__isl_take isl_point* point, void* user) {
+              auto* collector = static_cast<Collector*>(user);
+              std::vector<int64_t> coords(collector->numCoords);
+              for (unsigned i = 0; i < collector->numCoords; ++i) {
+                isl_val* val =
+                    isl_point_get_coordinate_val(point, isl_dim_set, i);
+                coords[i] = isl_val_get_num_si(val);
+                isl_val_free(val);
+              }
+              isl_point_free(point);
+              collector->keys.insert(std::move(coords));
+              return isl_stat_ok;
+            },
+            user);
+        isl_set_free(keys);
+        return status;
+      },
+      &collector);
+  isl_map_free(keyMap);
+  if (status != isl_stat_ok) return fail("ISL failed to enumerate the keys");
+  std::set<std::tuple<unsigned, int64_t, int64_t>> rotations;
+  for (const std::vector<int64_t>& k : collector.keys) {
+    for (unsigned i = 0; i < numSecretInputs; ++i) {
+      if (k[2 + 2 * i] != 0) rotations.insert({i, k[1 + 2 * i], k[2 + 2 * i]});
+    }
+  }
+  return GroupCount{static_cast<int64_t>(collector.keys.size()),
+                    static_cast<int64_t>(rotations.size())};
 }
 
 SmallVector<int64_t> evaluateAffineMap(AffineMap map, ArrayRef<int64_t> point) {
