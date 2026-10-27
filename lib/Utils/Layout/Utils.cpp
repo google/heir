@@ -652,9 +652,43 @@ bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
   return isRelationCyclic(tensorType, numSlots, relation);
 }
 
+// Whether each reassociation group has at most one dimension of size other
+// than 1 in `type`, i.e. the reshape only adds or drops unit dimensions.
+static bool onlyUnitDimsChange(RankedTensorType type,
+                               ArrayRef<ReassociationIndices> reassociation) {
+  return llvm::all_of(reassociation, [&](const ReassociationIndices& group) {
+    return llvm::count_if(group, [&](int64_t dim) {
+             return type.getDimSize(dim) != 1;
+           }) <= 1;
+  });
+}
+
+// The shape of `type` with each reassociation group collapsed to one dim.
+static RankedTensorType getCollapsedType(
+    RankedTensorType type, ArrayRef<ReassociationIndices> reassociation) {
+  SmallVector<int64_t> shape;
+  for (const ReassociationIndices& group : reassociation) {
+    int64_t size = 1;
+    for (int64_t dim : group) size *= type.getDimSize(dim);
+    shape.push_back(size);
+  }
+  return RankedTensorType::get(shape, type.getElementType());
+}
+
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation) {
+  // Adding or dropping unit dimensions is done on the relation directly, which
+  // keeps it free of the local variables the general composition introduces.
+  if (!onlyUnitDimsChange(sourceType, reassociation)) {
+    // A collapsed index is the row-major index of its group, so the collapsed
+    // tensor keeps every element in the same slot.
+    IntegerRelation result = relation;
+    result.applyDomain(getCollapsedRelation(
+        sourceType, getCollapsedType(sourceType, reassociation),
+        reassociation));
+    return result;
+  }
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
   for (const ReassociationIndices& associationGroup : reassociation) {
     // a single-entry association group is a no-op
@@ -682,6 +716,17 @@ presburger::IntegerRelation expandDimensions(
   // an output dimension of size 1. Mainly we have to ensure that the
   // dimension we're adding is in the correct index of the integer relations
   // domain variable list.
+  if (!reassociation.empty() &&
+      !onlyUnitDimsChange(resultType, reassociation)) {
+    // An expanded index collapses back to its source index row-major, so the
+    // expanded tensor keeps every element in the same slot.
+    IntegerRelation expandedToSource = getCollapsedRelation(
+        resultType, getCollapsedType(resultType, reassociation), reassociation);
+    expandedToSource.inverse();
+    IntegerRelation result = relation;
+    result.applyDomain(expandedToSource);
+    return result;
+  }
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
 
   // Handle the case where reassociation is empty
