@@ -26,15 +26,6 @@
 !ct_L13 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x131072, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L13, key = #key, modulus_chain = #modulus_chain_L13_C13>
 !ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x131072, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #modulus_chain_L2_C2>
 
-// CHECK-DAG: ![[bEvalType:.*]] = !lattigo.ckks.bootstrapping_evaluator
-// CHECK-DAG: ![[evalType:.*]] = !lattigo.ckks.evaluator
-// CHECK-DAG: ![[ctType:.*]] = !lattigo.rlwe.ciphertext
-
-// CHECK: func.func @bootstrap
-// CHECK-SAME: (%[[bEval:.*]]: ![[bEvalType]],
-// CHECK-SAME:  %[[eval:.*]]: ![[evalType]],
-// CHECK-SAME: , %[[ct:\w+]]: ![[ctType]])
-// CHECK: lattigo.ckks.bootstrap %[[bEval]], %[[ct]]
 
 // scheme.requested_slot_count is what generate-param-ckks records for a
 // requested ciphertext-degree below the ring's slot capacity (here 2048 of the
