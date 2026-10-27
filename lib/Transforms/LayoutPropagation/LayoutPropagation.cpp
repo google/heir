@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "lib/Analysis/LayoutFoldingAnalysis/LayoutFoldingAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
@@ -40,6 +41,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/Simplex.h"  // from @llvm-project
 #include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -347,6 +349,11 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // layout (a free re-packing for the usual plaintext-constant bias).
   LogicalResult alignInitWithResultLayout(Operation* op, Value init,
                                           Attribute resultLayoutAttr);
+
+  // Moves secret inputs of a linalg.generic into the layouts pulled back from
+  // its result layout when that lowers the kernel's groups and rotations
+  // (counting each added input ciphertext as a group).
+  void chooseGenericInputLayouts(linalg::GenericOp op, LayoutAttr resultLayout);
 
   // Helper to pass layouts through generic ops
   void passLayoutThroughOp(Operation* op);
@@ -700,11 +707,155 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   if (failed(alignInitWithResultLayout(op, init, resultLayout))) {
     return failure();
   }
+  chooseGenericInputLayouts(op, resultLayout);
   Value result = op.getResult(0);
   assignedLayouts.insert({result, resultLayout});
   debugAssignLayout(result, resultLayout);
   setResultLayoutAttr(op);
   return success();
+}
+
+void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
+                                                  LayoutAttr resultLayout) {
+  SmallVector<int64_t> loopRanges = op.getStaticLoopRanges();
+  SmallVector<bool> isReduction = llvm::map_to_vector(
+      op.getIteratorTypesArray(), [](utils::IteratorType type) {
+        return type == utils::IteratorType::reduction;
+      });
+  IntegerRelation resultRelation = resultLayout.getIntegerRelation();
+  AffineMap outputMap = op.getMatchingIndexingMap(op.getDpsInitOperand(0));
+  GenericKernelSpec spec;
+  spec.loopRanges = loopRanges;
+  spec.numSlots = minSlotCount;
+  spec.output = {outputMap, resultRelation};
+  auto groupsAndRotations =
+      [&](const GenericKernelSpec& s) -> std::optional<int64_t> {
+    std::string reason;
+    FailureOr<GroupCount> count = countInstanceGroups(s, reason);
+    if (failed(count)) {
+      LLVM_DEBUG(llvm::dbgs() << "cannot count the groups: " << reason << "\n");
+      return std::nullopt;
+    }
+    return count->numKeys + count->numRotations;
+  };
+  // Uses Simplex: getConstantBound64 eliminates a pulled-back layout's local
+  // variables by Fourier-Motzkin, which is too slow.
+  auto numCts = [](const IntegerRelation& layout) -> std::optional<int64_t> {
+    SmallVector<llvm::DynamicAPInt> ct(layout.getNumVars() + 1);
+    ct[layout.getVarKindOffset(presburger::VarKind::Range)] = 1;
+    auto upper = presburger::Simplex(layout).computeIntegerBounds(ct).second;
+    if (!upper.isBounded()) return std::nullopt;
+    return int64_t(*upper) + 1;
+  };
+
+  // Secret inputs with a pulled-back layout and the cost of moving them
+  // there: each ciphertext the input gains counts as a group, plus the groups
+  // and rotations of the copy, unless the copy folds into the encryption: the
+  // value is encrypted in whatever layout we pick and has no other use.
+  struct Candidate {
+    OpOperand* input;
+    IntegerRelation layout;
+    int64_t conversionCost;
+  };
+  std::vector<Candidate> candidates;
+  for (OpOperand* input : op.getDpsInputOperands()) {
+    Value value = input->get();
+    StructuredOperand& operand = spec.inputs.emplace_back();
+    operand.indexingMap = op.getMatchingIndexingMap(input);
+    auto type = dyn_cast<RankedTensorType>(value.getType());
+    if (!assignedLayouts.contains(value) || !isSecret(value, solver)) {
+      operand.cleartextShape =
+          llvm::to_vector(type ? type.getShape() : ArrayRef<int64_t>{});
+      continue;
+    }
+    operand.layout = getComposedLayoutAttr(value).getIntegerRelation();
+    if (!type) continue;
+    std::string reason;
+    FailureOr<IntegerRelation> pulled =
+        pullBackInputLayout(loopRanges, isReduction, operand.indexingMap,
+                            type.getShape(), outputMap, resultRelation, reason);
+    if (failed(pulled)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "no pulled-back layout for operand "
+                 << input->getOperandNumber() << ": " << reason << "\n");
+      continue;
+    }
+    if (isRelationEqual(*pulled, operand.layout)) continue;
+    std::optional<int64_t> pulledCts = numCts(*pulled);
+    std::optional<int64_t> currentCts = numCts(operand.layout);
+    if (!pulledCts || !currentCts) continue;
+    int64_t addedCts = *pulledCts - *currentCts;
+    int64_t conversionCost = std::max<int64_t>(addedCts, 0);
+    if (!isLayoutFree(value, solver) || !value.hasOneUse()) {
+      GenericKernelSpec copy;
+      copy.loopRanges = llvm::to_vector(type.getShape());
+      copy.numSlots = minSlotCount;
+      AffineMap identity =
+          AffineMap::getMultiDimIdentityMap(type.getRank(), &getContext());
+      copy.inputs = {{identity, operand.layout}};
+      copy.output = {identity, *pulled};
+      std::optional<int64_t> cost = groupsAndRotations(copy);
+      if (!cost) continue;
+      conversionCost += *cost;
+    }
+    candidates.push_back({input, *pulled, conversionCost});
+  }
+  if (candidates.empty()) return;
+
+  // Moves can pay off only together (e.g. both operands of a matmul), so start
+  // with every input moved and put them back one at a time, each time the one
+  // whose return lowers the cost most, while that lowers it.
+  auto costOf = [&](const std::vector<bool>& moved) -> std::optional<int64_t> {
+    GenericKernelSpec trial = spec;
+    int64_t conversions = 0;
+    for (auto [i, candidate] : llvm::enumerate(candidates)) {
+      if (!moved[i]) continue;
+      trial.inputs[candidate.input->getOperandNumber()].layout =
+          candidate.layout;
+      conversions += candidate.conversionCost;
+    }
+    std::optional<int64_t> cost = groupsAndRotations(trial);
+    if (!cost) return std::nullopt;
+    return *cost + conversions;
+  };
+  std::vector<bool> chosen(candidates.size(), true);
+  std::optional<int64_t> best = costOf(chosen);
+  while (llvm::is_contained(chosen, true)) {
+    std::optional<int64_t> bestReturn;
+    size_t returned = 0;
+    for (size_t i = 0; i < candidates.size(); ++i) {
+      if (!chosen[i]) continue;
+      chosen[i] = false;
+      std::optional<int64_t> cost = costOf(chosen);
+      chosen[i] = true;
+      if (cost && (!bestReturn || *cost < *bestReturn)) {
+        bestReturn = cost;
+        returned = i;
+      }
+    }
+    if (!bestReturn || (best && *bestReturn >= *best)) break;
+    best = bestReturn;
+    chosen[returned] = false;
+  }
+  std::optional<int64_t> current = groupsAndRotations(spec);
+  if (!best || (current && *best >= *current)) return;
+
+  IRRewriter builder(&getContext());
+  for (auto [i, candidate] : llvm::enumerate(candidates)) {
+    if (!chosen[i]) continue;
+    // Only this operand: another one may read the same value through a
+    // different indexing map.
+    Value value = candidate.input->get();
+    builder.setInsertionPoint(op);
+    LayoutAttr layout =
+        LayoutAttr::getFromIntegerRelation(&getContext(), candidate.layout);
+    auto converted = ConvertLayoutOp::create(
+        builder, op->getLoc(), value, getComposedLayoutAttr(value), layout);
+    converted->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
+    candidate.input->set(converted);
+    assignedLayouts.insert({converted, layout});
+    debugAssignLayout(converted, layout);
+  }
 }
 
 LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
@@ -2647,6 +2798,7 @@ static std::unique_ptr<DataFlowSolver> runSecretnessAnalysis(Operation* root) {
   auto solver = std::make_unique<DataFlowSolver>();
   dataflow::loadBaselineAnalyses(*solver);
   solver->load<SecretnessAnalysis>();
+  solver->load<LayoutIsFreeAnalysis>();
   if (failed(solver->initializeAndRun(root))) return nullptr;
   return solver;
 }
