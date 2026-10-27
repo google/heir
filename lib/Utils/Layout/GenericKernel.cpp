@@ -29,6 +29,8 @@
 #include "include/isl/ctx.h"         // from @isl
 #include "include/isl/map.h"         // from @isl
 #include "include/isl/map_type.h"    // from @isl
+#include "include/isl/options.h"     // from @isl
+#include "include/isl/point.h"       // from @isl
 #include "include/isl/set.h"         // from @isl
 #include "include/isl/space.h"       // from @isl
 #include "include/isl/space_type.h"  // from @isl
@@ -351,6 +353,102 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
     }
   }
   return groups;
+}
+
+namespace {
+
+// Counts the points of `set` (taken), up to `limit`; nullopt beyond it.
+std::optional<int64_t> countPoints(__isl_take isl_set* set, int64_t limit) {
+  struct Counter {
+    int64_t count = 0;
+    int64_t limit;
+  } counter{0, limit};
+  isl_stat status = isl_set_foreach_point(
+      set,
+      [](__isl_take isl_point* point, void* user) {
+        isl_point_free(point);
+        auto* counter = static_cast<Counter*>(user);
+        return ++counter->count > counter->limit ? isl_stat_error : isl_stat_ok;
+      },
+      &counter);
+  isl_set_free(set);
+  if (status != isl_stat_ok) return std::nullopt;
+  return counter.count;
+}
+
+}  // namespace
+
+FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
+                                          int64_t maxKeys,
+                                          unsigned long maxOperations,
+                                          std::string& reason) {
+  if (failed(validateGenericKernelSpec(spec, reason))) return failure();
+  IslContext isl;
+  isl_options_set_on_error(isl.ctx, ISL_ON_ERROR_CONTINUE);
+  isl_ctx_set_max_operations(isl.ctx, maxOperations);
+  auto fail = [&](StringRef why) -> FailureOr<GroupCount> {
+    reason = why.str();
+    return failure();
+  };
+
+  FailureOr<isl_map*> output =
+      getAccessMap(spec.output, spec.loopRanges, isl.ctx, "the output", reason);
+  if (failed(output)) return failure();
+  // Instances [d -> (ct_o, slot_o)] to their output ciphertext.
+  isl_map* key = isl_map_project_out(isl_map_range_map(isl_map_copy(*output)),
+                                     isl_dim_out, 1, 1);
+  // (ct_o, slot_o, ct_i, slot_i) -> (ct_i, (slot_i - slot_o) mod numSlots).
+  isl_map* shift = isl_map_read_from_str(
+      isl.ctx, llvm::formatv("{ [co, so, ci, si] -> [ci, sh] : exists q : "
+                             "si - so = {0}q + sh and 0 <= sh < {0} }",
+                             spec.numSlots)
+                   .str()
+                   .c_str());
+  int64_t numRotations = 0;
+  for (auto [i, input] : llvm::enumerate(spec.inputs)) {
+    if (input.isCleartext()) continue;
+    FailureOr<isl_map*> access =
+        getAccessMap(input, spec.loopRanges, isl.ctx,
+                     llvm::formatv("input {0}", i).str(), reason);
+    if (failed(access)) {
+      isl_map_free(key);
+      isl_map_free(shift);
+      isl_map_free(*output);
+      return failure();
+    }
+    // Instances to the (ct, rotation) of the input element they read, the
+    // lexicographically smallest over its replicas.
+    isl_map* positions = isl_map_flat_range_product(
+        isl_map_range_map(isl_map_copy(*output)),
+        isl_map_apply_range(isl_map_domain_map(isl_map_copy(*output)),
+                            *access));
+    isl_map* inputKey =
+        isl_map_lexmin(isl_map_apply_range(positions, isl_map_copy(shift)));
+    // Elements the layout does not place read as zero, with key (-1, 0).
+    isl_set* unplaced =
+        isl_set_subtract(isl_map_domain(isl_map_copy(key)),
+                         isl_map_domain(isl_map_copy(inputKey)));
+    inputKey = isl_map_union(
+        inputKey, isl_map_from_domain_and_range(
+                      unplaced, isl_set_read_from_str(isl.ctx, "{ [-1, 0] }")));
+    std::optional<int64_t> rotations = countPoints(
+        isl_set_subtract(isl_map_range(isl_map_copy(inputKey)),
+                         isl_set_read_from_str(isl.ctx, "{ [ct, 0] }")),
+        maxKeys);
+    key = isl_map_flat_range_product(key, inputKey);
+    if (!key || !rotations) {
+      isl_map_free(key);
+      isl_map_free(shift);
+      isl_map_free(*output);
+      return fail("too many rotations, or ISL ran out of operations");
+    }
+    numRotations += *rotations;
+  }
+  isl_map_free(shift);
+  isl_map_free(*output);
+  std::optional<int64_t> numKeys = countPoints(isl_map_range(key), maxKeys);
+  if (!numKeys) return fail("too many groups, or ISL ran out of operations");
+  return GroupCount{*numKeys, numRotations};
 }
 
 SmallVector<int64_t> evaluateAffineMap(AffineMap map, ArrayRef<int64_t> point) {

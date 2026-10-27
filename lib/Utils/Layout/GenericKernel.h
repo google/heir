@@ -75,6 +75,24 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
                                          GenericReductionKind kind,
                                          std::string& reason);
 
+// The number of keys of the instances of a structured op (see
+// InstanceGroups), a lower bound on the number of groups (a key yields one
+// group per distinct cleartext read of a slot), and the number of distinct
+// nonzero rotations of the secret inputs.
+struct GroupCount {
+  int64_t numKeys = 0;
+  int64_t numRotations = 0;
+};
+
+// Counts the keys of groupInstances without walking the loop nest: the
+// smallest rotation over the replicas of each input element is one ISL lexmin
+// over all instances, and only the distinct keys are enumerated. Fails when
+// ISL exceeds `maxOperations` or there are more than `maxKeys` keys.
+FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
+                                          int64_t maxKeys,
+                                          unsigned long maxOperations,
+                                          std::string& reason);
+
 // Evaluates a symbol-free affine map at a point.
 SmallVector<int64_t> evaluateAffineMap(AffineMap map, ArrayRef<int64_t> point);
 
