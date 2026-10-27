@@ -1740,7 +1740,10 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
       secret::KernelAttr::get(ctx, KernelName::MatmulDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
-  return success();
+  // The generic kernel, which lowers this layout, reads the init in the
+  // result layout.
+  return alignInitWithResultLayout(op, op.getOutputs().front(),
+                                   outputLayoutAttr);
 }
 
 LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
