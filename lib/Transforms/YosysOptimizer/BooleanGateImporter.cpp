@@ -13,6 +13,7 @@
 // Block clang-format from reordering
 // clang-format off
 #include "kernel/rtlil.h"  // from @yosys
+// internal-include: yosys/kernel/twine.h
 // clang-format on
 
 namespace mlir {
@@ -43,7 +44,7 @@ SmallVector<Yosys::RTLIL::SigSpec> BooleanGateImporter::getInputs(
   // Return all non-Y named attributes.
   SmallVector<Yosys::RTLIL::SigSpec> inputs;
   for (auto& conn : cell->connections()) {
-    if (cell->twines().str(conn.first).find('Y') != std::string::npos) {
+    if (conn.first == Yosys::ID::Y) {
       continue;
     }
     inputs.push_back(conn.second);

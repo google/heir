@@ -4,6 +4,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "llvm/include/llvm/ADT/MapVector.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/StringMap.h"            // from @llvm-project
@@ -22,6 +23,38 @@
 
 namespace mlir {
 namespace heir {
+
+// Yosys IdString compatibility helpers.
+//
+// Yosys PR #6148 ("twines: rich interned strings", first released after
+// v0.70) replaced the global IdString table with a per-Design TwinePool. After
+// that change an IdString can no longer be converted to or from a string on
+// its own: the owning TwinePool (reachable via `cell->twines()`) is required.
+// HEIR must compile against both older releases (e.g., the Bazel Central
+// Registry version used by the open source build) and newer versions, so
+// these helpers detect which API is available at compile time. Both are
+// templates so that the branch for the unavailable API is never instantiated.
+
+// Returns the (escaped) string name of `id`, e.g. "\\Y".
+template <typename CellT, typename IdT>
+std::string getIdName(const CellT* cell, IdT id) {
+  if constexpr (requires { cell->twines().str(id); }) {
+    return cell->twines().str(id);
+  } else {
+    return id.str();
+  }
+}
+
+// Returns the IdString for the given escaped `name`, e.g. "\\Y", in the
+// context of `cell`.
+template <typename CellT, typename IdT = Yosys::RTLIL::IdString>
+IdT getIdFromName(const CellT* cell, const std::string& name) {
+  if constexpr (requires { cell->twines().find(std::string_view(name)); }) {
+    return cell->twines().find(std::string_view(name));
+  } else {
+    return IdT(name);
+  }
+}
 
 // Returns a list of cell names that are topologically ordered using the Yosys
 // toder output. This is extracted from the lines containing cells in the

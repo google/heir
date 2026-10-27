@@ -32,7 +32,7 @@ mlir::Operation* LUTImporter::createOp(Yosys::RTLIL::Cell* cell,
   int lutSize = 1 << lutBits;
   for (int i = 0; i < lutSize; i++) {
     auto lutStr =
-        cell->getPort(cell->twines().find(llvm::formatv("\\P{0}", i).str()));
+        cell->getPort(getIdFromName(cell, llvm::formatv("\\P{0}", i).str()));
     lutValue |= (lutStr.as_bool() ? 1 : 0) << i;
   }
 
@@ -48,7 +48,7 @@ SmallVector<Yosys::RTLIL::SigSpec> LUTImporter::getInputs(
   // Return all non-P, non-Y named attributes.
   SmallVector<Yosys::RTLIL::SigSpec, 4> inputs;
   for (auto& conn : cell->connections()) {
-    std::string portName = cell->twines().str(conn.first);
+    std::string portName = getIdName(cell, conn.first);
     if (portName.find('P') != std::string::npos ||
         portName.find('Y') != std::string::npos) {
       continue;
