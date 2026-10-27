@@ -24,6 +24,7 @@
 #include "lib/Transforms/LayoutPropagation/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/Convolution.h"
+#include "lib/Utils/Layout/GenericKernel.h"
 #include "lib/Utils/Layout/Hoisting.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
@@ -45,6 +46,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
@@ -79,7 +81,6 @@ using linalg::MatmulOp;
 using linalg::MatvecOp;
 using linalg::ReduceOp;
 using linalg::TransposeOp;
-using linalg::VecmatOp;
 using presburger::IntegerRelation;
 using secret::GenericOp;
 using secret::SecretType;
@@ -96,6 +97,11 @@ using tensor_ext::LayoutAttr;
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h.inc"
 
 namespace {
+
+// Each ISL query of the generic kernel's layout choice gives up after this many
+// operations; the result then takes the init's or the default layout, and the
+// inputs keep theirs.
+constexpr unsigned long kMaxIslOperations = 1000000;
 
 // The result of a compatibility check for the layouts of an op's operands (cf.
 // hasCompatibleArgumentLayouts). If the check fails, the presence of a
@@ -281,13 +287,13 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(BroadcastOp op);
   LogicalResult visitOperation(TransposeOp op);
   LogicalResult visitOperation(GenericOp op);
+  LogicalResult visitOperation(linalg::GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(BroadcastedReduceOp op);
   LogicalResult visitOperation(Conv1DOp op);
   LogicalResult visitOperation(Conv1DNcwFcwOp op);
   LogicalResult visitOperation(Conv2DOp op);
   LogicalResult visitOperation(Conv2DNchwFchwOp op);
-  LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(MatmulOp op);
   LogicalResult visitOperation(BatchMatmulOp op);
@@ -315,7 +321,6 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DNchwFchwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
-  CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatmulOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(BatchMatmulOp op);
@@ -480,9 +485,9 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, BroadcastOp, TransposeOp,
-            MatmulOp, BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp,
-            Conv2DNchwFchwOp>([&](auto op) { return visitOperation(op); })
+      .Case<DotOp, MatvecOp, ReduceOp, BroadcastOp, TransposeOp, MatmulOp,
+            BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp,
+            linalg::GenericOp>([&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -621,6 +626,72 @@ LogicalResult LayoutPropagation::visitOperation(YieldOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
+  if (op->getNumResults() != 1 || op.hasDynamicShape()) {
+    return op.emitError() << "the generic FHE kernel requires a single "
+                             "statically shaped result";
+  }
+  auto resultType = cast<RankedTensorType>(op.getResult(0).getType());
+  SmallVector<int64_t> loopRanges = op.getStaticLoopRanges();
+  OpOperand* initOperand = op.getDpsInitOperand(0);
+  Value init = initOperand->get();
+  AffineMap outputMap = op.getMatchingIndexingMap(initOperand);
+
+  // An explicit layout on the op is honored as is. A partial write (e.g. one
+  // piece of a concatenation) updates the init in place, so the result keeps
+  // the init's layout.
+  LayoutAttr resultLayout = dyn_cast_or_null<LayoutAttr>(
+      op->getAttr(tensor_ext::TensorExtDialect::kLayoutAttrName));
+  if (!resultLayout &&
+      !outputMapCoversResult(outputMap, loopRanges, resultType.getShape())) {
+    resultLayout = getComposedLayoutAttr(init);
+  }
+  // Otherwise keep each result element in the slots of a secret input element
+  // read in the same iteration, so that input needs no rotation.
+  for (OpOperand* input : op.getDpsInputOperands()) {
+    Value value = input->get();
+    if (resultLayout || !assignedLayouts.contains(value) ||
+        !isSecret(value, solver)) {
+      continue;
+    }
+    std::string reason;
+    FailureOr<IntegerRelation> induced = inferInducedOutputLayout(
+        loopRanges, op.getMatchingIndexingMap(input),
+        getComposedLayoutAttr(value).getIntegerRelation(), outputMap,
+        resultType.getShape(), op.getNumReductionLoops() > 0, kMaxIslOperations,
+        reason);
+    if (succeeded(induced)) {
+      resultLayout =
+          LayoutAttr::getFromIntegerRelation(&getContext(), *induced);
+    }
+    LLVM_DEBUG(if (failed(induced)) llvm::dbgs()
+               << "Cannot induce the result layout from operand "
+               << input->getOperandNumber() << ": " << reason << "\n");
+  }
+  // Fall back to the init's layout when it is secret, else to the default.
+  if (!resultLayout && isSecret(init, solver)) {
+    resultLayout = getComposedLayoutAttr(init);
+  }
+  if (!resultLayout) {
+    FailureOr<LayoutAttr> defaultLayout = defaultLayoutForType(resultType);
+    if (failed(defaultLayout)) {
+      return op.emitError() << "failed to assign a default layout";
+    }
+    resultLayout = *defaultLayout;
+  }
+
+  // The kernel accumulates into (or partially overwrites) the init, so the
+  // init must share the result layout; converting a plaintext init is cheap.
+  if (failed(alignInitWithResultLayout(op, init, resultLayout))) {
+    return failure();
+  }
+  Value result = op.getResult(0);
+  assignedLayouts.insert({result, resultLayout});
+  debugAssignLayout(result, resultLayout);
+  setResultLayoutAttr(op);
+  return success();
+}
+
 LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   // Reassociate the dimensions to collapse. For e.g. if we collapse d0 x d1 x
   // d2 to d' then we need to construct the row-major relation from (d0, d1, d2)
@@ -662,81 +733,6 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(op.getResult(), resultLayoutAttr);
-  return success();
-}
-
-LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
-  auto vecmatOp = cast<linalg::ContractionOpInterface>(*op);
-  auto vec = vecmatOp.lhs();
-  auto vecType = cast<RankedTensorType>(vec.getType());
-  auto matrix = vecmatOp.rhs();
-  if (!isSecret(vec, solver) || isSecret(matrix, solver)) {
-    return failure();
-  }
-
-  MLIRContext* ctx = &getContext();
-  mlir::IRRewriter builder(ctx);
-
-  if (vecType.getDimSize(0) > minSlotCount) {
-    return op->emitError() << "Vector must fit into a single ciphertext";
-  }
-
-  // Assign a row major layout to the input vec.
-  LayoutAttr vecLayout = getComposedLayoutAttr(vec);
-  if (!isRelationRowMajor(vecType, minSlotCount,
-                          vecLayout.getIntegerRelation())) {
-    // Insert a layout conversion op to make the vec layout per-row
-    auto [toReplace, newVecLayoutAttr] =
-        convertToLayout(ctx, builder, op, vec, vecLayout,
-                        getPerRowLayoutRelation(vecType, minSlotCount));
-    debugAssignLayout(toReplace, newVecLayoutAttr);
-    assignedLayouts.insert({toReplace, newVecLayoutAttr});
-    vec = toReplace;
-  }
-
-  // Assign or change the filter matrix to a diagonal layout. For a vecmat
-  // operation, we need the diagonals to be extracted from the transpose.
-  // So we get the regular diagonal layout for the transpose matrix type, and
-  // then swap the dimensions.
-  auto matrixType = cast<RankedTensorType>(matrix.getType());
-  auto matrixTransposeType = RankedTensorType::get(
-      {matrixType.getDimSize(1), matrixType.getDimSize(0)},
-      matrixType.getElementType());
-  LayoutAttr matrixLayout = getComposedLayoutAttr(matrix);
-  IntegerRelation matrixLayoutRelation = matrixLayout.getIntegerRelation();
-  auto domainOffset = matrixLayout.getIntegerRelation().getVarKindOffset(
-      presburger::VarKind::Domain);
-  auto clonedMatrixRelation = matrixLayoutRelation.clone();
-  clonedMatrixRelation->swapVar(domainOffset, domainOffset + 1);
-  if (!isRelationSquatDiagonal(matrixTransposeType, minSlotCount,
-                               *clonedMatrixRelation)) {
-    // Insert a layout conversion op to make the matrix layout squat diagonal
-    auto [toReplace, newMatrixLayoutAttr] = convertToLayout(
-        ctx, builder, op, matrix, matrixLayout,
-        getDiagonalLayoutRelation(matrixTransposeType, minSlotCount));
-    debugAssignLayout(toReplace, newMatrixLayoutAttr);
-    assignedLayouts.insert({toReplace, newMatrixLayoutAttr});
-    matrix = toReplace;
-  }
-
-  // The output has the same per-row layout as the input matrix.
-  auto result = vecmatOp->getResult(0);
-  RankedTensorType outputType = cast<RankedTensorType>(result.getType());
-  IntegerRelation outputLayoutResult =
-      getRowMajorLayoutRelation(outputType, minSlotCount);
-  LayoutAttr outputLayoutAttr =
-      LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
-  Attribute kernelInfoAttr =
-      cloneKernelInfoWithResultShape(vec, outputType.getShape());
-
-  assignedLayouts.insert({result, outputLayoutAttr});
-  setResultLayoutAttr(op, kernelInfoAttr);
-  debugAssignLayout(result, outputLayoutAttr);
-
-  auto kernelAttr =
-      secret::KernelAttr::get(ctx, KernelName::VecmatDiagonal, /*force=*/false);
-  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
-
   return success();
 }
 
@@ -2039,13 +2035,14 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
                           << op->getName() << "\n");
   return TypeSwitch<Operation*, CompatibilityResult>(op)
       // Trivially true ops
+      // The generic linalg kernel accepts any combination of operand layouts;
+      // the layouts only determine its cost.
       .Case<func::FuncOp, GenericOp, YieldOp, affine::AffineForOp,
-            affine::AffineYieldOp, ConvertLayoutOp>(
+            affine::AffineYieldOp, ConvertLayoutOp, linalg::GenericOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, MatmulOp, BatchMatmulOp,
-            Conv1DOp, Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp,
-            tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, MatvecOp, MatmulOp, BatchMatmulOp, Conv1DOp,
+            Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -2120,25 +2117,6 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     }
   }
 
-  return {true, std::nullopt};
-}
-
-CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
-    VecmatOp op) {
-  // Currently only support secret vectors and plaintext matrices.
-  linalg::ContractionOpInterface vecmatOp =
-      cast<linalg::ContractionOpInterface>(op.getOperation());
-  Value vec = vecmatOp.lhs();
-  Value mat = vecmatOp.rhs();
-  if (isSecret(mat, solver) || !isSecret(vec, solver)) {
-    return {false,
-            op->emitError("Only secret vectors and plaintext matrices are "
-                          "supported for linalg.vecmat")};
-  }
-
-  if (!assignedLayouts.contains(vec)) {
-    return {false, op->emitError("vector operand has no assigned layout")};
-  }
   return {true, std::nullopt};
 }
 
@@ -2623,16 +2601,53 @@ void LayoutPropagation::setResultLayoutAttr(Operation* op,
               builder.getArrayAttr(resultLayouts));
 }
 
+// Whether convert-to-ciphertext-semantics has a dedicated kernel for `op`. The
+// layout-driven generic kernel implements all other structured ops.
+static bool hasDedicatedKernel(Operation* op) {
+  return isa<DotOp, MatvecOp, ReduceOp, BroadcastOp, TransposeOp, MatmulOp,
+             BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp,
+             Conv2DNchwFchwOp>(op);
+}
+
+// Generalizes the secret structured ops without a dedicated kernel. Returns
+// whether any changed.
+static bool generalizeOpsWithoutKernel(Operation* root,
+                                       DataFlowSolver& solver) {
+  SmallVector<linalg::LinalgOp> ops;
+  root->walk([&](linalg::LinalgOp op) {
+    if (!isa<linalg::GenericOp>(op) && !hasDedicatedKernel(op) &&
+        isSecret(op->getResults(), &solver))
+      ops.push_back(op);
+  });
+  IRRewriter rewriter(root->getContext());
+  bool changed = false;
+  for (linalg::LinalgOp op : ops) {
+    rewriter.setInsertionPoint(op);
+    changed |= succeeded(linalg::generalizeNamedOp(rewriter, op));
+  }
+  return changed;
+}
+
+static std::unique_ptr<DataFlowSolver> runSecretnessAnalysis(Operation* root) {
+  auto solver = std::make_unique<DataFlowSolver>();
+  dataflow::loadBaselineAnalyses(*solver);
+  solver->load<SecretnessAnalysis>();
+  if (failed(solver->initializeAndRun(root))) return nullptr;
+  return solver;
+}
+
 void LayoutPropagation::runOnOperation() {
-  DataFlowSolver solver;
-  dataflow::loadBaselineAnalyses(solver);
-  solver.load<SecretnessAnalysis>();
-  if (failed(solver.initializeAndRun(getOperation()))) {
+  std::unique_ptr<DataFlowSolver> solver =
+      runSecretnessAnalysis(getOperation());
+  // Rerun the analysis after generalizing.
+  if (solver && generalizeOpsWithoutKernel(getOperation(), *solver))
+    solver = runSecretnessAnalysis(getOperation());
+  if (!solver) {
     getOperation()->emitOpError() << "Failed to run secretness analysis.\n";
     signalPassFailure();
     return;
   }
-  this->solver = &solver;
+  this->solver = solver.get();
 
   LLVM_DEBUG(llvm::dbgs() << "Running layout propagation on operation: "
                           << getOperation()->getName() << "\n");
