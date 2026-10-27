@@ -332,6 +332,35 @@ EvalResults EvalVisitor::operator()(const EmptyNode& node) {
   return {LiteralValue(0)};
 }
 
+EvalResults EvalVisitor::operator()(const GatherNode<LiteralValue>& node) {
+  std::vector<int> flat;
+  if (node.source) {
+    std::visit(
+        [&](auto&& t) {
+          using T = std::decay_t<decltype(t)>;
+          if constexpr (std::is_same_v<T, int>) {
+            flat.push_back(t);
+          } else if constexpr (std::is_same_v<T, std::vector<int>>) {
+            flat = t;
+          } else if constexpr (std::is_same_v<T,
+                                              std::vector<std::vector<int>>>) {
+            for (const auto& row : t)
+              flat.insert(flat.end(), row.begin(), row.end());
+          }
+        },
+        this->process(node.source)[0].get());
+  }
+  std::vector<int> result;
+  for (int64_t index : node.indices) {
+    if (index < 0) {
+      result.push_back(0);
+    } else {
+      result.push_back(node.source ? flat[index] : static_cast<int>(index));
+    }
+  }
+  return {LiteralValue(result)};
+}
+
 EvalResults EvalVisitor::operator()(const VariableNode<LiteralValue>& node) {
   assert(node.value.has_value() && "VariableNode value is not set");
   return {node.value.value()};
