@@ -413,6 +413,17 @@ TEST(ArithmeticDagTest, TestEvaluationVisitor) {
   EXPECT_EQ(visitor.callCount, 5);
 }
 
+TEST(ArithmeticDagTest, CachingVisitorKeepsVisitedNodesAlive) {
+  EvalVisitor visitor;
+  auto node = DoubleLeavedDag::leaf(1.0);
+  std::weak_ptr<DoubleLeavedDag> weak = node;
+  EXPECT_EQ(visitor.process(node)[0], 1.0);
+  node.reset();
+  EXPECT_FALSE(weak.expired());
+  EXPECT_EQ(visitor.process(weak.lock())[0], 1.0);
+  EXPECT_EQ(visitor.callCount, 1);
+}
+
 TEST(ArithmeticDagTest, TestEvaluationVisitorSubstract) {
   auto x = DoubleLeavedDag::leaf(1.0);
   auto y = DoubleLeavedDag::leaf(2.0);
