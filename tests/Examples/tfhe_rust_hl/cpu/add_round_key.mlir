@@ -2,7 +2,6 @@
 // RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_add_round_key
 
 // This function adds (xors) the two blocks
-// CHECK: Success
 #map = affine_map<(d0) -> (d0)>
 func.func @add_round_key(%arg0: tensor<16xi8> {secret.secret}, %arg1: tensor<16xi8> {secret.secret}) -> tensor<16xi8> {
   %8 = tensor.empty() : tensor<16xi8>

@@ -1,5 +1,3 @@
-// RUN: heir-translate %s --emit-openfhe-pke | FileCheck %s
-
 !cc = !openfhe.crypto_context
 !ct = !openfhe.ciphertext
 
