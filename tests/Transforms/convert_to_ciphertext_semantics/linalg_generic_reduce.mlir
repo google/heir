@@ -43,12 +43,14 @@ func.func @row_sum(%arg0: !secret.secret<tensor<4x4xf32>> {tensor_ext.layout = #
 
 // -----
 
-// A max reduction over the rows of a row-major matrix: max is idempotent, so
-// each column's group is combined into the accumulator in the slots it
-// writes.
+// A max reduction over the rows of a row-major matrix: max is idempotent and
+// the -inf init is its identity, so the kernel never reads the init. The first
+// column's group sets the accumulator, and the other three are combined into
+// it with max.
 
 // CHECK: func.func @row_max
-// CHECK-COUNT-4: arith.maximumf
+// CHECK-NOT: 0xFF800000
+// CHECK-COUNT-3: arith.maximumf
 // CHECK-NOT: arith.maximumf
 // CHECK: return
 
