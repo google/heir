@@ -1,6 +1,7 @@
 #include "lib/Transforms/YosysOptimizer/BooleanGateImporter.h"
 
 #include <cassert>
+#include <string>
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
@@ -42,7 +43,7 @@ SmallVector<Yosys::RTLIL::SigSpec> BooleanGateImporter::getInputs(
   // Return all non-Y named attributes.
   SmallVector<Yosys::RTLIL::SigSpec> inputs;
   for (auto& conn : cell->connections()) {
-    if (conn.first.contains("Y")) {
+    if (cell->twines().str(conn.first).find('Y') != std::string::npos) {
       continue;
     }
     inputs.push_back(conn.second);
@@ -53,7 +54,7 @@ SmallVector<Yosys::RTLIL::SigSpec> BooleanGateImporter::getInputs(
 
 Yosys::RTLIL::SigSpec BooleanGateImporter::getOutput(
     Yosys::RTLIL::Cell* cell) const {
-  return cell->getPort(Yosys::RTLIL::IdString("\\Y"));
+  return cell->getPort(Yosys::ID::Y);
 }
 
 }  // namespace heir

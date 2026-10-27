@@ -195,9 +195,8 @@ func::FuncOp RTLILImporter::importModule(
 
   // Convert cells to Operations according to topological order.
   for (const auto& cellName : cellOrdering) {
-    assert(module->cells_.count(cellName) != 0 &&
-           "expected cell in RTLIL design");
-    auto* cell = module->cells_[cellName];
+    auto* cell = module->cell(cellName);
+    assert(cell != nullptr && "expected cell in RTLIL design");
 
     SmallVector<Value> inputValues;
     for (const auto& conn : getInputs(cell)) {
