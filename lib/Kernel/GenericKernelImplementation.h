@@ -49,8 +49,8 @@ namespace kernel {
 enum class GenericInitKind {
   // The init has no defined contents (tensor.empty).
   Empty,
-  // The init is the identity of the combination: zero, or one for
-  // multiplicative reductions.
+  // The init is the identity of the combination: zero, one for multiplicative
+  // reductions, or e.g. -inf for max.
   Neutral,
   // Anything else.
   Other,
@@ -158,14 +158,17 @@ implementGenericKernel(const GenericKernelSpec& spec,
   const int64_t numCts = config.numCts;
   const bool isMul = config.kind == GenericReductionKind::Mul;
   const bool isIdempotent = config.kind == GenericReductionKind::Idempotent;
-  if (isIdempotent && config.initKind == GenericInitKind::Empty) {
-    reason = "an idempotent reduction needs an init to start from";
-    return failure();
-  }
 
   FailureOr<InstanceGroups> groups =
       groupInstances(spec, numCts, config.kind, reason);
   if (failed(groups)) return failure();
+  if (isIdempotent && config.initKind == GenericInitKind::Neutral &&
+      llvm::is_contained(groups->writesPartially, true)) {
+    reason =
+        "an idempotent reduction with an identity init must write every "
+        "output element";
+    return failure();
+  }
   const auto& readsByKey = groups->readsByKey;
   const auto& coverage = groups->coverage;
 
@@ -219,6 +222,8 @@ implementGenericKernel(const GenericKernelSpec& spec,
   // read of every slot, so no slot needs two cleartext values at once.
   std::vector<std::vector<NodePtr>> terms(numCts);
   std::map<int64_t, NodePtr> idempotentAcc;
+  // Per output ciphertext, the slots an idempotent reduction has written.
+  std::map<int64_t, std::vector<int64_t>> seenSlots;
   for (const auto& [key, slots] : readsByKey) {
     const int64_t outputCt = key[0];
     size_t numGroups = 0;
@@ -256,15 +261,38 @@ implementGenericKernel(const GenericKernelSpec& spec,
       for (int64_t m : mask) written.push_back(m > 0 ? 1 : 0);
       const bool writesAll = !llvm::is_contained(written, 0);
       if (isIdempotent) {
-        // A group only updates the slots it writes:
-        // acc + written * (combine(acc, term) - acc).
+        // A group sets the slots it writes first and combines into the slots
+        // written before: acc + first * (term - acc) + later * (combine(acc,
+        // term) - acc). An infinite identity (as for max) is thus never read;
+        // any other init counts as written.
+        const bool readsInit = config.initKind == GenericInitKind::Other;
         NodePtr& acc = idempotentAcc[outputCt];
-        if (!acc) acc = getInit(outputCt);
-        NodePtr combined = idempotentCombine(acc, term);
-        acc = writesAll
+        auto [seen, unused] =
+            seenSlots.try_emplace(outputCt, numSlots, readsInit ? 1 : 0);
+        if (!acc && readsInit) acc = getInit(outputCt);
+        std::vector<int64_t> first(numSlots, 0), later(numSlots, 0);
+        for (int64_t slot = 0; slot < numSlots; ++slot) {
+          (seen->second[slot] ? later : first)[slot] = written[slot];
+          seen->second[slot] |= written[slot];
+        }
+        if (!acc) {
+          acc = writesAll ? term : NodeTy::mul(term, getMask(first));
+          continue;
+        }
+        NodePtr next = acc;
+        if (llvm::is_contained(later, 1)) {
+          NodePtr combined = idempotentCombine(acc, term);
+          next =
+              !llvm::is_contained(later, 0)
                   ? combined
-                  : NodeTy::add(acc, NodeTy::mul(getMask(written),
-                                                 NodeTy::sub(combined, acc)));
+                  : NodeTy::add(next, NodeTy::mul(getMask(later),
+                                                  NodeTy::sub(combined, acc)));
+        }
+        if (llvm::is_contained(first, 1)) {
+          next = NodeTy::add(
+              next, NodeTy::mul(getMask(first), NodeTy::sub(term, acc)));
+        }
+        acc = next;
         continue;
       }
       // Sums skip terms that are zero, e.g. products with zero padding.
