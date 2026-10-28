@@ -64,8 +64,9 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "layout-propagation"
@@ -2981,10 +2982,68 @@ void LayoutPropagation::setResultLayoutAttr(Operation* op,
               builder.getArrayAttr(resultLayouts));
 }
 
-// Generalizes the secret structured ops without a dedicated kernel. Returns
-// whether any changed.
+// Makes each unused result that no used result depends on yield its
+// accumulator unchanged, and erases the body ops this leaves dead, so that the
+// upstream patterns drop the result. On their own they drop an accumulator
+// only when it is yielded through a single op, and compare-to-sign-rewrite
+// turns an argmax select into a chain of ops.
+static void cutUnusedResultCycles(linalg::GenericOp op) {
+  Block* body = op.getBody();
+  auto yield = cast<linalg::YieldOp>(body->getTerminator());
+  DenseSet<Value> live;
+  SmallVector<Value> worklist;
+  for (OpResult result : op->getResults()) {
+    if (!result.use_empty())
+      worklist.push_back(yield.getOperand(result.getResultNumber()));
+  }
+  // Ops with effects stay, and so does what they read.
+  for (Operation& bodyOp : body->without_terminator()) {
+    if (!isMemoryEffectFree(&bodyOp))
+      llvm::append_range(worklist, bodyOp.getOperands());
+  }
+  while (!worklist.empty()) {
+    Value value = worklist.pop_back_val();
+    if (!live.insert(value).second) continue;
+    if (Operation* def = value.getDefiningOp(); def && def->getBlock() == body)
+      llvm::append_range(worklist, def->getOperands());
+    // An accumulator read in one iteration holds its update from the last.
+    if (auto arg = dyn_cast<BlockArgument>(value);
+        arg && arg.getOwner() == body &&
+        arg.getArgNumber() >= op.getNumDpsInputs())
+      worklist.push_back(
+          yield.getOperand(arg.getArgNumber() - op.getNumDpsInputs()));
+  }
+  for (OpResult result : op->getResults()) {
+    BlockArgument out = op.getRegionOutputArgs()[result.getResultNumber()];
+    if (result.use_empty() && !live.contains(out))
+      yield->setOperand(result.getResultNumber(), out);
+  }
+  SmallVector<Operation*> bodyOps = llvm::map_to_vector(
+      body->without_terminator(), [](Operation& bodyOp) { return &bodyOp; });
+  for (Operation* bodyOp : llvm::reverse(bodyOps)) {
+    if (isOpTriviallyDead(bodyOp)) bodyOp->erase();
+  }
+}
+
+// Prepares structured ops for the generic kernel: drops the unused results of
+// multi-result generics (e.g. the argmax next to a max), which the kernel does
+// not support, and generalizes the secret ops without a dedicated kernel.
+// Returns whether any changed.
 static bool generalizeOpsWithoutKernel(Operation* root,
                                        DataFlowSolver& solver) {
+  SmallVector<Operation*> generics;
+  root->walk([&](linalg::GenericOp op) {
+    if (op->getNumResults() > 1 && isSecret(op->getResults(), &solver)) {
+      cutUnusedResultCycles(op);
+      generics.push_back(op);
+    }
+  });
+  RewritePatternSet patterns(root->getContext());
+  linalg::populateEraseUnusedOperandsAndResultsPatterns(patterns);
+  bool changed = false;
+  (void)applyOpPatternsGreedily(generics, std::move(patterns),
+                                GreedyRewriteConfig(), &changed);
+
   SmallVector<linalg::LinalgOp> ops;
   root->walk([&](linalg::LinalgOp op) {
     bool hasRule =
@@ -2994,7 +3053,6 @@ static bool generalizeOpsWithoutKernel(Operation* root,
       ops.push_back(op);
   });
   IRRewriter rewriter(root->getContext());
-  bool changed = false;
   for (linalg::LinalgOp op : ops) {
     rewriter.setInsertionPoint(op);
     changed |= succeeded(linalg::generalizeNamedOp(rewriter, op));
