@@ -87,13 +87,36 @@ TEST(UtilsTest, TestReduceLayout) {
   EXPECT_EQ(reducedRelation.getNumDomainVars(), 1);
   EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
 
+  // 24 elements, not a power of two: the sum is only at index 0.
+  presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
+  expectedRelation.setAndEliminate(0, ArrayRef<int64_t>{0});
+  expectedRelation =
+      LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
+          .getIntegerRelation();
+
+  EXPECT_TRUE(isRelationEqual(reducedRelation, expectedRelation));
+}
+
+TEST(UtilsTest, TestReduceLayoutEverySlot) {
+  MLIRContext context;
+  context.loadDialect<tensor_ext::TensorExtDialect>();
+
+  // Reduce an 8-element vector packed into 16 slots: every slot holds the sum.
+  RankedTensorType tensorType =
+      RankedTensorType::get({8}, IndexType::get(&context));
+  presburger::IntegerRelation relation =
+      getRowMajorLayoutRelation(tensorType, 16);
+  LayoutAttr layout = LayoutAttr::getFromIntegerRelation(&context, relation);
+
+  LayoutAttr reducedLayout = convertLayoutForReduce(layout, {0});
   presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
   expectedRelation.projectOut(0, 1);
   expectedRelation =
       LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
           .getIntegerRelation();
 
-  EXPECT_TRUE(isRelationEqual(reducedRelation, expectedRelation));
+  EXPECT_TRUE(
+      isRelationEqual(reducedLayout.getIntegerRelation(), expectedRelation));
 }
 
 TEST(UtilsTest, TestReduceLayoutMultiDim) {
@@ -115,8 +138,9 @@ TEST(UtilsTest, TestReduceLayoutMultiDim) {
   EXPECT_EQ(reducedRelation.getNumDomainVars(), 2);
   EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
 
+  // Only the slot of index 0 along the inner dimension holds the sum.
   presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
-  expectedRelation.projectOut(2, 1);
+  expectedRelation.setAndEliminate(2, ArrayRef<int64_t>{0});
   expectedRelation =
       LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
           .getIntegerRelation();
@@ -144,8 +168,7 @@ TEST(UtilsTest, TestReduceLayoutManyReductions) {
   EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
 
   presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
-  expectedRelation.projectOut(2, 1);
-  expectedRelation.projectOut(1, 1);
+  expectedRelation.setAndEliminate(1, ArrayRef<int64_t>{0, 0});
   expectedRelation =
       LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
           .getIntegerRelation();

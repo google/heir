@@ -14,6 +14,7 @@ cc_library(
         ":AssignLayout",
         ":TypeConversion",
         ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
