@@ -409,31 +409,44 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
   // Instances [d -> (ct_o, slot_o)] to their output ciphertext.
   isl_map* key = isl_map_project_out(isl_map_range_map(isl_map_copy(*output)),
                                      isl_dim_out, 1, 1);
-  // (ct_o, slot_o, ct_i, slot_i) -> (ct_i, (slot_i - slot_o) mod numSlots).
+  // (ct_o, slot_o, ct_i, slot_i) -> (ct_i, (slot_i - slot_o) mod numSlots), as
+  // two pieces: with a quotient variable for the mod, the lexmin below splits
+  // on it over the whole loop nest.
   isl_map* shift = isl_map_read_from_str(
-      isl.ctx, llvm::formatv("{ [co, so, ci, si] -> [ci, sh] : exists q : "
-                             "si - so = {0}q + sh and 0 <= sh < {0} }",
+      isl.ctx, llvm::formatv("{ [co, so, ci, si] -> [ci, si - so] : si >= so; "
+                             "[co, so, ci, si] -> [ci, si - so + {0}] : "
+                             "si < so }",
                              spec.numSlots)
                    .str()
                    .c_str());
   int64_t numRotations = 0;
   for (auto [i, input] : llvm::enumerate(spec.inputs)) {
     if (input.isCleartext()) continue;
-    FailureOr<isl_map*> access =
-        getAccessMap(input, spec.loopRanges, isl.ctx,
-                     llvm::formatv("input {0}", i).str(), reason);
-    if (failed(access)) {
+    FailureOr<IntegerRelation> index =
+        getIndexingMapRelation(input.indexingMap, spec.loopRanges);
+    if (failed(index)) {
       isl_map_free(key);
       isl_map_free(shift);
       isl_map_free(*output);
-      return failure();
+      return fail(
+          llvm::formatv("indexing map of input {0} is not affine", i).str());
     }
+    // The smallest (ct, rotation) over the replicas of an element has the
+    // element's first ciphertext, which a lexmin over the layout alone finds;
+    // only the replicas in it take part in the lexmin over the instances.
+    isl_map* layout = toIslMap(input.layout, isl.ctx);
+    isl_map* firstCt = isl_map_project_out(isl_map_lexmin(isl_map_copy(layout)),
+                                           isl_dim_out, 1, 1);
+    isl_map* anySlot = isl_map_universe(
+        isl_space_alloc(isl.ctx, 0, input.layout.getNumDomainVars(), 1));
+    layout =
+        isl_map_intersect(layout, isl_map_flat_range_product(firstCt, anySlot));
+    isl_map* access = isl_map_apply_range(toIslMap(*index, isl.ctx), layout);
     // Instances to the (ct, rotation) of the input element they read, the
     // lexicographically smallest over its replicas.
     isl_map* positions = isl_map_flat_range_product(
         isl_map_range_map(isl_map_copy(*output)),
-        isl_map_apply_range(isl_map_domain_map(isl_map_copy(*output)),
-                            *access));
+        isl_map_apply_range(isl_map_domain_map(isl_map_copy(*output)), access));
     isl_map* inputKey =
         isl_map_lexmin(isl_map_apply_range(positions, isl_map_copy(shift)));
     // Elements the layout does not place read as zero, with key (-1, 0).
