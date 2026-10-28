@@ -713,9 +713,12 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
 
     auto originalShape = cast<RankedTensorType>(input.getType()).getShape();
     // Pre-conditions enforce that the reduction operation occurs along the
-    // inputs single axis
-    unsigned steps = originalShape[op.getDimensions()[0]];
+    // inputs single axis, and the layout is row-major: consecutive elements
+    // along it are `period` slots apart.
+    int64_t dim = op.getDimensions()[0];
+    unsigned steps = originalShape[dim];
     unsigned period = 1;
+    for (int64_t size : originalShape.drop_front(dim + 1)) period *= size;
 
     SSAValue vectorLeaf(adaptor.getInputs()[0]);
     kernel::DagType dagType = kernel::mlirTypeToDagType(input.getType());
@@ -774,6 +777,10 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
     if (!inputLayout)
       return rewriter.notifyMatchFailure(
           op, "missing new layout attribute for input");
+    // Rotations act within one ciphertext.
+    if (cast<RankedTensorType>(input.getType()).getDimSize(0) != 1)
+      return op.emitError(
+          "linalg.reduce only supported with an input in one ciphertext");
 
     // Based on ImplementRotateAndReduce
     rotateAndReduceKernel(op, adaptor, rewriter, innerOp);
@@ -3572,6 +3579,51 @@ struct ConvertBootstrap : public ConversionBase<mgmt::BootstrapOp> {
   }
 };
 
+// Cleartext operands of secret ops are packed by tensor_ext.assign_layout.
+static bool isPackedCleartext(Value value) {
+  while (auto convertOp = value.getDefiningOp<tensor_ext::ConvertLayoutOp>())
+    value = convertOp.getValue();
+  return isa_and_present<tensor_ext::AssignLayoutOp>(value.getDefiningOp());
+}
+
+// x / c = x * (1 / c) for a packed cleartext c, with zero in the slots where
+// c is zero, such as those its layout leaves empty. Dividing by zero there
+// would put inf or NaN in the slots, which masks and rotations then spread.
+struct ConvertDivFByCleartext
+    : public ContextAwareOpConversionPattern<arith::DivFOp> {
+  using ContextAwareOpConversionPattern<
+      arith::DivFOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      arith::DivFOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (!isPackedCleartext(op.getRhs()) || isPackedCleartext(op.getLhs()))
+      return failure();
+    FailureOr<Attribute> layout =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(layout)) return failure();
+
+    Location loc = op.getLoc();
+    Value divisor = adaptor.getRhs();
+    Type divisorType = divisor.getType();
+    auto zero = arith::ConstantOp::create(rewriter, loc, divisorType,
+                                          rewriter.getZeroAttr(divisorType));
+    auto one = arith::ConstantOp::create(rewriter, loc, divisorType,
+                                         rewriter.getOneAttr(divisorType));
+    auto isZero = arith::CmpFOp::create(
+        rewriter, loc, arith::CmpFPredicate::OEQ, divisor, zero);
+    auto reciprocal = arith::DivFOp::create(rewriter, loc, one, divisor);
+    auto factor =
+        arith::SelectOp::create(rewriter, loc, isZero, zero, reciprocal);
+    auto product = arith::MulFOp::create(rewriter, loc, adaptor.getLhs(),
+                                         factor, op.getFastmathAttr());
+    setMaterializedAttr({zero, one, isZero, reciprocal, factor, product});
+    product->setAttr(kLayoutAttrName, layout.value());
+    rewriter.replaceOp(op, product);
+    return success();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -3591,10 +3643,10 @@ struct ConvertToCiphertextSemantics
     });
     patterns.add<
         ConvertAnyAddingMaterializedAttr, ConvertBootstrap,
-        ConvertConvertLayout, ConvertFunc, ConvertLinalgBroadcast,
-        ConvertLinalgMatmul, ConvertLinalgTranspose, ConvertLinalgBatchMatmul,
-        ConvertLinalgReduce, ConvertBroadcastedReduce, ConvertLinalgDot,
-        ConvertSecretGeneric, ConvertTensorCollapseShape,
+        ConvertConvertLayout, ConvertDivFByCleartext, ConvertFunc,
+        ConvertLinalgBroadcast, ConvertLinalgMatmul, ConvertLinalgTranspose,
+        ConvertLinalgBatchMatmul, ConvertLinalgReduce, ConvertBroadcastedReduce,
+        ConvertLinalgDot, ConvertSecretGeneric, ConvertTensorCollapseShape,
         ConvertTensorExpandShape, ConvertTensorExtractLayout,
         ConvertTensorExtractSlice, ConvertTensorPad, ConvertTensorInsertLayout,
         ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform>(

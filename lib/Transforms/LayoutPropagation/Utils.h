@@ -94,7 +94,9 @@ int64_t maxOfMaxes(::llvm::ArrayRef<int64_t> d1, ::llvm::ArrayRef<int64_t> d2);
                                             ::llvm::ArrayRef<int64_t> removed);
 
 // A helper to convert the layout of an input tensor to a reduce op. The result
-// layout is equivalent to setting the summed dimensions to 0.
+// layout is equivalent to setting the summed dimensions to 0, except that a
+// reduction over the outermost dimension of a tensor whose size is a power of
+// two holds the sum in every slot.
 LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
                                   ArrayRef<int64_t> dimsToReduce);
 

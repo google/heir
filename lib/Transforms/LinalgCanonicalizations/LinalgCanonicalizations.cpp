@@ -696,19 +696,12 @@ struct RewriteAvgPoolAsConv1D
     Attribute avgAttr = oneAttr;
     Value avgPoolOutput;
     if (poolOp->hasOneUse()) {
-      auto divOp = dyn_cast<arith::DivFOp>(*poolOp->getUsers().begin());
-      if (divOp) {
-        OpOperand& use = *poolOp->getUses().begin();
-        if (auto constantAttr = dyn_cast<Attribute>(getAsOpFoldResult(
-                divOp->getOperand(1 - use.getOperandNumber())))) {
-          if (auto splatAttr = dyn_cast<SplatElementsAttr>(
-                  cast<DenseElementsAttr>(constantAttr))) {
-            auto divValue = splatAttr.getSplatValue<APFloat>();
-            APFloat one = APFloat::getOne(divValue.getSemantics());
-            avgAttr = rewriter.getFloatAttr(eltTy, one / divValue);
-            avgPoolOutput = divOp.getResult();
-          }
-        }
+      FailureOr<ScalingFactorInfo> scale =
+          matchScalingFactor(*poolOp->getUsers().begin(), poolOp->getResult(0),
+                             cast<FloatType>(eltTy).getFloatSemantics());
+      if (succeeded(scale)) {
+        avgAttr = rewriter.getFloatAttr(eltTy, scale->scale);
+        avgPoolOutput = scale->op->getResult(0);
       }
     }
 
@@ -782,19 +775,12 @@ struct RewriteAvgPoolAsConv2D
     Attribute avgAttr = oneAttr;
     Value avgPoolOutput;
     if (poolOp->hasOneUse()) {
-      auto divOp = dyn_cast<arith::DivFOp>(*poolOp->getUsers().begin());
-      if (divOp) {
-        OpOperand& use = *poolOp->getUses().begin();
-        if (auto constantAttr = dyn_cast<Attribute>(getAsOpFoldResult(
-                divOp->getOperand(1 - use.getOperandNumber())))) {
-          if (auto splatAttr = dyn_cast<SplatElementsAttr>(
-                  cast<DenseElementsAttr>(constantAttr))) {
-            auto divValue = splatAttr.getSplatValue<APFloat>();
-            APFloat one = APFloat::getOne(divValue.getSemantics());
-            avgAttr = rewriter.getFloatAttr(eltTy, one / divValue);
-            avgPoolOutput = divOp.getResult();
-          }
-        }
+      FailureOr<ScalingFactorInfo> scale =
+          matchScalingFactor(*poolOp->getUsers().begin(), poolOp->getResult(0),
+                             cast<FloatType>(eltTy).getFloatSemantics());
+      if (succeeded(scale)) {
+        avgAttr = rewriter.getFloatAttr(eltTy, scale->scale);
+        avgPoolOutput = scale->op->getResult(0);
       }
     }
 
