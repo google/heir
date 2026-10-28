@@ -10,9 +10,29 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":AnnotateEncodeRescaleLevels",
         ":ConfigureCryptoContext",
         ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "AnnotateEncodeRescaleLevels",
+    srcs = ["AnnotateEncodeRescaleLevels.cpp"],
+    hdrs = ["AnnotateEncodeRescaleLevels.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 
