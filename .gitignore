@@ -63,3 +63,39 @@ scripts/torch_ci/failure_logs
 scripts/torch_ci/models/*.mlir
 openfhe-install/
 openfhe-development/
+
+# local benchmark / profiling (compiler branch: keep off git)
+benchmark-results/
+.tpu-bundles/
+.tpu-latency-experiment.env
+*.docx
+COMPILATION_FLOW.md
+tests/OpenFHE/
+tests/CROSS/analyze_benchmark_results.py
+tests/CROSS/benchmark_native_model.py
+tests/CROSS/benchmark_raw_compiled_model.py
+tests/CROSS/consolidate_benchmark_results.py
+tests/CROSS/extract_xprof_kernel_events.py
+tests/CROSS/run_tpu_latency_experiment.sh
+tests/CROSS/run_tpu_profile_job.py
+tests/CROSS/schedule_raw_compiled_benchmarks.py
+tests/CROSS/schedule_tpu_model_profiles.py
+tests/CROSS/test_analyze_benchmark_results.py
+tests/CROSS/test_consolidate_benchmark_results.py
+tests/CROSS/test_compiled_output_metadata.py
+tests/CROSS/test_schedule_raw_compiled_benchmarks.py
+tests/CROSS/NATIVE_BENCHMARK_QUEUE.md
+tests/CROSS/PREPARED_BENCHMARK_QUEUE.md
+tests/CROSS/HEIR_NATIVE_CROSS_SOURCE_ASSESSMENT.md
+
+# regenerated campaign outputs (prepare_* scripts)
+tests/CROSS/**/generated-rotation-init/
+tests/CROSS/**/generated-rotation-init-cached/
+tests/CROSS/**/generated-jit/
+tests/CROSS/**/generated-prepared-benchmark/
+tests/CROSS/**/generated-raw-compiled/
+tests/CROSS/first_matvec_tpu_benchmark/
+
+# local benchmark bundles at repo root
+heir_matvec_tpu_benchmark*.zip
+heir_matvec_tpu_benchmark*.tar.gz
