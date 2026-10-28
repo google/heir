@@ -131,18 +131,20 @@ FailureOr<Operation*> convertGeneral(
     return failure();
   }
 
-  SmallVector<std::unique_ptr<Region>, 1> regions;
   for (auto& region : op->getRegions()) {
-    Region* newRegion = new Region(op);
     if (failed(rewriter.convertRegionTypes(&region, *typeConverter)))
       return failure();
-    newRegion->takeBody(region);
-    regions.push_back(std::unique_ptr<Region>(newRegion));
   }
 
-  Operation* newOp = rewriter.create(OperationState(
-      op->getLoc(), op->getName().getStringRef(), operands, newResultTypes,
-      op->getAttrs(), op->getSuccessors(), regions));
+  OperationState state(op->getLoc(), op->getName().getStringRef(), operands,
+                       newResultTypes, op->getAttrs(), op->getSuccessors());
+  for (unsigned i = 0; i < op->getNumRegions(); ++i) state.addRegion();
+  Operation* newOp = rewriter.create(state);
+  // Move the regions through the rewriter, so a failed conversion can undo it.
+  for (auto [region, newRegion] :
+       llvm::zip(op->getRegions(), newOp->getRegions())) {
+    rewriter.inlineRegionBefore(region, newRegion, newRegion.end());
+  }
 
   rewriter.replaceOp(op, newOp);
   return newOp;
