@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -142,17 +144,31 @@ int64_t evaluate(AffineExpr expr, ArrayRef<int64_t> dims) {
   }
 }
 
+// The elements `map` accesses in the iterations whose element of the other
+// operand, accessed through `otherMap`, `otherLayout` places:
+// map(D ∩ otherMap^-1(domain(otherLayout))). Taking the domain of the layout on
+// its own keeps its local variables out of the projection of the loops, which
+// for (ct, slot) layouts makes ISL eliminate them over the whole loop nest.
+__isl_give isl_set* getElementsWithPlacedPartner(
+    const IntegerRelation& map, const IntegerRelation& otherMap,
+    const IntegerRelation& otherLayout, __isl_keep isl_ctx* ctx) {
+  isl_set* placed = isl_map_domain(toIslMap(otherLayout, ctx));
+  isl_set* iterations =
+      isl_map_domain(isl_map_intersect_range(toIslMap(otherMap, ctx), placed));
+  return isl_set_apply(iterations, toIslMap(map, ctx));
+}
+
 // Converts `map`, from the elements of a tensor of `shape` to (ct, slot), to a
 // layout relation. The map must place every element, no two in one slot, as a
-// single basic map. Consumes `map` (may be null) and `ctx`.
-FailureOr<IntegerRelation> toLayoutRelation(isl_ctx* ctx,
-                                            __isl_take isl_map* map,
-                                            ArrayRef<int64_t> shape,
-                                            StringRef name,
-                                            std::string& reason) {
+// single basic map; `domain` is the domain of `map`. Consumes `map` and
+// `domain` (either may be null) and `ctx`.
+FailureOr<IntegerRelation> toLayoutRelation(
+    isl_ctx* ctx, __isl_take isl_map* map, __isl_take isl_set* domain,
+    ArrayRef<int64_t> shape, StringRef name, std::string& reason) {
   auto fail = [&](const Twine& why) -> FailureOr<IntegerRelation> {
     reason = why.str();
     isl_map_free(map);
+    isl_set_free(domain);
     isl_ctx_free(ctx);
     return failure();
   };
@@ -161,12 +177,12 @@ FailureOr<IntegerRelation> toLayoutRelation(isl_ctx* ctx,
                     ? "ISL ran out of operations"
                     : "ISL failed");
   };
-  if (!map) return islError();
+  if (!map || !domain) return islError();
   isl_set* box = getBoxSet(shape, ctx);
-  isl_set* domain = isl_map_domain(isl_map_copy(map));
   isl_bool total = isl_set_is_subset(box, domain);
-  isl_set_free(domain);
   isl_set_free(box);
+  isl_set_free(domain);
+  domain = nullptr;
   isl_bool injective =
       total == isl_bool_true ? isl_map_is_injective(map) : isl_bool_true;
   if (total == isl_bool_error || injective == isl_bool_error) return islError();
@@ -367,29 +383,6 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
   return groups;
 }
 
-namespace {
-
-// Counts the points of `set` (taken), up to `limit`; nullopt beyond it.
-std::optional<int64_t> countPoints(__isl_take isl_set* set, int64_t limit) {
-  struct Counter {
-    int64_t count = 0;
-    int64_t limit;
-  } counter{0, limit};
-  isl_stat status = isl_set_foreach_point(
-      set,
-      [](__isl_take isl_point* point, void* user) {
-        isl_point_free(point);
-        auto* counter = static_cast<Counter*>(user);
-        return ++counter->count > counter->limit ? isl_stat_error : isl_stat_ok;
-      },
-      &counter);
-  isl_set_free(set);
-  if (status != isl_stat_ok) return std::nullopt;
-  return counter.count;
-}
-
-}  // namespace
-
 FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                                           int64_t maxKeys,
                                           unsigned long maxOperations,
@@ -419,7 +412,7 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                              spec.numSlots)
                    .str()
                    .c_str());
-  int64_t numRotations = 0;
+  unsigned numSecretInputs = 0;
   for (auto [i, input] : llvm::enumerate(spec.inputs)) {
     if (input.isCleartext()) continue;
     FailureOr<IntegerRelation> index =
@@ -449,31 +442,71 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
         isl_map_apply_range(isl_map_domain_map(isl_map_copy(*output)), access));
     isl_map* inputKey =
         isl_map_lexmin(isl_map_apply_range(positions, isl_map_copy(shift)));
-    // Elements the layout does not place read as zero, with key (-1, 0).
-    isl_set* unplaced =
-        isl_set_subtract(isl_map_domain(isl_map_copy(key)),
-                         isl_map_domain(isl_map_copy(inputKey)));
+    // Elements the layout does not place read as zero, with key (-1, 0). The
+    // complement is taken among the data indices, not the instances.
+    isl_set* unplacedElements =
+        isl_set_subtract(isl_map_range(toIslMap(*index, isl.ctx)),
+                         isl_map_domain(toIslMap(input.layout, isl.ctx)));
+    isl_set* unplaced = isl_map_domain(isl_map_intersect_range(
+        isl_map_apply_range(isl_map_domain_map(isl_map_copy(*output)),
+                            toIslMap(*index, isl.ctx)),
+        unplacedElements));
     inputKey = isl_map_union(
         inputKey, isl_map_from_domain_and_range(
                       unplaced, isl_set_read_from_str(isl.ctx, "{ [-1, 0] }")));
-    std::optional<int64_t> rotations = countPoints(
-        isl_set_subtract(isl_map_range(isl_map_copy(inputKey)),
-                         isl_set_read_from_str(isl.ctx, "{ [ct, 0] }")),
-        maxKeys);
     key = isl_map_flat_range_product(key, inputKey);
-    if (!key || !rotations) {
-      isl_map_free(key);
-      isl_map_free(shift);
-      isl_map_free(*output);
-      return fail("too many rotations, or ISL ran out of operations");
-    }
-    numRotations += *rotations;
+    ++numSecretInputs;
   }
   isl_map_free(shift);
   isl_map_free(*output);
-  std::optional<int64_t> numKeys = countPoints(isl_map_range(key), maxKeys);
-  if (!numKeys) return fail("too many groups, or ISL ran out of operations");
-  return GroupCount{*numKeys, numRotations};
+
+  // Enumerate the keys one basic map at a time: enumerating their union would
+  // first make it disjoint, which takes complements of projections over the
+  // instances. The rotations are the keys' (ct_i, shift_i) with a nonzero
+  // shift.
+  struct Collector {
+    int64_t maxKeys;
+    unsigned numCoords;
+    std::set<std::vector<int64_t>> keys;
+  } collector{maxKeys, 1 + 2 * numSecretInputs, {}};
+  isl_stat status = isl_map_foreach_basic_map(
+      key,
+      [](__isl_take isl_basic_map* piece, void* user) {
+        isl_set* keys = isl_set_from_basic_set(isl_basic_map_range(piece));
+        isl_stat status = isl_set_foreach_point(
+            keys,
+            [](__isl_take isl_point* point, void* user) {
+              auto* collector = static_cast<Collector*>(user);
+              std::vector<int64_t> coords(collector->numCoords);
+              for (unsigned i = 0; i < collector->numCoords; ++i) {
+                isl_val* val =
+                    isl_point_get_coordinate_val(point, isl_dim_set, i);
+                coords[i] = isl_val_get_num_si(val);
+                isl_val_free(val);
+              }
+              isl_point_free(point);
+              collector->keys.insert(std::move(coords));
+              return static_cast<int64_t>(collector->keys.size()) >
+                             collector->maxKeys
+                         ? isl_stat_error
+                         : isl_stat_ok;
+            },
+            user);
+        isl_set_free(keys);
+        return status;
+      },
+      &collector);
+  isl_map_free(key);
+  if (status != isl_stat_ok)
+    return fail("too many groups, or ISL ran out of operations");
+  std::set<std::tuple<unsigned, int64_t, int64_t>> rotations;
+  for (const std::vector<int64_t>& k : collector.keys) {
+    for (unsigned i = 0; i < numSecretInputs; ++i) {
+      if (k[2 + 2 * i] != 0) rotations.insert({i, k[1 + 2 * i], k[2 + 2 * i]});
+    }
+  }
+  return GroupCount{static_cast<int64_t>(collector.keys.size()),
+                    static_cast<int64_t>(rotations.size())};
 }
 
 SmallVector<int64_t> evaluateAffineMap(AffineMap map, ArrayRef<int64_t> point) {
@@ -565,18 +598,22 @@ FailureOr<IntegerRelation> inferInducedOutputLayout(
       getAccessMap(StructuredOperand{inputMap, inputLayout}, loopRanges, ctx,
                    "input", reason);
   if (failed(inputAccess)) return fail(reason);
+  FailureOr<IntegerRelation> inputIndex =
+      getIndexingMapRelation(inputMap, loopRanges);
   FailureOr<IntegerRelation> outputIndex =
       getIndexingMapRelation(outputMap, loopRanges);
-  if (failed(outputIndex)) {
+  if (failed(inputIndex) || failed(outputIndex)) {
     isl_map_free(*inputAccess);
-    return fail("output indexing map is not affine");
+    return fail("the indexing maps are not affine");
   }
   // o -> (ct, slot): every output element lands where the input element read
   // in the same iteration lives.
   isl_map* induced =
       isl_map_apply_domain(*inputAccess, toIslMap(*outputIndex, ctx));
   if (reduceToLexmin) induced = isl_map_lexmin(induced);
-  return toLayoutRelation(ctx, isl_map_coalesce(induced), outputShape,
+  isl_set* domain =
+      getElementsWithPlacedPartner(*outputIndex, *inputIndex, inputLayout, ctx);
+  return toLayoutRelation(ctx, isl_map_coalesce(induced), domain, outputShape,
                           "induced", reason);
 }
 
@@ -609,11 +646,13 @@ FailureOr<IntegerRelation> pullBackInputLayout(
       AffineMap::get(loopRanges.size(), 0, reductionIndex), loopRanges);
   FailureOr<IntegerRelation> inputIndex =
       getIndexingMapRelation(inputMap, loopRanges);
+  FailureOr<IntegerRelation> outputIndex =
+      getIndexingMapRelation(outputMap, loopRanges);
   FailureOr<isl_map*> output =
       getAccessMap(StructuredOperand{outputMap, outputLayout}, loopRanges, ctx,
                    "the output", reason);
   if (failed(output)) return fail(reason);
-  if (failed(reductionRel) || failed(inputIndex)) {
+  if (failed(reductionRel) || failed(inputIndex) || failed(outputIndex)) {
     isl_map_free(*output);
     return fail("the indexing maps are not affine");
   }
@@ -627,7 +666,10 @@ FailureOr<IntegerRelation> pullBackInputLayout(
               .c_str()));
   isl_map* pulled = isl_map_coalesce(
       isl_map_apply_domain(positions, toIslMap(*inputIndex, ctx)));
-  return toLayoutRelation(ctx, pulled, inputShape, "pulled-back", reason);
+  isl_set* domain = getElementsWithPlacedPartner(*inputIndex, *outputIndex,
+                                                 outputLayout, ctx);
+  return toLayoutRelation(ctx, pulled, domain, inputShape, "pulled-back",
+                          reason);
 }
 
 }  // namespace heir
