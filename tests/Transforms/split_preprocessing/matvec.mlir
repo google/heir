@@ -1,8 +1,8 @@
-// RUN: heir-opt --split-preprocessing %s
+// RUN: heir-opt --split-preprocessing %s | FileCheck %s
 
 // CHECK: func.func @matvec
 // CHECK: call @matvec__preprocessing
-// CHECK-SAME: -> (tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<1x!pt>)
+// CHECK-SAME: -> !preprocessing.storage<!pt>
 // CHECK: call @matvec__preprocessed
 
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>
