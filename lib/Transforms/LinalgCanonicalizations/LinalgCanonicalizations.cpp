@@ -667,6 +667,35 @@ struct RewriteTransposedMatvec
   }
 };
 
+// The init of a sum pool scaled by `scale`, scaled the same way, since the
+// conv that replaces the pool adds its init unscaled. Supports a constant and a
+// linalg.fill with a constant; returns null for any other init.
+static Value scaleInit(Value init, const APFloat& scale,
+                       PatternRewriter& rewriter) {
+  auto scaled = [&](APFloat value) {
+    value.multiply(scale, APFloat::rmNearestTiesToEven);
+    return value;
+  };
+  DenseFPElementsAttr values;
+  if (matchPattern(init, m_Constant(&values)))
+    return arith::ConstantOp::create(
+        rewriter, init.getLoc(),
+        cast<TypedAttr>(values.mapValues(
+            values.getElementType(), [&](const APFloat& value) {
+              return scaled(value).bitcastToAPInt();
+            })));
+  auto fill = init.getDefiningOp<linalg::FillOp>();
+  FloatAttr value;
+  if (!fill || !matchPattern(fill.getInputs()[0], m_Constant(&value)))
+    return Value();
+  Value scalar = arith::ConstantOp::create(
+      rewriter, fill.getLoc(),
+      rewriter.getFloatAttr(value.getType(), scaled(value.getValue())));
+  return linalg::FillOp::create(rewriter, fill.getLoc(), scalar,
+                                fill.getOutputs()[0])
+      .getResult(0);
+}
+
 struct RewriteAvgPoolAsConv1D
     : public OpRewritePattern<mlir::linalg::PoolingNcwSumOp> {
  public:
@@ -690,25 +719,21 @@ struct RewriteAvgPoolAsConv1D
     Attribute zeroAttr = rewriter.getZeroAttr(eltTy);
     Attribute oneAttr = rewriter.getOneAttr(eltTy);
 
-    // If there is a constant division following the sum pool, update the
-    // kernel of ones to be 1 / divValue. This is a common enough pattern since
-    // it represents an average pool.
+    // Fold a constant scaling of the sum pool (an average pool) into the
+    // kernel and the init.
     Attribute avgAttr = oneAttr;
     Value avgPoolOutput;
-    if (poolOp->hasOneUse()) {
-      auto divOp = dyn_cast<arith::DivFOp>(*poolOp->getUsers().begin());
-      if (divOp) {
-        OpOperand& use = *poolOp->getUses().begin();
-        if (auto constantAttr = dyn_cast<Attribute>(getAsOpFoldResult(
-                divOp->getOperand(1 - use.getOperandNumber())))) {
-          if (auto splatAttr = dyn_cast<SplatElementsAttr>(
-                  cast<DenseElementsAttr>(constantAttr))) {
-            auto divValue = splatAttr.getSplatValue<APFloat>();
-            APFloat one = APFloat::getOne(divValue.getSemantics());
-            avgAttr = rewriter.getFloatAttr(eltTy, one / divValue);
-            avgPoolOutput = divOp.getResult();
-          }
-        }
+    Value init = poolOp.getOutputs()[0];
+    if (poolOp->hasOneUse() && isa<FloatType>(eltTy)) {
+      FailureOr<ScalingFactorInfo> scale =
+          matchScalingFactor(*poolOp->getUsers().begin(), poolOp->getResult(0),
+                             cast<FloatType>(eltTy).getFloatSemantics());
+      Value scaledInit;
+      if (succeeded(scale) &&
+          (scaledInit = scaleInit(init, scale->scale, rewriter))) {
+        avgAttr = rewriter.getFloatAttr(eltTy, scale->scale);
+        avgPoolOutput = scale->op->getResult(0);
+        init = scaledInit;
       }
     }
 
@@ -736,12 +761,12 @@ struct RewriteAvgPoolAsConv1D
     TypedAttr kernelVals = DenseElementsAttr::get(kernelTy, values);
     auto kernel =
         arith::ConstantOp::create(rewriter, poolOp.getLoc(), kernelVals);
-    Value conv = linalg::Conv1DNcwFcwOp::create(
-                     rewriter, poolOp.getLoc(), outputTy,
-                     ValueRange{poolOp.getInputs()[0], kernel},
-                     ValueRange{poolOp.getOutputs()[0]}, poolOp.getStrides(),
-                     poolOp.getDilations())
-                     .getResult(0);
+    Value conv =
+        linalg::Conv1DNcwFcwOp::create(
+            rewriter, poolOp.getLoc(), outputTy,
+            ValueRange{poolOp.getInputs()[0], kernel}, ValueRange{init},
+            poolOp.getStrides(), poolOp.getDilations())
+            .getResult(0);
 
     if (avgPoolOutput) {
       rewriter.replaceAllUsesWith(avgPoolOutput, conv);
@@ -776,25 +801,21 @@ struct RewriteAvgPoolAsConv2D
     Attribute zeroAttr = rewriter.getZeroAttr(eltTy);
     Attribute oneAttr = rewriter.getOneAttr(eltTy);
 
-    // If there is a constant division following the sum pool, update the
-    // kernel of ones to be 1 / divValue. This is a common enough pattern since
-    // it represents an average pool.
+    // Fold a constant scaling of the sum pool (an average pool) into the
+    // kernel and the init.
     Attribute avgAttr = oneAttr;
     Value avgPoolOutput;
-    if (poolOp->hasOneUse()) {
-      auto divOp = dyn_cast<arith::DivFOp>(*poolOp->getUsers().begin());
-      if (divOp) {
-        OpOperand& use = *poolOp->getUses().begin();
-        if (auto constantAttr = dyn_cast<Attribute>(getAsOpFoldResult(
-                divOp->getOperand(1 - use.getOperandNumber())))) {
-          if (auto splatAttr = dyn_cast<SplatElementsAttr>(
-                  cast<DenseElementsAttr>(constantAttr))) {
-            auto divValue = splatAttr.getSplatValue<APFloat>();
-            APFloat one = APFloat::getOne(divValue.getSemantics());
-            avgAttr = rewriter.getFloatAttr(eltTy, one / divValue);
-            avgPoolOutput = divOp.getResult();
-          }
-        }
+    Value init = poolOp.getOutputs()[0];
+    if (poolOp->hasOneUse() && isa<FloatType>(eltTy)) {
+      FailureOr<ScalingFactorInfo> scale =
+          matchScalingFactor(*poolOp->getUsers().begin(), poolOp->getResult(0),
+                             cast<FloatType>(eltTy).getFloatSemantics());
+      Value scaledInit;
+      if (succeeded(scale) &&
+          (scaledInit = scaleInit(init, scale->scale, rewriter))) {
+        avgAttr = rewriter.getFloatAttr(eltTy, scale->scale);
+        avgPoolOutput = scale->op->getResult(0);
+        init = scaledInit;
       }
     }
 
@@ -826,12 +847,12 @@ struct RewriteAvgPoolAsConv2D
     TypedAttr kernelVals = DenseElementsAttr::get(kernelTy, values);
     auto kernel =
         arith::ConstantOp::create(rewriter, poolOp.getLoc(), kernelVals);
-    Value conv = linalg::Conv2DNchwFchwOp::create(
-                     rewriter, poolOp.getLoc(), outputTy,
-                     ValueRange{poolOp.getInputs()[0], kernel},
-                     ValueRange{poolOp.getOutputs()[0]}, poolOp.getStrides(),
-                     poolOp.getDilations())
-                     .getResult(0);
+    Value conv =
+        linalg::Conv2DNchwFchwOp::create(
+            rewriter, poolOp.getLoc(), outputTy,
+            ValueRange{poolOp.getInputs()[0], kernel}, ValueRange{init},
+            poolOp.getStrides(), poolOp.getDilations())
+            .getResult(0);
 
     if (avgPoolOutput) {
       rewriter.replaceAllUsesWith(avgPoolOutput, conv);

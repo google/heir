@@ -193,11 +193,18 @@ FailureOr<ScalingFactorInfo> matchScalingFactor(
     }
   }
 
-  // Case 2: linalg.generic
+  // Case 2: an elementwise linalg.generic that yields the scaled value.
   if (auto genericOp = dyn_cast<linalg::GenericOp>(user)) {
-    if (genericOp.getNumDpsInputs() == 1 && genericOp.getNumDpsInits() == 1) {
+    bool elementwise =
+        genericOp.getNumParallelLoops() == genericOp.getNumLoops() &&
+        llvm::all_of(genericOp.getIndexingMapsArray(),
+                     [](AffineMap map) { return map.isIdentity(); });
+    if (elementwise && genericOp.getNumDpsInputs() == 1 &&
+        genericOp.getNumDpsInits() == 1) {
       Block* body = genericOp.getBody();
-      if (body->getOperations().size() == 2) {
+      if (body->getOperations().size() == 2 &&
+          body->getTerminator()->getOperand(0) ==
+              body->getOperations().front().getResult(0)) {
         Operation& op = body->getOperations().front();
         if (isa<arith::DivFOp>(op) || isa<arith::MulFOp>(op)) {
           Value arg0 = op.getOperand(0);
