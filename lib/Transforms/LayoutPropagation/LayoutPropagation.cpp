@@ -101,6 +101,20 @@ using tensor_ext::LayoutAttr;
 
 namespace {
 
+// Calls `fn` on `op`, cast to its type, if it is a structured op with a
+// dedicated layout rule and kernel.
+template <typename Fn>
+std::optional<LogicalResult> withDedicatedRule(Operation* op, Fn&& fn) {
+  return TypeSwitch<Operation*, std::optional<LogicalResult>>(op)
+      .Case<DotOp, MatvecOp, ReduceOp, BroadcastOp, TransposeOp, MatmulOp,
+            BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp,
+            Conv2DNchwFchwOp>(
+          [&](auto op) -> std::optional<LogicalResult> { return fn(op); })
+      .Default([](Operation*) -> std::optional<LogicalResult> {
+        return std::nullopt;
+      });
+}
+
 // The result of a compatibility check for the layouts of an op's operands (cf.
 // hasCompatibleArgumentLayouts). If the check fails, the presence of a
 // diagnostic signals that the failure is unrecoverable and should cause the
@@ -286,6 +300,42 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(TransposeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(linalg::GenericOp op);
+
+  // Whether the dedicated layout rule of `op` applies, with the reason if not.
+  // The checks change no IR, so an op they reject is generalized as it is.
+  template <typename OpTy>
+  LogicalResult checkDedicatedRule(OpTy op, std::string& reason) {
+    return success();
+  }
+  LogicalResult checkDedicatedRule(DotOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(MatvecOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(ReduceOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(MatmulOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(BatchMatmulOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(Conv1DOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(Conv2DOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(Conv1DNcwFcwOp op, std::string& reason);
+  LogicalResult checkDedicatedRule(Conv2DNchwFchwOp op, std::string& reason);
+
+  enum class MatmulKernel { Bicyclic, BicyclicDiagonal, Diagonal };
+  FailureOr<MatmulKernel> selectMatmulKernel(MatmulOp op, std::string& reason);
+  enum class BatchMatmulKernel { Tricyclic, TricyclicDiagonal };
+  FailureOr<BatchMatmulKernel> selectBatchMatmulKernel(BatchMatmulOp op,
+                                                       std::string& reason);
+  struct Conv2DNchwFchwPlan {
+    SmallVector<int64_t> strides;
+    int64_t gapFactor;
+    RankedTensorType fheInputType;
+    ConvMatrixOperand matrixOperand;
+    IntegerRelation targetDataRelation;
+    bool dataLayoutMatchesTarget;
+    RankedTensorType fheOutputType;
+  };
+  FailureOr<Conv2DNchwFchwPlan> planConv2DNchwFchw(Conv2DNchwFchwOp op,
+                                                   std::string& reason);
+
+  // Lays out `op` as a linalg.generic for the generic kernel.
+  LogicalResult generalizeAndVisit(linalg::LinalgOp op);
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(BroadcastedReduceOp op);
   LogicalResult visitOperation(Conv1DOp op);
@@ -384,6 +434,9 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
   DenseMap<Value, Attribute> assignedLayouts;
   DataFlowSolver* solver;
+  // Set when generalizeAndVisit erased the visited op, so the walk skips
+  // it.
+  bool erasedVisitedOp = false;
 };
 
 FailureOr<AssignLayoutOp> LayoutPropagation::assignDefaultLayoutForOpOperand(
@@ -436,6 +489,16 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
     return success();
   }
 
+  // A structured op whose dedicated rule does not apply is laid out for the
+  // generic kernel. The check runs before this op's operands get layouts.
+  std::string reason;
+  std::optional<LogicalResult> dedicated = withDedicatedRule(
+      op, [&](auto op) { return checkDedicatedRule(op, reason); });
+  if (dedicated && failed(*dedicated)) {
+    op->emitRemark() << "using the generic kernel: " << reason;
+    return generalizeAndVisit(cast<linalg::LinalgOp>(op));
+  }
+
   // If an operand has no layout, it may for example be produced as a plaintext
   // constant, such as a zero-valued tensor for the initializer of a reduction.
   // In this case, we insert a layout assignment.
@@ -481,6 +544,9 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
     rectifyIncompatibleOperandLayouts(op);
   }
 
+  if (dedicated) {
+    return *withDedicatedRule(op, [&](auto op) { return visitOperation(op); });
+  }
   return TypeSwitch<Operation*, LogicalResult>(op)
       // func ops
       .Case<func::FuncOp, func::ReturnOp>(
@@ -488,9 +554,7 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<DotOp, MatvecOp, ReduceOp, BroadcastOp, TransposeOp, MatmulOp,
-            BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp,
-            linalg::GenericOp>([&](auto op) { return visitOperation(op); })
+      .Case<linalg::GenericOp>([&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -858,6 +922,210 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
   }
 }
 
+LogicalResult LayoutPropagation::generalizeAndVisit(linalg::LinalgOp op) {
+  SmallVector<bool> secretResults = llvm::map_to_vector(
+      op->getResults(), [&](Value result) { return isSecret(result, solver); });
+  // Generalizing erases the op and the values it defines. The solver keys its
+  // states by value, and a new value may reuse the storage of an erased one.
+  op->walk([&](Operation* erased) {
+    for (Value result : erased->getResults()) solver->eraseState(result);
+    for (Region& region : erased->getRegions())
+      for (Value arg : region.getArguments()) solver->eraseState(arg);
+  });
+  IRRewriter rewriter(&getContext());
+  rewriter.setInsertionPoint(op);
+  FailureOr<linalg::GenericOp> generic =
+      linalg::generalizeNamedOp(rewriter, op);
+  if (failed(generic)) return op->emitError() << "failed to generalize";
+  for (auto [result, secret] :
+       llvm::zip(generic->getResults(), secretResults)) {
+    solver->getOrCreateState<SecretnessLattice>(result)->join(
+        Secretness(secret));
+  }
+  erasedVisitedOp = true;
+  // The generic op's operands get their default layouts like any other op's.
+  return visitOperation(generic->getOperation());
+}
+
+// The conv kernels multiply secret data by a cleartext filter.
+static LogicalResult checkConvSecretness(linalg::LinalgOp op,
+                                         DataFlowSolver* solver,
+                                         std::string& reason) {
+  if (!isSecret(op.getDpsInputs().front(), solver) ||
+      isSecret(op.getDpsInputs().back(), solver)) {
+    reason = "the kernel needs secret data and a cleartext filter";
+    return failure();
+  }
+  return success();
+}
+
+static LogicalResult checkFits(Value value, int64_t minSlotCount,
+                               StringRef name, std::string& reason) {
+  if (cast<RankedTensorType>(value.getType()).getNumElements() <= minSlotCount)
+    return success();
+  reason = (name + " does not fit in one ciphertext").str();
+  return failure();
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(DotOp op,
+                                                    std::string& reason) {
+  // The kernel reduces within one ciphertext.
+  return checkFits(op.getInputs().front(), minSlotCount, "the vectors", reason);
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(MatvecOp op,
+                                                    std::string& reason) {
+  auto matvecOp = cast<linalg::ContractionOpInterface>(*op);
+  if (isSecret(matvecOp.lhs(), solver) || !isSecret(matvecOp.rhs(), solver)) {
+    reason = "the kernel needs a cleartext matrix and a secret vector";
+    return failure();
+  }
+  // The kernel multiplies one ciphertext by the matrix diagonals.
+  auto matrixType = cast<RankedTensorType>(matvecOp.lhs().getType());
+  if (*llvm::max_element(matrixType.getShape()) > minSlotCount) {
+    reason = "the matrix dimensions do not fit in one ciphertext";
+    return failure();
+  }
+  return success();
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(ReduceOp op,
+                                                    std::string& reason) {
+  // The kernel rotates within one ciphertext.
+  for (Value input : op.getInputs())
+    if (failed(checkFits(input, minSlotCount, "the input", reason)))
+      return failure();
+  return success();
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(MatmulOp op,
+                                                    std::string& reason) {
+  return failure(failed(selectMatmulKernel(op, reason)));
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(BatchMatmulOp op,
+                                                    std::string& reason) {
+  return failure(failed(selectBatchMatmulKernel(op, reason)));
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(Conv1DOp op,
+                                                    std::string& reason) {
+  if (failed(checkConvSecretness(op, solver, reason))) return failure();
+  return checkFits(op.getInputs().front(), minSlotCount, "the data", reason);
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(Conv2DOp op,
+                                                    std::string& reason) {
+  if (failed(checkConvSecretness(op, solver, reason))) return failure();
+  return checkFits(op.getInputs().front(), minSlotCount, "the data", reason);
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(Conv1DNcwFcwOp op,
+                                                    std::string& reason) {
+  if (failed(checkConvSecretness(op, solver, reason))) return failure();
+  // The kernel supports 3-D data (N, C, W) with N = 1.
+  auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
+  if (dataType.getRank() != 3 || dataType.getDimSize(0) != 1) {
+    reason = "the data is not 3-D with N = 1";
+    return failure();
+  }
+  // The kernel multiplies one ciphertext by the expanded filter matrix, which
+  // is diagonalized into one ciphertext. A zero pad folded into the conv's
+  // padding leaves the matrix the same size.
+  int64_t stride = op.getStrides().getValues<int64_t>().begin()[0];
+  RankedTensorType matrixType = get1dConvCwFcwFilterExpandedType(
+      cast<RankedTensorType>(op.getInputs().back().getType()), dataType, stride,
+      /*padding=*/0, /*interchangeRows=*/true);
+  if (llvm::any_of(matrixType.getShape(),
+                   [&](int64_t dim) { return dim > minSlotCount; })) {
+    reason = "the expanded filter does not fit in one ciphertext";
+    return failure();
+  }
+  return success();
+}
+
+LogicalResult LayoutPropagation::checkDedicatedRule(Conv2DNchwFchwOp op,
+                                                    std::string& reason) {
+  if (failed(checkConvSecretness(op, solver, reason))) return failure();
+  return failure(failed(planConv2DNchwFchw(op, reason)));
+}
+
+FailureOr<LayoutPropagation::MatmulKernel>
+LayoutPropagation::selectMatmulKernel(MatmulOp op, std::string& reason) {
+  auto lhsType = cast<RankedTensorType>(op.getOperand(0).getType());
+  auto rhsType = cast<RankedTensorType>(op.getOperand(1).getType());
+  bool inputSecret = isSecret(op.getOperand(0), solver);
+  bool filterSecret = isSecret(op.getOperand(1), solver);
+  int64_t mDim = lhsType.getDimSize(0);
+  int64_t nDim = lhsType.getDimSize(1);
+  int64_t pDim = rhsType.getDimSize(1);
+  bool lhsCoprime = std::gcd(mDim, nDim) == 1;
+  bool rhsCoprime = std::gcd(nDim, pDim) == 1;
+  bool outputCoprime = std::gcd(mDim, pDim) == 1;
+  // The bicyclic kernels rotate within one ciphertext and replicate the valid
+  // prefix of their result, which must hold the m x p result.
+  if (inputSecret && filterSecret && lhsCoprime && rhsCoprime &&
+      outputCoprime &&
+      nDim * pDim - 1 + mDim * (nDim - 1) + mDim * pDim <= minSlotCount)
+    return MatmulKernel::Bicyclic;
+  // With one cleartext operand, the BSGS reach is period * (steps - 1), with
+  // period the secret operand's packed row (or column) count.
+  int64_t period = inputSecret ? mDim : pDim;
+  if (outputCoprime && period * (nDim - 1) + mDim * pDim <= minSlotCount &&
+      ((inputSecret && !filterSecret && lhsCoprime) ||
+       (!inputSecret && filterSecret && rhsCoprime)))
+    return MatmulKernel::BicyclicDiagonal;
+  // The diagonal kernel packs each row of an operand into a ciphertext.
+  if (nDim > minSlotCount || pDim > minSlotCount) {
+    reason = "the rows of the operands do not fit in one ciphertext";
+    return failure();
+  }
+  return MatmulKernel::Diagonal;
+}
+
+FailureOr<LayoutPropagation::BatchMatmulKernel>
+LayoutPropagation::selectBatchMatmulKernel(BatchMatmulOp op,
+                                           std::string& reason) {
+  auto lhsType = cast<RankedTensorType>(op.getOperand(0).getType());
+  auto rhsType = cast<RankedTensorType>(op.getOperand(1).getType());
+  bool secretLhs = isSecret(op.getOperand(0), solver);
+  bool secretRhs = isSecret(op.getOperand(1), solver);
+  int64_t hDim = lhsType.getDimSize(0);
+  int64_t mDim = lhsType.getDimSize(1);
+  int64_t nDim = lhsType.getDimSize(2);
+  int64_t pDim = rhsType.getDimSize(2);
+  auto coprime = [](int64_t a, int64_t b, int64_t c) {
+    return std::gcd(a, b) == 1 && std::gcd(a, c) == 1 && std::gcd(b, c) == 1;
+  };
+  bool lhsCoprime = coprime(hDim, mDim, nDim);
+  bool rhsCoprime = coprime(hDim, nDim, pDim);
+  // The tricyclic layouts need coprime dimensions.
+  if (hDim != rhsType.getDimSize(0) || !coprime(hDim, mDim, pDim)) {
+    reason = "the batch and output dimensions are not pairwise coprime";
+    return failure();
+  }
+  int64_t outputElements = hDim * mDim * pDim;
+  if (secretLhs && secretRhs && lhsCoprime && rhsCoprime) {
+    // The kernel rotates within one ciphertext and replicates the valid prefix
+    // of its result, which must hold the h x m x p result.
+    if (hDim * nDim * pDim - 1 + hDim * mDim * (nDim - 1) + outputElements <=
+        minSlotCount)
+      return BatchMatmulKernel::Tricyclic;
+    reason = "the rotations do not fit in one ciphertext";
+    return failure();
+  }
+  if (secretLhs != secretRhs && (secretLhs ? lhsCoprime : rhsCoprime)) {
+    // The BSGS reach is period * (steps - 1).
+    int64_t period = hDim * (secretLhs ? mDim : pDim);
+    if (period * (nDim - 1) + outputElements <= minSlotCount)
+      return BatchMatmulKernel::TricyclicDiagonal;
+    reason = "the diagonals do not fit in one ciphertext";
+    return failure();
+  }
+  reason = "the operand dimensions are not pairwise coprime";
+  return failure();
+}
+
 LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   // Reassociate the dimensions to collapse. For e.g. if we collapse d0 x d1 x
   // d2 to d' then we need to construct the row-major relation from (d0, d1, d2)
@@ -1087,14 +1355,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
   auto dataType = cast<RankedTensorType>(data.getType());
   auto filterType = cast<RankedTensorType>(filter.getType());
 
-  // Flattened data must fit into the ciphertext size.
-  if (dataType.getNumElements() > minSlotCount) {
-    return op->emitOpError()
-           << "Flattened data must fit into a single ciphertext, but got "
-           << dataType.getNumElements() << " elements and ciphertext size is "
-           << minSlotCount;
-  }
-
   MLIRContext* ctx = &getContext();
   mlir::IRRewriter builder(ctx);
 
@@ -1161,14 +1421,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   Value filter = op.getInputs().back();
   auto dataType = cast<RankedTensorType>(data.getType());
   auto filterType = cast<RankedTensorType>(filter.getType());
-
-  // Flattened data must fit into the ciphertext size.
-  if (dataType.getNumElements() > minSlotCount) {
-    return op->emitOpError()
-           << "Flattened data must fit into a single ciphertext, but got "
-           << dataType.getNumElements() << " elements and ciphertext size is "
-           << minSlotCount;
-  }
 
   MLIRContext* ctx = &getContext();
   mlir::IRRewriter builder(ctx);
@@ -1245,12 +1497,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
 
   MLIRContext* ctx = &getContext();
   mlir::IRRewriter builder(ctx);
-
-  // Ensure data is in gapped row-major layout with current inputGap.
-  // We expect 3-D tensor (N, C, W) but only support N=1.
-  if (dataType.getRank() != 3 || dataType.getDimSize(0) != 1) {
-    return op->emitOpError() << "Expected 3-D data tensor (N=1, C, W)";
-  }
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
 
@@ -1339,48 +1585,48 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
                                    resultLayoutAttr);
 }
 
-LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
-  MLIRContext* ctx = &getContext();
-
-  LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv2DNchwFchwOp\n");
+FailureOr<LayoutPropagation::Conv2DNchwFchwPlan>
+LayoutPropagation::planConv2DNchwFchw(Conv2DNchwFchwOp op,
+                                      std::string& reason) {
   Value data = op.getInputs().front();
-  Value filter = op.getInputs().back();
   auto dataType = cast<RankedTensorType>(data.getType());
-  auto filterType = cast<RankedTensorType>(filter.getType());
   RankedTensorType outputType =
       cast<RankedTensorType>(op.getResult(0).getType());
 
   SmallVector<int64_t> strides(op.getStrides().getValues<int64_t>().begin(),
                                op.getStrides().getValues<int64_t>().end());
   if (!llvm::all_equal(strides)) {
-    return op->emitOpError() << "Expected equal strides for Conv2DNchwFchwOp";
+    reason = "the strides differ";
+    return failure();
   }
 
   // Interchange rows only if the stride is greater than 1. Otherwise, we can
   // densely pack the rows and outputs without channel gapping.
   bool interchangeRows = strides[0] > 1;
 
-  // Ensure data is in gapped row-major layout with current inputGap.
-  // We expect 4-D tensor (N, C, H, W) but only support N=1.
+  // The kernel supports 4-D data (N, C, H, W) with N = 1.
   if (dataType.getRank() != 4 || dataType.getDimSize(0) != 1) {
-    return op->emitOpError() << "Expected 4-D data tensor (N=1, C, H, W)";
+    reason = "the data is not 4-D with N = 1";
+    return failure();
   }
 
   auto dataParentInfo = findAttributeAssociatedWith(data, kKernelInfoAttrName);
   if (failed(dataParentInfo)) {
-    return op->emitOpError() << "Failed to find kernel info for data input";
+    reason = "the data has no kernel info";
+    return failure();
   }
   auto dataKernelInfo = getKernelInfo(dataParentInfo.value());
   if (!dataKernelInfo) {
-    return op->emitOpError() << "Failed to get kernel info for data input";
+    reason = "the data has no kernel info";
+    return failure();
   }
   // A strided conv leaves its result pixel-shuffled. The kernel below does not
   // read such data correctly: get2dConvChwFchwFilterAsSequence takes the
   // shuffled shape's channel count as the input channel count and places the
   // taps as for an unshuffled image.
   if (dataKernelInfo->gapFactor > 1) {
-    return op->emitOpError() << "Reading the result of a strided convolution "
-                                "or average pool is not supported";
+    reason = "the data is the result of a strided convolution or average pool";
+    return failure();
   }
   auto gapFactor = strides[0];
 
@@ -1425,6 +1671,41 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
         RankedTensorType::get({outputType.getDimSize(0), cFhe, hFhe, wFhe},
                               outputType.getElementType());
   }
+  // The kernel multiplies one ciphertext by the Toeplitz matrix.
+  if (matrixOperand.dataType.getNumElements() > minSlotCount ||
+      fheOutputType.getNumElements() > minSlotCount) {
+    reason = "the data or the result does not fit in one ciphertext";
+    return failure();
+  }
+  return Conv2DNchwFchwPlan{
+      strides,       gapFactor,          fheInputType,
+      matrixOperand, targetDataRelation, dataLayoutMatchesTarget,
+      fheOutputType};
+}
+
+LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
+  MLIRContext* ctx = &getContext();
+
+  LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv2DNchwFchwOp\n");
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  auto dataType = cast<RankedTensorType>(data.getType());
+  auto filterType = cast<RankedTensorType>(filter.getType());
+  RankedTensorType outputType =
+      cast<RankedTensorType>(op.getResult(0).getType());
+
+  std::string reason;
+  FailureOr<Conv2DNchwFchwPlan> plan = planConv2DNchwFchw(op, reason);
+  assert(succeeded(plan) && "checkDedicatedRule accepted this op");
+  ArrayRef<int64_t> strides = plan->strides;
+  bool interchangeRows = strides[0] > 1;
+  int64_t gapFactor = plan->gapFactor;
+  RankedTensorType fheInputType = plan->fheInputType;
+  LayoutAttr dataLayout = getComposedLayoutAttr(data);
+  ConvMatrixOperand matrixOperand = plan->matrixOperand;
+  IntegerRelation targetDataRelation = plan->targetDataRelation;
+  bool dataLayoutMatchesTarget = plan->dataLayoutMatchesTarget;
+  RankedTensorType fheOutputType = plan->fheOutputType;
   // `inputShape` stays the padded FHE shape; ConvertToCiphertextSemantics
   // re-derives the unpadded operand from it and the folded padding attribute.
   KernelInfo kernelInfo = {
@@ -1526,30 +1807,16 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
   auto result = op->getResult(0);
 
   bool secretLhs = isSecret(lhs, solver);
-  bool secretRhs = isSecret(rhs, solver);
-
-  int64_t hDim = lhsType.getDimSize(0);
   int64_t mDim = lhsType.getDimSize(1);
-  int64_t nDim = lhsType.getDimSize(2);
   int64_t pDim = rhsType.getDimSize(2);
-  bool batchEqual = (hDim == rhsType.getDimSize(0));
-
-  bool lhsCoprime = std::gcd(hDim, mDim) == 1 && std::gcd(hDim, nDim) == 1 &&
-                    std::gcd(mDim, nDim) == 1;
-  bool rhsCoprime = std::gcd(hDim, nDim) == 1 && std::gcd(hDim, pDim) == 1 &&
-                    std::gcd(nDim, pDim) == 1;
-  bool outputCoprime = std::gcd(hDim, mDim) == 1 && std::gcd(hDim, pDim) == 1 &&
-                       std::gcd(mDim, pDim) == 1;
+  std::string reason;
+  FailureOr<BatchMatmulKernel> kernel = selectBatchMatmulKernel(op, reason);
+  assert(succeeded(kernel) && "checkDedicatedRule accepted this op");
 
   LLVM_DEBUG(llvm::dbgs() << "lhs=" << lhs << ";\nrhs=" << rhs << "\n");
 
-  if (!batchEqual || !outputCoprime) {
-    return builder.notifyMatchFailure(
-        op, "batch matmul shape requirements for tricyclic layout are not met");
-  }
-
   // Tricyclic ct-ct batch matmul.
-  if (secretLhs && secretRhs && lhsCoprime && rhsCoprime) {
+  if (*kernel == BatchMatmulKernel::Tricyclic) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
     if (!isRelationTricyclic(lhsType, minSlotCount,
                              lhsLayout.getIntegerRelation())) {
@@ -1588,15 +1855,14 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
 
   // Tricyclic ct-pt / pt-ct batch matmul with generalized-diagonal-layout
   // plaintext: the secret operand keeps its tricyclic packing, the weight
-  // packs as encode-time diagonals, and the BSGS reach is period * (steps - 1).
-  if (secretLhs != secretRhs) {
+  // packs as encode-time diagonals.
+  if (*kernel == BatchMatmulKernel::TricyclicDiagonal) {
     Value secretOperand;
     Value weightOperand;
     RankedTensorType secretType;
     RankedTensorType weightType;
     int64_t ctStride;
     int64_t contractionDim;
-    bool secretCoprime;
 
     if (secretLhs) {
       // ct-pt: LHS is ciphertext (h x m x n), RHS is weight (h x n x p).
@@ -1606,7 +1872,6 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
       weightType = rhsType;
       ctStride = mDim;
       contractionDim = 1;
-      secretCoprime = lhsCoprime;
     } else {
       // pt-ct: LHS is weight (h x m x n), RHS is ciphertext (h x n x p).
       secretOperand = rhs;
@@ -1615,17 +1880,10 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
       weightType = lhsType;
       ctStride = pDim;
       contractionDim = 2;
-      secretCoprime = rhsCoprime;
     }
 
-    if (secretCoprime) {
+    {
       RankedTensorType bmmOutputType = cast<RankedTensorType>(result.getType());
-      int64_t period = hDim * ctStride;
-      int64_t reach = period * (nDim - 1);
-      if (reach + bmmOutputType.getNumElements() > minSlotCount) {
-        return builder.notifyMatchFailure(
-            op, "slot count budget exceeded for batch matmul diagonal reach");
-      }
 
       LayoutAttr secretLayout = getComposedLayoutAttr(secretOperand);
       IntegerRelation secretTricyclic =
@@ -1696,8 +1954,7 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
     }
   }
 
-  return builder.notifyMatchFailure(
-      op, "batch matmul shape requirements for tricyclic layout are not met");
+  llvm_unreachable("selectBatchMatmulKernel picks one of the kernels above");
 }
 
 LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
@@ -1711,19 +1968,16 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
   auto result = op->getResult(0);
 
   bool inputSecret = isSecret(lhs, solver);
-  bool filterSecret = isSecret(rhs, solver);
   int64_t mDim = lhsType.getDimSize(0);
-  int64_t nDim = lhsType.getDimSize(1);
   int64_t pDim = rhsType.getDimSize(1);
-  bool lhsCoprime = std::gcd(mDim, nDim) == 1;
-  bool rhsCoprime = std::gcd(nDim, pDim) == 1;
-  bool outputCoprime = std::gcd(mDim, pDim) == 1;
+  std::string reason;
+  FailureOr<MatmulKernel> kernel = selectMatmulKernel(op, reason);
+  assert(succeeded(kernel) && "checkDedicatedRule accepted this op");
 
   LLVM_DEBUG(llvm::dbgs() << "lhs=" << lhs << ";\nrhs=" << rhs << "\n");
 
   // Bicyclic ct-ct matmul.
-  if (inputSecret && filterSecret && lhsCoprime && rhsCoprime &&
-      outputCoprime) {
+  if (*kernel == MatmulKernel::Bicyclic) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
     if (!isRelationBicyclic(lhsType, minSlotCount,
                             lhsLayout.getIntegerRelation())) {
@@ -1763,11 +2017,9 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
   }
 
   // Bicyclic ct-pt / pt-ct matmul with generalized-diagonal-layout
-  // plaintext: the secret operand keeps its bicyclic packing, the weight
-  // packs as encode-time diagonals, and the BSGS reach is period * (steps - 1)
-  // with period the secret operand's packed row (or column) count.
-  if (outputCoprime && ((inputSecret && !filterSecret && lhsCoprime) ||
-                        (!inputSecret && filterSecret && rhsCoprime))) {
+  // plaintext: the secret operand keeps its bicyclic packing and the weight
+  // packs as encode-time diagonals.
+  if (*kernel == MatmulKernel::BicyclicDiagonal) {
     Value secretOperand = inputSecret ? lhs : rhs;
     RankedTensorType secretType = inputSecret ? lhsType : rhsType;
     Value weight = inputSecret ? rhs : lhs;
@@ -2288,17 +2540,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     MatvecOp op) {
-  // Currently only support secret vectors and plaintext matrices.
-  linalg::ContractionOpInterface matvecOp =
-      cast<linalg::ContractionOpInterface>(op.getOperation());
-  Value vec = matvecOp.rhs();
-  Value mat = matvecOp.lhs();
-  if (isSecret(mat, solver) || !isSecret(vec, solver)) {
-    return {false,
-            op->emitError("Only secret vectors and plaintext matrices are "
-                          "supported for linalg.vecmat")};
-  }
-
+  Value vec = cast<linalg::ContractionOpInterface>(op.getOperation()).rhs();
   if (!assignedLayouts.contains(vec)) {
     return {false, op->emitError("vector operand has no assigned layout")};
   }
@@ -2337,14 +2579,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Conv1DOp op) {
-  // Currently only support secret data and plaintext filters.
   Value data = op.getInputs().front();
-  Value filter = op.getInputs().back();
-  if (isSecret(filter, solver) || !isSecret(data, solver)) {
-    return {false, op->emitError("Only secret data and plaintext filters are "
-                                 "supported for linalg.conv1d")};
-  }
-
   if (!assignedLayouts.contains(data)) {
     return {false, op->emitError("data operand has no assigned layout")};
   }
@@ -2353,14 +2588,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Conv2DOp op) {
-  // Currently only support secret data and plaintext filters.
   Value data = op.getInputs().front();
-  Value filter = op.getInputs().back();
-  if (isSecret(filter, solver) || !isSecret(data, solver)) {
-    return {false, op->emitError("Only secret data and plaintext filters are "
-                                 "supported for linalg.conv2d")};
-  }
-
   if (!assignedLayouts.contains(data)) {
     return {false, op->emitError("data operand has no assigned layout")};
   }
@@ -2369,14 +2597,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Conv1DNcwFcwOp op) {
-  // Currently only support secret data and plaintext filters.
   Value data = op.getInputs().front();
-  Value filter = op.getInputs().back();
-  if (isSecret(filter, solver) || !isSecret(data, solver)) {
-    return {false, op->emitError("Only secret data and plaintext filters are "
-                                 "supported for linalg.conv_1d_ncw_fcw")};
-  }
-
   if (!assignedLayouts.contains(data)) {
     return {false, op->emitError("data operand has no assigned layout")};
   }
@@ -2385,14 +2606,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Conv2DNchwFchwOp op) {
-  // Currently only support secret data and plaintext filters.
   Value data = op.getInputs().front();
-  Value filter = op.getInputs().back();
-  if (isSecret(filter, solver) || !isSecret(data, solver)) {
-    return {false, op->emitError("Only secret data and plaintext filters are "
-                                 "supported for linalg.conv_2d_nchw_fchw")};
-  }
-
   if (!assignedLayouts.contains(data)) {
     return {false, op->emitError("data operand has no assigned layout")};
   }
@@ -2767,21 +2981,15 @@ void LayoutPropagation::setResultLayoutAttr(Operation* op,
               builder.getArrayAttr(resultLayouts));
 }
 
-// Whether convert-to-ciphertext-semantics has a dedicated kernel for `op`. The
-// layout-driven generic kernel implements all other structured ops.
-static bool hasDedicatedKernel(Operation* op) {
-  return isa<DotOp, MatvecOp, ReduceOp, BroadcastOp, TransposeOp, MatmulOp,
-             BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp,
-             Conv2DNchwFchwOp>(op);
-}
-
 // Generalizes the secret structured ops without a dedicated kernel. Returns
 // whether any changed.
 static bool generalizeOpsWithoutKernel(Operation* root,
                                        DataFlowSolver& solver) {
   SmallVector<linalg::LinalgOp> ops;
   root->walk([&](linalg::LinalgOp op) {
-    if (!isa<linalg::GenericOp>(op) && !hasDedicatedKernel(op) &&
+    bool hasRule =
+        withDedicatedRule(op, [](auto) { return success(); }).has_value();
+    if (!isa<linalg::GenericOp>(op) && !hasRule &&
         isSecret(op->getResults(), &solver))
       ops.push_back(op);
   });
@@ -2823,6 +3031,11 @@ void LayoutPropagation::runOnOperation() {
         LogicalResult result = visitOperation(op);
         if (failed(result)) {
           return WalkResult::interrupt();
+        }
+        // A generalized op is gone; its replacement was already visited.
+        if (erasedVisitedOp) {
+          erasedVisitedOp = false;
+          return WalkResult::skip();
         }
         return WalkResult::advance();
       });
