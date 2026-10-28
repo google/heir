@@ -9,11 +9,13 @@
 #include <utility>
 #include <vector>
 
+#include "llvm/include/llvm/ADT/APFloat.h"              // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"            // from @llvm-project
@@ -233,6 +235,14 @@ inline std::pair<bool, bool> allZeroAllOne(ArrayRef<double> mask) {
     }
   }
   return {allZero, allOne};
+}
+
+/// Matches a constant scalar / vector splat / tensor splat float that is
+/// nonnegative and finite.
+inline ::mlir::detail::constant_float_predicate_matcher m_NonNegativeFloat() {
+  return {[](const APFloat& value) {
+    return !value.isNegative() && value.isFinite();
+  }};
 }
 
 /// Returns true if and only if all types in the given values are the same.
