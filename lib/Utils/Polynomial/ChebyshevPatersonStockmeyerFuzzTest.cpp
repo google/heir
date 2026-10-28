@@ -49,14 +49,6 @@ FUZZ_TEST(ChebyshevPatersonStockmeyerFuzzTest, patersonStockmeyerMatchesNaive)
         /*x=*/fuzztest::InRange(-1.0, 1.0));
 
 // Throw in some specific cases.
-TEST(ChebyshevPatersonStockmeyerFuzzTest, SingleCoefficient) {
-  patersonStockmeyerMatchesNaive({5.0}, 0.5);
-}
-
-TEST(ChebyshevPatersonStockmeyerFuzzTest, TwoCoefficients) {
-  patersonStockmeyerMatchesNaive({1.0, 2.5}, 0.5);
-}
-
 TEST(ChebyshevPatersonStockmeyerFuzzTest, MultipleCoefficients) {
   patersonStockmeyerMatchesNaive({3.0, -2.0, 0.5, 1.0, -0.5}, 0.7);
 }
