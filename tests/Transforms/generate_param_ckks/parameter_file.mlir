@@ -14,7 +14,7 @@
 // ERR-SLOT: The slot count in the scheme param (2048) is smaller than the minimum slot count (4096).
 // ERR-FILE: cannot read CKKS parameter file
 // ERR-LEVEL: The level in the scheme param is smaller than the max level.
-// ERR-EXISTING: cannot specify parameter-file when module already has ckks.scheme_param attribute
+// ERR-EXISTING: cannot specify parameter-file when module already has ckks.schemeParam attribute
 
 module {
   func.func @add(%arg0: !secret.secret<f16> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) -> (!secret.secret<f16> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {

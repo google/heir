@@ -19,6 +19,7 @@ def Cheddar_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::cheddar";
 
   let useDefaultTypePrinterParser = 1;
+  let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
 }
 
