@@ -520,7 +520,7 @@ class CachingVisitor {
 
     const auto* nodePtr = node.get();
     if (auto it = cache.find(nodePtr); it != cache.end()) {
-      return it->second;
+      return it->second.second;
     }
 
     ResultType result = std::visit(
@@ -528,7 +528,7 @@ class CachingVisitor {
           return (*this)(n, std::forward<ExtraArgs>(args)...);
         },
         node->node_variant);
-    cache[nodePtr] = result;
+    cache[nodePtr] = {node, result};
     return result;
   }
 
@@ -732,7 +732,9 @@ class CachingVisitor {
   }
 
  private:
-  std::unordered_map<const ArithmeticDagNode<T>*, ResultType> cache;
+  std::unordered_map<const ArithmeticDagNode<T>*,
+                     std::pair<NodePtr, ResultType>>
+      cache;
 };
 
 }  // namespace kernel
