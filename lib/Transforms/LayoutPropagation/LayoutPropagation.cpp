@@ -1220,19 +1220,15 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   if (!dataKernelInfo) {
     return op->emitOpError() << "Failed to get kernel info for data input";
   }
-  // The gap factor accumulates the producer's gap, so it can exceed the stride
-  // when this conv follows another strided one.
-  auto gapFactor = strides[0] * dataKernelInfo->gapFactor;
-  // The layout relations shuffle by this conv's own stride, so that is the
-  // block size the channel padding below rounds up to. A conv whose gap exceeds
-  // its stride packs its result against gap^2 instead, and padding cannot
-  // reconcile the two, so keep rejecting those rather than mis-packing them.
-  if (interchangeRows && gapFactor != strides[0] &&
-      outputType.getDimSize(1) % (gapFactor * gapFactor) != 0) {
-    return op->emitOpError()
-           << "Expected number of output channels (" << outputType.getDimSize(1)
-           << ") to be divisible by gap^2 (" << gapFactor * gapFactor << ")";
+  // A strided conv leaves its result pixel-shuffled. The kernel below does not
+  // read such data correctly: get2dConvChwFchwFilterAsSequence takes the
+  // shuffled shape's channel count as the input channel count and places the
+  // taps as for an unshuffled image.
+  if (dataKernelInfo->gapFactor > 1) {
+    return op->emitOpError() << "Reading the result of a strided convolution "
+                                "or average pool is not supported";
   }
+  auto gapFactor = strides[0];
 
   RankedTensorType fheInputType = RankedTensorType::get(
       dataKernelInfo->resultShape, outputType.getElementType());
@@ -1760,8 +1756,8 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
   mlir::IRRewriter builder(ctx);
   builder.setInsertionPoint(op);
 
-  for (const auto& [tensor, result] :
-       llvm::zip(op.getInputs(), op.getResults())) {
+  for (const auto& [tensor, init, result] :
+       llvm::zip(op.getInputs(), op.getInits(), op.getResults())) {
     LayoutAttr thisLayout = getComposedLayoutAttr(tensor);
 
     // enforce row-major layout
@@ -1782,6 +1778,9 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
         convertLayoutForReduce(thisLayout, op.getDimensions());
     assignedLayouts.insert({result, resultLayout});
     debugAssignLayout(result, resultLayout);
+    // The kernel adds the init to its result.
+    if (failed(alignInitWithResultLayout(op, init, resultLayout)))
+      return failure();
   }
   setResultLayoutAttr(op);
   return success();
