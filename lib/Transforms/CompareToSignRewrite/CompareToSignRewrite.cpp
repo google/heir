@@ -4,10 +4,12 @@
 
 #include "lib/Dialect/MathExt/IR/MathExtOps.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
@@ -18,12 +20,28 @@ namespace heir {
 #define GEN_PASS_DEF_COMPARETOSIGNREWRITE
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h.inc"
 
+// `elementType`, shaped like `like` if that is a shaped type.
+static Type withShapeOf(Type like, Type elementType) {
+  if (auto shaped = dyn_cast<ShapedType>(like))
+    return shaped.clone(elementType);
+  return elementType;
+}
+
+// A float constant of `type`, splat if `type` is shaped.
+static Value floatConstant(PatternRewriter& rewriter, Location loc, Type type,
+                           double value) {
+  TypedAttr attr = rewriter.getFloatAttr(getElementTypeOrSelf(type), value);
+  if (auto shaped = dyn_cast<ShapedType>(type))
+    attr = DenseElementsAttr::get(shaped, attr);
+  return arith::ConstantOp::create(rewriter, loc, attr);
+}
+
 struct CompareToSignRewrite
     : impl::CompareToSignRewriteBase<CompareToSignRewrite> {
   using CompareToSignRewriteBase::CompareToSignRewriteBase;
 
-  // Pattern for arith.cmpf a < b and b >a,
-  // assuming we can multiply with 1/2: a < b -> 0.5*(sign(a - b)+1)
+  // Pattern for arith.cmpf a < b and a > b,
+  // assuming we can multiply with 1/2: a < b -> 0.5*(sign(b - a)+1)
   // Note that we ignore ordered/unordered comparison subtletlies here,
   // as this kind of arithmetization assumes no NaN/Inf values anyway.
   struct CmpFOpRewritePattern : public OpRewritePattern<arith::CmpFOp> {
@@ -33,25 +51,22 @@ struct CompareToSignRewrite
                                   PatternRewriter& rewriter) const override {
       Value lhs = op.getLhs();
       Value rhs = op.getRhs();
-      Value sub;  // will be set to a - b for a < b or b - a for b > a
-      auto floatType = cast<FloatType>(lhs.getType());
+      Value sub;  // b - a for a < b, a - b for a > b
 
       if (op.getPredicate() == arith::CmpFPredicate::OLT ||
           op.getPredicate() == arith::CmpFPredicate::ULT)
-        sub = arith::SubFOp::create(rewriter, op.getLoc(), lhs, rhs);
+        sub = arith::SubFOp::create(rewriter, op.getLoc(), rhs, lhs);
       else if (op.getPredicate() == arith::CmpFPredicate::OGT ||
                op.getPredicate() == arith::CmpFPredicate::UGT)
-        sub = arith::SubFOp::create(rewriter, op.getLoc(), rhs, lhs);
+        sub = arith::SubFOp::create(rewriter, op.getLoc(), lhs, rhs);
       else
         // This pattern does not handle equality
         return failure();
 
       // Rewrite to 0.5 * (sign(<sub>) + 1)
       Value sign = math_ext::SignOp::create(rewriter, op.getLoc(), sub);
-      auto oneAttr = rewriter.getFloatAttr(floatType, 1.0);
-      Value one = arith::ConstantOp::create(rewriter, op.getLoc(), oneAttr);
-      auto halfAttr = rewriter.getFloatAttr(floatType, 0.5);
-      Value half = arith::ConstantOp::create(rewriter, op.getLoc(), halfAttr);
+      Value one = floatConstant(rewriter, op.getLoc(), lhs.getType(), 1.0);
+      Value half = floatConstant(rewriter, op.getLoc(), lhs.getType(), 0.5);
       Value result = arith::AddFOp::create(rewriter, op.getLoc(), sign, one);
       result = arith::MulFOp::create(rewriter, op.getLoc(), result, half);
 
@@ -88,31 +103,28 @@ struct CompareToSignRewrite
         return failure();  // this pattern does not handle equality
 
       // (index types must be converted to i32 before we can cast to f32)
-      if (lhs.getType().isIndex())
-        lhs = arith::IndexCastOp::create(rewriter, loc, rewriter.getI32Type(),
-                                         lhs);
-      if (rhs.getType().isIndex())
-        rhs = arith::IndexCastOp::create(rewriter, loc, rewriter.getI32Type(),
-                                         rhs);
+      Type i32Type = withShapeOf(lhs.getType(), rewriter.getI32Type());
+      Type f32Type = withShapeOf(lhs.getType(), rewriter.getF32Type());
+      if (getElementTypeOrSelf(lhs.getType()).isIndex())
+        lhs = arith::IndexCastOp::create(rewriter, loc, i32Type, lhs);
+      if (getElementTypeOrSelf(rhs.getType()).isIndex())
+        rhs = arith::IndexCastOp::create(rewriter, loc, i32Type, rhs);
       //   Convert to f32 for the arithmetic
-      lhs = arith::SIToFPOp::create(rewriter, loc, rewriter.getF32Type(), lhs);
-      rhs = arith::SIToFPOp::create(rewriter, loc, rewriter.getF32Type(), rhs);
+      lhs = arith::SIToFPOp::create(rewriter, loc, f32Type, lhs);
+      rhs = arith::SIToFPOp::create(rewriter, loc, f32Type, rhs);
 
-      Value sub;  // will be set to a - b for a < b or b - a for b > a
+      Value sub;  // b - a for a < b, a - b for a > b
       if (op.getPredicate() == arith::CmpIPredicate::slt ||
           op.getPredicate() == arith::CmpIPredicate::ult)
-        sub = arith::SubFOp::create(rewriter, loc, lhs, rhs);
-      else if (op.getPredicate() == arith::CmpIPredicate::sgt ||
-               op.getPredicate() == arith::CmpIPredicate::uge)
         sub = arith::SubFOp::create(rewriter, loc, rhs, lhs);
+      else if (op.getPredicate() == arith::CmpIPredicate::sgt ||
+               op.getPredicate() == arith::CmpIPredicate::ugt)
+        sub = arith::SubFOp::create(rewriter, loc, lhs, rhs);
 
       // Rewrite to 0.5 * (sign(<sub>) + 1)
       Value sign = math_ext::SignOp::create(rewriter, loc, sub);
-      Value one = arith::ConstantFloatOp::create(
-          rewriter, loc, rewriter.getF32Type(), APFloat(1.0f));
-
-      Value half = arith::ConstantFloatOp::create(
-          rewriter, loc, rewriter.getF32Type(), APFloat(0.5f));
+      Value one = floatConstant(rewriter, loc, f32Type, 1.0);
+      Value half = floatConstant(rewriter, loc, f32Type, 0.5);
       Value result = arith::AddFOp::create(rewriter, loc, sign, one);
       result = arith::MulFOp::create(rewriter, loc, result, half);
 
