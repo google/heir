@@ -231,7 +231,10 @@ class SecretGenericOpConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter& rewriter) const {
-    return rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs, attributes)
+    return rewriter
+        .replaceOpWithNewOp<Y>(op, outputTypes, inputs,
+                               typename Y::Properties{},
+                               /*discardableAttributes=*/attributes)
         .getOperation();
   }
 };

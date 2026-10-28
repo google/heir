@@ -258,8 +258,8 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
         // are std::vector<double>, so we need to cast the input to that type.
         auto f64Ty = rewriter.getF64Type();
         auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), f64Ty);
-        input =
-            arith::ExtFOp::create(rewriter, op.getLoc(), newTensorTy, input);
+        input = arith::ExtFOp::create(rewriter, op.getLoc(), newTensorTy, input,
+                                      /*fastmath=*/arith::FastMathFlagsAttr{});
       }
     }
 
