@@ -1,5 +1,6 @@
 #include "lib/Dialect/Openfhe/Transforms/FastRotationPrecompute.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 
@@ -16,8 +17,9 @@
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/WalkResult.h"       // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
 
 #define DEBUG_TYPE "fast-rotation-precompute"
 
@@ -28,45 +30,90 @@ namespace openfhe {
 #define GEN_PASS_DEF_FASTROTATIONPRECOMPUTE
 #include "lib/Dialect/Openfhe/Transforms/Passes.h.inc"
 
+static LoopLikeOpInterface getOutermostLoopForInvariant(Value value,
+                                                        Operation* op) {
+  LoopLikeOpInterface outermostLoop = nullptr;
+  Operation* current = op->getParentOp();
+  while (current) {
+    if (auto loop = dyn_cast<LoopLikeOpInterface>(current)) {
+      if (loop.isDefinedOutsideOfLoop(value)) {
+        outermostLoop = loop;
+      } else {
+        break;
+      }
+    }
+    current = current->getParentOp();
+  }
+  return outermostLoop;
+}
+
 void processFunc(func::FuncOp funcOp, Value cryptoContext) {
   IRRewriter builder(funcOp->getContext());
   llvm::DenseMap<Value, llvm::SmallVector<RotOp>> ciphertextToRotateOps;
   llvm::DenseMap<Value, llvm::SmallDenseSet<int64_t>>
       ciphertextToDistinctRotations;
+  llvm::DenseMap<Value, bool> ciphertextHasDynamicShift;
+  llvm::DenseMap<Value, LoopLikeOpInterface> ciphertextToOutermostLoop;
+
   funcOp->walk([&](RotOp op) {
-    // Only process rotations with constant indices
-    // If dynamic_shift is an SSA value, try to extract constant; if index is
-    // an attribute, use it
-    std::optional<int64_t> rotationAmount;
+    Value ciphertext = op.getCiphertext();
+    ciphertextToRotateOps[ciphertext].push_back(op);
+
     if (op.getStaticShift().has_value()) {
-      rotationAmount = op.getStaticShift()->getValue().getZExtValue();
+      ciphertextToDistinctRotations[ciphertext].insert(
+          op.getStaticShift()->getValue().getZExtValue());
     } else if (op.getDynamicShift()) {
-      // Try to get constant value from dynamic_shift SSA value
       if (auto constOp =
               op.getDynamicShift().getDefiningOp<arith::ConstantOp>()) {
         if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
-          rotationAmount = intAttr.getValue().getZExtValue();
+          ciphertextToDistinctRotations[ciphertext].insert(
+              intAttr.getValue().getZExtValue());
+        } else {
+          ciphertextHasDynamicShift[ciphertext] = true;
         }
+      } else {
+        ciphertextHasDynamicShift[ciphertext] = true;
       }
     }
 
-    if (rotationAmount.has_value()) {
-      ciphertextToRotateOps[op.getCiphertext()].push_back(op);
-      ciphertextToDistinctRotations[op.getCiphertext()].insert(*rotationAmount);
+    if (LoopLikeOpInterface loop =
+            getOutermostLoopForInvariant(ciphertext, op)) {
+      auto it = ciphertextToOutermostLoop.find(ciphertext);
+      if (it == ciphertextToOutermostLoop.end() || !it->second) {
+        ciphertextToOutermostLoop[ciphertext] = loop;
+      } else if (loop->isProperAncestor(it->second)) {
+        ciphertextToOutermostLoop[ciphertext] = loop;
+      }
     }
   });
 
-  for (auto const& [ciphertext, rots] : ciphertextToDistinctRotations) {
-    // TODO(#744): is there a meaningful tradeoff for fast precompute?
-    if (rots.size() < 2) {
+  for (auto const& [ciphertext, rots] : ciphertextToRotateOps) {
+    size_t distinctCount = 0;
+    if (auto it = ciphertextToDistinctRotations.find(ciphertext);
+        it != ciphertextToDistinctRotations.end()) {
+      distinctCount = it->second.size();
+    }
+    bool hasDynamic = ciphertextHasDynamicShift.lookup(ciphertext);
+    LoopLikeOpInterface outermostLoop =
+        ciphertextToOutermostLoop.lookup(ciphertext);
+
+    bool shouldPrecompute =
+        (outermostLoop != nullptr) || (distinctCount >= 2) ||
+        (hasDynamic && rots.size() >= 2) || (distinctCount >= 1 && hasDynamic);
+
+    if (!shouldPrecompute) {
       continue;
     }
-    LLVM_DEBUG(llvm::dbgs() << "Found ciphertext with " << rots.size()
-                            << " distinct rotations: " << ciphertext << "\n");
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "Found ciphertext for fast rotation precomputation: "
+               << ciphertext << "\n");
 
     // Insert the precomputation op right after the ciphertext is defined. If
     // the ciphertext is a block argument, the precomputation op is inserted at
-    // the beginning of the block.
+    // the beginning of the block. Because the ciphertext is defined outside of
+    // any enclosing loop where it is rotated, this insertion point dominates
+    // all uses both inside and outside the loop.
     if (auto* definingOp = ciphertext.getDefiningOp()) {
       builder.setInsertionPointAfter(definingOp);
     } else {
@@ -77,32 +124,29 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
     auto precomputeOp = FastRotationPrecomputeOp::create(
         builder, ciphertext.getLoc(), cryptoContext, ciphertext);
 
-    for (RotOp op : ciphertextToRotateOps[ciphertext]) {
+    for (RotOp op : rots) {
       builder.setInsertionPoint(op);
-      // Cyclotomic order is 2*N where polynomial modulus is x^N + 1 This would
-      // be the right value to use here, IF this actually ended up as the ring
-      // dimension used by OpenFHE. However, OpenFHE sets its own parameters,
-      // and so this ends up being ignored in favor of dynamically reading
-      // `cc->GetRingDimension() * 2`.
       int cyclotomicOrder = 0;
 
-      // Get the rotation amount as a constant
-      int64_t rotationAmount;
+      Value shiftValue;
       if (op.getStaticShift().has_value()) {
-        rotationAmount = op.getStaticShift()->getValue().getSExtValue();
+        int64_t rotationAmount = op.getStaticShift()->getValue().getSExtValue();
+        shiftValue = arith::ConstantIndexOp::create(builder, op->getLoc(),
+                                                    rotationAmount);
       } else if (op.getDynamicShift()) {
-        auto constOp = op.getDynamicShift().getDefiningOp<arith::ConstantOp>();
-        auto intAttr = cast<IntegerAttr>(constOp.getValue());
-        rotationAmount = intAttr.getValue().getSExtValue();
+        shiftValue = op.getDynamicShift();
+        if (!shiftValue.getType().isIndex()) {
+          shiftValue = arith::IndexCastOp::create(
+              builder, op->getLoc(), builder.getIndexType(), shiftValue);
+        }
       } else {
-        continue;  // Skip non-constant rotations
+        continue;
       }
 
       auto fastRot = FastRotationOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
-          op.getCiphertext(),
-          arith::ConstantIndexOp::create(builder, op->getLoc(), rotationAmount),
-          builder.getIndexAttr(cyclotomicOrder), precomputeOp.getResult());
+          op.getCiphertext(), shiftValue, builder.getIndexAttr(cyclotomicOrder),
+          precomputeOp.getResult());
       builder.replaceOp(op, fastRot);
     }
   }
