@@ -4,6 +4,8 @@
 #include <cstdint>
 
 #include "lib/Utils/Graph/Graph.h"
+#include "llvm/include/llvm/ADT/MapVector.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/TopologicalSortUtils.h"  // from @llvm-project
@@ -83,8 +85,14 @@ bool tryVectorizeBlock(Block* block, Dialect* dialect) {
   });
 
   bool madeReplacement = false;
-  for (const auto& level : levels) {
-    DenseMap<Operation*, SmallVector<Operation*, 4>> compatibleOps;
+  for (auto& level : levels) {
+    // The graph orders the ops in a level by pointer value, which depends on
+    // heap layout. Sort by position in the block and use an insertion-ordered
+    // map so the vectorized output is deterministic.
+    llvm::sort(level, [](Operation* a, Operation* b) {
+      return a->isBeforeInBlock(b);
+    });
+    llvm::MapVector<Operation*, SmallVector<Operation*, 4>> compatibleOps;
     for (auto* op : level) {
       bool foundCompatible = false;
       for (auto& [key, bucket] : compatibleOps) {
