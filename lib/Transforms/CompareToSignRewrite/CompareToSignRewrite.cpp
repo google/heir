@@ -22,8 +22,10 @@ struct CompareToSignRewrite
     : impl::CompareToSignRewriteBase<CompareToSignRewrite> {
   using CompareToSignRewriteBase::CompareToSignRewriteBase;
 
-  // Pattern for arith.cmpf a < b and b >a,
-  // assuming we can multiply with 1/2: a < b -> 0.5*(sign(a - b)+1)
+  // Pattern for arith.cmpf a < b and a > b, assuming we can multiply with 1/2.
+  // Since sign(x) is -1 for x < 0, 0 for x == 0 and 1 for x > 0:
+  //   a < b -> 0.5*(sign(b - a)+1)
+  //   a > b -> 0.5*(sign(a - b)+1)
   // Note that we ignore ordered/unordered comparison subtletlies here,
   // as this kind of arithmetization assumes no NaN/Inf values anyway.
   struct CmpFOpRewritePattern : public OpRewritePattern<arith::CmpFOp> {
@@ -33,15 +35,15 @@ struct CompareToSignRewrite
                                   PatternRewriter& rewriter) const override {
       Value lhs = op.getLhs();
       Value rhs = op.getRhs();
-      Value sub;  // will be set to a - b for a < b or b - a for b > a
+      Value sub;  // will be set to b - a for a < b or a - b for a > b
       auto floatType = cast<FloatType>(lhs.getType());
 
       if (op.getPredicate() == arith::CmpFPredicate::OLT ||
           op.getPredicate() == arith::CmpFPredicate::ULT)
-        sub = arith::SubFOp::create(rewriter, op.getLoc(), lhs, rhs);
+        sub = arith::SubFOp::create(rewriter, op.getLoc(), rhs, lhs);
       else if (op.getPredicate() == arith::CmpFPredicate::OGT ||
                op.getPredicate() == arith::CmpFPredicate::UGT)
-        sub = arith::SubFOp::create(rewriter, op.getLoc(), rhs, lhs);
+        sub = arith::SubFOp::create(rewriter, op.getLoc(), lhs, rhs);
       else
         // This pattern does not handle equality
         return failure();
@@ -98,13 +100,12 @@ struct CompareToSignRewrite
       lhs = arith::SIToFPOp::create(rewriter, loc, rewriter.getF32Type(), lhs);
       rhs = arith::SIToFPOp::create(rewriter, loc, rewriter.getF32Type(), rhs);
 
-      Value sub;  // will be set to a - b for a < b or b - a for b > a
+      Value sub;  // will be set to b - a for a < b or a - b for a > b
       if (op.getPredicate() == arith::CmpIPredicate::slt ||
           op.getPredicate() == arith::CmpIPredicate::ult)
-        sub = arith::SubFOp::create(rewriter, loc, lhs, rhs);
-      else if (op.getPredicate() == arith::CmpIPredicate::sgt ||
-               op.getPredicate() == arith::CmpIPredicate::uge)
         sub = arith::SubFOp::create(rewriter, loc, rhs, lhs);
+      else  // sgt or ugt
+        sub = arith::SubFOp::create(rewriter, loc, lhs, rhs);
 
       // Rewrite to 0.5 * (sign(<sub>) + 1)
       Value sign = math_ext::SignOp::create(rewriter, loc, sub);
