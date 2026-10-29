@@ -8,5 +8,8 @@ exports_files(
     glob([
         "*.mlir",
     ]),
-    visibility = ["@heir//tests/Examples:__subpackages__"],
+    visibility = [
+        "@heir//tests/Examples:__subpackages__",
+        "@heir//tests/cheddar_gpu:__subpackages__",
+    ],
 )

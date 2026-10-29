@@ -229,4 +229,104 @@ def ModArith_SubIfGEOp : ModArith_Op<"subifge", [SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
 }
 
+def ModArith_MontMulOp : ModArith_Op<"mont_mul", [
+    Pure, Commutative, ElementwiseMappable, SameOperandsAndResultType]> {
+  let summary = "Montgomery multiplication operation";
+  let description = [{
+    `mod_arith.mont_mul %a, %b` computes the Montgomery product $a \cdot b \cdot R^{-1} \bmod q$.
+    The storage width $W$ must be 32 or 64, and the modulus $q$ must be an odd prime
+    less than $2^{W-1}$.
+
+    When the optional `lazy` unit attribute is absent, the result is canonicalized to $[0, q)$.
+    When `lazy` is present, the result is in the signed range $(-q, q)$. Lazy results
+    may only feed ops that accept the lazy range (e.g. fused butterflies).
+
+    Examples:
+    ```mlir
+    %0 = mod_arith.mont_mul %a, %b : !mod_arith.int<974258177 : i32>
+    %1 = mod_arith.mont_mul %a, %b lazy : !mod_arith.int<974258177 : i32>
+    ```
+  }];
+
+  let arguments = (ins
+    ModArithLike:$lhs,
+    ModArithLike:$rhs,
+    UnitAttr:$lazy
+  );
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "$lhs `,` $rhs (`lazy` $lazy^)? attr-dict `:` type($output)";
+  let hasVerifier = 1;
+}
+
+def ModArith_MontReduceOp : ModArith_Op<"mont_reduce", [
+    Pure, ElementwiseMappable, SameOperandsAndResultShape]> {
+  let summary = "Montgomery reduction of a wide integer";
+  let description = [{
+    `mod_arith.mont_reduce %wide` computes Montgomery reduction $(wide \cdot R^{-1}) \bmod q$
+    of a signed $2W$-bit value in $[-q \cdot 2^{W-1}, q \cdot 2^{W-1})$.
+    The result modular storage width $W$ must be 32 or 64, and the modulus $q$ must be an
+    odd prime less than $2^{W-1}$.
+
+    When the optional `lazy` unit attribute is absent, the result is canonicalized to $[0, q)$.
+    When `lazy` is present, the result is in the signed range $(-q, q)$. Lazy results
+    may only feed ops that accept the lazy range.
+
+    Examples:
+    ```mlir
+    %0 = mod_arith.mont_reduce %w : i64 -> !mod_arith.int<974258177 : i32>
+    %1 = mod_arith.mont_reduce %w lazy : i64 -> !mod_arith.int<974258177 : i32>
+    ```
+  }];
+
+  let arguments = (ins
+    SignlessIntegerLike:$input,
+    UnitAttr:$lazy
+  );
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "$input (`lazy` $lazy^)? attr-dict `:` type($input) `->` type($output)";
+  let hasVerifier = 1;
+}
+
+def ModArith_ToMontOp : ModArith_Op<"to_mont", [
+    Pure, ElementwiseMappable, SameOperandsAndResultType]> {
+  let summary = "convert standard representation to Montgomery form";
+  let description = [{
+    `mod_arith.to_mont %a` converts $a \in [0, q)$ to Montgomery form $(a \cdot R) \bmod q$
+    by computing Montgomery multiplication with $R^2 \bmod q$.
+    The storage width $W$ must be 32 or 64, and the modulus $q$ must be an odd prime
+    less than $2^{W-1}$. The result is canonical in $[0, q)$.
+
+    Examples:
+    ```mlir
+    %0 = mod_arith.to_mont %a : !mod_arith.int<974258177 : i32>
+    ```
+  }];
+
+  let arguments = (ins ModArithLike:$input);
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "$input attr-dict `:` type($output)";
+  let hasVerifier = 1;
+}
+
+def ModArith_FromMontOp : ModArith_Op<"from_mont", [
+    Pure, ElementwiseMappable, SameOperandsAndResultType]> {
+  let summary = "convert Montgomery form back to standard representation";
+  let description = [{
+    `mod_arith.from_mont %a` converts $a$ from Montgomery form to standard form
+    $(a \cdot R^{-1}) \bmod q$ by Montgomery reduction.
+    The storage width $W$ must be 32 or 64, and the modulus $q$ must be an odd prime
+    less than $2^{W-1}$. The result is canonical in $[0, q)$.
+
+    Examples:
+    ```mlir
+    %0 = mod_arith.from_mont %a : !mod_arith.int<974258177 : i32>
+    ```
+  }];
+
+  let arguments = (ins ModArithLike:$input);
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "$input attr-dict `:` type($output)";
+  let hasVerifier = 1;
+}
+
 #endif  // LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
