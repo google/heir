@@ -2,16 +2,21 @@
 
 #include <cmath>
 #include <cstdint>
+#include <numeric>
+#include <vector>
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
@@ -138,11 +143,57 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
 }
 
 polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             ArrayRef<int32_t> moduliPerLevel,
                                              int level) {
   auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+  int32_t numModuli =
+      moduliPerLevel.empty()
+          ? level + 1
+          : std::accumulate(moduliPerLevel.begin(),
+                            moduliPerLevel.begin() + level + 1, 0);
   auto newRnsType = rns::RNSType::get(
-      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(numModuli));
   return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
+}
+
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  return getRlweRNSRingWithLevel(ringAttr, {}, level);
+}
+
+FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext* ctx,
+                                               ArrayRef<int64_t> primes,
+                                               int minSlotCount) {
+  // monomial
+  std::vector<polynomial::IntMonomial> monomials;
+  monomials.emplace_back(1, minSlotCount);
+  monomials.emplace_back(1, 0);
+  auto result = polynomial::IntPolynomial::fromMonomials(monomials);
+  if (failed(result)) return failure();
+  polynomial::IntPolynomial xnPlusOne = result.value();
+
+  // moduli chain
+  int64_t maxBitWidth = 0;
+  for (int64_t prime : primes) {
+    maxBitWidth = std::max(maxBitWidth,
+                           static_cast<int64_t>(std::ceil(std::log2(prime))));
+  }
+  // ModArithType requires the underlying integer storage type to have at least
+  // 1 extra bit beyond the modulus bit width, and RNSType requires all basis
+  // limbs to share the same storage type. Round up to 32 or 64 bits.
+  unsigned storageBitWidth =
+      std::max<unsigned>(32, llvm::PowerOf2Ceil(maxBitWidth + 1));
+  SmallVector<Type, 4> modTypes;
+  for (int64_t prime : primes) {
+    auto type = IntegerType::get(ctx, storageBitWidth);
+    modTypes.push_back(
+        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
+  }
+
+  // types
+  auto rnsType = rns::RNSType::get(ctx, modTypes);
+  return polynomial::RingAttr::get(
+      rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
 }
 
 polynomial::RingAttr getRingFromModulusChain(

@@ -2,14 +2,18 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -559,6 +563,83 @@ void addSecretToSchemeDefaultConversionTargetsAndPatterns(
       typeConverter, patterns.getContext());
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
+}
+
+SecretToRlweTypeConverter::SecretToRlweTypeConverter(
+    MLIRContext* ctx, polynomial::RingAttr rlweRing,
+    SmallVector<int32_t> moduliPerLevel)
+    : UniquelyNamedAttributeAwareTypeConverter(
+          mgmt::MgmtDialect::kArgMgmtAttrName),
+      ring(rlweRing),
+      moduliPerLevel(std::move(moduliPerLevel)) {
+  addConversion([](Type type, Attribute attr) -> std::optional<Type> {
+    if (isa<secret::SecretType>(type)) return std::nullopt;
+    return type;
+  });
+  addConversion([this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
+    // For cases like tensor.empty + mgmt.init, we need to convert this
+    // to a ciphertext type.
+    //
+    // Care must be taken to ensure that types that have already been
+    // converted (i.e., their element type is a ciphertext or plaintext
+    // type) are returned as-is, or else legality checking will consider
+    // ops with these types illegal.
+    if (isa<lwe::LWECiphertextType, lwe::LWEPlaintextType>(
+            type.getElementType()))
+      return type;
+    return convertSecretTypeWithMgmtAttr(secret::SecretType::get(type),
+                                         mgmtAttr);
+  });
+  addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
+    return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
+  });
+}
+
+Type SecretToRlweTypeConverter::convertSecretTypeWithMgmtAttr(
+    secret::SecretType type, mgmt::MgmtAttr mgmtAttr) const {
+  auto* ctx = type.getContext();
+  auto level = mgmtAttr.getLevel();
+  auto dimension = mgmtAttr.getDimension();
+  auto scale = mgmtAttr.getScale();
+  auto tensorValueType = dyn_cast<RankedTensorType>(type.getValueType());
+
+  SmallVector<IntegerAttr> modulusChain;
+  for (auto modArithType :
+       cast<rns::RNSType>(ring.getCoefficientType()).getBasisTypes()) {
+    auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
+    modulusChain.push_back(modulus);
+  }
+
+  auto plaintextRing = getPlaintextRing(ctx);
+  auto encodingAttr = getEncodingAttr(ctx, scale);
+  auto encryptionType = getEncryptionType();
+
+  auto levelRing = lwe::getRlweRNSRingWithLevel(ring, moduliPerLevel, level);
+  int currentModulusIdx = cast<rns::RNSType>(levelRing.getCoefficientType())
+                              .getBasisTypes()
+                              .size() -
+                          1;
+
+  auto ctType = lwe::LWECiphertextType::get(
+      ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextRing, encodingAttr),
+      lwe::CiphertextSpaceAttr::get(ctx, levelRing, encryptionType, dimension),
+      lwe::KeyAttr::get(ctx, 0),
+      lwe::ModulusChainAttr::get(ctx, modulusChain, currentModulusIdx));
+
+  if (tensorValueType) {
+    // A rank-1 tensor is interpreted as a single ciphertext
+    if (tensorValueType.getRank() == 1) {
+      return ctType;
+    }
+
+    // A rank-2+ tensor is a tensor of ciphertexts, where the last axis
+    // becomes the ciphertext type. This is the most common case where
+    // data is packed in a set of ciphertexts.
+    return RankedTensorType::get(tensorValueType.getShape().drop_back(),
+                                 ctType);
+  }
+
+  return ctType;
 }
 
 }  // namespace heir
