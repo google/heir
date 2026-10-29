@@ -13,7 +13,7 @@ cc_library(
 bzl_library(
     name = "llvm_runner_bzl",
     srcs = ["llvm_runner.bzl"],
-    visibility = ["@heir//:__subpackages__"],
+    visibility = ["//visibility:private"],
     deps = [
         "@heir//tools:heir_opt_bzl",
         "@heir//tools:llc_bzl",
