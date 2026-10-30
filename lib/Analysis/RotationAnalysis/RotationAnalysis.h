@@ -22,6 +22,18 @@ class RotationAnalysis {
     return rotationIndices;
   }
 
+  DenseSet<int64_t> getRotationIndices(Operation* op) const {
+    auto it = rotationIndicesByOp.find(op);
+    if (it != rotationIndicesByOp.end()) {
+      return it->second;
+    }
+    return {};
+  }
+
+  DenseSet<int64_t> getRotationIndices(RotationOpInterface op) const {
+    return getRotationIndices(op.getOperation());
+  }
+
   LogicalResult run(Operation* op);
 
  private:
@@ -40,6 +52,7 @@ class RotationAnalysis {
   void markVisited(Operation* op) { visitedRotationOps.insert(op); }
 
   DenseSet<int64_t> rotationIndices;
+  DenseMap<Operation*, DenseSet<int64_t>> rotationIndicesByOp;
   DenseSet<Operation*> visitedRotationOps;
 };
 

@@ -3,6 +3,7 @@
 
 include "lib/Dialect/Cheddar/IR/CheddarDialect.td"
 include "lib/Dialect/Cheddar/IR/CheddarTypes.td"
+include "lib/Dialect/Cheddar/IR/CheddarAttributes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/Interfaces/DestinationStyleOpInterface.td"
@@ -247,35 +248,17 @@ def Cheddar_PrepareRotKeyOp : Cheddar_ReadWriteDpsOp<
 }
 
 def Cheddar_MakeParameterOp : Cheddar_Op<"make_parameter", [Pure]> {
-  let summary = "Construct a CHEDDAR Parameter from CKKS scheme parameters";
+  let summary = "Construct a CHEDDAR Parameter from a parameter set attribute";
   let description = [{
-    Builds a `cheddar::Parameter<word>` from the CKKS modulus chain. The main
-    primes are the CKKS `Q` limbs and the aux primes are the `P` limbs; the
-    canonical level config is one-main-prime-per-level (`{{1, 0}, {2, 0}, ...}`)
-    and the default encryption level is `#mainPrimes - 1`, both derived from
-    `mainPrimes` by the emitter. `logScale` is the log2 of the default CKKS
-    scale. This is the single setup op that produces the `!cheddar.parameter`
-    consumed by `cheddar.create_context`, so a generated `__configure` is
-    self-contained.
-
-    Bootstrapping programs override the defaults: `defaultEncryptionLevel`
-    pins the encryption level below the chain top (the boot-circuit primes sit
-    above it), and `denseHammingWeight`/`sparseHammingWeight` set the secret-key
-    hamming weights CHEDDAR's BootContext requires. Each is omitted (and the
-    emitter falls back to `#mainPrimes - 1` / not emitting a SetHammingWeight
-    call) for non-bootstrapping programs.
+    Builds a `cheddar::Parameter<word>` from a `#cheddar.parameter_set` attribute.
+    This is the single setup op that produces the `!cheddar.parameter` consumed
+    by `cheddar.create_context`, so a generated `__configure` is self-contained.
   }];
   let arguments = (ins
-    Builtin_IntegerAttr:$logN,
-    Builtin_IntegerAttr:$logScale,
-    DenseI64ArrayAttr:$mainPrimes,
-    DenseI64ArrayAttr:$auxPrimes,
-    OptionalAttr<Builtin_IntegerAttr>:$defaultEncryptionLevel,
-    OptionalAttr<Builtin_IntegerAttr>:$denseHammingWeight,
-    OptionalAttr<Builtin_IntegerAttr>:$sparseHammingWeight
+    Cheddar_ParameterSetAttr:$parameterSet
   );
   let results = (outs Cheddar_Parameter:$params);
-  let assemblyFormat = "prop-dict attr-dict `:` type($params)";
+  let assemblyFormat = "$parameterSet attr-dict `:` type($params)";
 }
 
 //===----------------------------------------------------------------------===//

@@ -70,7 +70,13 @@ LogicalResult RotationAnalysis::handleScfFor(scf::ForOp forOp) {
   rotationIndices.insert(shifts.begin(), shifts.end());
 
   // All the rotation ops within the outermost for loop are analyzed.
-  outermostFor->walk([&](RotationOpInterface rotOp) { markVisited(rotOp); });
+  outermostFor->walk([&](RotationOpInterface rotOp) {
+    if (!wasVisited(rotOp)) {
+      rotationIndicesByOp[rotOp.getOperation()].insert(shifts.begin(),
+                                                       shifts.end());
+      markVisited(rotOp);
+    }
+  });
 
   return success();
 }
@@ -110,6 +116,8 @@ LogicalResult RotationAnalysis::analyzeRotationOp(
     LDBG() << "Rotation op has constant indices: "
            << *rotationOp.getOperation();
     rotationIndices.insert(constantIndices.begin(), constantIndices.end());
+    rotationIndicesByOp[rotationOp.getOperation()].insert(
+        constantIndices.begin(), constantIndices.end());
     markVisited(rotationOp);
     return success();
   }
