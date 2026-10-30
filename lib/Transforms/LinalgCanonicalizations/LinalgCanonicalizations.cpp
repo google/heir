@@ -1291,6 +1291,103 @@ struct MaterializeBroadcasts : public OpRewritePattern<linalg::GenericOp> {
   }
 };
 
+// The value as an affine expression of the loop indices of `generic`, when it
+// is computed from its linalg.index ops and constants by additions,
+// subtractions and multiplications by constants; null otherwise. Only index
+// and 64-bit integers are followed: narrower ones could wrap, and wider ones
+// need not fit an index.
+static AffineExpr getLoopIndexExpr(Value value, linalg::GenericOp generic) {
+  MLIRContext* ctx = value.getContext();
+  if (auto type = dyn_cast<IntegerType>(value.getType());
+      type && type.getWidth() != 64)
+    return nullptr;
+  if (auto index = value.getDefiningOp<linalg::IndexOp>()) {
+    if (index->getParentOp() != generic) return nullptr;
+    return getAffineDimExpr(index.getDim(), ctx);
+  }
+  APInt constant;
+  if (matchPattern(value, m_ConstantInt(&constant)))
+    return getAffineConstantExpr(constant.getSExtValue(), ctx);
+  if (auto cast = value.getDefiningOp<arith::IndexCastOp>())
+    return getLoopIndexExpr(cast.getIn(), generic);
+  Operation* op = value.getDefiningOp();
+  if (!isa_and_present<arith::AddIOp, arith::SubIOp, arith::MulIOp>(op))
+    return nullptr;
+  AffineExpr lhs = getLoopIndexExpr(op->getOperand(0), generic);
+  AffineExpr rhs = getLoopIndexExpr(op->getOperand(1), generic);
+  if (!lhs || !rhs) return nullptr;
+  if (isa<arith::AddIOp>(op)) return lhs + rhs;
+  if (isa<arith::SubIOp>(op)) return lhs - rhs;
+  if (!lhs.isSymbolicOrConstant() && !rhs.isSymbolicOrConstant())
+    return nullptr;
+  return lhs * rhs;
+}
+
+// Turns a tensor.extract in a linalg.generic body, of a tensor defined outside
+// the body (or a constant inside it) at indices affine in the loop indices,
+// into a read of an extra input with that indexing map. Analyses of the op's
+// operands (e.g. secretness) then see the tensor.
+struct ReadExtractedTensorsAsInputs
+    : public OpRewritePattern<linalg::GenericOp> {
+  using OpRewritePattern<linalg::GenericOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(linalg::GenericOp op,
+                                PatternRewriter& rewriter) const override {
+    SmallVector<tensor::ExtractOp> extracts;
+    SmallVector<AffineMap> maps;
+    SmallVector<int64_t> loopRanges = op.getStaticLoopRanges();
+    for (auto extract : op.getBody()->getOps<tensor::ExtractOp>()) {
+      Value tensor = extract.getTensor();
+      if (op.getRegion().isAncestor(tensor.getParentRegion()) &&
+          !tensor.getDefiningOp<arith::ConstantOp>())
+        continue;
+      SmallVector<AffineExpr> exprs =
+          llvm::map_to_vector(extract.getIndices(),
+                              [&](Value v) { return getLoopIndexExpr(v, op); });
+      if (llvm::is_contained(exprs, AffineExpr())) continue;
+      // The verifier infers the extent of an input dimension read at a bare
+      // loop index from the loop range.
+      auto type = cast<RankedTensorType>(tensor.getType());
+      if (!type.hasStaticShape() ||
+          llvm::any_of(llvm::enumerate(exprs), [&](auto indexed) {
+            auto dim = dyn_cast<AffineDimExpr>(indexed.value());
+            return dim && type.getDimSize(indexed.index()) !=
+                              loopRanges[dim.getPosition()];
+          }))
+        continue;
+      extracts.push_back(extract);
+      maps.push_back(
+          AffineMap::get(op.getNumLoops(), 0, exprs, rewriter.getContext()));
+    }
+    if (extracts.empty()) return failure();
+
+    unsigned numInputs = op.getNumDpsInputs();
+    SmallVector<Value> inputs(op.getInputs());
+    for (tensor::ExtractOp extract : extracts) {
+      Value tensor = extract.getTensor();
+      if (op.getRegion().isAncestor(tensor.getParentRegion()))
+        tensor = rewriter.clone(*tensor.getDefiningOp())->getResult(0);
+      inputs.push_back(tensor);
+    }
+    SmallVector<AffineMap> indexingMaps = op.getIndexingMapsArray();
+    indexingMaps.insert(indexingMaps.begin() + numInputs, maps.begin(),
+                        maps.end());
+    auto generic = linalg::GenericOp::create(
+        rewriter, op.getLoc(), op.getResultTypes(), inputs, op.getOutputs(),
+        indexingMaps, op.getIteratorTypesArray());
+    generic->setDiscardableAttrs(op->getDiscardableAttrDictionary());
+    rewriter.inlineRegionBefore(op.getRegion(), generic.getRegion(),
+                                generic.getRegion().end());
+    for (auto [i, extract] : llvm::enumerate(extracts)) {
+      BlockArgument arg = generic.getBody()->insertArgument(
+          numInputs + i, extract.getType(), extract.getLoc());
+      rewriter.replaceOp(extract, arg);
+    }
+    rewriter.replaceOp(op, generic->getResults());
+    return success();
+  }
+};
+
 struct DropCfAssertInLinalg : public OpRewritePattern<linalg::GenericOp> {
  public:
   DropCfAssertInLinalg(MLIRContext* context)
@@ -1489,9 +1586,10 @@ struct LinalgCanonicalizations
         BroadcastToExpandShape, DropCfAssertInLinalg, FoldBroadcastExtractSlice,
         FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
         FuseConv2DPooling, LinalgGenericToElementwise, LinalgMapToElementwise,
-        MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
-        RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
-        UndilateConv2DNchwFchw, ZeroPadNonNegativeMaxPoolInput>(context);
+        MaterializeBroadcasts, ReadExtractedTensorsAsInputs,
+        RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D, RewriteTransposedMatvec,
+        RewriteTransposedVecmat, UndilateConv1DNcwFcw, UndilateConv2DNchwFchw,
+        ZeroPadNonNegativeMaxPoolInput>(context);
 
     mlir::linalg::populateDecomposeProjectedPermutationPatterns(patterns);
 

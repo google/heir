@@ -172,17 +172,15 @@ bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
                          const presburger::IntegerRelation& relation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
-// with the given dimensions collapsed. This expects that the reassociation
-// indices result in a rank-reduction of the source type (i.e. the collapsed
-// dimensions are all unit dimensions).
+// with the given dimensions collapsed (row-major within each group), keeping
+// every element in its slot.
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
-// with the given dimensions expanded. This expects that the reassociation
-// indices result in a rank-expansion of the result type (i.e. the expanded
-// dimensions are all unit dimensions).
+// with the given dimensions expanded (row-major within each group), keeping
+// every element in its slot.
 presburger::IntegerRelation expandDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType resultType,
     ArrayRef<ReassociationIndices> reassociation);
