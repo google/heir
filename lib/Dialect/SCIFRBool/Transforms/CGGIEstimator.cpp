@@ -229,7 +229,7 @@ struct CGGIEstimator : impl::CGGIEstimatorBase<CGGIEstimator> {
       }
 
       llvm::outs() << "operation = " << "\n";
-      op->dump();
+      op->print(llvm::outs(), mlir::OpPrintingFlags().useLocalScope());
       llvm::outs() << "\n";
       return WalkResult::advance();
     });
