@@ -25,9 +25,10 @@
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Math/IR/Math.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -781,12 +782,68 @@ struct SquareAndMultiplyForPowOp : public OpRewritePattern<math::FPowIOp> {
   }
 };
 
+// Rewrites max(a, b) to a + max(b - a, 0) and min(a, b) to a - max(a - b, 0)
+// when an operand is secret and neither is a scalar or splat constant, so that
+// the ReLU approximations apply. Cleartext max/min keep their exact semantics.
+// Ops in a linalg body are left alone: there they may combine a reduction.
+template <typename OpTy, bool isMax>
+struct DecomposeBinaryMinMax : public OpRewritePattern<OpTy> {
+  DecomposeBinaryMinMax(MLIRContext* context, DataFlowSolver* solver)
+      : OpRewritePattern<OpTy>(context), solver(solver) {}
+
+  LogicalResult matchAndRewrite(OpTy op,
+                                PatternRewriter& rewriter) const override {
+    if (op->template getParentOfType<linalg::LinalgOp>()) return failure();
+    Value a = op.getLhs(), b = op.getRhs();
+    if (llvm::none_of(
+            op->getOperands(),
+            [&](Value v) { return mlir::heir::isSecret(v, solver); }) ||
+        succeeded(getSingleValueOrSplat(a)) ||
+        succeeded(getSingleValueOrSplat(b)))
+      return failure();
+    Location loc = op.getLoc();
+    Value zero = arith::ConstantOp::create(rewriter, loc,
+                                           rewriter.getZeroAttr(op.getType()));
+    Value diff = isMax ? arith::SubFOp::create(rewriter, loc, b, a)
+                       : arith::SubFOp::create(rewriter, loc, a, b);
+    Value relu = arith::MaximumFOp::create(rewriter, loc, diff, zero);
+    if constexpr (isMax) {
+      rewriter.replaceOpWithNewOp<arith::AddFOp>(op, a, relu);
+    } else {
+      rewriter.replaceOpWithNewOp<arith::SubFOp>(op, a, relu);
+    }
+    return success();
+  }
+
+ private:
+  DataFlowSolver* solver;
+};
+
 struct PolynomialApproximation
     : impl::PolynomialApproximationBase<PolynomialApproximation> {
   using PolynomialApproximationBase::PolynomialApproximationBase;
 
   void runOnOperation() override {
     MLIRContext* context = &getContext();
+
+    // Decompose max/min of secrets first: the analysis below must see the ops
+    // the decomposition creates.
+    {
+      DataFlowSolver solver;
+      dataflow::loadBaselineAnalyses(solver);
+      solver.load<SecretnessAnalysis>();
+      if (failed(solver.initializeAndRun(getOperation()))) {
+        getOperation()->emitOpError() << "Failed to run SecretnessAnalysis.\n";
+        return signalPassFailure();
+      }
+      RewritePatternSet decompositions(context);
+      decompositions.add<DecomposeBinaryMinMax<arith::MaximumFOp, true>,
+                         DecomposeBinaryMinMax<arith::MaxNumFOp, true>,
+                         DecomposeBinaryMinMax<arith::MinimumFOp, false>,
+                         DecomposeBinaryMinMax<arith::MinNumFOp, false>>(
+          context, &solver);
+      (void)applyPatternsGreedily(getOperation(), std::move(decompositions));
+    }
 
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);

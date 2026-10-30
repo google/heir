@@ -70,9 +70,12 @@ func.func @test_maximumf_domain(%x: tensor<10xf32> {secret.secret}) -> tensor<10
 // -----
 
 
-// CHECK: @test_maximumf_ignore_not_splat
-func.func @test_maximumf_ignore_not_splat(%x: tensor<10xf32> {secret.secret}) -> tensor<10xf32> {
-  // CHECK-NOT: polynomial.eval
+// A max with a non-splat constant is decomposed into x + max(c - x, 0).
+// CHECK: @test_maximumf_not_splat
+func.func @test_maximumf_not_splat(%x: tensor<10xf32> {secret.secret}) -> tensor<10xf32> {
+  // CHECK: arith.subf
+  // CHECK: polynomial.eval
+  // CHECK: arith.addf
   %c0 = arith.constant dense<[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]> : tensor<10xf32>
   %0 = arith.maximumf %x, %c0 : tensor<10xf32>
   return %0 : tensor<10xf32>
@@ -80,9 +83,12 @@ func.func @test_maximumf_ignore_not_splat(%x: tensor<10xf32> {secret.secret}) ->
 
 // -----
 
-// CHECK: @test_maximumf_ignore_arg
-func.func @test_maximumf_ignore_arg(%x: tensor<10xf32> {secret.secret}, %y: tensor<10xf32> {secret.secret}) -> tensor<10xf32> {
-  // CHECK-NOT: polynomial.eval
+// A max of two secrets is decomposed into x + max(y - x, 0).
+// CHECK: @test_maximumf_two_args
+func.func @test_maximumf_two_args(%x: tensor<10xf32> {secret.secret}, %y: tensor<10xf32> {secret.secret}) -> tensor<10xf32> {
+  // CHECK: arith.subf
+  // CHECK: polynomial.eval
+  // CHECK: arith.addf
   %0 = arith.maximumf %x, %y : tensor<10xf32>
   return %0 : tensor<10xf32>
 }
