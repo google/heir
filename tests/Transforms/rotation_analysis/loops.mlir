@@ -42,3 +42,46 @@ module attributes {scheme.actual_slot_count = 16} {
     return %0 : tensor<16xi32>
   }
 }
+// -----
+
+// CHECK: module attributes
+// i in [0, 2], shift = 10 - 2 * i
+// CHECK-SAME: rotation_analysis.indices = array<i64: 6, 8, 10>
+module attributes {scheme.actual_slot_count = 16} {
+  func.func @test_sub_and_offset(%arg0: tensor<16xi32>) -> tensor<16xi32> {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
+    %c10 = arith.constant 10 : index
+    %0 = scf.for %i = %c0 to %c3 step %c1 iter_args(%iter = %arg0) -> (tensor<16xi32>) {
+      %z = arith.muli %c2, %i : index
+      %shift = arith.subi %c10, %z : index
+      %rot = tensor_ext.rotate %iter, %shift : tensor<16xi32>, index
+      scf.yield %rot : tensor<16xi32>
+    }
+    return %0 : tensor<16xi32>
+  }
+}
+
+// -----
+
+// CHECK: module attributes
+// i in [0, 3], j in [0, i), shift = i + j
+// CHECK-SAME: rotation_analysis.indices = array<i64: 1, 2, 3, 4, 5>
+module attributes {scheme.actual_slot_count = 16} {
+  func.func @test_dependent_loop_bounds(%arg0: tensor<16xi32>) -> tensor<16xi32> {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c4 = arith.constant 4 : index
+    %0 = scf.for %i = %c0 to %c4 step %c1 iter_args(%iter1 = %arg0) -> (tensor<16xi32>) {
+      %1 = scf.for %j = %c0 to %i step %c1 iter_args(%iter2 = %iter1) -> (tensor<16xi32>) {
+        %shift = arith.addi %i, %j : index
+        %rot = tensor_ext.rotate %iter2, %shift : tensor<16xi32>, index
+        scf.yield %rot : tensor<16xi32>
+      }
+      scf.yield %1 : tensor<16xi32>
+    }
+    return %0 : tensor<16xi32>
+  }
+}

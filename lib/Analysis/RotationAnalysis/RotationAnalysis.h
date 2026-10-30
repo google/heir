@@ -4,9 +4,9 @@
 #include <cstdint>
 
 #include "lib/Dialect/HEIRInterfaces.h"
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"        // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -25,7 +25,8 @@ class RotationAnalysis {
   LogicalResult run(Operation* op);
 
  private:
-  LogicalResult handleScfFor(scf::ForOp forOp);
+  LogicalResult handleLoop(LoopLikeOpInterface loop);
+  LogicalResult analyzeRotationOpIfAffine(RotationOpInterface rotationOp);
   LogicalResult analyzeRotationOp(RotationOpInterface rotationOp);
 
   bool wasVisited(RotationOpInterface op) {
