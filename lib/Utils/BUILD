@@ -45,6 +45,25 @@ cc_library(
 )
 
 cc_library(
+    name = "AffineLoopUtils",
+    srcs = ["AffineLoopUtils.cpp"],
+    hdrs = ["AffineLoopUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LoopLikeInterface",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:ValueBoundsOpInterface",
+    ],
+)
+
+cc_library(
     name = "TensorUtils",
     srcs = ["TensorUtils.cpp"],
     hdrs = ["TensorUtils.h"],
