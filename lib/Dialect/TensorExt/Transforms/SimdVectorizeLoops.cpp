@@ -1,6 +1,8 @@
 #include "lib/Dialect/TensorExt/Transforms/SimdVectorizeLoops.h"
 
+#include <cmath>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <numeric>
 #include <optional>
@@ -8,6 +10,7 @@
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 #include "lib/Utils/AffineLoopUtils.h"
@@ -229,7 +232,8 @@ AffineExpr substituteDims(AffineExpr expr, unsigned numDims,
   return simplifyAffineExpr(expr.replaceDims(replacements), numDims, 0);
 }
 
-// The most loop iterations enumerated at compile time
+// The most loop iterations enumerated, or plaintext table elements created, at
+// compile time
 constexpr int64_t kMaxPoints = 1 << 16;
 
 // Call `fn` with each point of the box of loop iterations given by `bounds`
@@ -254,6 +258,14 @@ LogicalResult forEachPoint(
     fn(point);
   }
   return success();
+}
+
+// The row-major linear index of `indices` into a tensor of shape `shape`
+int64_t linearize(ArrayRef<int64_t> indices, ArrayRef<int64_t> shape) {
+  int64_t linear = 0;
+  for (auto [index, size] : llvm::zip(indices, shape))
+    linear = linear * size + index;
+  return linear;
 }
 
 struct RecordingListener : public OpBuilder::Listener {
@@ -319,6 +331,9 @@ class NestVectorizer {
   void rollback();
 
   bool isDefinedInNest(Value value) const;
+  bool isKnownPlaintext(Value value) const {
+    return ::mlir::heir::tensor_ext::isKnownPlaintext(value, solver);
+  }
   unsigned getDim(LoopLikeOpInterface loop) const {
     return llvm::find(allLoops, loop) - allLoops.begin();
   }
@@ -326,6 +341,7 @@ class NestVectorizer {
     unsigned dim = getDim(loop);
     return dim < allLoops.size() && hasDim(vectorizedDims, dim);
   }
+  SmallVector<unsigned> enclosingDims(Operation* op) const;
   DimSet activeDimsAt(Operation* op) const;
   AffineExpr slotAt(DimSet active) const;
   AffineExpr evaluate(AffineExpr expr,
@@ -346,6 +362,8 @@ class NestVectorizer {
                    bool inverted);
   Value createArith(bool multiply, Value lhs, Value rhs);
   Value createReduction(OperationName name, Value lhs, Value rhs);
+  FailureOr<Value> createGather(tensor::ExtractOp op, Value tensor,
+                                AffineExpr flatIndex, DimSet active);
   FailureOr<Value> relayout(Value vector, AffineExpr from, int64_t toSize,
                             AffineExpr to, DimSet domain);
   FailureOr<Value> reduceOverLoop(Value vector, unsigned dim,
@@ -356,6 +374,9 @@ class NestVectorizer {
   FailureOr<ConstantLoopBounds> getDimBounds(unsigned dim) const;
 
   LoopLikeOpInterface root;
+  // The op before `root` when vectorization started (null if `root` was the
+  // first op in its block). New code is inserted between it and `root`.
+  Operation* rootPredecessor = nullptr;
   const DataFlowSolver* solver;
   // The extraction whose index is the slot map, or null to use the insertion
   // into the output tensor of a map nest.
@@ -389,6 +410,8 @@ class NestVectorizer {
   DenseMap<std::pair<Value, DimSet>, Value> relaidOut;
   // New vectors that hold the same value in every slot
   DenseSet<Value> uniformVectors;
+  // New vectors that are known to be plaintexts
+  DenseSet<Value> plaintextVectors;
   // Iter args of vectorized loops -> the op reducing into them. Inside the
   // loop, they stand for the identity of the reduction.
   DenseMap<Value, OperationName> reductionArgs;
@@ -540,15 +563,24 @@ LogicalResult NestVectorizer::configure() {
   return success();
 }
 
-// The vectorized loops enclosing `op`
-DimSet NestVectorizer::activeDimsAt(Operation* op) const {
-  DimSet active = 0;
+// The dimensions of the loops of the nest enclosing `op`, outermost first
+SmallVector<unsigned> NestVectorizer::enclosingDims(Operation* op) const {
+  SmallVector<unsigned> dims;
   for (Operation* parent = op->getParentOp();
        parent && parent != root->getParentOp();
        parent = parent->getParentOp()) {
     auto loop = dyn_cast<LoopLikeOpInterface>(parent);
-    if (loop && isVectorizedLoop(loop)) active |= dimBit(getDim(loop));
+    if (loop && getDim(loop) < allLoops.size()) dims.push_back(getDim(loop));
   }
+  std::reverse(dims.begin(), dims.end());
+  return dims;
+}
+
+// The vectorized loops enclosing `op`
+DimSet NestVectorizer::activeDimsAt(Operation* op) const {
+  DimSet active = 0;
+  for (unsigned dim : enclosingDims(op))
+    if (hasDim(vectorizedDims, dim)) active |= dimBit(dim);
   return active;
 }
 
@@ -618,6 +650,7 @@ FailureOr<Value> NestVectorizer::getVector(Value value, DimSet active) {
     FailureOr<Value> scalar = getScalar(value);
     if (failed(scalar)) return failure();
     Value splatted = splat(*scalar);
+    if (isKnownPlaintext(value)) plaintextVectors.insert(splatted);
     return splatted;
   }
 
@@ -630,6 +663,7 @@ FailureOr<Value> NestVectorizer::getVector(Value value, DimSet active) {
   FailureOr<Value> moved =
       relayout(vector, slotAt(dims), numSlots, slotAt(active), active);
   if (failed(moved)) return failure();
+  if (plaintextVectors.contains(vector)) plaintextVectors.insert(*moved);
   relaidOut[{value, active}] = *moved;
   return *moved;
 }
@@ -703,6 +737,7 @@ Value NestVectorizer::createMask(Type elementType, int64_t size,
   Value mask = arith::ConstantOp::create(
       builder, root.getLoc(),
       cast<TypedAttr>(DenseElementsAttr::get(type, values)));
+  plaintextVectors.insert(mask);
   return mask;
 }
 
@@ -722,6 +757,149 @@ Value NestVectorizer::createReduction(OperationName name, Value lhs,
   state.addOperands({lhs, rhs});
   state.addTypes(lhs.getType());
   return builder.create(state)->getResult(0);
+}
+
+// The vector for the extraction `op` from `tensor`, a plaintext, at
+// `flatIndex`: its slot for each iteration of the vectorized loops in `active`
+// holds the extracted element, and other slots hold zero. The vectors for all
+// iterations of the kept loops enclosing `op` form a table indexed by these
+// loops, which is built once, before the enclosing secret.generic if `tensor`
+// is defined outside it and before the vectorized code otherwise: as a constant
+// if `tensor` is a constant, and by a loop nest otherwise. The result is the
+// row of the table for the current iteration of the kept loops.
+FailureOr<Value> NestVectorizer::createGather(tensor::ExtractOp op,
+                                              Value tensor,
+                                              AffineExpr flatIndex,
+                                              DimSet active) {
+  auto type = cast<RankedTensorType>(tensor.getType());
+  if (!type.hasStaticShape()) return failure();
+  MLIRContext* ctx = op.getContext();
+  Location loc = root.getLoc();
+  Type elementType = op.getResult().getType();
+
+  SmallVector<unsigned> keptDims;
+  for (unsigned dim : enclosingDims(op))
+    if (!hasDim(vectorizedDims, dim)) keptDims.push_back(dim);
+  SmallVector<unsigned> tableDims = keptDims;
+  for (unsigned dim = 0; dim < allLoops.size(); ++dim)
+    if (hasDim(active, dim)) tableDims.push_back(dim);
+  SmallVector<ConstantLoopBounds> bounds;
+  for (unsigned dim : tableDims) {
+    FailureOr<ConstantLoopBounds> b = getDimBounds(dim);
+    if (failed(b)) return failure();
+    bounds.push_back(*b);
+  }
+  SmallVector<int64_t> shape;
+  SmallVector<AffineExpr> rows;
+  for (auto [dim, b] : llvm::zip(keptDims, bounds)) {
+    shape.push_back(b.tripCount());
+    rows.push_back((getAffineDimExpr(dim, ctx) - b.lb).floorDiv(b.step));
+  }
+  shape.push_back(numSlots);
+  int64_t tableSize = std::accumulate(shape.begin(), shape.end(), int64_t{1},
+                                      std::multiplies<int64_t>());
+  if (tableSize > kMaxPoints) return failure();
+  auto tableType = RankedTensorType::get(shape, elementType);
+  AffineExpr slot = slotAt(active);
+
+  // A non-secret operand of the enclosing generic is available before it.
+  Value source = tensor;
+  auto generic = root->getParentOfType<secret::GenericOp>();
+  if (auto arg = dyn_cast<BlockArgument>(source);
+      generic && arg && arg.getOwner() == generic.getBody())
+    source = generic.getOpOperandForBlockArgument(arg)->get();
+  bool beforeGeneric =
+      generic && !generic->isAncestor(source.getParentBlock()->getParentOp());
+
+  Value table;
+  {
+    OpBuilder::InsertionGuard guard(builder);
+    if (beforeGeneric)
+      builder.setInsertionPoint(generic);
+    else if (rootPredecessor)
+      builder.setInsertionPointAfter(rootPredecessor);
+    else
+      builder.setInsertionPointToStart(root->getBlock());
+    DenseElementsAttr values;
+    if (matchPattern(source, m_Constant(&values))) {
+      SmallVector<Attribute> entries(tableSize,
+                                     builder.getZeroAttr(elementType));
+      auto sourceValues = values.getValues<Attribute>();
+      bool inBounds = true;
+      LogicalResult enumerated = forEachPoint(
+          tableDims, bounds, [&](ArrayRef<std::pair<unsigned, int64_t>> point) {
+            auto flat =
+                dyn_cast<AffineConstantExpr>(evaluate(flatIndex, point));
+            auto slotIndex =
+                dyn_cast<AffineConstantExpr>(evaluate(slot, point));
+            SmallVector<int64_t> index;
+            for (AffineExpr row : rows)
+              index.push_back(
+                  cast<AffineConstantExpr>(evaluate(row, point)).getValue());
+            if (!flat || !slotIndex || flat.getValue() < 0 ||
+                flat.getValue() >= type.getNumElements()) {
+              inBounds = false;
+              return;
+            }
+            index.push_back(slotIndex.getValue());
+            entries[linearize(index, shape)] = sourceValues[flat.getValue()];
+          });
+      if (failed(enumerated) || !inBounds) return failure();
+      table = arith::ConstantOp::create(
+          builder, loc,
+          cast<TypedAttr>(DenseElementsAttr::get(tableType, entries)));
+    } else {
+      Value flat = flatten(source);
+      Value zeros = arith::ConstantOp::create(
+          builder, loc,
+          cast<TypedAttr>(DenseElementsAttr::get(
+              tableType, builder.getZeroAttr(elementType))));
+      DenseMap<unsigned, Value> dimValues;
+      std::function<Value(unsigned, Value)> buildLevel =
+          [&](unsigned level, Value acc) -> Value {
+        if (level == tableDims.size()) {
+          Value element = tensor::ExtractOp::create(
+              builder, loc, flat, materializeIndex(flatIndex, dimValues));
+          SmallVector<Value> indices;
+          for (AffineExpr row : rows)
+            indices.push_back(materializeIndex(row, dimValues));
+          indices.push_back(materializeIndex(slot, dimValues));
+          return tensor::InsertOp::create(builder, loc, element, acc, indices);
+        }
+        auto forOp = affine::AffineForOp::create(builder, loc, bounds[level].lb,
+                                                 bounds[level].ub,
+                                                 bounds[level].step, acc);
+        OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPointToEnd(forOp.getBody());
+        dimValues[tableDims[level]] = forOp.getInductionVar();
+        Value result = buildLevel(level + 1, forOp.getRegionIterArgs()[0]);
+        affine::AffineYieldOp::create(builder, loc, result);
+        return forOp.getResult(0);
+      };
+      table = buildLevel(0, zeros);
+    }
+  }
+  plaintextVectors.insert(table);
+  if (keptDims.empty()) return table;
+
+  // The row of the current iteration of the kept loops
+  SmallVector<OpFoldResult> offsets;
+  for (auto [dim, b] : llvm::zip(keptDims, bounds)) {
+    AffineMap row = AffineMap::get(
+        1, 0, (getAffineDimExpr(0, ctx) - b.lb).floorDiv(b.step));
+    offsets.push_back(affine::AffineApplyOp::create(
+                          builder, loc, row, ivMapping.lookup(allIVs[dim]))
+                          .getResult());
+  }
+  offsets.push_back(builder.getIndexAttr(0));
+  SmallVector<OpFoldResult> sizes(keptDims.size(), builder.getIndexAttr(1));
+  sizes.push_back(builder.getIndexAttr(numSlots));
+  SmallVector<OpFoldResult> strides(shape.size(), builder.getIndexAttr(1));
+  Value row = tensor::ExtractSliceOp::create(
+      builder, loc, RankedTensorType::get({numSlots}, elementType), table,
+      offsets, sizes, strides);
+  plaintextVectors.insert(row);
+  return row;
 }
 
 // Move the value of each iteration of the loops in `domain` from slot `from` of
@@ -996,6 +1174,13 @@ LogicalResult NestVectorizer::processExtract(tensor::ExtractOp op) {
     }
   }
 
+  if (isKnownPlaintext(tensor)) {
+    FailureOr<Value> gathered = createGather(op, tensor, flatIndex, active);
+    if (failed(gathered)) return failure();
+    setVector(op.getResult(), *gathered, active);
+    return success();
+  }
+
   FailureOr<Value> moved =
       relayout(flatten(tensor), flatIndex, numSlots, slotAt(active), active);
   if (failed(moved)) {
@@ -1028,12 +1213,16 @@ LogicalResult NestVectorizer::processElementwise(Operation* op) {
     state.addTypes(RankedTensorType::get({numSlots}, type));
   state.addAttributes(op->getAttrs());
   Operation* newOp = builder.create(state);
+  bool plaintext = llvm::all_of(operands, [&](Value operand) {
+    return plaintextVectors.contains(operand);
+  });
   bool uniform = llvm::all_of(operands, [&](Value operand) {
     return uniformVectors.contains(operand);
   });
   for (auto [oldResult, newResult] :
        llvm::zip(op->getResults(), newOp->getResults())) {
     setVector(oldResult, newResult, active);
+    if (plaintext) plaintextVectors.insert(newResult);
     if (uniform) uniformVectors.insert(newResult);
   }
   return success();
@@ -1062,6 +1251,7 @@ LogicalResult NestVectorizer::processReductionLoop(LoopLikeOpInterface loop) {
       cast<TypedAttr>(DenseElementsAttr::get(
           RankedTensorType::get({numSlots}, elementType), identity)));
   uniformVectors.insert(identityVector);
+  plaintextVectors.insert(identityVector);
   setVector(acc, identityVector, inner);
   reductionArgs.insert({acc, *name});
 
@@ -1354,6 +1544,193 @@ LogicalResult trimZeroWeightIterations(LoopLikeOpInterface loopLike) {
   return success();
 }
 
+// Materialize `expr`, an affine function of `ivs` that does not depend on
+// ivs[0], the IV of the loop being replaced.
+Value materializeOutsideLoop(OpBuilder& builder, Location loc, AffineExpr expr,
+                             ArrayRef<Value> ivs) {
+  SmallVector<Value> dimValues(ivs);
+  dimValues[0] = Value();
+  return affine::expandAffineExpr(builder, loc, expr, dimValues, {});
+}
+
+// The weights `weight` of the iterations of `loop`, ordered by increasing
+// rotation, as a [steps x numElements] tensor built before `loop`, where `ivs`
+// are the IVs of `loop` and its enclosing loops and the weights may not need
+// to be rotated by a nonzero `baseIsZero`. Two kinds of weights are supported:
+//
+// - a row of a plaintext table built by the vectorizer, selected by the IV of
+//   `loop`, in which case the table holds the weights of all iterations, and
+// - a splat of an element of a constant tensor, in which case the weights of
+//   all iterations (and of the enclosing loops the element depends on) are
+//   tabulated at compile time.
+FailureOr<Value> getWeightTable(OpBuilder& builder, LoopLikeOpInterface loop,
+                                Value weight, ArrayRef<Value> ivs,
+                                const ConstantLoopBounds& bounds, bool reversed,
+                                bool baseIsZero) {
+  MLIRContext* ctx = loop->getContext();
+  Location loc = loop.getLoc();
+  auto weightType = cast<RankedTensorType>(weight.getType());
+  int64_t numElements = weightType.getNumElements();
+  int64_t steps = bounds.tripCount();
+  unsigned numDims = ivs.size();
+  AffineExpr row = (getAffineDimExpr(0, ctx) - bounds.lb).floorDiv(bounds.step);
+  auto materialize = [&](AffineExpr expr) {
+    return materializeOutsideLoop(builder, loc, expr, ivs);
+  };
+
+  if (auto slice = weight.getDefiningOp<tensor::ExtractSliceOp>()) {
+    // The table rows are not rotated, so the rotations must start at zero, and
+    // rows must be in the order of the iterations.
+    if (!baseIsZero || reversed ||
+        !loop.isDefinedOutsideOfLoop(slice.getSource()) ||
+        !slice.hasUnitStride())
+      return failure();
+    auto sourceType = slice.getSourceType();
+    unsigned rank = sourceType.getRank();
+    std::optional<int64_t> lastOffset =
+        getConstantIntValue(slice.getMixedOffsets().back());
+    if (!sourceType.hasStaticShape() ||
+        sourceType.getDimSize(rank - 1) != numElements || !lastOffset ||
+        *lastOffset != 0)
+      return failure();
+    // The offsets of the slice as affine functions of `ivs`: one is the row
+    // of the iteration, the others do not depend on it.
+    std::optional<unsigned> rowDim;
+    SmallVector<AffineExpr> offsetExprs;
+    for (auto [i, offset] : llvm::enumerate(slice.getMixedOffsets())) {
+      if (i == rank - 1) break;
+      std::optional<int64_t> size =
+          getConstantIntValue(slice.getMixedSizes()[i]);
+      if (!size || *size != 1) return failure();
+      AffineExpr expr;
+      if (std::optional<int64_t> cst = getConstantIntValue(offset)) {
+        expr = getAffineConstantExpr(*cst, ctx);
+      } else {
+        FailureOr<AffineExpr> e = getAffineExprOfIVs(cast<Value>(offset), ivs);
+        if (failed(e)) return failure();
+        expr = simplifyAffineExpr(*e, numDims, 0);
+      }
+      if (expr.isFunctionOfDim(0)) {
+        if (rowDim || expr != simplifyAffineExpr(row, numDims, 0) ||
+            sourceType.getDimSize(i) < steps)
+          return failure();
+        rowDim = i;
+      }
+      offsetExprs.push_back(expr);
+    }
+    if (!rowDim) return failure();
+
+    SmallVector<OpFoldResult> offsets;
+    SmallVector<OpFoldResult> sizes;
+    for (auto [i, expr] : llvm::enumerate(offsetExprs)) {
+      bool isRow = i == *rowDim;
+      offsets.push_back(isRow ? OpFoldResult(builder.getIndexAttr(0))
+                              : OpFoldResult(materialize(expr)));
+      sizes.push_back(builder.getIndexAttr(isRow ? steps : 1));
+    }
+    offsets.push_back(builder.getIndexAttr(0));
+    sizes.push_back(builder.getIndexAttr(numElements));
+    SmallVector<OpFoldResult> strides(rank, builder.getIndexAttr(1));
+    return tensor::ExtractSliceOp::create(
+               builder, loc,
+               RankedTensorType::get({steps, numElements},
+                                     weightType.getElementType()),
+               slice.getSource(), offsets, sizes, strides)
+        .getResult();
+  }
+
+  // Rotating a splat is the identity, so these weights need no rotation.
+  auto splat = weight.getDefiningOp<tensor::SplatOp>();
+  auto extract =
+      splat ? splat.getInput().getDefiningOp<tensor::ExtractOp>() : nullptr;
+  DenseElementsAttr values;
+  if (!extract || !matchPattern(extract.getTensor(), m_Constant(&values)))
+    return failure();
+  SmallVector<AffineExpr> indices;
+  for (Value index : extract.getIndices()) {
+    FailureOr<AffineExpr> expr = getAffineExprOfIVs(index, ivs);
+    if (failed(expr)) return failure();
+    indices.push_back(*expr);
+  }
+  // Table dimensions: the enclosing loops the element depends on, then `loop`
+  SmallVector<unsigned> dims;
+  SmallVector<ConstantLoopBounds> dimBounds;
+  for (unsigned d = 1; d < numDims; ++d) {
+    if (llvm::none_of(indices,
+                      [&](AffineExpr e) { return e.isFunctionOfDim(d); }))
+      continue;
+    auto iv = dyn_cast<BlockArgument>(ivs[d]);
+    auto outer =
+        iv ? dyn_cast<LoopLikeOpInterface>(iv.getOwner()->getParentOp())
+           : nullptr;
+    if (!outer) return failure();
+    FailureOr<ConstantLoopBounds> b = getConstantLoopBounds(outer);
+    if (failed(b)) return failure();
+    dims.push_back(d);
+    dimBounds.push_back(*b);
+  }
+  dims.push_back(0);
+  dimBounds.push_back(bounds);
+  SmallVector<int64_t> shape;
+  for (const ConstantLoopBounds& b : dimBounds) shape.push_back(b.tripCount());
+  shape.push_back(numElements);
+  int64_t tableSize = std::accumulate(shape.begin(), shape.end(), int64_t{1},
+                                      std::multiplies<int64_t>());
+  if (tableSize > kMaxPoints) return failure();
+
+  auto valuesType = cast<RankedTensorType>(values.getType());
+  auto sourceValues = values.getValues<Attribute>();
+  SmallVector<Attribute> entries(tableSize);
+  bool inBounds = true;
+  LogicalResult enumerated = forEachPoint(
+      dims, dimBounds, [&](ArrayRef<std::pair<unsigned, int64_t>> point) {
+        SmallVector<int64_t> sourceIndex;
+        for (auto [expr, size] : llvm::zip(indices, valuesType.getShape())) {
+          auto cst = dyn_cast<AffineConstantExpr>(
+              substituteDims(expr, numDims, point));
+          if (!cst || cst.getValue() < 0 || cst.getValue() >= size) {
+            inBounds = false;
+            return;
+          }
+          sourceIndex.push_back(cst.getValue());
+        }
+        SmallVector<int64_t> index;
+        for (auto [p, b] : llvm::zip(point, dimBounds))
+          index.push_back((p.second - b.lb) / b.step);
+        if (reversed) index.back() = steps - 1 - index.back();
+        index.push_back(0);
+        int64_t start = linearize(index, shape);
+        Attribute value =
+            sourceValues[linearize(sourceIndex, valuesType.getShape())];
+        for (int64_t s = 0; s < numElements; ++s) entries[start + s] = value;
+      });
+  if (failed(enumerated) || !inBounds) return failure();
+  Value table = arith::ConstantOp::create(
+      builder, loc,
+      cast<TypedAttr>(DenseElementsAttr::get(
+          RankedTensorType::get(shape, weightType.getElementType()), entries)));
+  if (dims.size() == 1) return table;
+
+  // The weights of the current iteration of the enclosing loops
+  SmallVector<OpFoldResult> offsets;
+  SmallVector<OpFoldResult> sizes;
+  for (auto [d, b] : llvm::zip(ArrayRef(dims).drop_back(), dimBounds)) {
+    offsets.push_back(
+        materialize((getAffineDimExpr(d, ctx) - b.lb).floorDiv(b.step)));
+    sizes.push_back(builder.getIndexAttr(1));
+  }
+  offsets.append({builder.getIndexAttr(0), builder.getIndexAttr(0)});
+  sizes.append(
+      {builder.getIndexAttr(steps), builder.getIndexAttr(numElements)});
+  SmallVector<OpFoldResult> strides(shape.size(), builder.getIndexAttr(1));
+  return tensor::ExtractSliceOp::create(
+             builder, loc,
+             RankedTensorType::get({steps, numElements},
+                                   weightType.getElementType()),
+             table, offsets, sizes, strides)
+      .getResult();
+}
+
 // Replace a kept loop of the form
 //
 //   for %i = lb to ub step s iter_args(%acc = %init) {
@@ -1361,8 +1738,12 @@ LogicalResult trimZeroWeightIterations(LoopLikeOpInterface loopLike) {
 //     yield %acc + %r
 //   }
 //
-// where %v is loop-invariant, by a rotate_and_reduce of %v.
-LogicalResult foldRotateAccumulateLoop(LoopLikeOpInterface loop) {
+// where %v is loop-invariant, by a rotate_and_reduce of %v. A sum of the
+// rotations multiplied by a per-iteration plaintext weight becomes a
+// rotate_and_reduce with the weights of all iterations as plaintexts, if they
+// form a table indexed by the iteration (see getWeightTable).
+LogicalResult foldRotateAccumulateLoop(
+    LoopLikeOpInterface loop, llvm::function_ref<bool(Value)> isPlaintext) {
   FailureOr<ConstantLoopBounds> bounds = getConstantLoopBounds(loop);
   if (failed(bounds) || bounds->tripCount() < 1 ||
       loop.getRegionIterArgs().size() != 1)
@@ -1380,7 +1761,23 @@ LogicalResult foldRotateAccumulateLoop(LoopLikeOpInterface loop) {
                                               : combine->getOperand(0);
   if (other == acc) return failure();
   auto rotate = other.getDefiningOp<RotateOp>();
-  if (!rotate || !loop.isDefinedOutsideOfLoop(rotate.getTensor()))
+  Value weight;
+  if (!rotate) {
+    Operation* mul = other.getDefiningOp();
+    if (!mul || !isa<arith::MulIOp, arith::MulFOp>(mul) ||
+        !isa<arith::AddIOp, arith::AddFOp>(combine) ||
+        mul->getBlock() != acc.getOwner())
+      return failure();
+    for (unsigned i : {0, 1}) {
+      if (auto r = mul->getOperand(i).getDefiningOp<RotateOp>()) {
+        rotate = r;
+        weight = mul->getOperand(1 - i);
+        break;
+      }
+    }
+  }
+  if (!rotate || !loop.isDefinedOutsideOfLoop(rotate.getTensor()) ||
+      (weight && !isPlaintext(weight)))
     return failure();
 
   SmallVector<LoopLikeOpInterface> enclosing;
@@ -1427,17 +1824,42 @@ LogicalResult foldRotateAccumulateLoop(LoopLikeOpInterface loop) {
           ((cst.getValue() % numElements) + numElements) % numElements;
       return arith::ConstantIndexOp::create(builder, loc, normalized);
     }
-    // `expr` does not depend on the IV of `loop`.
-    SmallVector<Value> dimValues = ivs;
-    dimValues[0] = Value();
-    return affine::expandAffineExpr(builder, loc, expr, dimValues, {});
+    return materializeOutsideLoop(builder, loc, expr, ivs);
   };
 
-  // sum_k rotate(v, base + k * period)
-  //   = rotate(sum_k rotate(v, k * period), base)
-  auto rotateAndReduce =
-      RotateAndReduceOp::create(builder, loc, rotate.getTensor(), period, steps,
-                                combine->getName().getStringRef());
+  Value plaintexts;
+  if (weight) {
+    // The baby-step giant-step implementation of a weighted rotate_and_reduce
+    // needs about 2 * sqrt(steps) rotations plus one by `base`; keep the loop
+    // if its own rotations are fewer.
+    auto baseCst = dyn_cast<AffineConstantExpr>(base);
+    int64_t loopRotations = steps;
+    if (baseCst) {
+      loopRotations =
+          llvm::count_if(llvm::seq<int64_t>(0, steps), [&](int64_t k) {
+            return (baseCst.getValue() + k * period) % numElements != 0;
+          });
+    }
+    int64_t babySteps = static_cast<int64_t>(std::ceil(std::sqrt(steps)));
+    int64_t giantSteps = (steps + babySteps - 1) / babySteps;
+    int64_t bsgsRotations =
+        (babySteps - 1) + (giantSteps - 1) +
+        (baseCst && baseCst.getValue() % numElements == 0 ? 0 : 1);
+    if (bsgsRotations > loopRotations) return failure();
+
+    FailureOr<Value> table = getWeightTable(
+        builder, loop, weight, ivs, *bounds,
+        /*reversed=*/coefficient.getValue() < 0,
+        /*baseIsZero=*/baseCst && baseCst.getValue() % numElements == 0);
+    if (failed(table)) return failure();
+    plaintexts = *table;
+  }
+
+  // sum_k w_k * rotate(v, base + k * period)
+  //   = rotate(sum_k rotate(w_k, -base) * rotate(v, k * period), base)
+  auto rotateAndReduce = RotateAndReduceOp::create(
+      builder, loc, rotate.getTensor(), plaintexts, period, steps,
+      combine->getName().getStringRef());
   Value reduced = rotateAndReduce.getResult();
   auto cst = dyn_cast<AffineConstantExpr>(base);
   if (!cst || cst.getValue() % numElements != 0)
@@ -1462,7 +1884,8 @@ void NestVectorizer::foldKeptLoops() {
   for (LoopLikeOpInterface loop : llvm::reverse(keptLoops)) {
     (void)trimZeroWeightIterations(loop);
     moveLoopInvariantCode(loop);
-    (void)foldRotateAccumulateLoop(loop);
+    (void)foldRotateAccumulateLoop(
+        loop, [&](Value value) { return plaintextVectors.contains(value); });
   }
 }
 
@@ -1481,6 +1904,7 @@ LogicalResult NestVectorizer::run() {
   }
   if (failed(configure())) return failure();
 
+  rootPredecessor = root->getPrevNode();
   if (failed(mapInsert ? processMapLoop(root) : processReductionLoop(root)) ||
       failed(mapInsert ? finalizeMapNest() : finalizeReductionNest())) {
     LDBG() << "failed to vectorize loop nest";

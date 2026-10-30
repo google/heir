@@ -134,13 +134,16 @@ unrolled HECO formulation, each iteration produces the same rotations, which
 common subexpression elimination then merges; analyzing the loop directly
 produces the merged form at once.
 
-An extraction whose offset is not constant is relaid out with one rotation and
-mask per distinct offset, which corresponds to the rotations the unrolled HECO
-formulation would emit for these iterations.
+An extraction from a plaintext tensor whose offset is not constant becomes a
+plaintext vector that gathers each iteration's element into its slot. An
+extraction from a secret tensor whose offset is not constant is relaid out with
+one rotation and mask per distinct offset, which corresponds to the rotations
+the unrolled HECO formulation would emit for these iterations.
 
 Loops nested inside a vectorized nest that reduce into a scalar (e.g., the taps
 of a convolution kernel) remain loops over whole tensors, and are replaced by a
-`tensor_ext.rotate_and_reduce` when they sum rotations of a single tensor.
+`tensor_ext.rotate_and_reduce` when they sum rotations of a single tensor,
+optionally weighted by plaintexts.
 
 If no slot map derived from the insertion index works, the pass instead takes
 the index of an extraction as the slot map, which also vectorizes the reduction

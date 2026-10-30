@@ -42,6 +42,7 @@ cc_library(
         ":ImplementRotateAndReduce",
         ":pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:AffineLoopUtils",
         "@heir//lib/Utils/Layout:Utils",

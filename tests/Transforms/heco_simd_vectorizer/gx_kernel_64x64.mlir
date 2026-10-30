@@ -1,16 +1,20 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse --heco-simd-vectorizer %s | FileCheck %s
 
-// The weighted 3x3 window stays a loop nest over whole tensors, with one
-// rotation per tap. The last row of weights is zero, so the inner loop skips it.
+// The weighted 3x3 window stays a loop over the columns of the window. The
+// last row of weights is zero, so two rows remain, and the sum over them is a
+// rotate-and-reduce with the splatted weights of each column, taken from a
+// constant table, as plaintexts. Its rotation of the input is hoisted out of
+// the loop, so with one rotation per column, this uses four rotations.
 // CHECK: @gx_kernel
-// CHECK: secret.generic
-// CHECK: affine.for %{{.*}} = -1 to 2 iter_args(%{{.*}}) -> (tensor<{{[0-9]+}}xi16>)
-// CHECK: affine.for %{{.*}} = -1 to 1 iter_args(%{{.*}}) -> (tensor<{{[0-9]+}}xi16>)
-// CHECK: tensor_ext.rotate
-// CHECK: tensor.extract %{{.*}} : tensor<3x3xi16>
-// CHECK: tensor.splat
-// CHECK: arith.muli
-// CHECK: arith.addi
+// CHECK: %[[weights:.*]] = arith.constant dense<{{.*}}> : tensor<3x2x[[N:[0-9]+]]xi16>
+// CHECK: ^body(%[[x:.*]]: tensor<[[N]]xi16>):
+// CHECK: %[[rx:.*]] = tensor_ext.rotate %[[x]]
+// CHECK: affine.for %{{.*}} = -1 to 2 iter_args(%{{.*}}) -> (tensor<[[N]]xi16>)
+// CHECK:   tensor.extract_slice %[[weights]]
+// CHECK:   arith.muli %{{.*}}, %[[x]]
+// CHECK:   arith.muli %{{.*}}, %[[rx]]
+// CHECK:   tensor_ext.rotate
+// CHECK:   arith.addi
 // CHECK-NOT: tensor_ext.rotate
 
 func.func @gx_kernel(%arg0: tensor<4096xi16>) -> tensor<4096xi16> {

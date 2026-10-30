@@ -162,10 +162,13 @@ func.func @weighted_stencil(%x: tensor<16xi16>, %w: tensor<3xi16>, %init: tensor
 
 // -----
 
-// Taps with a constant zero weight at the ends of the window are skipped.
+// Taps with a constant zero weight at the ends of the window are skipped, and
+// the remaining two taps are summed by a rotate_and_reduce with a constant
+// table of their (splatted) weights as plaintexts.
 // CHECK: func.func @weighted_stencil_zero_taps
-// CHECK: affine.for %{{.*}} = 0 to 2 iter_args
-// CHECK:   tensor_ext.rotate
+// CHECK: arith.constant dense<{{\[\[}}3, 3, {{.*}}], [5, 5, {{.*}}]]> : tensor<2x16xi16>
+// CHECK-NOT: affine.for
+// CHECK: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate
 func.func @weighted_stencil_zero_taps(%x: tensor<16xi16>, %init: tensor<16xi16>) -> tensor<16xi16> {
   %w = arith.constant dense<[0, 3, 5]> : tensor<3xi16>
@@ -264,6 +267,51 @@ func.func @row_sums(%m: tensor<4x4xi16> {secret.secret}, %init: tensor<4xi16>) -
     affine.yield %u : tensor<4xi16>
   }
   return %0 : tensor<4xi16>
+}
+
+// -----
+
+// A plaintext tensor read at a stride is gathered into a plaintext vector
+// instead of being rotated.
+// CHECK: func.func @plaintext_gather
+// CHECK-SAME: %[[x:[^:]*]]: tensor<8xi16> {secret.secret}, %[[w:[^:]*]]: tensor<16xi16>
+// CHECK: %[[gathered:.*]] = affine.for %{{.*}} = 0 to 8 iter_args
+// CHECK:   tensor.extract %[[w]]
+// CHECK:   tensor.insert
+// CHECK: arith.muli %[[x]], %[[gathered]] : tensor<8xi16>
+// CHECK-NOT: tensor_ext.rotate
+func.func @plaintext_gather(%x: tensor<8xi16> {secret.secret}, %w: tensor<16xi16>, %init: tensor<8xi16>) -> tensor<8xi16> {
+  %0 = affine.for %i = 0 to 8 iter_args(%t = %init) -> tensor<8xi16> {
+    %j = affine.apply affine_map<(d0) -> (d0 * 2)>(%i)
+    %a = tensor.extract %x[%i] : tensor<8xi16>
+    %b = tensor.extract %w[%j] : tensor<16xi16>
+    %c = arith.muli %a, %b : i16
+    %u = tensor.insert %c into %t[%i] : tensor<8xi16>
+    affine.yield %u : tensor<8xi16>
+  }
+  return %0 : tensor<8xi16>
+}
+
+// -----
+
+// Gathering from a constant tensor is done at compile time.
+// CHECK: func.func @constant_gather
+// CHECK-SAME: %[[x:[^:]*]]: tensor<8xi16> {secret.secret}
+// CHECK-NOT: affine.for
+// CHECK: %[[gathered:.*]] = arith.constant dense<[0, 2, 4, 6, 8, 10, 12, 14]> : tensor<8xi16>
+// CHECK: arith.muli %[[x]], %[[gathered]] : tensor<8xi16>
+// CHECK-NOT: tensor_ext.rotate
+func.func @constant_gather(%x: tensor<8xi16> {secret.secret}, %init: tensor<8xi16>) -> tensor<8xi16> {
+  %w = arith.constant dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]> : tensor<16xi16>
+  %0 = affine.for %i = 0 to 8 iter_args(%t = %init) -> tensor<8xi16> {
+    %j = affine.apply affine_map<(d0) -> (d0 * 2)>(%i)
+    %a = tensor.extract %x[%i] : tensor<8xi16>
+    %b = tensor.extract %w[%j] : tensor<16xi16>
+    %c = arith.muli %a, %b : i16
+    %u = tensor.insert %c into %t[%i] : tensor<8xi16>
+    affine.yield %u : tensor<8xi16>
+  }
+  return %0 : tensor<8xi16>
 }
 
 // -----

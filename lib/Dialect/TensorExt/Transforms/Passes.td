@@ -49,9 +49,11 @@ def SimdVectorizeLoops : Pass<"simd-vectorize-loops"> {
   %0 = arith.muli %r, %r : tensor<16xi16>
   ```
 
-  An extraction whose offset is not constant (or from a tensor with a
-  different number of elements) is relaid out with one rotation and mask for
-  each distinct offset. Arithmetic on the extracted values is applied
+  An extraction from a plaintext tensor whose offset is not constant instead
+  becomes a plaintext vector that gathers each iteration's element into its
+  slot. An extraction from a secret tensor whose offset is not constant (or
+  that has a different number of elements) is relaid out with one rotation and
+  mask for each distinct offset. Arithmetic on the extracted values is applied
   to the resulting tensors.
 
   A vectorized loop that reduces into a scalar becomes a
@@ -59,7 +61,8 @@ def SimdVectorizeLoops : Pass<"simd-vectorize-loops"> {
   is the stride of the slot map in that loop, leaving the result in the slot of
   the first iteration. A kept loop becomes a loop over tensors, and is replaced
   by a `tensor_ext.rotate_and_reduce` when it sums rotations of a
-  loop-invariant tensor by an affine function of its induction variable.
+  loop-invariant tensor by an affine function of its induction variable,
+  optionally weighted by plaintexts.
 
   Finally, the result of a map nest is moved to the slots given by its
   insertion index, if it was computed with a different slot map. If the
