@@ -775,7 +775,8 @@ LogicalResult ConcealPlaintextInsert::matchAndRewrite(
             concealedTensor.getCleartext().getType(), op.getLoc());
         rewriter.replaceUsesWithIf(dest, newArg, [&](mlir::OpOperand& operand) {
           auto insertOp = dyn_cast<tensor::InsertOp>(operand.getOwner());
-          if (!insertOp) {
+          // Only uses inside this generic can refer to its block argument.
+          if (!insertOp || !op->isAncestor(insertOp)) {
             return false;
           }
           return operand.get() == dest;
