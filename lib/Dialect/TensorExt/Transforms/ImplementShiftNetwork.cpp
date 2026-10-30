@@ -5,8 +5,8 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <iterator>
 #include <limits>
+#include <map>
 #include <memory>
 #include <random>
 #include <tuple>
@@ -65,19 +65,20 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
   for (const auto& [roundNum, round] : llvm::enumerate(strategy.getRounds())) {
     if (roundNum == 0) continue;
 
-    auto posns = round.positions;
-    for (auto it1 = posns.begin(); it1 != posns.end(); ++it1) {
-      for (auto it2 = std::next(it1); it2 != posns.end(); ++it2) {
-        const SourceShift& ss1 = it1->first;
-        const SourceShift& ss2 = it2->first;
-        if (ss1.source != ss2.source && it1->second == it2->second) {
+    // Sources the round moves to the same position conflict.
+    std::map<CtSlot, SmallVector<CtSlot>> sourcesAt;
+    for (const auto& [sourceShift, position] : round.positions)
+      sourcesAt[position].push_back(sourceShift.source);
+    for (const auto& [position, sources] : sourcesAt) {
+      for (auto [i, source] : llvm::enumerate(sources)) {
+        for (CtSlot other : ArrayRef(sources).drop_front(i + 1)) {
+          if (source == other) continue;
           LLVM_DEBUG(llvm::dbgs()
-                     << "Round " << roundNum << ": collision between " << "{"
-                     << ss1.source.ct << "," << ss1.source.slot << "}"
-                     << " and " << "{" << ss2.source.ct << ","
-                     << ss2.source.slot << "}" << " at " << "{"
-                     << it1->second.ct << "," << it1->second.slot << "}\n");
-          conflictGraph.addEdge(ss1.source, ss2.source);
+                     << "Round " << roundNum << ": collision between {"
+                     << source.ct << "," << source.slot << "} and {" << other.ct
+                     << "," << other.slot << "} at {" << position.ct << ","
+                     << position.slot << "}\n");
+          conflictGraph.addEdge(source, other);
         }
       }
     }

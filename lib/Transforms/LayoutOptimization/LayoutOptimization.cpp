@@ -207,12 +207,16 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     return UNHOISTABLE;
   }
 
-  // Check if any results are converted directly after.
+  // Hoisting changes the result layout; only convert_layout users are
+  // rewritten for it.
   SmallVector<ConvertLayoutOp> resultLayoutConversions;
   for (auto* user : op->getResult(0).getUsers()) {
-    if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
-      resultLayoutConversions.push_back(convertLayoutOp);
+    auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user);
+    if (!convertLayoutOp) {
+      LLVM_DEBUG(llvm::dbgs() << "Skipping op, result has other users\n");
+      return UNHOISTABLE;
     }
+    resultLayoutConversions.push_back(convertLayoutOp);
   }
 
   // No result has a layout conversion directly after.
@@ -576,9 +580,13 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
     // A map is used to deduplicate operand changes.
     DenseMap<std::tuple<Value, Attribute, Attribute>, Cost> operandChangeMap;
     SmallVector<Cost> operandChangeCosts;
+    // hoistOp rejects results that do not cover every operand; do not index
+    // into them.
+    if (result.newInputLayouts.size() != op->getNumOperands()) continue;
     for (auto& operand : op->getOpOperands()) {
-      auto computedCost =
-          costOfChangedOperand(operand, op, outputLayout, solver);
+      auto computedCost = costOfChangedOperand(
+          operand, op, result.newInputLayouts[operand.getOperandNumber()],
+          solver);
       operandChangeCosts.push_back(computedCost.cost);
       auto key = std::make_tuple(operand.get(), computedCost.fromLayout,
                                  computedCost.toLayout);

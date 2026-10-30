@@ -554,8 +554,14 @@ class ConvertConvertLayout
   LogicalResult matchAndRewrite(
       tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
-    LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
+    // Layout propagation can record a layout as a list of layouts to compose.
+    auto toLayoutAttr = [&](Attribute layout) -> LayoutAttr {
+      if (auto layouts = dyn_cast<ArrayAttr>(layout))
+        return LayoutAttr::composeLayouts(layouts, getContext());
+      return dyn_cast<LayoutAttr>(layout);
+    };
+    LayoutAttr fromLayout = toLayoutAttr(op.getFromLayout());
+    LayoutAttr toLayout = toLayoutAttr(op.getToLayout());
     if (!fromLayout || !toLayout) {
       return failure();
     }
@@ -573,8 +579,28 @@ class ConvertConvertLayout
         LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout);
     auto resultCiphertextSemanticType = cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResult().getType(), toLayout));
-    auto remapAndExtract = remapAndExtractResult(
-        b, adaptor.getValue(), newLayoutAttr, resultCiphertextSemanticType);
+    // A remap keeps the shape of its input, so an input with fewer ciphertexts
+    // than the result is first extended by ciphertexts the remap never reads.
+    Value input = adaptor.getValue();
+    auto inputType = cast<RankedTensorType>(input.getType());
+    int64_t numCts = resultCiphertextSemanticType.getDimSize(0);
+    if (inputType.getDimSize(0) < numCts) {
+      auto extendedType = RankedTensorType::get(
+          {numCts, inputType.getDimSize(1)}, inputType.getElementType());
+      Value empty = tensor::EmptyOp::create(b, extendedType.getShape(),
+                                            extendedType.getElementType());
+      SmallVector<OpFoldResult> offsets(2, b.getIndexAttr(0));
+      SmallVector<OpFoldResult> sizes = {
+          b.getIndexAttr(inputType.getDimSize(0)),
+          b.getIndexAttr(inputType.getDimSize(1))};
+      SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
+      auto extended = tensor::InsertSliceOp::create(b, input, empty, offsets,
+                                                    sizes, strides);
+      setMaterializedAttr(extended);
+      input = extended;
+    }
+    auto remapAndExtract = remapAndExtractResult(b, input, newLayoutAttr,
+                                                 resultCiphertextSemanticType);
 
     setMaterializedAttr(remapAndExtract);
     setAttributeAssociatedWith(remapAndExtract->getResults()[0],

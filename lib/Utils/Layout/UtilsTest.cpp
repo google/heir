@@ -927,6 +927,57 @@ TEST(UtilsTest, TestGetSliceExtractionRelation) {
   }
 }
 
+TEST(UtilsTest, TestGetSliceRelationsKeepingRank) {
+  MLIRContext context;
+  // A 1x3 slice at (0, 5) of a 2x8 tensor keeps its unit dimension.
+  RankedTensorType sourceType =
+      RankedTensorType::get({2, 8}, IndexType::get(&context));
+  RankedTensorType sliceType =
+      RankedTensorType::get({1, 3}, IndexType::get(&context));
+  SmallVector<int64_t> offsets = {0, 5};
+  SmallVector<int64_t> sizes = {1, 3};
+  SmallVector<int64_t> strides = {1, 1};
+
+  auto extraction = getSliceExtractionRelation(sourceType, sliceType, offsets,
+                                               sizes, strides);
+  ASSERT_TRUE(succeeded(extraction));
+  EXPECT_TRUE(extraction->containsPointNoLocal({0, 5, 0, 0}).has_value());
+  EXPECT_TRUE(extraction->containsPointNoLocal({0, 7, 0, 2}).has_value());
+  EXPECT_FALSE(extraction->containsPointNoLocal({0, 7, 0, 0}).has_value());
+
+  auto insertion =
+      getSliceInsertionRelation(sliceType, sourceType, offsets, sizes, strides);
+  ASSERT_TRUE(succeeded(insertion));
+  EXPECT_TRUE(insertion->containsPointNoLocal({0, 0, 0, 5}).has_value());
+  EXPECT_TRUE(insertion->containsPointNoLocal({0, 2, 0, 7}).has_value());
+  EXPECT_FALSE(insertion->containsPointNoLocal({0, 2, 0, 5}).has_value());
+}
+
+TEST(UtilsTest, TestGetSliceRelationsDroppingSomeUnitDims) {
+  MLIRContext context;
+  // A 1x1x8 slice at (0, 2, 0) of a 1x4x8 tensor, as a 1x8 tensor: the
+  // second unit dimension is dropped and the first is kept.
+  RankedTensorType sourceType =
+      RankedTensorType::get({1, 4, 8}, IndexType::get(&context));
+  RankedTensorType sliceType =
+      RankedTensorType::get({1, 8}, IndexType::get(&context));
+  SmallVector<int64_t> offsets = {0, 2, 0};
+  SmallVector<int64_t> sizes = {1, 1, 8};
+  SmallVector<int64_t> strides = {1, 1, 1};
+
+  auto extraction = getSliceExtractionRelation(sourceType, sliceType, offsets,
+                                               sizes, strides);
+  ASSERT_TRUE(succeeded(extraction));
+  EXPECT_TRUE(extraction->containsPointNoLocal({0, 2, 5, 0, 5}).has_value());
+  EXPECT_FALSE(extraction->containsPointNoLocal({0, 0, 5, 0, 5}).has_value());
+
+  auto insertion =
+      getSliceInsertionRelation(sliceType, sourceType, offsets, sizes, strides);
+  ASSERT_TRUE(succeeded(insertion));
+  EXPECT_TRUE(insertion->containsPointNoLocal({0, 5, 0, 2, 5}).has_value());
+  EXPECT_FALSE(insertion->containsPointNoLocal({0, 5, 0, 0, 5}).has_value());
+}
+
 TEST(UtilsTest, TestGetCtComplementPoints) {
   MLIRContext context;
   RankedTensorType type =
