@@ -1,32 +1,26 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heco-simd-vectorizer='unroll-fhe-kernel-loops=true' %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
 module  {
   // CHECK: @box_blur
   // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<256xi16>>) -> !secret.secret<tensor<256xi16>> {
-  // CHECK-DAG:    %[[c31:.*]] = arith.constant 31 : index
-  // CHECK-DAG:    %[[c240:.*]] = arith.constant 240 : index
-  // CHECK-DAG:    %[[c224:.*]] = arith.constant 224 : index
-  // CHECK-DAG:    %[[c15:.*]] = arith.constant 15 : index
-  // CHECK-DAG:    %[[c17:.*]] = arith.constant 17 : index
+  // CHECK-DAG:    %[[c239:.*]] = arith.constant 239 : index
+  // CHECK-DAG:    %[[c1:.*]] = arith.constant 1 : index
+  // CHECK-DAG:    %[[c16:.*]] = arith.constant 16 : index
+  // CHECK-DAG:    %[[c32:.*]] = arith.constant 32 : index
+  // CHECK-DAG:    %[[c2:.*]] = arith.constant 2 : index
   // CHECK-NEXT:   %[[v0:.*]] = secret.generic(%[[arg0]]: !secret.secret<tensor<256xi16>>) {
   // CHECK-NEXT:   ^body(%[[arg1:.*]]: tensor<256xi16>):
-  // CHECK-NEXT:     %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[c224]]
-  // CHECK-NEXT:     %[[v2:.*]] = tensor_ext.rotate %[[arg1]], %[[c240]]
+  // CHECK-NEXT:     %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[c16]]
+  // CHECK-NEXT:     %[[v2:.*]] = tensor_ext.rotate %[[arg1]], %[[c32]]
   // CHECK-NEXT:     %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
-  // CHECK-NEXT:     %[[v4:.*]] = arith.addi %[[v3]], %[[arg1]]
-  // CHECK-NEXT:     %[[v5:.*]] = tensor_ext.rotate %[[v4]], %[[c15]]
-  // CHECK-NEXT:     %[[v6:.*]] = arith.addi %[[v5]], %[[v2]]
-  // CHECK-NEXT:     %[[v7:.*]] = arith.addi %[[v6]], %[[arg1]]
-  // CHECK-NEXT:     %[[v8:.*]] = tensor_ext.rotate %[[v7]], %[[c15]]
-  // CHECK-NEXT:     %[[v9:.*]] = tensor_ext.rotate %[[arg1]], %[[c31]]
-  // CHECK-NEXT:     %[[v10:.*]] = arith.addi %[[v8]], %[[v9]]
-  // CHECK-NEXT:     %[[v11:.*]] = arith.addi %[[v10]], %[[arg1]]
-  // CHECK-NEXT:     %[[v12:.*]] = tensor_ext.rotate %[[v11]], %[[c224]]
-  // CHECK-NEXT:     %[[v13:.*]] = arith.addi %[[v12]], %[[v2]]
-  // CHECK-NEXT:     %[[v14:.*]] = arith.addi %[[v13]], %[[arg1]]
-  // CHECK-NEXT:     %[[v15:.*]] = tensor_ext.rotate %[[v14]], %[[c17]]
-  // CHECK-NEXT:     secret.yield %[[v15]]
+  // CHECK-NEXT:     %[[v4:.*]] = arith.addi %[[arg1]], %[[v3]]
+  // CHECK-NEXT:     %[[v5:.*]] = tensor_ext.rotate %[[v4]], %[[c1]]
+  // CHECK-NEXT:     %[[v6:.*]] = tensor_ext.rotate %[[v4]], %[[c2]]
+  // CHECK-NEXT:     %[[v7:.*]] = arith.addi %[[v5]], %[[v6]]
+  // CHECK-NEXT:     %[[v8:.*]] = arith.addi %[[v4]], %[[v7]]
+  // CHECK-NEXT:     %[[v9:.*]] = tensor_ext.rotate %[[v8]], %[[c239]]
+  // CHECK-NEXT:     secret.yield %[[v9]]
   // CHECK-NEXT:   } -> !secret.secret<tensor<256xi16>>
   // CHECK-NEXT:   return %[[v0]]
 

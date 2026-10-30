@@ -27,8 +27,7 @@ struct LoopOptions : public PassPipelineOptions<LoopOptions> {
       llvm::cl::init(false)};
 };
 
-void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
-                                       bool disableLoopUnroll);
+void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager);
 
 struct MlirToRLWEPipelineOptions : public LoopOptions {
   PassOptions::Option<bool> enableArithmetization{

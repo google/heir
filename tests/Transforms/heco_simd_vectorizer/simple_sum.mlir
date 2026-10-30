@@ -1,6 +1,6 @@
 // RUN: heir-opt --secretize \
 // RUN:   --wrap-generic --canonicalize --cse \
-// RUN:   --heco-simd-vectorizer='unroll-fhe-kernel-loops=true' %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
 // Sum all entries of a tensor into a single scalar
 // CHECK: @simple_sum
@@ -18,10 +18,13 @@ func.func @simple_sum(%arg0: tensor<32xi16>) -> i16 {
   return %0 : i16
 }
 
-// Sum all entries of 4 tensors into a single scalar
+// Sum all entries of 4 tensors into a single scalar. The 4x32 concatenation is
+// reduced as a single 128-element vector.
 // CHECK: @simple_sum_nested
 // CHECK: secret.generic
-// CHECK-COUNT-20: tensor_ext.rotate
+// CHECK: tensor.collapse_shape
+// CHECK-SAME: tensor<4x32xi16> into tensor<128xi16>
+// CHECK-COUNT-7: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate
 // CHECK: tensor.extract
 // CHECK-NOT: tensor.extract

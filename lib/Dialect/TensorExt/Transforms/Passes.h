@@ -9,6 +9,7 @@
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
+#include "lib/Dialect/TensorExt/Transforms/SimdVectorizeLoops.h"
 
 // IWYU pragma: end_keep
 

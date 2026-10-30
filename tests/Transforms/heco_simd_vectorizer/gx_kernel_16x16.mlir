@@ -1,12 +1,21 @@
 // Ported from https://github.com/MarbleHE/HECO/blob/ba027a51f4e0a376a19ca05b1dcc7ab76da78a3e/evaluation/comparison/heco_input/gxkernel_64x64.mlir
 
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heco-simd-vectorizer='unroll-fhe-kernel-loops=true' %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
+// The weighted 3x3 window stays a loop nest over whole tensors, with one
+// rotation per tap. The last row of weights is zero, so the inner loop skips it.
 // CHECK: @gx_kernel
 // CHECK: secret.generic
-// CHECK-COUNT-6: tensor_ext.rotate
+// CHECK: affine.for %{{.*}} = -1 to 2 iter_args(%{{.*}}) -> (tensor<{{[0-9]+}}xi16>)
+// CHECK: affine.for %{{.*}} = -1 to 1 iter_args(%{{.*}}) -> (tensor<{{[0-9]+}}xi16>)
+// CHECK: tensor_ext.rotate
+// CHECK: tensor.extract %{{.*}} : tensor<3x3xi16>
+// CHECK: tensor.splat
+// CHECK: arith.muli
+// CHECK: arith.addi
 // CHECK-NOT: tensor_ext.rotate
+
 func.func @gx_kernel(%arg0: tensor<256xi16>) -> tensor<256xi16> {
   %c256 = arith.constant 256 : index
   %c16 = arith.constant 16 : index

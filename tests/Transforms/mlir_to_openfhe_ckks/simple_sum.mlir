@@ -3,7 +3,8 @@
 // RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --mlir-to-ckks='min-slot-count=32 unroll-fhe-kernel-loops=true' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
 
 // CHECK: @simple_sum
-// CHECK-COUNT-6: openfhe.rot
+// CHECK-COUNT-5: openfhe.rot
+// CHECK-NOT: openfhe.rot
 // CHECK: return
 func.func @simple_sum(%arg0: tensor<32xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index

@@ -34,6 +34,7 @@
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
+#include "lib/Dialect/TensorExt/Transforms/SimdVectorizeLoops.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
@@ -97,29 +98,19 @@ llvm::cl::opt<int> extConstThreshold(
     llvm::cl::desc("Minimum number of elements to externalize a constant."),
     llvm::cl::init(1024));
 
-void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
-                                       bool disableLoopUnroll) {
-  // For now we unroll loops to enable insert-rotate, but we would like to be
-  // smarter about this and do an affine loop analysis.
-  // TODO(#589): avoid unrolling loops
-  if (!disableLoopUnroll) {
-    manager.addPass(createFullLoopUnroll());
-  }
+void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager) {
+  // Vectorize loop nests over tensor elements by analyzing their iteration
+  // domains. The remaining passes apply the same HECO-style batching to
+  // straight-line code.
+  manager.addPass(tensor_ext::createSimdVectorizeLoops());
 
-  // These two passes are required in this position for a relatively nuanced
-  // reason. insert-rotate doesn't have general match support. In particular,
-  // if a tensor extract from a secret is combined with a tensor extract from a
+  // insert-rotate doesn't have general match support. In particular, if a
+  // tensor extract from a secret is combined with a tensor extract from a
   // constant 2D tensor (e.g., the weight matrix of a convolution), then
   // insert-rotate won't be able to tell the difference and understand that the
-  // extracted value from the 2D tensor should be splatted.
-  //
-  // Canonicalize supports folding these away, but is too slow to run on the
-  // unrolled loop. Instead, this "empty" pass uses the greedy rewrite engine
-  // to apply folding patterns, including for tensor.extract, which converts a
+  // extracted value from the 2D tensor should be splatted. Folding converts a
   // constant weight matrix into the underlying arith.constant values, which
-  // are supported as a splattable non-tensor input in insert-rotate. Then the
-  // canonicalize pass can be run efficiently to achieve the same effect as if
-  // the canonicalize pass were run alone.
+  // are supported as a splattable non-tensor input in insert-rotate.
   manager.addPass(createApplyFolders());
   manager.addPass(createCanonicalizerPass());
 
@@ -203,7 +194,12 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
-  hecoSIMDVectorizerPipelineBuilder(pm, !options.unrollFheKernelLoops);
+  hecoSIMDVectorizerPipelineBuilder(pm);
+  // Some later passes do not support loops yet (e.g., #2600), so unroll the
+  // loops that were not vectorized if requested.
+  if (options.unrollFheKernelLoops) {
+    pm.addPass(createFullLoopUnroll());
+  }
   mathToPolynomialApproximationBuilder(pm, options.useCompositeRelu);
 
   // Layout assignment and optimization

@@ -1,10 +1,27 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heco-simd-vectorizer='unroll-fhe-kernel-loops=true' %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
 module  {
+  // The 3x3 window sum is a rotate-and-reduce over rows followed by one over
+  // columns, then a rotation that centers the window.
   // CHECK: @box_blur
-  // CHECK-NOT: tensor.extract
-  // CHECK-COUNT-7: tensor_ext.rotate
+  // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<16xi16>>
+  // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
+  // CHECK-DAG: %[[c2:.*]] = arith.constant 2 : index
+  // CHECK-DAG: %[[c4:.*]] = arith.constant 4 : index
+  // CHECK-DAG: %[[c8:.*]] = arith.constant 8 : index
+  // CHECK-DAG: %[[c11:.*]] = arith.constant 11 : index
+  // CHECK: ^body(%[[x:.*]]: tensor<16xi16>):
+  // CHECK-NEXT: %[[v1:.*]] = tensor_ext.rotate %[[x]], %[[c4]]
+  // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[x]], %[[c8]]
+  // CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
+  // CHECK-NEXT: %[[v4:.*]] = arith.addi %[[x]], %[[v3]]
+  // CHECK-NEXT: %[[v5:.*]] = tensor_ext.rotate %[[v4]], %[[c1]]
+  // CHECK-NEXT: %[[v6:.*]] = tensor_ext.rotate %[[v4]], %[[c2]]
+  // CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v5]], %[[v6]]
+  // CHECK-NEXT: %[[v8:.*]] = arith.addi %[[v4]], %[[v7]]
+  // CHECK-NEXT: %[[v9:.*]] = tensor_ext.rotate %[[v8]], %[[c11]]
+  // CHECK-NEXT: secret.yield %[[v9]]
   func.func @box_blur(%arg0: tensor<16xi16>) -> tensor<16xi16> {
     %c16 = arith.constant 16 : index
     %c4 = arith.constant 4 : index

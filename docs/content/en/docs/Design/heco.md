@@ -33,9 +33,10 @@ SIMD operations.
 
 We do introduce the HEIR-specific
 [`tensor_ext.rotate`](https://heir.dev/docs/dialects/tensorext/#tensor_extrotate-heirtensor_extrotateop)
-operation, which represents a cyclical left-rotation of a tensor. Note that, as
-the current SIMD vectorizer only supports one-dimensional tensors, the semantics
-of this operation on multi-dimensional tensors are not (currently) defined.
+operation, which represents a cyclical left-rotation of a tensor. The SIMD
+vectorizer only rotates one-dimensional tensors (it flattens multi-dimensional
+tensors in row-major order first), and the semantics of this operation on
+multi-dimensional tensors are not (currently) defined.
 
 For example, the common "rotate-and-reduce" pattern which results in each
 element containing the sum/product/etc of the original vector can be expressed
@@ -67,10 +68,8 @@ demonstrates the intended flow: augmenting a high-level program with `secret`
 annotations, then applying the SIMD optimization (and any other high-level
 optimizations) before lowering to BGV operations and then exiting to OpenFHE.
 
-> **Warning** The current SIMD vectorizer pipeline supports only one-dimensional
-> tensors. As a workaround, one could reshape all multi-dimensional tensors into
-> one-dimensional tensors, but MLIR/HEIR currently do not provide a pass to
-> automate this process.
+Multi-dimensional tensors are treated as their row-major flattening, i.e., a
+tensor with `n` elements occupies `n` slots.
 
 Since the optimization is based on heuristics, the resulting program might not
 be optimal or could even be worse than a trivial realization that does not use
@@ -79,9 +78,10 @@ reasonable batched solutions, even if they do not achieve optimal batching
 layouts. For common operations such as matrix-vector or matrix-matrix
 multiplications, state-of-the-art approaches require advanced packing schemes
 that might map elements into the ciphertext vector in non-trivial ways (e.g.,
-diagonal-major and/or replicated). The current SIMD vectorizer will never change
-the arrangement of elements inside an input tensor and therefore cannot produce
-the optimal approaches for these operations.
+diagonal-major and/or replicated). The SIMD vectorizer keeps input tensors in
+their row-major arrangement and only moves elements (with rotations and masks)
+to align them with the slots a loop nest computes in, so it does not search for
+such packings.
 
 Note, that the SIMD batching optimization is different from, and significantly
 more complex than, the Straight Line Vectorizer (`-straight-line-vectorize`
@@ -104,10 +104,10 @@ The `-heco-simd-vectorizer` pipeline uses a combination of standard MLIR passes
 [`-cse`](https://mlir.llvm.org/docs/Passes/#-cse),
 [`-sccp`](https://mlir.llvm.org/docs/Passes/#-sccp)) and custom HEIR passes.
 Some of these
-([`-apply-folders`](https://heir.dev/docs/passes/applyfolderspasses/#-apply-folders),
-[`-full-loop-unroll`](https://heir.dev/docs/passes/fullloopunrollpasses/#-full-loop-unroll))
+([`-apply-folders`](https://heir.dev/docs/passes/applyfolderspasses/#-apply-folders))
 might have applications outside the SIMD optimization, while others
-([`-insert-rotate`](https://heir.dev/docs/passes/tensorextpasses/#-insert-rotate),
+([`-simd-vectorize-loops`](https://heir.dev/docs/passes/tensorextpasses/#-simd-vectorize-loops),
+[`-insert-rotate`](https://heir.dev/docs/passes/tensorextpasses/#-insert-rotate),
 [`-collapse-insertion-chains`](https://heir.dev/docs/passes/tensorextpasses/#-collapse-insertion-chains)
 and
 [`-rotate-and-reduce`](https://heir.dev/docs/passes/tensorextpasses/#-rotate-and-reduce))
@@ -116,19 +116,25 @@ of the `PartialReductionRotateAnalysis` and `TargetSlotAnalysis` analyses.
 
 ### High-Level Flow
 
-- **Loop Unrolling** (`-full-loop-unroll`): The implementation currently begins
-  by unrolling all loops in the program to simplify the later passes. See
-  [#589](https://github.com/google/heir/issues/589) for a discussion on how this
-  could be avoided.
+- **Loop Vectorization** (`-simd-vectorize-loops`): Loop nests that compute a
+  tensor one element at a time, or reduce a tensor's elements into a scalar, are
+  rewritten into SIMD operations and rotations directly. The pass models each
+  nest's iteration domain as an integer set, uses the index of the
+  `tensor.insert` (or of a `tensor.extract`) to assign each iteration a slot,
+  and turns every `tensor.extract` whose index has a constant offset from that
+  slot into a rotation. Other extractions are relaid out with one rotation and
+  mask per distinct offset. Reductions over the slots become
+  `tensor_ext.rotate_and_reduce`. This replaces the full unrolling of all loops
+  that the pipeline used to start with
+  ([#589](https://github.com/google/heir/issues/589)). The remaining passes
+  apply the same batching to straight-line code.
 
 - **Canonicalization** (`-apply-folders -canonicalize`): As the
   rotation-specific passes are very strict about the structure of the IR they
   operate on, we must first simplify away things such as tensors of constant
-  values. For performance reasons (c.f. comments in the
-  `heirSIMDVectorizerPipelineBuilder` function in `heir-opt.cpp`), this must be
-  done by first applying
+  values, by first applying
   [folds](https://mlir.llvm.org/docs/Canonicalization/#canonicalizing-with-the-fold-method)
-  before applying the full
+  and then the full
   [canonicalization](https://mlir.llvm.org/docs/Canonicalization/).
 
 - **Main SIMD Rewrite** (`-insert-rotate -cse -canonicalize -cse`): This pass
@@ -225,6 +231,14 @@ of the `PartialReductionRotateAnalysis` and `TargetSlotAnalysis` analyses.
 
 TODO(#721): Write a detailed description of the rotation insertion pass and the
 associated target slot analysis.
+
+If no slot map derived from the insertion index works, the pass instead takes
+the index of an extraction as the slot map, which also vectorizes the reduction
+loops it depends on. A reduction over such a loop becomes a
+`tensor_ext.rotate_and_reduce` over the slots of its iterations, and the results
+are moved to the output slots at the end. For example, the row sums of a 4x4
+matrix are computed in the 16 slots of the matrix with two rotations, and then
+moved to the four output slots with three more.
 
 ### TensorExt Canonicalization
 

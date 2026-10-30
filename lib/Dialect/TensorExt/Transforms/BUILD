@@ -19,6 +19,7 @@ cc_library(
         ":ImplementShiftNetwork",
         ":InsertRotate",
         ":RotateAndReduce",
+        ":SimdVectorizeLoops",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
     ],
@@ -96,6 +97,35 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "SimdVectorizeLoops",
+    srcs = ["SimdVectorizeLoops.cpp"],
+    hdrs = ["SimdVectorizeLoops.h"],
+    deps = [
+        ":ImplementRotateAndReduce",
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:AffineLoopUtils",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LoopLikeInterface",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:SideEffectInterfaces",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

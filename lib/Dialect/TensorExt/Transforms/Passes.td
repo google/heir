@@ -30,6 +30,77 @@ def InsertRotate : Pass<"insert-rotate"> {
 }
 
 // TODO(#512): Investigate replacing this pattern with a tensor_ext.combine op
+def SimdVectorizeLoops : Pass<"simd-vectorize-loops"> {
+  let summary = "Vectorize loops over tensor elements into rotations, without unrolling";
+  let description = [{
+  This pass converts loop nests that compute tensor elements one at a time into
+  SIMD operations on whole tensors and cyclic rotations. It is based on the
+  HECO-style batching of `insert-rotate`, `collapse-insertion-chains` and
+  `rotate-and-reduce`, but analyzes the loops as affine iteration domains
+  instead of requiring them to be fully unrolled first.
+
+  The pass maps the iterations of some loops of a nest (the vectorized loops)
+  injectively to the slots of a tensor through an affine function of their
+  induction variables, the *slot map*. For a *map* nest, a perfect nest of
+  loops carrying a single tensor whose innermost body inserts one scalar into
+  it, the slot map is first taken to be the insertion index. Otherwise, or if
+  that fails, the slot map is the index of a `tensor.extract` in the nest
+  (preferring secret tensors), and the vectorized loops are the loops it
+  depends on, together with the loops carrying the output of a map nest. The
+  pass checks with an integer set analysis of the iteration domain that the
+  slot map is injective and lands within the tensor. Other loops in the nest
+  are kept as loops over tensors, and all loops except the ones carrying the
+  output must reduce (with `arith.addi`, `arith.addf`, `arith.muli` or
+  `arith.mulf`) into a single scalar.
+
+  Each `tensor.extract` whose index is an affine function of the induction
+  variables with a constant offset from the slot map becomes a rotation of the
+  source tensor by that offset:
+
+  ```mlir
+  %0 = affine.for %i = 0 to 16 iter_args(%t = %init) -> tensor<16xi16> {
+    %j = affine.apply affine_map<(d0) -> ((d0 + 1) mod 16)>(%i)
+    %a = tensor.extract %x[%j] : tensor<16xi16>
+    %b = arith.muli %a, %a : i16
+    %u = tensor.insert %b into %t[%i] : tensor<16xi16>
+    affine.yield %u : tensor<16xi16>
+  }
+  ```
+
+  becomes
+
+  ```mlir
+  %c1 = arith.constant 1 : index
+  %r = tensor_ext.rotate %x, %c1 : tensor<16xi16>, index
+  %0 = arith.muli %r, %r : tensor<16xi16>
+  ```
+
+  An extraction whose offset is not constant (or from a tensor with a
+  different number of elements) is relaid out with one rotation and mask for
+  each distinct offset. Arithmetic on the extracted values is applied
+  to the resulting tensors.
+
+  A vectorized loop that reduces into a scalar becomes a
+  `tensor_ext.rotate_and_reduce` over the slots of its iterations, whose period
+  is the stride of the slot map in that loop, leaving the result in the slot of
+  the first iteration. A kept loop becomes a loop over tensors, and is replaced
+  by a `tensor_ext.rotate_and_reduce` when it sums rotations of a
+  loop-invariant tensor by an affine function of its induction variable.
+
+  Finally, the result of a map nest is moved to the slots given by its
+  insertion index, if it was computed with a different slot map. If the
+  insertion index does not cover every slot, a plaintext mask preserves the
+  original values of the other slots.
+
+  Loop nests that do not fit these patterns are left unchanged.
+  }];
+  let dependentDialects = [
+    "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::tensor::TensorDialect",
+  ];
+}
+
 def CollapseInsertionChains : Pass<"collapse-insertion-chains"> {
   let summary = "Collapse chains of extract/insert ops into rotate ops when possible";
   let description = [{
