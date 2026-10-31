@@ -341,7 +341,9 @@ LogicalResult RotationAnalysis::analyzeRotationOp(
   llvm::errs() << "rotate op not supported in RotationAnalysis; "
                << "Please file a bug with the HEIR team with your IR. "
                << "Op was " << *rotationOp.getOperation() << "\nIR was: ";
-  rotationOp.getOperation()->getParentOfType<func::FuncOp>()->dump();
+  rotationOp.getOperation()->getParentOfType<func::FuncOp>()->print(
+      llvm::errs());
+  llvm::errs() << "\n";
   return failure();
 }
 
