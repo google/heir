@@ -11,9 +11,6 @@ def ApplyFolders : Pass<"apply-folders"> {
     folders before canonicalize is sufficient to simplify the IR for later
     passes, or even sufficient to then subsequently run a full canonicalize
     pass.
-
-    This is used to prepare an IR for `insert-rotate` after fully unrolling
-    loops.
   }];
 }
 

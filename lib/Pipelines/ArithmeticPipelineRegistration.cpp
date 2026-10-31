@@ -29,11 +29,8 @@
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Dialect/Secret/Transforms/ImportExecutionResult.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
-#include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
-#include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
-#include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Dialect/TensorExt/Transforms/SimdVectorizeLoops.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
@@ -100,36 +97,8 @@ llvm::cl::opt<int> extConstThreshold(
 
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager) {
   // Vectorize loop nests over tensor elements by analyzing their iteration
-  // domains. The remaining passes apply the same HECO-style batching to
-  // straight-line code.
+  // domains.
   manager.addPass(tensor_ext::createSimdVectorizeLoops());
-
-  // insert-rotate doesn't have general match support. In particular, if a
-  // tensor extract from a secret is combined with a tensor extract from a
-  // constant 2D tensor (e.g., the weight matrix of a convolution), then
-  // insert-rotate won't be able to tell the difference and understand that the
-  // extracted value from the 2D tensor should be splatted. Folding converts a
-  // constant weight matrix into the underlying arith.constant values, which
-  // are supported as a splattable non-tensor input in insert-rotate.
-  manager.addPass(createApplyFolders());
-  manager.addPass(createCanonicalizerPass());
-
-  // Insert rotations aligned to slot targets. Future work should provide
-  // alternative methods to optimally align rotations, and allow the user to
-  // configure this via pipeline options.
-  manager.addPass(tensor_ext::createInsertRotate());
-  manager.addPass(createCSEPass());
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(createCSEPass());
-
-  manager.addPass(tensor_ext::createCollapseInsertionChains());
-  manager.addPass(createSCCPPass());
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(createCSEPass());
-
-  manager.addPass(tensor_ext::createRotateAndReduce());
-  manager.addPass(createSCCPPass());
-  manager.addPass(createApplyFolders());
   manager.addPass(createCanonicalizerPass());
   manager.addPass(createCSEPass());
 }

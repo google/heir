@@ -59,16 +59,16 @@ dumped files might look like:
     ├── 10_compare-to-sign-rewrite.mlir
     ├── 11_canonicalize.mlir
     ├── 12_cse.mlir
-    ├── 13_apply-folders.mlir
+    ├── 13_simd-vectorize-loops.mlir
     ├── 14_canonicalize.mlir
-    ├── 15_insert-rotate.mlir
-    ├── 16_cse.mlir
-    ├── 17_canonicalize.mlir
-    ├── 18_cse.mlir
-    ├── 19_collapse-insertion-chains.mlir
+    ├── 15_cse.mlir
+    ├── 16_polynomial-approximation.mlir
+    ├── 17_lower-polynomial-eval.mlir
+    ├── 18_canonicalize.mlir
+    ├── 19_cse.mlir
     ├── 1_debug-validate-names.mlir
-    ├── 20_sccp.mlir
-    ├── 21_canonicalize.mlir
+    ├── 20_layout-propagation.mlir
+    ├── 21_layout-optimization.mlir
     ...
     ├── func_func__assign_layout_9911323688340753831
     │   ├── 47_0_affine-expand-index-ops.mlir

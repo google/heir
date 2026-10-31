@@ -3,12 +3,9 @@
 
 // IWYU pragma: begin_keep
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
-#include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/FoldConvertLayoutIntoAssignLayout.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
-#include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
-#include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Dialect/TensorExt/Transforms/SimdVectorizeLoops.h"
 
 // IWYU pragma: end_keep

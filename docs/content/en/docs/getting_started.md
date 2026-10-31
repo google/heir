@@ -607,9 +607,8 @@ Which outputs
 
 ```bash
 bazel run --noallow_analysis_cache_discard //tools:heir-opt -- \
---secretize --wrap-generic --canonicalize --cse --full-loop-unroll \
---insert-rotate --cse --canonicalize --collapse-insertion-chains \
---canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
+--secretize --wrap-generic --canonicalize --cse --heco-simd-vectorizer \
+/path/to/heir/tests/simd/box_blur_64x64.mlir
 ```
 
 ### Optional: Graphviz visualization of the IR

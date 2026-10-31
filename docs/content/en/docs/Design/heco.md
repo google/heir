@@ -99,138 +99,48 @@ way it is.
 
 ### Components
 
-The `-heco-simd-vectorizer` pipeline uses a combination of standard MLIR passes
-([`-canonicalize`](https://mlir.llvm.org/docs/Passes/#-canonicalize),
-[`-cse`](https://mlir.llvm.org/docs/Passes/#-cse),
-[`-sccp`](https://mlir.llvm.org/docs/Passes/#-sccp)) and custom HEIR passes.
-Some of these
-([`-apply-folders`](https://heir.dev/docs/passes/applyfolderspasses/#-apply-folders))
-might have applications outside the SIMD optimization, while others
-([`-simd-vectorize-loops`](https://heir.dev/docs/passes/tensorextpasses/#-simd-vectorize-loops),
-[`-insert-rotate`](https://heir.dev/docs/passes/tensorextpasses/#-insert-rotate),
-[`-collapse-insertion-chains`](https://heir.dev/docs/passes/tensorextpasses/#-collapse-insertion-chains)
-and
-[`-rotate-and-reduce`](https://heir.dev/docs/passes/tensorextpasses/#-rotate-and-reduce))
-are very specific to the FHE SIMD optimization. In addition, the passes make use
-of the `PartialReductionRotateAnalysis` and `TargetSlotAnalysis` analyses.
+The `-heco-simd-vectorizer` pipeline consists of the
+[`-simd-vectorize-loops`](https://heir.dev/docs/passes/tensorextpasses/#-simd-vectorize-loops)
+pass, followed by
+[`-canonicalize`](https://mlir.llvm.org/docs/Passes/#-canonicalize) and
+[`-cse`](https://mlir.llvm.org/docs/Passes/#-cse) to apply the rotation-specific
+canonicalization patterns described in
+[TensorExt Canonicalization](#tensorext-canonicalization).
 
-### High-Level Flow
+### Loop Vectorization
 
-- **Loop Vectorization** (`-simd-vectorize-loops`): Loop nests that compute a
-  tensor one element at a time, or reduce a tensor's elements into a scalar, are
-  rewritten into SIMD operations and rotations directly. The pass models each
-  nest's iteration domain as an integer set, uses the index of the
-  `tensor.insert` (or of a `tensor.extract`) to assign each iteration a slot,
-  and turns every `tensor.extract` whose index has a constant offset from that
-  slot into a rotation. Other extractions are relaid out with one rotation and
-  mask per distinct offset. Reductions over the slots become
-  `tensor_ext.rotate_and_reduce`. This replaces the full unrolling of all loops
-  that the pipeline used to start with
-  ([#589](https://github.com/google/heir/issues/589)). The remaining passes
-  apply the same batching to straight-line code.
+Loop nests that compute a tensor one element at a time, or reduce a tensor's
+elements into a scalar, are rewritten into SIMD operations and rotations
+directly, without unrolling the loops. The pass models each nest's iteration
+domain as an integer set and uses the index of the `tensor.insert` (or of a
+`tensor.extract`, see below) to assign each iteration a slot. This is the
+"target slot" of the HECO batching optimization, expressed as an affine function
+of the loop induction variables instead of being chosen separately for each
+operation of the unrolled program.
 
-- **Canonicalization** (`-apply-folders -canonicalize`): As the
-  rotation-specific passes are very strict about the structure of the IR they
-  operate on, we must first simplify away things such as tensors of constant
-  values, by first applying
-  [folds](https://mlir.llvm.org/docs/Canonicalization/#canonicalizing-with-the-fold-method)
-  and then the full
-  [canonicalization](https://mlir.llvm.org/docs/Canonicalization/).
+Every `tensor.extract` whose index has a constant offset from that slot becomes
+a rotation of the source tensor by that offset. For example, the loop computing
+`t2[i] = t0[i - 1] + t1[i + 1]` becomes
 
-- **Main SIMD Rewrite** (`-insert-rotate -cse -canonicalize -cse`): This pass
-  rewrites arithmetic operations over `tensor.extract`-ed operands into SIMD
-  operations over the entire tensor, rotating the (full-tensor) operands so that
-  the correct elements interact. For example, it will rewrite the following
-  snippet (which computes `t2[4] = t0[3] + t1[5]`)
+```llvm
+%0 = tensor_ext.rotate %t0, %c31 : tensor<32xi16>, index
+%1 = tensor_ext.rotate %t1, %c1 : tensor<32xi16>, index
+%2 = arith.addi %0, %1 : tensor<32xi16>
+```
 
-  ```llvm
-  %0 = tensor.extract %t0[%c3] : tensor<32xi16>
-  %1 = tensor.extract %t1[%c5] : tensor<32xi16>
-  %2 = arith.addi %0, %1 : i16
-  %3 = tensor.insert %2 into %t2[%c4] : tensor<32xi16>
-  ```
+i.e., rotating `t0` down by one (31 = -1 (mod 32)) and `t1` up by one so that
+the elements at indices `i - 1` and `i + 1` are aligned with slot `i`. In the
+unrolled HECO formulation, each iteration produces the same rotations, which
+common subexpression elimination then merges; analyzing the loop directly
+produces the merged form at once.
 
-  to
+An extraction whose offset is not constant is relaid out with one rotation and
+mask per distinct offset, which corresponds to the rotations the unrolled HECO
+formulation would emit for these iterations.
 
-  ```llvm
-  %0 = tensor_ext.rotate %t0, %c31 : tensor<32xi16>, index
-  %1 = tensor_ext.rotate %t1, %c1 : tensor<32xi16>, index
-  %2 = arith.addi %0, %1 : tensor<32xi16>
-  ```
-
-  i.e., rotating `t0` down by one (31 = -1 (mod 32)) and `t1` up by one to bring
-  the elements at index 3 and 5, respectively, to the "target" index 4. The pass
-  uses the `TargetSlotAnalysis` to identify the appropriate target index (or
-  ciphertext "slot" in FHE-speak). See [Insert Rotate Pass](#insert-rotate-pass)
-  below for more details. This pass is roughly equivalent to the `-batching`
-  pass in the original HECO implementation.
-
-  Doing this rewrite by itself does not represent an optimization, but if we
-  consider what happens to the corresponding code for other indices (e.g.,
-  `t2[5] = t0[4] + t1[6]`), we see that the pass transforms expressions with the
-  same relative index offsets into the exact same set of rotations/SIMD
-  operations, so the following
-  [Common Subexpression Elimination (CSE)](https://en.wikipedia.org/wiki/Common_subexpression_elimination)
-  will remove redundant computations. We apply CSE twice, once directly (which
-  creates new opportunities for canonicalization and folding) and then again
-  after that canonicalization. See
-  [TensorExt Canonicalization](#tensorext-canonicalization) for a description of
-  the rotation-specific canonocalization patterns).
-
-- **Cleanup of Redundant Insert/Extract**
-  (`-collapse-insertion-chains -sccp -canonicalize -cse`): Because the
-  `-insert-rotate` pass maintains the consistency of the IR, it emits a
-  `tensor.extract` operation after the SIMD operation and uses that to replace
-  the original operation (which is valid, as both produce the desired scalar
-  result). As a consequence, the generated code for the snippet above is
-  actually trailed by a (redundant) extract/insert:
-
-  ```llvm
-  %extracted = tensor.extract %2[%c4] : tensor<32xi16>
-  %inserted = tensor.insert %extracted into %t2[%c4] : tensor<32xi16>
-  ```
-
-  In real code, this might generate a long series of such extraction/insertion
-  operations, all extracting from the same (due to CSE) tensor and inserting
-  into the same output tensor. Therefore, the `-collapse-insertion-chains` pass
-  searches for such chains over entire tensors and collapses them. It supports
-  not just chains where the indices match perfectly, but any chain where the
-  relative offset is consistent across the tensor, issuing a rotation to realize
-  the offset (if the offset is zero, the canonicalization will remove the
-  redundant rotation). Note, that in HECO, insertion/extraction is handled
-  differently, as HECO features a `combine` operation modelling not just simple
-  insertions (`combine(%t0#j, %t1)`) but also more complex operations over
-  slices of tensors (`combine(%t0#[i,j], %t1)`). As a result, the equivalent
-  pass in HECO (`-combine-simplify`) instead joins different `combine`
-  operations, and a later fold removes `combines` that replace the entire target
-  tensor. See issue [#512](https://github.com/google/heir/issues/512) for a
-  discussion on why the `combine` operation is a more powerful framework and
-  what would be necessary to port it to HEIR.
-
-- **Applying Rotate-and-Reduce Patterns**
-  (`-rotate-and-reduce -sccp -canonicalize -cse`): The rotate and reduce pattern
-  (see [Representing FHE SIMD Operations](#representing-fhe-simd-operations) for
-  an example) is an important aspect of accelerating SIMD-style operations in
-  FHE, but it does not follow automatically from the batching rewrites applied
-  so far. As a result, the `-rotate-and-reduce` pass needs to search for
-  sequences of arithmetic operations that correspond to the full folding of a
-  tensor, i.e., patterns such as `t[0]+(t[1]+(t[2]+t[3]+(...)))`, which
-  currently uses a backwards search through the IR, but could be achieved more
-  efficiently through a data flow analysis (c.f. issue
-  [#532](https://github.com/google/heir/issues/523)). In HECO, rotate-and-reduce
-  is handled differently, by identifying sequences of compatible operations
-  prior to batching and rewriting them to "n-ary" operations. However, this
-  approach requires non-standard arithmetic operations and is therefore not
-  suitable for use in HEIR. However, there is likely still an opportunity to
-  make the patterns in HEIR more robust/general (e.g., support constant scalar
-  operands in the fold, or support non-full-tensor folds). See issue
-  [#522](https://github.com/google/heir/issues/522) for ideas on how to make the
-  HEIR pattern more robust/more general.
-
-### Insert Rotate Pass
-
-TODO(#721): Write a detailed description of the rotation insertion pass and the
-associated target slot analysis.
+Loops nested inside a vectorized nest that reduce into a scalar (e.g., the taps
+of a convolution kernel) remain loops over whole tensors, and are replaced by a
+`tensor_ext.rotate_and_reduce` when they sum rotations of a single tensor.
 
 If no slot map derived from the insertion index works, the pass instead takes
 the index of an extraction as the slot map, which also vectorizes the reduction
