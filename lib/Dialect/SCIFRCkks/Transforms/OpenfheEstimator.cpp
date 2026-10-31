@@ -9,6 +9,7 @@
 #include "lib/Utils/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/TopologicalSortUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -323,7 +324,7 @@ struct OpenfheEstimator : impl::OpenfheEstimatorBase<OpenfheEstimator> {
       }
 
       llvm::outs() << "operation = " << "\n";
-      op->dump();
+      op->print(llvm::outs());
       llvm::outs() << "\n";
     });
 
