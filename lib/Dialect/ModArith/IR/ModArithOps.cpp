@@ -571,6 +571,72 @@ void MulOp::getCanonicalizationPatterns(RewritePatternSet& results,
   results.add<MulZero, MulOne, MulMulConstant>(context);
 }
 
+namespace {
+
+LogicalResult verifyMontModArithType(Operation* op, Type type) {
+  auto elementType = getElementTypeOrSelf(type);
+  auto modArithType = dyn_cast<ModArithType>(elementType);
+  if (!modArithType) {
+    return op->emitOpError(
+        "expected mod_arith.int type or shaped type of mod_arith.int");
+  }
+  auto storageType = dyn_cast<IntegerType>(modArithType.getModulus().getType());
+  if (!storageType) {
+    return op->emitOpError("expected integer storage type for modulus");
+  }
+  unsigned bitWidth = storageType.getWidth();
+  if (bitWidth != 32 && bitWidth != 64) {
+    return op->emitOpError()
+           << "underlying bitwidth must be 32 or 64, but got " << bitWidth;
+  }
+  APInt q = modArithType.getModulus().getValue();
+  if (!q[0] || q.isZero()) {
+    return op->emitOpError()
+           << "modulus must be odd, but got " << q.getZExtValue();
+  }
+  if (q.getActiveBits() > bitWidth - 1) {
+    return op->emitOpError() << "modulus must be less than 2^" << (bitWidth - 1)
+                             << ", but got " << q.getZExtValue();
+  }
+  return success();
+}
+
+}  // namespace
+
+LogicalResult MontMulOp::verify() {
+  return verifyMontModArithType(getOperation(), getOutput().getType());
+}
+
+LogicalResult MontReduceOp::verify() {
+  if (failed(verifyMontModArithType(getOperation(), getOutput().getType()))) {
+    return failure();
+  }
+  auto outModArith =
+      cast<ModArithType>(getElementTypeOrSelf(getOutput().getType()));
+  unsigned outWidth =
+      cast<IntegerType>(outModArith.getModulus().getType()).getWidth();
+  unsigned expectedInWidth = 2 * outWidth;
+
+  auto inElemType =
+      dyn_cast<IntegerType>(getElementTypeOrSelf(getInput().getType()));
+  if (!inElemType) {
+    return emitOpError("expected signless integer input type");
+  }
+  if (inElemType.getWidth() != expectedInWidth) {
+    return emitOpError() << "input type must have bitwidth " << expectedInWidth
+                         << ", but got " << inElemType.getWidth();
+  }
+  return success();
+}
+
+LogicalResult ToMontOp::verify() {
+  return verifyMontModArithType(getOperation(), getOutput().getType());
+}
+
+LogicalResult FromMontOp::verify() {
+  return verifyMontModArithType(getOperation(), getOutput().getType());
+}
+
 }  // namespace mod_arith
 }  // namespace heir
 }  // namespace mlir

@@ -21,6 +21,13 @@
 #include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Cheddar/Transforms/CheddarBufferize.h"
 #include "lib/Dialect/Cheddar/Transforms/FuseOps.h"
+#include "lib/Dialect/CheddarGPU/Conversions/CheddarGPUToGPU/CheddarGPUToGPU.h"
+#include "lib/Dialect/CheddarGPU/Conversions/CheddarGPUToSCF/CheddarGPUToSCF.h"
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandBootstrap/ExpandBootstrap.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandHoist/ExpandHoist.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandKeySwitch/ExpandKeySwitch.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandModSwitch/ExpandModSwitch.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Debug/Transforms/Passes.h"
@@ -31,6 +38,7 @@
 #include "lib/Dialect/Kernel/IR/KernelDialect.h"
 #include "lib/Dialect/Kernel/Transforms/Passes.h"
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
+#include "lib/Dialect/LWE/Conversions/LWEToCheddarGPU/LWEToCheddarGPU.h"
 #include "lib/Dialect/LWE/Conversions/LWEToJaxiteWord/LWEToJaxiteWord.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
@@ -184,7 +192,10 @@
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/IR/GPUDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
@@ -262,6 +273,7 @@ int main(int argc, char** argv) {
   registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<cheddar::CheddarDialect>();
+  registry.insert<cheddar_gpu::CheddarGPUDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<debug::DebugDialect>();
   registry.insert<jaxite::JaxiteDialect>();
@@ -292,6 +304,13 @@ int main(int argc, char** argv) {
   registry.insert<mlir::arith::ArithDialect>();
   registry.insert<bufferization::BufferizationDialect>();
   registry.insert<func::FuncDialect>();
+  // Upstream GPU dialect for kernel outlining and device offloading.
+  // Note: We deliberately register only GPUDialect and its outlining passes in
+  // heir-opt (and exclude NVVMDialect / LLVMIRTransforms, see
+  // LLVMDummyInlinerInterface above) to keep heir-opt build times minimal and
+  // avoid backend target coupling. NVVM lowering is handled downstream by
+  // mlir-opt.
+  registry.insert<gpu::GPUDialect>();
   registry.insert<math::MathDialect>();
   registry.insert<memref::MemRefDialect>();
   registry.insert<polynomial::PolynomialDialect>();
@@ -329,6 +348,7 @@ int main(int argc, char** argv) {
   // Misc
   registerTransformsPasses();      // canonicalize, cse, etc.
   affine::registerAffinePasses();  // loop unrolling
+  registerGPUPasses();             // gpu-kernel-outlining, etc.
   registerLinalgPasses();          // linalg to loops
   memref::registerMemRefPasses();  // fold-memref-alias-ops, etc.
 
@@ -363,6 +383,7 @@ int main(int argc, char** argv) {
   bufferization::registerBufferizationPasses();
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::gpu::registerBufferDeallocationOpInterfaceExternalModels(registry);
   bufferization::registerBufferizableOpInterfaceExternalModels(registry);
   bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);
@@ -491,6 +512,7 @@ int main(int argc, char** argv) {
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();
+  lwe::registerLWEToCheddarGPUPasses();
   lwe::registerLWEToJaxiteWordPasses();
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
@@ -506,6 +528,12 @@ int main(int argc, char** argv) {
   registerCGGIToTfheRustBoolPasses();
   registerCGGIToTfheRustPasses();
   preprocessing::registerPreprocessingToCheddarPasses();
+  cheddar_gpu::registerCheddarGPUToGPUPasses();
+  cheddar_gpu::registerCheddarGPUToSCFPasses();
+  cheddar_gpu::registerExpandModSwitchPasses();
+  cheddar_gpu::registerExpandKeySwitchPasses();
+  cheddar_gpu::registerExpandHoistPasses();
+  cheddar_gpu::registerExpandBootstrapPasses();
   preprocessing::registerPreprocessingToLattigoPasses();
   preprocessing::registerPreprocessingToMemrefPasses();
   preprocessing::registerPreprocessingToOpenfhePasses();
@@ -602,6 +630,11 @@ int main(int argc, char** argv) {
       "scheme-to-lattigo",
       "Convert code expressed at FHE scheme level to Lattigo Go code.",
       toLattigoPipelineBuilder());
+
+  PassPipelineRegistration<mlir::heir::CheddarGPUBackendOptions>(
+      "scheme-to-cheddar-gpu",
+      "Lower CKKS scheme code to Cheddar GPU dialect and CUDA kernels.",
+      toCheddarGPUPipelineBuilder());
 
   // TODO(#1645): Add backend options for tfhe-rs, fpt, jaxite.
   PassPipelineRegistration<>(

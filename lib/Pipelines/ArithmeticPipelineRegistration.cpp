@@ -5,8 +5,14 @@
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
+#include "lib/Dialect/CheddarGPU/Conversions/CheddarGPUToGPU/CheddarGPUToGPU.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandBootstrap/ExpandBootstrap.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandHoist/ExpandHoist.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandKeySwitch/ExpandKeySwitch.h"
+#include "lib/Dialect/CheddarGPU/Transforms/ExpandModSwitch/ExpandModSwitch.h"
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/Kernel/Transforms/PrepareLinearTransforms.h"
+#include "lib/Dialect/LWE/Conversions/LWEToCheddarGPU/LWEToCheddarGPU.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
@@ -14,6 +20,7 @@
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
@@ -73,6 +80,7 @@
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"       // from @llvm-project
@@ -705,6 +713,34 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
 
     // Lower Linalg to loops
     pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
+  };
+}
+
+void schemeToCheddarGPUPipeline(OpPassManager& pm,
+                                const CheddarGPUBackendOptions& options) {
+  pm.addPass(ckks::createCKKSToLWE());
+
+  lwe::LWEToCheddarGPUOptions lweOptions;
+  lweOptions.paramsPath = options.params;
+  lweOptions.fuseRelinRescale = options.fuseRelinRescale;
+  pm.addPass(lwe::createLWEToCheddarGPU(lweOptions));
+
+  pm.addPass(cheddar_gpu::createExpandBootstrapPass());
+  pm.addPass(cheddar_gpu::createExpandHoistPass());
+  pm.addPass(cheddar_gpu::createExpandKeySwitchPass());
+  pm.addPass(cheddar_gpu::createExpandModSwitchPass());
+
+  cheddar_gpu::CheddarGPUToGPUOptions gpuOptions;
+  gpuOptions.nttImpl = options.nttImpl;
+  pm.addPass(cheddar_gpu::createCheddarGPUToGPU(gpuOptions));
+
+  pm.addPass(createGpuKernelOutliningPass());
+  pm.addPass(mod_arith::createModArithToArith());
+}
+
+CheddarGPUPipelineBuilder toCheddarGPUPipelineBuilder() {
+  return [=](OpPassManager& pm, const CheddarGPUBackendOptions& options) {
+    schemeToCheddarGPUPipeline(pm, options);
   };
 }
 
