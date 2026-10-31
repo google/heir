@@ -57,6 +57,7 @@ cc_library(
         "@heir//lib/Dialect/Secret/Transforms:AddDebugPort",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
         "@heir//lib/Transforms/BooleanVectorizer",
+        "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Transforms/FoldConstantTensors",
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
