@@ -322,6 +322,7 @@ class NestVectorizer {
   LogicalResult processMapLoop(LoopLikeOpInterface loop);
   LogicalResult processReductionLoop(LoopLikeOpInterface loop);
   LogicalResult processKeptLoop(LoopLikeOpInterface loop);
+  LogicalResult reindexKeptLoop(LoopLikeOpInterface loop, unsigned dim);
   LogicalResult processExtract(tensor::ExtractOp op);
   LogicalResult processElementwise(Operation* op);
 
@@ -419,6 +420,11 @@ class NestVectorizer {
   SmallVector<RotateAndReduceOp> pendingReductions;
   // Old IV of a kept loop -> new IV
   DenseMap<Value, Value> ivMapping;
+  // Dimensions of reindexed kept loops -> the old IV as an affine function of
+  // the new IV, which takes over the dimension, and the vectorized IVs.
+  DenseMap<unsigned, AffineExpr> reindexedDims;
+  // Dimensions of reindexed kept loops -> bounds of the new IV
+  DenseMap<unsigned, ConstantLoopBounds> reindexedBounds;
   DenseMap<Value, Value> flatTensors;
   SmallVector<LoopLikeOpInterface> keptLoops;
 };
@@ -615,6 +621,10 @@ AffineExpr NestVectorizer::renumber(AffineExpr expr,
 }
 
 FailureOr<Value> NestVectorizer::getScalar(Value value) {
+  // The old IV of a reindexed loop differs between vectorized iterations.
+  if (const auto* it = llvm::find(allIVs, value);
+      it != allIVs.end() && reindexedDims.contains(it - allIVs.begin()))
+    return failure();
   if (auto it = ivMapping.find(value); it != ivMapping.end()) return it->second;
   if (!isDefinedInNest(value)) return value;
   if (const auto* it = llvm::find(allIVs, value);
@@ -1050,10 +1060,21 @@ FailureOr<std::pair<Value, AffineExpr>> NestVectorizer::resolveExtract(
   AffineExpr flatIndex = getAffineConstantExpr(0, op.getContext());
   for (auto [index, dimSize] : llvm::zip(indices, tensorType.getShape()))
     flatIndex = flatIndex * dimSize + index;
+  if (!reindexedDims.empty()) {
+    SmallVector<AffineExpr> replacements;
+    for (unsigned i = 0; i < allIVs.size(); ++i)
+      replacements.push_back(reindexedDims.lookup(i)
+                                 ? reindexedDims.lookup(i)
+                                 : getAffineDimExpr(i, op.getContext()));
+    flatIndex = simplifyAffineExpr(flatIndex.replaceDims(replacements),
+                                   allIVs.size(), 0);
+  }
   return std::make_pair(tensor, flatIndex);
 }
 
 FailureOr<ConstantLoopBounds> NestVectorizer::getDimBounds(unsigned dim) const {
+  if (auto it = reindexedBounds.find(dim); it != reindexedBounds.end())
+    return it->second;
   return getConstantLoopBounds(allLoops[dim]);
 }
 
@@ -1289,8 +1310,20 @@ LogicalResult NestVectorizer::processKeptLoop(LoopLikeOpInterface loop) {
   }
 
   Location loc = loop.getLoc();
+  unsigned dim = getDim(loop);
   LoopLikeOpInterface newLoop;
-  if (auto forOp = dyn_cast<affine::AffineForOp>(loop.getOperation())) {
+  if (succeeded(reindexKeptLoop(loop, dim))) {
+    const ConstantLoopBounds& bounds = reindexedBounds[dim];
+    if (isa<affine::AffineForOp>(loop.getOperation())) {
+      newLoop = affine::AffineForOp::create(builder, loc, bounds.lb, bounds.ub,
+                                            bounds.step, inits);
+    } else {
+      newLoop = scf::ForOp::create(
+          builder, loc, arith::ConstantIndexOp::create(builder, loc, bounds.lb),
+          arith::ConstantIndexOp::create(builder, loc, bounds.ub),
+          arith::ConstantIndexOp::create(builder, loc, bounds.step), inits);
+    }
+  } else if (auto forOp = dyn_cast<affine::AffineForOp>(loop.getOperation())) {
     if (!forOp.hasConstantBounds()) return failure();
     newLoop = affine::AffineForOp::create(
         builder, loc, forOp.getConstantLowerBound(),
@@ -1330,6 +1363,105 @@ LogicalResult NestVectorizer::processKeptLoop(LoopLikeOpInterface loop) {
   for (auto [oldResult, newResult] :
        llvm::zip(loop->getResults(), newLoop->getResults()))
     setVector(oldResult, newResult, active);
+  return success();
+}
+
+// Try to reindex the kept loop `loop`, whose IV is dimension `dim`, so that
+// extractions from secret tensors have offsets from their slots that do not
+// depend on the vectorized IVs. Let j range over [lb, lb + n) and suppose an
+// extraction has the offset b * j + a(iv) + c, where a is linear in the IVs iv
+// of the vectorized loops enclosing `loop` and divisible by b. Iterating over
+// t = (j - lb + a / b) mod n instead visits the same values of j for every iv,
+// so a loop that only reduces into its iter_args computes the same result. In
+// terms of t, the offset is b * t + b * lb + c modulo b * n, which is invariant
+// modulo the number of slots if b * n is a multiple of it. For a matrix-vector
+// product, this turns the rows of the matrix into its diagonals.
+LogicalResult NestVectorizer::reindexKeptLoop(LoopLikeOpInterface loop,
+                                              unsigned dim) {
+  FailureOr<ConstantLoopBounds> bounds = getConstantLoopBounds(loop);
+  if (failed(bounds) || bounds->step != 1 || bounds->tripCount() == 0 ||
+      loop.getRegionIterArgs().empty())
+    return failure();
+  for (auto [iterArg, yielded] :
+       llvm::zip(loop.getRegionIterArgs(), loop.getYieldedValues())) {
+    // Each iter arg must be an independent reduction: the partial result is
+    // only yielded, so reordering the iterations does not change what other
+    // iter args see.
+    Operation* combine = yielded.getDefiningOp();
+    if (!combine || !isReduction(combine) || !iterArg.hasOneUse() ||
+        *iterArg.getUsers().begin() != combine || !yielded.hasOneUse())
+      return failure();
+  }
+
+  MLIRContext* ctx = loop->getContext();
+  unsigned numDims = allIVs.size();
+  AffineExpr zero = getAffineConstantExpr(0, ctx);
+  DimSet enclosing = activeDimsAt(loop);
+
+  int64_t coefficient = 0;
+  std::optional<AffineExpr> quotient;
+  bool invalid = false;
+  loop->walk([&](tensor::ExtractOp op) {
+    FailureOr<std::pair<Value, AffineExpr>> resolved = resolveExtract(op);
+    if (failed(resolved) || isKnownPlaintext(resolved->first) ||
+        !resolved->second.isFunctionOfDim(dim))
+      return WalkResult::advance();
+    auto type = cast<RankedTensorType>(resolved->first.getType());
+    if (!type.hasStaticShape() || type.getNumElements() != numSlots)
+      return WalkResult::advance();
+    DimSet active = activeDimsAt(op);
+    if (succeeded(getInvariantOffset(resolved->second, active)))
+      return WalkResult::advance();
+
+    AffineExpr offset =
+        simplifyAffineExpr(stripSlotModulus(resolved->second, numSlots) -
+                               stripSlotModulus(slotAt(active), numSlots),
+                           numDims, 0);
+    // offset = b * j + rest
+    AffineExpr rest = evaluate(offset, {{dim, 0}});
+    auto b = dyn_cast<AffineConstantExpr>(
+        simplifyAffineExpr(evaluate(offset, {{dim, 1}}) - rest, numDims, 0));
+    if (!b || b.getValue() == 0 ||
+        simplifyAffineExpr(offset - rest - b * getAffineDimExpr(dim, ctx),
+                           numDims, 0) != zero) {
+      invalid = true;
+      return WalkResult::interrupt();
+    }
+
+    // rest = a(iv) + c, with a linear in the IVs of the enclosing vectorized
+    // loops
+    SmallVector<std::pair<unsigned, int64_t>> zeroEnclosing;
+    for (unsigned d = 0; d < numDims; ++d)
+      if (hasDim(enclosing, d)) zeroEnclosing.push_back({d, 0});
+    AffineExpr a =
+        simplifyAffineExpr(rest - evaluate(rest, zeroEnclosing), numDims, 0);
+    AffineExpr q = zero;
+    for (auto [d, unused] : zeroEnclosing) {
+      SmallVector<std::pair<unsigned, int64_t>> unit = zeroEnclosing;
+      for (auto& [unitDim, value] : unit) value = unitDim == d ? 1 : 0;
+      auto c = dyn_cast<AffineConstantExpr>(evaluate(a, unit));
+      if (!c || c.getValue() % b.getValue() != 0) {
+        invalid = true;
+        return WalkResult::interrupt();
+      }
+      q = q + (c.getValue() / b.getValue()) * getAffineDimExpr(d, ctx);
+    }
+    if (simplifyAffineExpr(a - q * b.getValue(), numDims, 0) != zero) {
+      invalid = true;
+      return WalkResult::interrupt();
+    }
+    coefficient = b.getValue();
+    quotient = q;
+    return WalkResult::interrupt();
+  });
+  if (invalid || !quotient) return failure();
+
+  int64_t n = bounds->tripCount();
+  if ((std::abs(coefficient) * n) % numSlots != 0) return failure();
+  reindexedDims[dim] = simplifyAffineExpr(
+      bounds->lb + (getAffineDimExpr(dim, ctx) - *quotient) % n, numDims, 0);
+  reindexedBounds[dim] = ConstantLoopBounds{0, n, 1};
+  LDBG() << "reindexing kept loop: d" << dim << " -> " << reindexedDims[dim];
   return success();
 }
 

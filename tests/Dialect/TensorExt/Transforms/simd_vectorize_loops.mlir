@@ -340,6 +340,128 @@ func.func @secret_strided(%x: tensor<8xi16> {secret.secret}, %w: tensor<16xi16> 
 
 // -----
 
+// A matrix-vector product with a plaintext matrix. The offset j - i of %v[j]
+// from slot i depends on i, so the loop over j is reindexed to iterate over
+// t = (j - i) mod 4, which turns the extraction from %v into a rotation by t and
+// the gathered rows of %m into its diagonals. The weighted sum of rotations
+// then becomes a baby-step giant-step rotate_and_reduce with the diagonals as
+// plaintexts.
+// CHECK: func.func @matvec
+// CHECK-SAME: %[[m:[^:]*]]: tensor<4x4xf32>, %[[v:[^:]*]]: tensor<4xf32> {secret.secret}
+// CHECK: %[[diagonals:.*]] = affine.for %{{.*}} = 0 to 4 iter_args(%{{.*}}) -> (tensor<4x4xf32>)
+// CHECK:   affine.for %{{.*}} = 0 to 4 iter_args(%{{.*}}) -> (tensor<4x4xf32>)
+// CHECK:     tensor.extract
+// CHECK:     tensor.insert
+// CHECK: tensor.extract_slice %[[diagonals]][0, 0]
+// CHECK: tensor_ext.rotate %[[v]], %c1
+// CHECK-NOT: tensor_ext.rotate %[[v]]
+// CHECK-NOT: affine.for
+// CHECK: return
+func.func @matvec(%m: tensor<4x4xf32>, %v: tensor<4xf32> {secret.secret}, %init: tensor<4xf32>) -> tensor<4xf32> {
+  %cst = arith.constant 0.0 : f32
+  %0 = affine.for %i = 0 to 4 iter_args(%t = %init) -> tensor<4xf32> {
+    %1 = affine.for %j = 0 to 4 iter_args(%acc = %cst) -> f32 {
+      %a = tensor.extract %m[%i, %j] : tensor<4x4xf32>
+      %b = tensor.extract %v[%j] : tensor<4xf32>
+      %p = arith.mulf %a, %b : f32
+      %s = arith.addf %acc, %p : f32
+      affine.yield %s : f32
+    }
+    %u = tensor.insert %1 into %t[%i] : tensor<4xf32>
+    affine.yield %u : tensor<4xf32>
+  }
+  return %0 : tensor<4xf32>
+}
+
+// -----
+
+// %s1 is both yielded and added to %acc0, so %acc0 depends on the order of the
+// iterations over j, and the loop is not reindexed: it still reads %v[j].
+
+// CHECK: func.func @coupled_accumulators
+// CHECK-SAME: %[[v:[^:]*]]: tensor<4xf32> {secret.secret}
+// CHECK: affine.for
+// CHECK-NOT: tensor_ext.rotate
+// CHECK: tensor.extract %[[v]][
+// CHECK: return
+func.func @coupled_accumulators(%m: tensor<4x4xf32>, %v: tensor<4xf32> {secret.secret}, %init: tensor<4xf32>) -> tensor<4xf32> {
+  %cst = arith.constant 0.0 : f32
+  %0 = affine.for %i = 0 to 4 iter_args(%t = %init) -> tensor<4xf32> {
+    %1:2 = affine.for %j = 0 to 4 iter_args(%acc0 = %cst, %acc1 = %cst) -> (f32, f32) {
+      %a = tensor.extract %m[%i, %j] : tensor<4x4xf32>
+      %b = tensor.extract %v[%j] : tensor<4xf32>
+      %p = arith.mulf %a, %b : f32
+      %s1 = arith.addf %acc1, %p : f32
+      %s0 = arith.addf %acc0, %s1 : f32
+      affine.yield %s0, %s1 : f32, f32
+    }
+    %u = tensor.insert %1#0 into %t[%i] : tensor<4xf32>
+    affine.yield %u : tensor<4xf32>
+  }
+  return %0 : tensor<4xf32>
+}
+
+// -----
+
+// The offsets of %v[j] and %w[(j + 2i) mod 4] from slot i call for different
+// reindexings (j - i and j + i). After reindexing for %v, the offset of %w
+// still depends on both loops, so the nest is left unchanged.
+
+// CHECK: func.func @conflicting_reindexing
+// CHECK: affine.for
+// CHECK:   affine.for
+// CHECK:     tensor.extract
+// CHECK:     tensor.extract
+// CHECK:   tensor.insert
+// CHECK-NOT: tensor_ext.rotate
+// CHECK: return
+func.func @conflicting_reindexing(%v: tensor<4xf32> {secret.secret}, %w: tensor<4xf32> {secret.secret}, %init: tensor<4xf32>) -> tensor<4xf32> {
+  %cst = arith.constant 0.0 : f32
+  %0 = affine.for %i = 0 to 4 iter_args(%t = %init) -> tensor<4xf32> {
+    %1 = affine.for %j = 0 to 4 iter_args(%acc = %cst) -> f32 {
+      %k = affine.apply affine_map<(d0, d1) -> ((d1 + 2 * d0) mod 4)>(%i, %j)
+      %a = tensor.extract %v[%j] : tensor<4xf32>
+      %b = tensor.extract %w[%k] : tensor<4xf32>
+      %p = arith.mulf %a, %b : f32
+      %s = arith.addf %acc, %p : f32
+      affine.yield %s : f32
+    }
+    %u = tensor.insert %1 into %t[%i] : tensor<4xf32>
+    affine.yield %u : tensor<4xf32>
+  }
+  return %0 : tensor<4xf32>
+}
+
+// -----
+
+// Every slot receives the sum of all elements: reindexing the inner loop makes
+// it a sum of rotations of %x, i.e., a rotate_and_reduce.
+// CHECK: func.func @broadcast_sum
+// CHECK-SAME: %[[x:[^:]*]]: tensor<8xi16> {secret.secret}
+// CHECK-NOT: affine.for
+// CHECK: %[[r1:.*]] = tensor_ext.rotate %[[x]], %c1
+// CHECK: %[[s1:.*]] = arith.addi %[[x]], %[[r1]]
+// CHECK: %[[r2:.*]] = tensor_ext.rotate %[[s1]], %c2
+// CHECK: %[[s2:.*]] = arith.addi %[[s1]], %[[r2]]
+// CHECK: %[[r4:.*]] = tensor_ext.rotate %[[s2]], %c4
+// CHECK: %[[s4:.*]] = arith.addi %[[s2]], %[[r4]]
+// CHECK: return %[[s4]]
+func.func @broadcast_sum(%x: tensor<8xi16> {secret.secret}, %init: tensor<8xi16>) -> tensor<8xi16> {
+  %c0 = arith.constant 0 : i16
+  %0 = affine.for %i = 0 to 8 iter_args(%t = %init) -> tensor<8xi16> {
+    %1 = affine.for %j = 0 to 8 iter_args(%acc = %c0) -> i16 {
+      %a = tensor.extract %x[%j] : tensor<8xi16>
+      %s = arith.addi %acc, %a : i16
+      affine.yield %s : i16
+    }
+    %u = tensor.insert %1 into %t[%i] : tensor<8xi16>
+    affine.yield %u : tensor<8xi16>
+  }
+  return %0 : tensor<8xi16>
+}
+
+// -----
+
 // Each iteration reads a value written by the previous one, which is not a
 // map over the input.
 // CHECK: func.func @prefix_sum

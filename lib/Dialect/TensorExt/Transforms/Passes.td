@@ -62,7 +62,12 @@ def SimdVectorizeLoops : Pass<"simd-vectorize-loops"> {
   the first iteration. A kept loop becomes a loop over tensors, and is replaced
   by a `tensor_ext.rotate_and_reduce` when it sums rotations of a
   loop-invariant tensor by an affine function of its induction variable,
-  optionally weighted by plaintexts.
+  optionally weighted by plaintexts. If an extraction from a secret tensor
+  inside a kept loop over `j` has an offset `b * j + a(i) + c` that depends on
+  the vectorized induction variables `i` through a term divisible by `b`, the
+  loop is reindexed to iterate over `t = (j + a(i) / b) mod n` instead, which
+  makes the offset constant. For a matrix-vector product with a plaintext
+  matrix, this yields the diagonal (Halevi-Shoup) method.
 
   Finally, the result of a map nest is moved to the slots given by its
   insertion index, if it was computed with a different slot map. If the

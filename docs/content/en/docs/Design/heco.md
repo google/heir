@@ -80,8 +80,10 @@ multiplications, state-of-the-art approaches require advanced packing schemes
 that might map elements into the ciphertext vector in non-trivial ways (e.g.,
 diagonal-major and/or replicated). The SIMD vectorizer keeps input tensors in
 their row-major arrangement and only moves elements (with rotations and masks)
-to align them with the slots a loop nest computes in, so it does not search for
-such packings.
+to align them with the slots a loop nest computes in. The one exception is the
+reindexing of reduction loops described below, which yields the diagonal method
+for matrix-vector products with a plaintext matrix; it does not search for other
+packings.
 
 Note, that the SIMD batching optimization is different from, and significantly
 more complex than, the Straight Line Vectorizer (`-straight-line-vectorize`
@@ -143,7 +145,11 @@ the unrolled HECO formulation would emit for these iterations.
 Loops nested inside a vectorized nest that reduce into a scalar (e.g., the taps
 of a convolution kernel) remain loops over whole tensors, and are replaced by a
 `tensor_ext.rotate_and_reduce` when they sum rotations of a single tensor,
-optionally weighted by plaintexts.
+optionally weighted by plaintexts. When the offset of an extraction from a
+secret tensor inside such a loop depends on the slot, the loop may be reindexed
+so that it does not: for a matrix-vector product with a plaintext matrix,
+iterating over the diagonals of the matrix instead of its columns gives the
+diagonal (Halevi-Shoup) method.
 
 If no slot map derived from the insertion index works, the pass instead takes
 the index of an extraction as the slot map, which also vectorizes the reduction
