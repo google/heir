@@ -27,6 +27,7 @@
 #include "lib/Utils/Layout/Hoisting.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/ADT/APFloat.h"                 // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"       // from @llvm-project
@@ -1922,8 +1923,18 @@ LogicalResult LayoutPropagation::visitOperation(tensor::PadOp op) {
   bool isZeroPad = padValue && (matchPattern(padValue, m_AnyZeroFloat()) ||
                                 matchPattern(padValue, m_Zero()));
   if (!isZeroPad) {
-    return op->emitError()
-           << "layout propagation only supports zero-padding tensor.pad";
+    InFlightDiagnostic diag =
+        op->emitError()
+        << "layout propagation only supports zero-padding tensor.pad";
+    APFloat padFloat(0.0);
+    if (padValue && matchPattern(padValue, m_ConstantFloat(&padFloat)) &&
+        padFloat.isInfinity() && padFloat.isNegative()) {
+      diag.attachNote() << "linalg-canonicalizations replaces the -inf "
+                           "padding of a max pool with zero only when the "
+                           "pooled input is nonnegative (e.g., a ReLU) and "
+                           "every pooling window reads an input element";
+    }
+    return diag;
   }
 
   // Check if this pad is eligible to be folded forward into a conv op.

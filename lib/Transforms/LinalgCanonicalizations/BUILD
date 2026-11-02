@@ -29,6 +29,7 @@ cc_library(
     deps = [
         ":ConvPoolFusion",
         ":pass_inc_gen",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",

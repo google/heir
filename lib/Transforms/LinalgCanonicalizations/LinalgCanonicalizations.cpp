@@ -7,6 +7,7 @@
 
 #include "lib/Transforms/LinalgCanonicalizations/ConvPoolFusion.h"
 #include "lib/Utils/TensorUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallBitVector.h"      // from @llvm-project
@@ -301,6 +302,91 @@ struct FoldConstantLinalgTranspose
       originalIndex += originalIndices[dim] * remainingTransposedTensorSize;
     }
     return originalIndex;
+  }
+};
+
+// Whether every element of `value` is nonnegative: it is a ReLU, max(x, c) or
+// select(x > c, x, c') with c, c' >= 0, on tensors or in an elementwise
+// linalg.generic.
+static bool isNonNegative(Value value) {
+  if (auto generic = value.getDefiningOp<linalg::GenericOp>()) {
+    if (generic.getNumResults() != 1 || generic.getNumReductionLoops() != 0 ||
+        !llvm::all_of(generic.getIndexingMapsArray(),
+                      [](AffineMap map) { return map.isIdentity(); }))
+      return false;
+    value = generic.getBody()->getTerminator()->getOperand(0);
+  }
+  if (auto max = value.getDefiningOp<arith::MaximumFOp>())
+    return matchPattern(max.getLhs(), m_NonNegativeFloat()) ||
+           matchPattern(max.getRhs(), m_NonNegativeFloat());
+  auto select = value.getDefiningOp<arith::SelectOp>();
+  if (!select) return false;
+  auto cmp = select.getCondition().getDefiningOp<arith::CmpFOp>();
+  return cmp &&
+         llvm::is_contained(
+             {arith::CmpFPredicate::OGT, arith::CmpFPredicate::UGT,
+              arith::CmpFPredicate::OGE, arith::CmpFPredicate::UGE},
+             cmp.getPredicate()) &&
+         cmp.getLhs() == select.getTrueValue() &&
+         matchPattern(cmp.getRhs(), m_NonNegativeFloat()) &&
+         matchPattern(select.getFalseValue(), m_NonNegativeFloat());
+}
+
+// torch pads the input of a max pool with -inf. If the input is nonnegative
+// and every window holds an input element, padding with zero gives the same
+// maxima. The layout passes only support zero padding, which the masks of the
+// FHE kernels produce.
+struct ZeroPadNonNegativeMaxPoolInput : public OpRewritePattern<tensor::PadOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::PadOp pad,
+                                PatternRewriter& rewriter) const override {
+    APFloat padValue(0.0);
+    Value constant = pad.getConstantPaddingValue();
+    if (!constant || !matchPattern(constant, m_ConstantFloat(&padValue)) ||
+        !padValue.isNegative() || padValue.isZero() || !pad.getLow().empty() ||
+        !pad.getHigh().empty() || !isNonNegative(pad.getSource()))
+      return failure();
+    for (Operation* user : pad->getUsers()) {
+      auto pool = dyn_cast<linalg::PoolingNchwMaxOp>(user);
+      if (!pool || pool.getInputs()[0] != pad.getResult()) return failure();
+      auto window = cast<ShapedType>(pool.getInputs()[1].getType());
+      auto source = cast<ShapedType>(pad.getSource().getType());
+      auto output = cast<ShapedType>(pool.getResult(0).getType());
+      if (!source.hasStaticShape() || !output.hasStaticShape())
+        return failure();
+      auto strides = llvm::to_vector(pool.getStrides().getValues<int64_t>());
+      auto dilations =
+          llvm::to_vector(pool.getDilations().getValues<int64_t>());
+      for (int64_t dim = 0; dim < 4; ++dim) {
+        int64_t low = pad.getStaticLow()[dim];
+        int64_t high = pad.getStaticHigh()[dim];
+        if (ShapedType::isDynamic(low) || ShapedType::isDynamic(high))
+          return failure();
+        if (dim < 2) {
+          if (low != 0 || high != 0) return failure();
+          continue;
+        }
+        // The window of output o reads the padded input at
+        // o * stride + t * dilation for each window position t. At least one
+        // of these must land in the unpadded input.
+        int64_t windowSize = window.getDimSize(dim - 2);
+        for (int64_t o = 0; o < output.getDimSize(dim); ++o) {
+          bool readsInput =
+              llvm::any_of(llvm::seq<int64_t>(0, windowSize), [&](int64_t t) {
+                int64_t i = o * strides[dim - 2] + t * dilations[dim - 2] - low;
+                return 0 <= i && i < source.getDimSize(dim);
+              });
+          if (!readsInput) return failure();
+        }
+      }
+    }
+    rewriter.setInsertionPoint(pad);
+    Value zero = arith::ConstantOp::create(
+        rewriter, pad.getLoc(), rewriter.getFloatAttr(constant.getType(), 0.0));
+    Operation* yield = pad.getBody()->getTerminator();
+    rewriter.modifyOpInPlace(yield, [&] { yield->setOperand(0, zero); });
+    return success();
   }
 };
 
@@ -1372,7 +1458,7 @@ struct LinalgCanonicalizations
         FuseConv2DPooling, LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
         RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
-        UndilateConv2DNchwFchw>(context);
+        UndilateConv2DNchwFchw, ZeroPadNonNegativeMaxPoolInput>(context);
 
     mlir::linalg::populateDecomposeProjectedPermutationPatterns(patterns);
 
