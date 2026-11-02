@@ -60,7 +60,8 @@ def llvm_runner_test(
         main_c_src = None,
         log_file_name = None,
         log_file_visibility = None,
-        data = []):
+        data = [],
+        size = "medium"):
     """Define a lit test for the Plaintext Backend.
 
     Args:
@@ -75,6 +76,7 @@ def llvm_runner_test(
       log_file_name: The name of the log file.
       log_file_visibility: Visibility of the log file.
       data: Data deps to pass to heir_opt
+      size: Test size (default "medium").
     """
     default_deps = [
         "@heir//tests/llvm_runner:memrefCopy",
@@ -144,6 +146,8 @@ def llvm_runner_test(
         deps = test_deps,
         defines = defines,
         copts = ["-fPIC"],
+        data = data,
+        size = size,
     )
 
     # the following part is for exporting the log for other tests

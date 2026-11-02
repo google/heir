@@ -260,6 +260,28 @@ BackendPipelineBuilder toOpenFhePipelineBuilder();
 
 BackendPipelineBuilder toLattigoPipelineBuilder();
 
+struct CheddarGPUBackendOptions
+    : public PassPipelineOptions<CheddarGPUBackendOptions> {
+  PassOptions::Option<std::string> params{
+      *this, "params", llvm::cl::desc("Path to Cheddar parameter file (JSON)")};
+  PassOptions::Option<bool> fuseRelinRescale{
+      *this, "fuse-relin-rescale",
+      llvm::cl::desc("Whether to fuse relinearize + rescale"),
+      llvm::cl::init(true)};
+  PassOptions::Option<std::string> nttImpl{
+      *this, "ntt-impl",
+      llvm::cl::desc("NTT implementation variant (simple or fused)"),
+      llvm::cl::init("simple")};
+};
+
+using CheddarGPUPipelineBuilder =
+    std::function<void(OpPassManager&, const CheddarGPUBackendOptions&)>;
+
+void schemeToCheddarGPUPipeline(OpPassManager& pm,
+                                const CheddarGPUBackendOptions& options);
+
+CheddarGPUPipelineBuilder toCheddarGPUPipelineBuilder();
+
 // A subpipeline that preprocesses linalg ops to make them more suitable for
 // FHE.
 void linalgPreprocessingBuilder(OpPassManager& manager);

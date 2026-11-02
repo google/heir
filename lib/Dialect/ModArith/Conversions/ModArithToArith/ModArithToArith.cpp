@@ -634,6 +634,160 @@ struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
   }
 };
 
+APInt computeQInv(const APInt& q) {
+  unsigned width = q.getBitWidth();
+  APInt wideQ = q.zext(width + 1);
+  APInt modulo = APInt::getOneBitSet(width + 1, width);
+  APInt inv = multiplicativeInverse(wideQ, modulo);
+  return inv.trunc(width);
+}
+
+APInt computeR2(const APInt& q) {
+  unsigned width = q.getBitWidth();
+  unsigned wideWidth = 2 * width + 1;
+  APInt wideQ = q.zext(wideWidth);
+  APInt r = APInt::getOneBitSet(wideWidth, width).urem(wideQ);
+  APInt r2 = (r * r).urem(wideQ);
+  return r2.trunc(width);
+}
+
+TypedAttr getIntOrDenseAttr(MLIRContext* ctx, Type type, const APInt& val) {
+  if (auto st = dyn_cast<ShapedType>(type)) {
+    auto intType = IntegerType::get(ctx, val.getBitWidth());
+    auto containerType = st.cloneWith(st.getShape(), intType);
+    return DenseElementsAttr::get(containerType, val);
+  }
+  auto intType = IntegerType::get(ctx, val.getBitWidth());
+  return IntegerAttr::get(intType, val);
+}
+
+Value createConstant(ImplicitLocOpBuilder& b, Type type, const APInt& val) {
+  return arith::ConstantOp::create(
+      b, getIntOrDenseAttr(b.getContext(), type, val));
+}
+
+Value montReduceCore(ImplicitLocOpBuilder& b, Type type, Value lo, Value hi,
+                     const APInt& qVal, const APInt& qInvVal, bool lazy) {
+  Value qInv = createConstant(b, type, qInvVal);
+  Value m = arith::MulIOp::create(b, lo, qInv);
+  Value q = createConstant(b, type, qVal);
+  auto mulExt = arith::MulSIExtendedOp::create(b, m, q);
+  Value t = mulExt.getHigh();
+  Value r = arith::SubIOp::create(b, hi, t);
+  if (lazy) {
+    return r;
+  }
+  Value zero = createConstant(b, type, APInt::getZero(qVal.getBitWidth()));
+  Value isNeg = arith::CmpIOp::create(b, arith::CmpIPredicate::slt, r, zero);
+  Value rPlusQ = arith::AddIOp::create(b, r, q);
+  return arith::SelectOp::create(b, isNeg, rPlusQ, r);
+}
+
+struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
+  ConvertMontMul(mlir::MLIRContext* context)
+      : OpConversionPattern<MontMulOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MontMulOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+    auto modArithType =
+        cast<ModArithType>(getElementTypeOrSelf(op.getResult().getType()));
+    APInt q = modArithType.getModulus().getValue();
+    APInt qInv = computeQInv(q);
+
+    auto mulExt =
+        arith::MulSIExtendedOp::create(b, adaptor.getLhs(), adaptor.getRhs());
+    Value res = montReduceCore(b, resultType, mulExt.getLow(), mulExt.getHigh(),
+                               q, qInv, op.getLazy());
+    rewriter.replaceOp(op, res);
+    return success();
+  }
+};
+
+struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
+  ConvertMontReduce(mlir::MLIRContext* context)
+      : OpConversionPattern<MontReduceOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MontReduceOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+    auto modArithType =
+        cast<ModArithType>(getElementTypeOrSelf(op.getResult().getType()));
+    APInt q = modArithType.getModulus().getValue();
+    unsigned w = q.getBitWidth();
+    APInt qInv = computeQInv(q);
+
+    Value wide = adaptor.getInput();
+    Value lo = arith::TruncIOp::create(b, resultType, wide);
+    Value shiftVal = createConstant(b, wide.getType(), APInt(2 * w, w));
+    Value shifted = arith::ShRSIOp::create(b, wide, shiftVal);
+    Value hi = arith::TruncIOp::create(b, resultType, shifted);
+
+    Value res = montReduceCore(b, resultType, lo, hi, q, qInv, op.getLazy());
+    rewriter.replaceOp(op, res);
+    return success();
+  }
+};
+
+struct ConvertToMont : public OpConversionPattern<ToMontOp> {
+  ConvertToMont(mlir::MLIRContext* context)
+      : OpConversionPattern<ToMontOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ToMontOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+    auto modArithType =
+        cast<ModArithType>(getElementTypeOrSelf(op.getResult().getType()));
+    APInt q = modArithType.getModulus().getValue();
+    APInt qInv = computeQInv(q);
+    APInt r2 = computeR2(q);
+
+    Value r2Const = createConstant(b, resultType, r2);
+    auto mulExt =
+        arith::MulSIExtendedOp::create(b, adaptor.getInput(), r2Const);
+    Value res = montReduceCore(b, resultType, mulExt.getLow(), mulExt.getHigh(),
+                               q, qInv, /*lazy=*/false);
+    rewriter.replaceOp(op, res);
+    return success();
+  }
+};
+
+struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
+  ConvertFromMont(mlir::MLIRContext* context)
+      : OpConversionPattern<FromMontOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      FromMontOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+    auto modArithType =
+        cast<ModArithType>(getElementTypeOrSelf(op.getResult().getType()));
+    APInt q = modArithType.getModulus().getValue();
+    APInt qInv = computeQInv(q);
+
+    Value zero = createConstant(b, resultType, APInt::getZero(q.getBitWidth()));
+    Value res = montReduceCore(b, resultType, adaptor.getInput(), zero, q, qInv,
+                               /*lazy=*/false);
+    rewriter.replaceOp(op, res);
+    return success();
+  }
+};
+
 struct ModArithToArith : impl::ModArithToArithBase<ModArithToArith> {
   using ModArithToArithBase::ModArithToArithBase;
 
@@ -656,7 +810,8 @@ void ModArithToArith::runOnOperation() {
   patterns.add<
       ConvertEncapsulate, ConvertLift, ConvertReduce, ConvertAdd, ConvertSub,
       ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
-      ConvertConstant, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
+      ConvertConstant, ConvertMontMul, ConvertMontReduce, ConvertToMont,
+      ConvertFromMont, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
       ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
       ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
       typeConverter, context);

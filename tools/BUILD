@@ -52,6 +52,13 @@ cc_binary(
         "@heir//lib/Dialect/Cheddar/Transforms:BufferizableOpInterfaceImpl",
         "@heir//lib/Dialect/Cheddar/Transforms:CheddarBufferize",
         "@heir//lib/Dialect/Cheddar/Transforms:FuseOps",
+        "@heir//lib/Dialect/CheddarGPU/Conversions/CheddarGPUToGPU",
+        "@heir//lib/Dialect/CheddarGPU/Conversions/CheddarGPUToSCF",
+        "@heir//lib/Dialect/CheddarGPU/IR:Dialect",
+        "@heir//lib/Dialect/CheddarGPU/Transforms/ExpandBootstrap",
+        "@heir//lib/Dialect/CheddarGPU/Transforms/ExpandHoist",
+        "@heir//lib/Dialect/CheddarGPU/Transforms/ExpandKeySwitch",
+        "@heir//lib/Dialect/CheddarGPU/Transforms/ExpandModSwitch",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/Debug/Transforms",
@@ -61,6 +68,7 @@ cc_binary(
         "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Kernel/Transforms",
         "@heir//lib/Dialect/KeyMgmt/IR:Dialect",
+        "@heir//lib/Dialect/LWE/Conversions/LWEToCheddarGPU",
         "@heir//lib/Dialect/LWE/Conversions/LWEToJaxiteWord",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
@@ -200,6 +208,8 @@ cc_binary(
         "@llvm-project//mlir:FuncExtensions",
         "@llvm-project//mlir:FuncToEmitC",
         "@llvm-project//mlir:FuncToLLVM",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:GPUTransforms",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:IndexToLLVM",
         "@llvm-project//mlir:InliningUtils",
@@ -363,5 +373,11 @@ bzl_library(
 bzl_library(
     name = "mlir_translate_bzl",
     srcs = ["mlir-translate.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "mlir_opt_gpu_bzl",
+    srcs = ["mlir-opt-gpu.bzl"],
     visibility = ["//visibility:public"],
 )

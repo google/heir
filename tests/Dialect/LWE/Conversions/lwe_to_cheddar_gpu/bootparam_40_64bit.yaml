@@ -1,0 +1,48 @@
+# YAML twin of third_party/cheddar/parameters/bootparam_40_64bit.json.
+# Derived directly from Cheddar's 64-bit bootstrapping parameter file:
+# - logN = 16: mapped from log_degree = 16 (ring dimension N = 65536, slot count = 32768)
+# - logDefaultScale = 40: mapped from log_default_scale = 40 (nominal 40-bit scale)
+# - Q: 26 main primes (main_primes in JSON), exactly 1 prime per level across 26 levels:
+#      q0 ≈ 2^50, q1..q12 ≈ 2^40, q13..q25 ≈ 2^55
+# - P: 7 auxiliary primes (auxiliary_primes in JSON), each ≈ 2^56
+# - encryptionType = sk: Cheddar uses secret-key encryption for its context
+# - encryptionTechnique = standard: standard CKKS encryption
+logN: 16
+Q:
+  - 1125899908022273
+  - 1099515691009
+  - 1099523555329
+  - 1099525128193
+  - 1099526176769
+  - 1099529060353
+  - 1099535220737
+  - 1099536138241
+  - 1099537580033
+  - 1099538104321
+  - 1099540725761
+  - 1099540856833
+  - 1099543085057
+  - 36028797019488257
+  - 36028797023420417
+  - 36028797024206849
+  - 36028797025124353
+  - 36028797032202241
+  - 36028797033644033
+  - 36028797037576193
+  - 36028797048324097
+  - 36028797048586241
+  - 36028797049896961
+  - 36028797051863041
+  - 36028797053698049
+  - 36028797054222337
+P:
+  - 72057594038321153
+  - 72057594040680449
+  - 72057594042646529
+  - 72057594047889409
+  - 72057594057195521
+  - 72057594058375169
+  - 72057594058899457
+logDefaultScale: 40
+encryptionType: sk
+encryptionTechnique: standard
