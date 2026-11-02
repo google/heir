@@ -5,9 +5,11 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/RNS/IR/RNSAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
@@ -261,6 +263,40 @@ struct ConvertRNSExtractSlice
 
     rewriter.replaceOpWithNewOp<tensor::ExtractSliceOp>(
         op, resultType, adaptor.getInput(), offsets, sizes, strides);
+    return success();
+  }
+};
+
+struct ConvertRNSConstant : public OpConversionPattern<rns::ConstantOp> {
+  ConvertRNSConstant(mlir::MLIRContext* context)
+      : OpConversionPattern<rns::ConstantOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      rns::ConstantOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto resultType = dyn_cast_or_null<RankedTensorType>(
+        getTypeConverter()->convertType(op.getOutput().getType()));
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "result type conversion failed");
+    }
+
+    auto rnsAttr = cast<rns::RNSAttr>(op.getValue());
+    SmallVector<APInt> limbs;
+    limbs.reserve(rnsAttr.getValues().size());
+    for (Attribute value : rnsAttr.getValues()) {
+      auto limb = dyn_cast<ModArithAttr>(value);
+      if (!limb) {
+        return rewriter.notifyMatchFailure(
+            op, "expected all RNS limb values to be mod_arith attributes");
+      }
+      limbs.push_back(limb.getValue().getValue().zextOrTrunc(
+          resultType.getElementTypeBitWidth()));
+    }
+
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+        op, DenseElementsAttr::get(resultType, limbs));
     return success();
   }
 };
@@ -633,19 +669,19 @@ void ModArithToArith::runOnOperation() {
 
   ConversionTarget target(*context);
   target.addIllegalDialect<ModArithDialect>();
-  target
-      .addIllegalOp<rns::ExtractResidueOp, rns::ExtractSliceOp, rns::PackOp>();
+  target.addIllegalOp<rns::ConstantOp, rns::ExtractResidueOp,
+                      rns::ExtractSliceOp, rns::PackOp>();
   target.addLegalDialect<arith::ArithDialect>();
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<
-      DropOp<EncapsulateOp>, ConvertLift, ConvertReduce, ConvertAdd, ConvertSub,
-      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
-      ConvertConstant, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
-      ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-      typeConverter, context);
+  patterns.add<ConvertAdd, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+               ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp>,
+               ConvertBarrettReduce, ConvertConstant, ConvertLift, ConvertMac,
+               ConvertModSwitch, ConvertMul, ConvertRNSConstant,
+               ConvertRNSExtractResidue, ConvertRNSExtractSlice, ConvertRNSPack,
+               ConvertReduce, ConvertSub, DropOp<EncapsulateOp>>(typeConverter,
+                                                                 context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
