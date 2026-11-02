@@ -185,6 +185,23 @@ cc_test(
 )
 
 cc_library(
+    name = "GenericKernel",
+    srcs = ["GenericKernel.cpp"],
+    hdrs = ["GenericKernel.h"],
+    deps = [
+        ":IslConversion",
+        ":Utils",
+        "@isl",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "IslConversion",
     srcs = ["IslConversion.cpp"],
     hdrs = ["IslConversion.h"],

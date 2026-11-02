@@ -25,6 +25,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/GenericKernelImplementation.h"
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
@@ -40,15 +41,20 @@
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Convolution.h"
+#include "lib/Utils/Layout/GenericKernel.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/TensorUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/Hashing.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SetVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
@@ -76,8 +82,9 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -100,6 +107,7 @@ using ::mlir::heir::kernel::implementSquatDiagonalFold;
 using ::mlir::heir::kernel::IRMaterializingVisitor;
 using ::mlir::heir::kernel::SSAValue;
 using presburger::IntegerRelation;
+using presburger::PresburgerSpace;
 using presburger::VarKind;
 using tensor_ext::LayoutAttr;
 
@@ -348,24 +356,6 @@ struct ConvertSecretGeneric : public ConvertAnyContextAware<secret::GenericOp> {
   };
 };
 
-// Convert an op generically, marking it as materialized. Lowest priority
-// because it is only meant to handle ops that don't have special
-// materialization rules.
-struct ConvertAnyAddingMaterializedAttr : public ConvertAnyContextAware<> {
-  ConvertAnyAddingMaterializedAttr(const ContextAwareTypeConverter& converter,
-                                   MLIRContext* context)
-      : ConvertAnyContextAware(converter, context, /*benefit=*/0) {
-    setDebugName("ConvertAnyAddingMaterializedAttr");
-  }
-
-  LogicalResult finalizeOpModification(
-      Operation* op,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
-    rewriter.modifyOpInPlace(op, [&] { setMaterializedAttr(op); });
-    return success();
-  };
-};
-
 class ConvertAssignLayout
     : public ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp> {
  public:
@@ -546,6 +536,45 @@ class ConvertAssignLayout
   mutable llvm::DenseMap<FunctionKey, func::FuncOp> functionCache;
 };
 
+// Remaps a ciphertext-semantic value from one layout to another. The result
+// has `resultType`, which may hold a different number of ciphertexts than the
+// input.
+Value remapToLayout(ImplicitLocOpBuilder& b, Value input, LayoutAttr fromLayout,
+                    LayoutAttr toLayout, RankedTensorType resultType) {
+  std::shared_ptr<IntegerRelation> composedLayout =
+      fromLayout.getIntegerRelation().clone();
+  composedLayout->inverse();
+  composedLayout->compose(toLayout.getIntegerRelation());
+  LayoutAttr newLayoutAttr =
+      LayoutAttr::getFromIntegerRelation(b.getContext(), *composedLayout);
+
+  // A remap keeps the shape of its input, so an input with fewer ciphertexts
+  // than the result is first extended by ciphertexts the remap never reads.
+  auto inputType = cast<RankedTensorType>(input.getType());
+  int64_t numCts = resultType.getDimSize(0);
+  if (inputType.getDimSize(0) < numCts) {
+    auto extendedType = RankedTensorType::get({numCts, inputType.getDimSize(1)},
+                                              inputType.getElementType());
+    Value empty = tensor::EmptyOp::create(b, extendedType.getShape(),
+                                          extendedType.getElementType());
+    SmallVector<OpFoldResult> offsets(2, b.getIndexAttr(0));
+    SmallVector<OpFoldResult> sizes = {b.getIndexAttr(inputType.getDimSize(0)),
+                                       b.getIndexAttr(inputType.getDimSize(1))};
+    SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
+    auto extended =
+        tensor::InsertSliceOp::create(b, input, empty, offsets, sizes, strides);
+    setMaterializedAttr(extended);
+    input = extended;
+  }
+  auto remapAndExtract =
+      remapAndExtractResult(b, input, newLayoutAttr, resultType);
+
+  setMaterializedAttr(remapAndExtract);
+  setAttributeAssociatedWith(remapAndExtract->getResults()[0], kLayoutAttrName,
+                             toLayout);
+  return remapAndExtract->getResults()[0];
+}
+
 class ConvertConvertLayout
     : public ContextAwareOpConversionPattern<tensor_ext::ConvertLayoutOp> {
  public:
@@ -570,43 +599,12 @@ class ConvertConvertLayout
     // This is persisted as an operation rather than lowered eagerly to a shift
     // network so as to allow VosVosErkinShiftNetworks to cache its work across
     // multiple instances of the same conversion.
-    std::shared_ptr<IntegerRelation> composedLayout =
-        fromLayout.getIntegerRelation().clone();
-    composedLayout->inverse();
-    composedLayout->compose(toLayout.getIntegerRelation());
-
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    LayoutAttr newLayoutAttr =
-        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout);
     auto resultCiphertextSemanticType = cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResult().getType(), toLayout));
-    // A remap keeps the shape of its input, so an input with fewer ciphertexts
-    // than the result is first extended by ciphertexts the remap never reads.
-    Value input = adaptor.getValue();
-    auto inputType = cast<RankedTensorType>(input.getType());
-    int64_t numCts = resultCiphertextSemanticType.getDimSize(0);
-    if (inputType.getDimSize(0) < numCts) {
-      auto extendedType = RankedTensorType::get(
-          {numCts, inputType.getDimSize(1)}, inputType.getElementType());
-      Value empty = tensor::EmptyOp::create(b, extendedType.getShape(),
-                                            extendedType.getElementType());
-      SmallVector<OpFoldResult> offsets(2, b.getIndexAttr(0));
-      SmallVector<OpFoldResult> sizes = {
-          b.getIndexAttr(inputType.getDimSize(0)),
-          b.getIndexAttr(inputType.getDimSize(1))};
-      SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
-      auto extended = tensor::InsertSliceOp::create(b, input, empty, offsets,
-                                                    sizes, strides);
-      setMaterializedAttr(extended);
-      input = extended;
-    }
-    auto remapAndExtract = remapAndExtractResult(b, input, newLayoutAttr,
-                                                 resultCiphertextSemanticType);
-
-    setMaterializedAttr(remapAndExtract);
-    setAttributeAssociatedWith(remapAndExtract->getResults()[0],
-                               kLayoutAttrName, toLayout);
-    rewriter.replaceOp(op, remapAndExtract->getResults()[0]);
+    rewriter.replaceOp(
+        op, remapToLayout(b, adaptor.getValue(), fromLayout, toLayout,
+                          resultCiphertextSemanticType));
     return success();
   };
 };
@@ -774,28 +772,28 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
     // there is no kernel.
     Block* body = op.getBlock();
     if (body->getOperations().size() != 2) {
-      return op.emitError(
-          "linalg.reduce only supported with a single reduction operation");
+      return rewriter.notifyMatchFailure(
+          op, "linalg.reduce only supported with a single reduction operation");
     }
 
     // TODO(#1543): support multi-dimension reductions
     if (op.getDimensions().size() != 1) {
-      return op.emitError(
-          "linalg.reduce only supported with a single reduction dimension");
+      return rewriter.notifyMatchFailure(
+          op, "linalg.reduce only supported with a single reduction dimension");
     }
 
     if (!op.isSingleInputOutput()) {
-      return op.emitError(
-          "linalg.reduce only supported with a single reduction dimension");
+      return rewriter.notifyMatchFailure(
+          op, "linalg.reduce only supported with a single reduction dimension");
     }
 
     Operation* innerOp = &body->getOperations().front();
     if (!isa<arith::AddFOp, arith::MulFOp, arith::AddIOp, arith::MulIOp>(
             innerOp)) {
-      return op.emitError()
-             << "linalg.reduce only supported with a single addition or "
-                "multiplication operation, but found: "
-             << innerOp->getName();
+      return rewriter.notifyMatchFailure(
+          op,
+          "linalg.reduce only supported with a single addition or "
+          "multiplication operation");
     }
 
     Value input = adaptor.getInputs()[0];
@@ -804,10 +802,11 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
     if (!inputLayout)
       return rewriter.notifyMatchFailure(
           op, "missing new layout attribute for input");
-    // Rotations act within one ciphertext.
+    // Rotations act within one ciphertext; the generic kernel handles the
+    // rest.
     if (cast<RankedTensorType>(input.getType()).getDimSize(0) != 1)
-      return op.emitError(
-          "linalg.reduce only supported with an input in one ciphertext");
+      return rewriter.notifyMatchFailure(
+          op, "linalg.reduce only supported with an input in one ciphertext");
 
     // Based on ImplementRotateAndReduce
     rotateAndReduceKernel(op, adaptor, rewriter, innerOp);
@@ -2430,17 +2429,6 @@ class ConvertTensorInsertSlice
     IntegerRelation scalarRel = scalarLayout.getIntegerRelation();
     IntegerRelation destRel = destLayout.getIntegerRelation();
 
-    // Initial support for this kernel requires that the scalar source slice
-    // changes layout to match the destination tensor layout at the subspace
-    // defined by the slicing.
-    if (!scalarRel.getRangeSet().isSubsetOf(destRel.getRangeSet())) {
-      return op.emitError()
-             << "tensor.insert requires slice layout to be a subset of the "
-                "dest layout, but "
-                "got slice layout "
-             << scalarLayout << " and tensor layout " << destLayout << "\n";
-    }
-
     SmallVector<int64_t> staticStrides =
         SmallVector<int64_t>(op.getStaticStrides());
     if (!llvm::all_of(staticStrides, [](int64_t s) { return s == 1; })) {
@@ -2485,9 +2473,15 @@ class ConvertTensorInsertSlice
       LLVM_DEBUG(llvm::dbgs()
                  << "converting insert_slice source from " << scalarLayout
                  << " to " << newScalarLayout << "\n");
-      convertedSource = tensor_ext::ConvertLayoutOp::create(
-          b, op.getLoc(), adaptor.getSource(), scalarLayout, newScalarLayout);
+      convertedSource =
+          remapToLayout(b, adaptor.getSource(), scalarLayout, newScalarLayout,
+                        cast<RankedTensorType>(getTypeConverter()->convertType(
+                            op.getSourceType(), newScalarLayout)));
     }
+    // Ciphertext i of the converted slice belongs in destination ciphertext
+    // ctLowerBound + i.
+    int64_t numSliceCts =
+        cast<RankedTensorType>(convertedSource.getType()).getDimSize(0);
 
     // For each ciphertext in the destination, mask the points originating from
     // the slice with ones and the remaining points from the destination with
@@ -2510,6 +2504,8 @@ class ConvertTensorInsertSlice
                                 ciphertextSemanticType.getElementType());
     auto numCt = ciphertextSemanticType.getDimSize(0);
     auto slots = ciphertextSemanticType.getDimSize(1);
+    auto rowType = RankedTensorType::get(
+        {1, slots}, ciphertextSemanticType.getElementType());
     for (auto ct = 0; ct < numCt; ++ct) {
       Value scalarMask = results.first[ct];
       Value destMask = results.second[ct];
@@ -2524,10 +2520,25 @@ class ConvertTensorInsertSlice
       sizes.push_back(b.getIndexAttr(slots));
       SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
       Operation* extractedDest = tensor::ExtractSliceOp::create(
-          b, op.getLoc(), cast<RankedTensorType>(convertedSource.getType()),
-          adaptor.getDest(), ctOffsets, sizes, strides);
+          b, op.getLoc(), rowType, adaptor.getDest(), ctOffsets, sizes,
+          strides);
+      // The slice reaches no slot of this ciphertext.
+      int64_t sliceCt = ct - ctLowerBound.value();
+      if (sliceCt < 0 || sliceCt >= numSliceCts) {
+        Operation* insertOp = tensor::InsertSliceOp::create(
+            b, extractedDest->getResult(0), result, ctOffsets, sizes, strides);
+        setMaterializedAttr({extractedDest, insertOp});
+        result = insertOp->getResult(0);
+        continue;
+      }
+      SmallVector<OpFoldResult> sliceOffsets = {b.getIndexAttr(sliceCt),
+                                                b.getIndexAttr(0)};
+      Operation* extractedSlice = tensor::ExtractSliceOp::create(
+          b, op.getLoc(), rowType, convertedSource, sliceOffsets, sizes,
+          strides);
       Operation* scalarMul = makeAppropriatelyTypedMulOp(
-          b, op.getLoc(), scalarMask, convertedSource, {getArithFMF(b)});
+          b, op.getLoc(), scalarMask, extractedSlice->getResult(0),
+          {getArithFMF(b)});
       Operation* destMul = makeAppropriatelyTypedMulOp(
           b, op.getLoc(), destMask, extractedDest->getResult(0),
           {getArithFMF(b)});
@@ -2538,8 +2549,8 @@ class ConvertTensorInsertSlice
       // Insert the final result into the ciphertext at position ct.
       Operation* insertOp = tensor::InsertSliceOp::create(
           b, finalAdd->getResult(0), result, ctOffsets, sizes, strides);
-      setMaterializedAttr(
-          {extractedDest, scalarMul, destMul, finalAdd, insertOp});
+      setMaterializedAttr({extractedDest, extractedSlice, scalarMul, destMul,
+                           finalAdd, insertOp});
       result = insertOp->getResult(0);
     }
 
@@ -2979,15 +2990,8 @@ class ConvertTensorCollapseShape
   LogicalResult matchAndRewrite(
       tensor::CollapseShapeOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    // if the layouts are equal (modulo the rank reduction) then this can be a
-    // no-op. check if the layouts are equal after collapsing the dimensions.
-    // then if the input and output types are the same, just replace with input.
-    SliceVerificationResult res =
-        isRankReducedType(op.getSrcType(), op.getResultType());
-    if (res != SliceVerificationResult::Success)
-      return rewriter.notifyMatchFailure(
-          op, "Only rank-reduced types are supported for CollapseShapeOp");
-
+    // If the result layout keeps every element in its slot, this is a no-op on
+    // the ciphertexts.
     auto srcType = adaptor.getSrc().getType();
     FailureOr<Attribute> tensorLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSrc());
@@ -3049,15 +3053,8 @@ class ConvertTensorExpandShape
   LogicalResult matchAndRewrite(
       tensor::ExpandShapeOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    // if the layouts are equal (modulo the rank reduction) then this can be a
-    // no-op. check if the layouts are equal after collapsing the dimensions.
-    // then if the input and output types are the same, just replace with input.
-    SliceVerificationResult res =
-        isRankReducedType(op.getResultType(), op.getSrcType());
-    if (res != SliceVerificationResult::Success)
-      return rewriter.notifyMatchFailure(
-          op, "Only rank-reduced types are supported for CollapseShapeOp");
-
+    // If the result layout keeps every element in its slot, this is a no-op on
+    // the ciphertexts.
     auto srcType = adaptor.getSrc().getType();
     FailureOr<Attribute> sourceLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSrc());
@@ -3554,6 +3551,546 @@ struct ConvertLinalgBatchMatmul
   }
 };
 
+// Lowers a structured linalg op (a linalg.generic, or a named op whose
+// dedicated kernel does not apply) with the generic kernel (see
+// lib/Kernel/GenericKernelImplementation.h): the body is evaluated once per
+// group on rotated ciphertexts and gathered cleartexts, masked to the slots
+// the group writes, and the groups are combined.
+//
+// The body is straight-line elementwise ops over the block arguments,
+// constants, replicated scalars and linalg.index values. With reduction loops
+// it must be `yield combine(out, g(inputs))`, combine an addition, a
+// multiplication or an idempotent op (max, min, and, or).
+class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
+ public:
+  // Benefit 0, below the dedicated kernels of named ops.
+  ConvertLinalgStructuredOp(const ContextAwareTypeConverter& typeConverter,
+                            MLIRContext* context)
+      : ContextAwareConversionPattern(typeConverter,
+                                      Pattern::MatchAnyOpTypeTag(),
+                                      /*benefit=*/0, context) {}
+  using NodeTy = kernel::ArithmeticDagNode<SSAValue>;
+  using NodePtr = std::shared_ptr<NodeTy>;
+
+  struct BodyInfo {
+    GenericReductionKind kind = GenericReductionKind::None;
+    // For reductions, the op combining the out argument; the kernel builds the
+    // combination itself.
+    Operation* combineOp = nullptr;
+    // The value each group computes.
+    Value computed;
+    // The body ops `computed` depends on.
+    DenseSet<Operation*> live;
+  };
+
+  FailureOr<BodyInfo> analyzeBody(linalg::LinalgOp op) const {
+    Block& body = *op.getBlock();
+    BodyInfo info;
+    info.computed = cast<linalg::YieldOp>(body.getTerminator()).getValues()[0];
+    if (op.getNumReductionLoops() == 0) return validateLive(op, info);
+
+    BlockArgument outArg = op.getRegionOutputArgs()[0];
+    Operation* combineOp = info.computed.getDefiningOp();
+    bool idempotent =
+        isa_and_present<arith::MaximumFOp, arith::MinimumFOp, arith::MaxNumFOp,
+                        arith::MinNumFOp, arith::MaxSIOp, arith::MinSIOp,
+                        arith::MaxUIOp, arith::MinUIOp, arith::AndIOp,
+                        arith::OrIOp>(combineOp);
+    if (!combineOp ||
+        (!idempotent &&
+         !isa<arith::AddFOp, arith::AddIOp, arith::MulFOp, arith::MulIOp>(
+             combineOp)) ||
+        !llvm::is_contained(combineOp->getOperands(), outArg) ||
+        !outArg.hasOneUse()) {
+      return op->emitError()
+             << "a reduction must combine the out argument with a value "
+                "computed from the inputs by an addition, a multiplication, "
+                "or an idempotent op (max, min, and, or)";
+    }
+    info.combineOp = combineOp;
+    info.computed =
+        combineOp->getOperand(combineOp->getOperand(0) == outArg ? 1 : 0);
+    info.kind = idempotent ? GenericReductionKind::Idempotent
+                : isa<arith::AddFOp, arith::AddIOp>(combineOp)
+                    ? GenericReductionKind::Add
+                    : GenericReductionKind::Mul;
+    return validateLive(op, info);
+  }
+
+  // Marks the body ops `info.computed` depends on and checks that the kernel
+  // supports them. The other ops are dropped, so they must have no effects.
+  FailureOr<BodyInfo> validateLive(linalg::LinalgOp op, BodyInfo info) const {
+    Block& body = *op.getBlock();
+    SmallVector<Value> worklist = {info.computed};
+    while (!worklist.empty()) {
+      Operation* def = worklist.pop_back_val().getDefiningOp();
+      if (!def || def->getBlock() != &body || !info.live.insert(def).second)
+        continue;
+      llvm::append_range(worklist, def->getOperands());
+    }
+    for (Operation& bodyOp : body.without_terminator()) {
+      if (!info.live.contains(&bodyOp)) {
+        if (&bodyOp != info.combineOp && !isMemoryEffectFree(&bodyOp)) {
+          return op->emitError() << "the generic FHE kernel cannot drop "
+                                 << bodyOp.getName() << ", which has effects";
+        }
+        continue;
+      }
+      if (isa<arith::ConstantOp, linalg::IndexOp>(bodyOp)) continue;
+      if (!OpTrait::hasElementwiseMappableTraits(&bodyOp) ||
+          bodyOp.getNumResults() != 1) {
+        return op->emitError() << "the generic FHE kernel requires a body of "
+                                  "single-result elementwise-mappable ops, but "
+                                  "found "
+                               << bodyOp.getName();
+      }
+      for (Value operand : bodyOp.getOperands()) {
+        if (operand.getParentBlock() != &body &&
+            !isa<FloatType, IntegerType, IndexType>(operand.getType())) {
+          return op->emitError() << "the generic FHE kernel requires captured "
+                                    "values to be scalars, but found "
+                                 << operand.getType();
+        }
+      }
+    }
+    return info;
+  }
+
+  // The value packed by the init, looking through assign_layout.
+  static Value initSource(Value init) {
+    while (auto assign = init.getDefiningOp<tensor_ext::AssignLayoutOp>()) {
+      init = assign.getValue();
+    }
+    return init;
+  }
+
+  // Whether `value` is the identity of the idempotent `combineOp`.
+  static bool isIdentityOf(Operation* combineOp, Value value) {
+    APInt i;
+    bool isInt = matchPattern(value, m_ConstantInt(&i));
+    return TypeSwitch<Operation*, bool>(combineOp)
+        .Case<arith::MaximumFOp, arith::MaxNumFOp>(
+            [&](auto) { return matchPattern(value, m_NegInfFloat()); })
+        .Case<arith::MinimumFOp, arith::MinNumFOp>(
+            [&](auto) { return matchPattern(value, m_PosInfFloat()); })
+        .Case<arith::MaxSIOp>(
+            [&](auto) { return isInt && i.isMinSignedValue(); })
+        .Case<arith::MinSIOp>(
+            [&](auto) { return isInt && i.isMaxSignedValue(); })
+        .Case<arith::MaxUIOp, arith::OrIOp>(
+            [&](auto) { return isInt && i.isZero(); })
+        .Case<arith::MinUIOp, arith::AndIOp>(
+            [&](auto) { return isInt && i.isAllOnes(); })
+        .Default([](Operation*) { return false; });
+  }
+
+  static kernel::GenericInitKind getInitKind(Value init,
+                                             GenericReductionKind kind,
+                                             Operation* combineOp) {
+    init = initSource(init);
+    if (init.getDefiningOp<tensor::EmptyOp>())
+      return kernel::GenericInitKind::Empty;
+    if (auto fill = init.getDefiningOp<linalg::FillOp>()) {
+      init = fill.getInputs()[0];
+    }
+    bool neutral = false;
+    if (kind == GenericReductionKind::Idempotent) {
+      neutral = isIdentityOf(combineOp, init);
+    } else if (kind == GenericReductionKind::Mul) {
+      neutral = matchPattern(init, m_One()) || matchPattern(init, m_OneFloat());
+    } else {
+      neutral =
+          matchPattern(init, m_Zero()) || matchPattern(init, m_AnyZeroFloat());
+    }
+    return neutral ? kernel::GenericInitKind::Neutral
+                   : kernel::GenericInitKind::Other;
+  }
+
+  // Layout propagation can record a layout as a list of layouts to compose.
+  static LayoutAttr composedLayout(Attribute layout, MLIRContext* context) {
+    if (auto layouts = dyn_cast_or_null<ArrayAttr>(layout))
+      return LayoutAttr::composeLayouts(layouts, context);
+    return dyn_cast_or_null<LayoutAttr>(layout);
+  }
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    FailureOr<Attribute> layout = getTypeConverter()->getContextualAttr(value);
+    return succeeded(layout) ? composedLayout(*layout, value.getContext())
+                             : nullptr;
+  }
+
+  // The cleartext an input reads, or null for a secret input (which has a
+  // layout): the value under an assign_layout, or the operand itself.
+  Value cleartextSource(Value input, Value adapted) const {
+    if (auto assign = input.getDefiningOp<tensor_ext::AssignLayoutOp>()) {
+      return assign.getValue();
+    }
+    return getLayoutAttr(adapted) ? Value() : adapted;
+  }
+
+  // Element types the kernel can build masks of.
+  static bool isSupportedElementType(Type type) {
+    return isa<IntegerType>(type) || type.isF16() || type.isF32() ||
+           type.isF64();
+  }
+
+  // DAG nodes for the scalars the body does not compute from its arguments:
+  // constants and cleartexts captured from the enclosing region are gathered
+  // into every slot; a captured secret scalar must already be replicated.
+  FailureOr<DenseMap<Value, NodePtr>> prepareScalars(
+      linalg::LinalgOp op, const BodyInfo& info, int64_t numSlots,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    Block& body = *op.getBlock();
+    SetVector<Value> scalars;
+    for (Operation& bodyOp : body.without_terminator()) {
+      if (!info.live.contains(&bodyOp)) continue;
+      if (isa<arith::ConstantOp>(bodyOp)) {
+        scalars.insert(bodyOp.getResult(0));
+        continue;
+      }
+      for (Value operand : bodyOp.getOperands()) {
+        if (operand.getParentBlock() != &body) scalars.insert(operand);
+      }
+    }
+    Value computed = info.computed;
+    if (computed.getParentBlock() != &body) scalars.insert(computed);
+
+    IntegerRelation replicated(PresburgerSpace::getRelationSpace(0, 2));
+    addBounds(replicated, 0, 0, 0);
+    addBounds(replicated, 1, 0, numSlots - 1);
+    DenseMap<Value, NodePtr> nodes;
+    for (Value scalar : scalars) {
+      Value remapped = rewriter.getRemappedValue(scalar);
+      if (!remapped) remapped = scalar;
+      LayoutAttr layout = getLayoutAttr(remapped);
+      if (!layout) {
+        nodes[scalar] =
+            NodeTy::gather(NodeTy::leaf(SSAValue(remapped)),
+                           std::vector<int64_t>(numSlots, 0), {1, numSlots});
+        continue;
+      }
+      if (remapped.getType() !=
+              RankedTensorType::get({1, numSlots}, scalar.getType()) ||
+          !isRelationEqual(layout.getIntegerRelation(), replicated)) {
+        return op->emitError()
+               << "a secret scalar captured by the body must be replicated "
+                  "in every slot (pass it as a rank-0 input instead)";
+      }
+      nodes[scalar] = NodeTy::leaf(SSAValue(remapped));
+    }
+    return nodes;
+  }
+
+  // The loop dimensions the body reads with linalg.index, in order of first
+  // use. Each is read as an extra cleartext input (after the op's inputs).
+  static SmallVector<int64_t> getIndexDims(linalg::LinalgOp op,
+                                           const BodyInfo& info) {
+    SmallVector<int64_t> dims;
+    for (auto index : op.getBlock()->getOps<linalg::IndexOp>()) {
+      if (info.live.contains(index) &&
+          !llvm::is_contained(dims, index.getDim()))
+        dims.push_back(index.getDim());
+    }
+    return dims;
+  }
+
+  // Translates the body into DAG nodes on the group's input ciphertexts.
+  // Additions, subtractions and multiplications become DAG arithmetic; other
+  // ops stay opaque elementwise nodes.
+  // A division by an argument in `reciprocals` becomes a product with the
+  // argument's reciprocal, the input at the mapped index (see
+  // reciprocalOrZero).
+  static NodePtr buildBody(linalg::LinalgOp op, const BodyInfo& info,
+                           ArrayRef<int64_t> indexDims,
+                           const DenseMap<Value, NodePtr>& scalars,
+                           const DenseMap<Value, size_t>& reciprocals,
+                           const std::vector<NodePtr>& args,
+                           const NodePtr& init) {
+    Block& body = *op.getBlock();
+    DenseMap<Value, NodePtr> nodes(scalars);
+    for (auto [arg, node] : llvm::zip(op.getRegionInputArgs(), args)) {
+      nodes[arg] = node;
+    }
+    for (auto index : body.getOps<linalg::IndexOp>()) {
+      if (!info.live.contains(index)) continue;
+      nodes[index] =
+          args[op.getNumDpsInputs() + llvm::find(indexDims, index.getDim()) -
+               indexDims.begin()];
+    }
+    if (init) nodes[op.getRegionOutputArgs()[0]] = init;
+    for (Operation& bodyOp : body.without_terminator()) {
+      if (&bodyOp == info.combineOp || !info.live.contains(&bodyOp) ||
+          isa<arith::ConstantOp, linalg::IndexOp>(bodyOp))
+        continue;
+      std::vector<NodePtr> operands;
+      for (Value operand : bodyOp.getOperands()) {
+        operands.push_back(nodes.lookup(operand));
+        assert(operands.back() && "body operand without a DAG node");
+      }
+      nodes[bodyOp.getResult(0)] =
+          TypeSwitch<Operation*, NodePtr>(&bodyOp)
+              .Case<arith::AddFOp, arith::AddIOp>(
+                  [&](auto) { return NodeTy::add(operands[0], operands[1]); })
+              .Case<arith::SubFOp, arith::SubIOp>(
+                  [&](auto) { return NodeTy::sub(operands[0], operands[1]); })
+              .Case<arith::MulFOp, arith::MulIOp>(
+                  [&](auto) { return NodeTy::mul(operands[0], operands[1]); })
+              .Case<arith::DivFOp>([&](arith::DivFOp div) {
+                auto it = reciprocals.find(div.getRhs());
+                return it == reciprocals.end()
+                           ? NodeTy::elementwise(div, operands)
+                           : NodeTy::mul(operands[0], args[it->second]);
+              })
+              .Default([&](Operation* other) {
+                return NodeTy::elementwise(other, operands);
+              });
+    }
+    return nodes.lookup(info.computed);
+  }
+
+  // Whether some op of the body divides by `arg`.
+  static bool isDivisor(BlockArgument arg) {
+    return llvm::any_of(arg.getUses(), [](OpOperand& use) {
+      return isa<arith::DivFOp>(use.getOwner()) && use.getOperandNumber() == 1;
+    });
+  }
+
+  // 1 / c, with zero where c is zero. A gathered cleartext is zero in the slots
+  // its group does not write, and x / 0 would put inf or NaN there, which the
+  // group's mask does not remove. A zero divisor gives zero, as in
+  // ConvertDivFByCleartext.
+  static Value reciprocalOrZero(
+      Value cleartext, ContextAwareConversionPatternRewriter& rewriter) {
+    Location loc = cleartext.getLoc();
+    Type type = cleartext.getType();
+    Value zero = arith::ConstantOp::create(
+        rewriter, loc, type, cast<TypedAttr>(rewriter.getZeroAttr(type)));
+    Value one = arith::ConstantOp::create(
+        rewriter, loc, type, cast<TypedAttr>(rewriter.getOneAttr(type)));
+    Value isZero = rewriter.createOrFold<arith::CmpFOp>(
+        loc, arith::CmpFPredicate::OEQ, cleartext, zero);
+    Value reciprocal =
+        rewriter.createOrFold<arith::DivFOp>(loc, one, cleartext);
+    Value result =
+        rewriter.createOrFold<arith::SelectOp>(loc, isZero, zero, reciprocal);
+    for (Value value : {zero, one, isZero, reciprocal, result}) {
+      if (Operation* def = value.getDefiningOp()) setMaterializedAttr(def);
+    }
+    return result;
+  }
+
+  // The init as a node in the result layout. An init in another layout, or a
+  // cleartext without one (e.g. of a named op whose own layout rule placed its
+  // init differently), is moved there by the same kernel applied to the copy
+  // init -> result.
+  FailureOr<NodePtr> moveInitIntoResultLayout(
+      linalg::LinalgOp op, Value init, LayoutAttr resultLayout,
+      const kernel::GenericKernelConfig& config, int64_t numSlots,
+      Builder& b) const {
+    NodePtr initNode = NodeTy::leaf(SSAValue(init));
+    LayoutAttr initLayout = getLayoutAttr(init);
+    if (initLayout && isRelationEqual(initLayout.getIntegerRelation(),
+                                      resultLayout.getIntegerRelation()))
+      return initNode;
+
+    auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
+    GenericKernelSpec copy;
+    copy.loopRanges = llvm::to_vector(resultType.getShape());
+    copy.numSlots = numSlots;
+    AffineMap identity = b.getMultiDimIdentityMap(resultType.getRank());
+    StructuredOperand& source = copy.inputs.emplace_back();
+    source.indexingMap = identity;
+    if (initLayout) {
+      source.layout = initLayout.getIntegerRelation();
+    } else {
+      source.cleartextShape = llvm::to_vector(resultType.getShape());
+    }
+    copy.output = {identity, resultLayout.getIntegerRelation()};
+    kernel::GenericKernelConfig copyConfig;
+    copyConfig.numCts = config.numCts;
+    copyConfig.elementType = config.elementType;
+    copyConfig.inputElementTypes = {
+        kernel::mlirTypeToDagType(getElementTypeOrSelf(init.getType()))};
+    std::string reason;
+    FailureOr<NodePtr> moved = kernel::implementGenericKernel<SSAValue>(
+        copy, {initNode}, nullptr, copyConfig,
+        [](const std::vector<NodePtr>& args, const NodePtr&) {
+          return args[0];
+        },
+        nullptr, reason);
+    if (failed(moved)) {
+      return op->emitError()
+             << "cannot move the init into the result layout: " << reason;
+    }
+    return *moved;
+  }
+
+  LogicalResult matchAndRewrite(
+      Operation* rawOp, ArrayRef<Value> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto op = dyn_cast<linalg::LinalgOp>(rawOp);
+    if (!op || !op->hasAttr(kLayoutAttrName)) return failure();
+    ArrayRef<Value> inputOperands = operands.take_front(op.getNumDpsInputs());
+    LayoutAttr resultLayout =
+        composedLayout(op->getAttr(kLayoutAttrName), op->getContext());
+    if (!resultLayout) return op->emitError() << "unsupported result layout";
+    if (op->getNumResults() != 1 || op.hasDynamicShape()) {
+      return op->emitError() << "the generic FHE kernel requires a single "
+                                "statically shaped result";
+    }
+    FailureOr<BodyInfo> bodyInfo = analyzeBody(op);
+    if (failed(bodyInfo)) return failure();
+    GenericReductionKind kind = bodyInfo->kind;
+
+    auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
+    auto packedType = dyn_cast_or_null<RankedTensorType>(
+        getTypeConverter()->convertType(resultType, resultLayout));
+    if (!packedType) {
+      return op->emitError() << "failed to materialize the result layout";
+    }
+    Type elementType = packedType.getElementType();
+    if (!isSupportedElementType(elementType)) {
+      return op->emitError()
+             << "the generic FHE kernel does not support element type "
+             << elementType;
+    }
+    int64_t numCts = packedType.getDimSize(0);
+    int64_t numSlots = packedType.getDimSize(1);
+
+    FailureOr<DenseMap<Value, NodePtr>> scalars =
+        prepareScalars(op, *bodyInfo, numSlots, rewriter);
+    if (failed(scalars)) return failure();
+
+    GenericKernelSpec spec;
+    spec.loopRanges = op.getStaticLoopRanges();
+    spec.numSlots = numSlots;
+    std::vector<NodePtr> inputs;
+    kernel::GenericKernelConfig config;
+    // A cleartext input is read directly; a secret one in its layout.
+    SmallVector<std::pair<int64_t, Value>> divisors;
+    for (auto [i, adapted] : llvm::enumerate(inputOperands)) {
+      StructuredOperand& input = spec.inputs.emplace_back();
+      input.indexingMap = op.getMatchingIndexingMap(op.getDpsInputOperand(i));
+      Value cleartext = cleartextSource(op.getDpsInputs()[i], adapted);
+      if (cleartext && isa<FloatType>(getElementTypeOrSelf(cleartext)) &&
+          isDivisor(op.getRegionInputArgs()[i]))
+        divisors.push_back({i, cleartext});
+      Value value = cleartext ? cleartext : adapted;
+      inputs.push_back(NodeTy::leaf(SSAValue(value)));
+      config.inputElementTypes.push_back(
+          kernel::mlirTypeToDagType(getElementTypeOrSelf(value.getType())));
+      if (cleartext) {
+        auto type = dyn_cast<RankedTensorType>(cleartext.getType());
+        input.cleartextShape =
+            llvm::to_vector(type ? type.getShape() : ArrayRef<int64_t>{});
+      } else {
+        input.layout = getLayoutAttr(adapted).getIntegerRelation();
+      }
+    }
+    // linalg.index reads an iota (a gather without a source).
+    SmallVector<int64_t> indexDims = getIndexDims(op, *bodyInfo);
+    for (int64_t dim : indexDims) {
+      StructuredOperand& input = spec.inputs.emplace_back();
+      input.indexingMap = AffineMap::get(spec.loopRanges.size(), 0,
+                                         rewriter.getAffineDimExpr(dim));
+      input.cleartextShape = SmallVector<int64_t>{spec.loopRanges[dim]};
+      inputs.push_back(nullptr);
+      config.inputElementTypes.push_back(kernel::DagType::index());
+    }
+    // A cleartext divisor is also read as its reciprocal, an extra input with
+    // the same indexing map.
+    DenseMap<Value, size_t> reciprocals;
+    for (auto [i, cleartext] : divisors) {
+      reciprocals[op.getRegionInputArgs()[i]] = spec.inputs.size();
+      spec.inputs.push_back(StructuredOperand(spec.inputs[i]));
+      inputs.push_back(
+          NodeTy::leaf(SSAValue(reciprocalOrZero(cleartext, rewriter))));
+      config.inputElementTypes.push_back(config.inputElementTypes[i]);
+    }
+    // Any other divisor computed in the body divides by the zeros gathered
+    // outside a group; a constant or a captured scalar is the same in every
+    // slot.
+    for (Operation* bodyOp : bodyInfo->live) {
+      auto div = dyn_cast<arith::DivFOp>(bodyOp);
+      if (!div) continue;
+      Value divisor = div.getRhs();
+      if (!reciprocals.contains(divisor) &&
+          divisor.getParentBlock() == op.getBlock() &&
+          !divisor.getDefiningOp<arith::ConstantOp>()) {
+        return op->emitError() << "the generic FHE kernel divides only by "
+                                  "cleartext inputs, constants and captured "
+                                  "scalars";
+      }
+    }
+    spec.output = {op.getMatchingIndexingMap(op.getDpsInitOperand(0)),
+                   resultLayout.getIntegerRelation()};
+
+    config.kind = kind;
+    config.initKind =
+        getInitKind(op.getDpsInits()[0], kind, bodyInfo->combineOp);
+    // Ops without reductions may read the init in place through the out
+    // argument.
+    config.bodyReadsInit = kind == GenericReductionKind::None &&
+                           !op.getRegionOutputArgs()[0].use_empty();
+    config.numCts = numCts;
+    config.elementType = kernel::mlirTypeToDagType(elementType);
+
+    FailureOr<NodePtr> initNode =
+        moveInitIntoResultLayout(op, operands[op.getNumDpsInputs()],
+                                 resultLayout, config, numSlots, rewriter);
+    if (failed(initNode)) return failure();
+
+    std::string reason;
+    FailureOr<NodePtr> implemented = kernel::implementGenericKernel<SSAValue>(
+        spec, inputs, *initNode, config,
+        [&](const std::vector<NodePtr>& args, const NodePtr& initCt) {
+          return buildBody(op, *bodyInfo, indexDims, *scalars, reciprocals,
+                           args, initCt);
+        },
+        [&](const NodePtr& acc, const NodePtr& term) {
+          return NodeTy::elementwise(bodyInfo->combineOp, {acc, term});
+        },
+        reason);
+    if (failed(implemented)) {
+      return op->emitError() << "no FHE kernel for these layouts: " << reason;
+    }
+
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    IRMaterializingVisitor visitor(
+        RankedTensorType::get({1, numSlots}, elementType),
+        [&](Operation* created) { setMaterializedAttr(created); });
+    Value result = visitor.process(*implemented, b)[0];
+    setAttributeAssociatedWith(result, kLayoutAttrName, resultLayout);
+    rewriter.replaceOp(rawOp, result);
+    return success();
+  }
+};
+
+// Converts any op generically and marks it materialized. Structured ops with a
+// layout are left to their kernels, so one no kernel accepts fails to legalize.
+struct ConvertAnyAddingMaterializedAttr : public ConvertAnyContextAware<> {
+  ConvertAnyAddingMaterializedAttr(const ContextAwareTypeConverter& converter,
+                                   MLIRContext* context)
+      : ConvertAnyContextAware(converter, context, /*benefit=*/0) {
+    setDebugName("ConvertAnyAddingMaterializedAttr");
+  }
+
+  LogicalResult matchAndRewrite(
+      Operation* op, ArrayRef<Value> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    if (isa<linalg::LinalgOp>(op) && op->hasAttr(kLayoutAttrName))
+      return failure();
+    return ConvertAnyContextAware::matchAndRewrite(op, operands, rewriter);
+  }
+
+  LogicalResult finalizeOpModification(
+      Operation* op,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    rewriter.modifyOpInPlace(op, [&] { setMaterializedAttr(op); });
+    return success();
+  };
+};
+
 struct ConvertBootstrap : public ConversionBase<mgmt::BootstrapOp> {
   using ConversionBase<mgmt::BootstrapOp>::ConversionBase;
 
@@ -3649,8 +4186,8 @@ struct ConvertToCiphertextSemantics
         ConvertLinalgDot, ConvertSecretGeneric, ConvertTensorCollapseShape,
         ConvertTensorExpandShape, ConvertTensorExtractLayout,
         ConvertTensorExtractSlice, ConvertTensorPad, ConvertTensorInsertLayout,
-        ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform>(
-        typeConverter, context);
+        ConvertTensorInsertSlice, PreserveLinalgMatvecAsLinearTransform,
+        ConvertLinalgStructuredOp>(typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
