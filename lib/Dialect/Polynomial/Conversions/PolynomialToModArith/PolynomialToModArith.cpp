@@ -246,20 +246,6 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
   }
 };
 
-struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
-  ConvertToTensor(mlir::MLIRContext* context)
-      : OpConversionPattern<ToTensorOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ToTensorOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
-    return success();
-  }
-};
-
 struct ConvertPolynomialExtractSlice
     : public OpConversionPattern<ExtractSliceOp> {
   ConvertPolynomialExtractSlice(mlir::MLIRContext* context)
@@ -1733,7 +1719,7 @@ void PolynomialToModArith::runOnOperation() {
   RewritePatternSet patterns(context);
 
   patterns
-      .add<ConvertFromTensor, ConvertToTensor, ConvertPolynomialExtractSlice,
+      .add<ConvertFromTensor, DropOp<ToTensorOp>, ConvertPolynomialExtractSlice,
            ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
            ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
            ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,

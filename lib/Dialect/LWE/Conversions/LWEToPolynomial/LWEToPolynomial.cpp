@@ -322,66 +322,6 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
   }
 };
 
-struct ConvertRAdd : public OpConversionPattern<RAddOp> {
-  ConvertRAdd(mlir::MLIRContext* context)
-      : OpConversionPattern<RAddOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      RAddOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOpWithNewOp<polynomial::AddOp>(op, adaptor.getOperands()[0],
-                                                   adaptor.getOperands()[1]);
-    return success();
-  }
-};
-
-struct ConvertRAddPlain : public OpConversionPattern<RAddPlainOp> {
-  ConvertRAddPlain(mlir::MLIRContext* context)
-      : OpConversionPattern<RAddPlainOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      RAddPlainOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOpWithNewOp<polynomial::AddOp>(op, adaptor.getOperands()[0],
-                                                   adaptor.getOperands()[1]);
-    return success();
-  }
-};
-
-struct ConvertRSub : public OpConversionPattern<RSubOp> {
-  ConvertRSub(mlir::MLIRContext* context)
-      : OpConversionPattern<RSubOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      RSubOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOpWithNewOp<polynomial::SubOp>(op, adaptor.getLhs(),
-                                                   adaptor.getRhs());
-    return success();
-  }
-};
-
-struct ConvertRSubPlain : public OpConversionPattern<RSubPlainOp> {
-  ConvertRSubPlain(mlir::MLIRContext* context)
-      : OpConversionPattern<RSubPlainOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      RSubPlainOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOpWithNewOp<polynomial::SubOp>(op, adaptor.getLhs(),
-                                                   adaptor.getRhs());
-    return success();
-  }
-};
-
 struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
   ConvertRNegate(mlir::MLIRContext* context)
       : OpConversionPattern<RNegateOp>(context) {}
@@ -667,9 +607,12 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
 
     RewritePatternSet patterns(context);
 
-    patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
-                 ConvertRSub, ConvertRNegate, ConvertMulScalar, ConvertRMul,
-                 ConvertRAddPlain, ConvertRSubPlain, ConvertRMulPlain,
+    patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt,
+                 ConvertBinOp<RAddOp, polynomial::AddOp>,
+                 ConvertBinOp<RSubOp, polynomial::SubOp>, ConvertRNegate,
+                 ConvertMulScalar, ConvertRMul,
+                 ConvertBinOp<RAddPlainOp, polynomial::AddOp>,
+                 ConvertBinOp<RSubPlainOp, polynomial::SubOp>, ConvertRMulPlain,
                  ConvertRMulRingElt, ConvertExtractCoeff, ConvertFromCoeffs,
                  ConvertExtractSlice, ConvertConvertBasis>(typeConverter,
                                                            context);
