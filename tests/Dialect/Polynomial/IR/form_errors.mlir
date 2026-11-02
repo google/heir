@@ -45,9 +45,12 @@ func.func @test_mod_switch_mismatched_forms(%p0 : !eval_poly64) {
 !eval_poly = !polynomial.polynomial<ring=#ring, form=eval>
 !coeff_poly = !polynomial.polynomial<ring=#ring, form=coeff>
 
-func.func @test_extract_slice_mismatched_forms(%p0 : !eval_poly) {
-  // expected-error@below {{'polynomial.extract_slice' op requires all polynomial operands and results to have the same form}}
-  %0 = "polynomial.extract_slice"(%p0) {start = 0 : index, size = 1 : index} : (!eval_poly) -> !coeff_poly
+func.func @test_apply_coefficientwise_mismatched_forms(%p0 : !eval_poly) {
+  // expected-error@below {{'polynomial.apply_coefficientwise' op requires all polynomial operands and results to have the same form}}
+  %0 = polynomial.apply_coefficientwise (%p0 : !eval_poly) {
+  ^body(%coeff: i32, %degree: index):
+    polynomial.yield %coeff : i32
+  } -> !coeff_poly
   return
 }
 

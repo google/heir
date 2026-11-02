@@ -50,7 +50,7 @@ module {
     // coeff-only consumer of %prod
     %out = polynomial.apply_coefficientwise (%prod : !poly_ty_2) {
     ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
-      %reduced = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      %reduced = rns.convert_basis %coeff <{targetBasis = !rns.rns<!Zq0>}> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
       polynomial.yield %reduced : !rns.rns<!Zq0>
     } -> !poly_ty_1
     return %out, %x_t, %shift_t : !poly_ty_1, tensor<1024x!rns.rns<!Zq0, !Zq1>>, tensor<1024x!rns.rns<!Zq0, !Zq1>>
@@ -61,22 +61,49 @@ module {
   // %x in coeff form and inserts two cheaper one-limb NTTs on the slices.
   // CHECK: func.func @weighted_extract_slice_ntt_placement([[x:%.+]]: [[poly_ty_3:![^ ]+]]) -> ([[ntt_poly_ty_1:![^ ]+]], [[ntt_poly_ty_4:![^ ]+]], tensor<1024x[[RNS3:![^ ]+]]>) {
   // CHECK-NOT: polynomial.ntt
-  // CHECK: [[a:%.+]] = polynomial.extract_slice [[x]] <start = 0, size = 1> : [[poly_ty_3]] -> [[poly_ty_1:![^ ]+]]
+  // CHECK: [[a:%.+]] = polynomial.apply_coefficientwise{{ *}}([[x]] : [[poly_ty_3]])
+  // CHECK: rns.extract_slice {{.*}} <start = 0, size = 1>
+  // CHECK: } -> [[poly_ty_1:![^ ]+]]
   // CHECK: [[a_ntt:%.+]] = polynomial.ntt [[a]] : [[poly_ty_1]]
-  // CHECK: [[b:%.+]] = polynomial.extract_slice [[x]] <start = 1, size = 1> : [[poly_ty_3]] -> [[poly_ty_4:![^ ]+]]
+  // CHECK: [[b:%.+]] = polynomial.apply_coefficientwise{{ *}}([[x]] : [[poly_ty_3]])
+  // CHECK: rns.extract_slice {{.*}} <start = 1, size = 1>
+  // CHECK: } -> [[poly_ty_4:![^ ]+]]
   // CHECK: [[b_ntt:%.+]] = polynomial.ntt [[b]] : [[poly_ty_4]]
   // CHECK: [[ma:%.+]] = polynomial.mul [[a_ntt]], [[a_ntt]] : [[ntt_poly_ty_1]]
   // CHECK: [[mb:%.+]] = polynomial.mul [[b_ntt]], [[b_ntt]] : [[ntt_poly_ty_4]]
   // CHECK: [[x_t:%.+]] = polynomial.to_tensor [[x]] : [[poly_ty_3]] -> tensor<1024x[[RNS3]]>
   // CHECK: return [[ma]], [[mb]], [[x_t]] : [[ntt_poly_ty_1]], [[ntt_poly_ty_4]], tensor<1024x[[RNS3]]>
   func.func @weighted_extract_slice_ntt_placement(%x: !poly_ty_3) -> (!poly_ty_1, !poly_ty_4, tensor<1024x!rns.rns<!Zq0, !Zq1, !Zq2>>) {
-    %a = polynomial.extract_slice %x <start = 0, size = 1>
-        : !poly_ty_3 -> !poly_ty_1
-    %b = polynomial.extract_slice %x <start = 1, size = 1>
-        : !poly_ty_3 -> !poly_ty_4
+    %a = polynomial.apply_coefficientwise (%x : !poly_ty_3) {
+    ^body(%coeff: !rns.rns<!Zq0, !Zq1, !Zq2>, %degree: index):
+      %0 = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1, !Zq2> -> !rns.rns<!Zq0>
+      polynomial.yield %0 : !rns.rns<!Zq0>
+    } -> !poly_ty_1
+    %b = polynomial.apply_coefficientwise (%x : !poly_ty_3) {
+    ^body(%coeff: !rns.rns<!Zq0, !Zq1, !Zq2>, %degree: index):
+      %0 = rns.extract_slice %coeff <start = 1, size = 1> : !rns.rns<!Zq0, !Zq1, !Zq2> -> !rns.rns<!Zq1>
+      polynomial.yield %0 : !rns.rns<!Zq1>
+    } -> !poly_ty_4
     %ma = polynomial.mul %a, %a : !poly_ty_1
     %mb = polynomial.mul %b, %b : !poly_ty_4
     %x_t = polynomial.to_tensor %x : !poly_ty_3 -> tensor<1024x!rns.rns<!Zq0, !Zq1, !Zq2>>
     return %ma, %mb, %x_t : !poly_ty_1, !poly_ty_4, tensor<1024x!rns.rns<!Zq0, !Zq1, !Zq2>>
+  }
+
+  // Covers: selecting RNS limbs works in either form, so a slice between two
+  // multiplications needs no conversions.
+  // CHECK: func.func @limb_slice_between_muls
+  // CHECK-NOT: polynomial.ntt
+  // CHECK-NOT: polynomial.intt
+  // CHECK: return
+  func.func @limb_slice_between_muls(%x: !poly_ty_2) -> !poly_ty_1 {
+    %sq = polynomial.mul %x, %x : !poly_ty_2
+    %slice = polynomial.apply_coefficientwise (%sq : !poly_ty_2) {
+    ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
+      %0 = rns.extract_slice %coeff <start = 0, size = 1> : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      polynomial.yield %0 : !rns.rns<!Zq0>
+    } -> !poly_ty_1
+    %res = polynomial.mul %slice, %slice : !poly_ty_1
+    return %res : !poly_ty_1
   }
 }

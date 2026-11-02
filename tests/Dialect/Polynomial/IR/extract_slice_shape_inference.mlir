@@ -13,8 +13,11 @@
 module {
   func.func @preserve_extract_slice_form(
       %poly: !input_poly) {
-    %0 = polynomial.extract_slice %poly <start = 0, size = 1>
-        : !input_poly -> !slice_poly
+    %0 = polynomial.apply_coefficientwise (%poly : !input_poly) {
+    ^body(%coeff: !rns2, %degree: index):
+      %1 = rns.extract_slice %coeff <start = 0, size = 1> : !rns2 -> !rns1
+      polynomial.yield %1 : !rns1
+    } -> !slice_poly
     return
   }
 }

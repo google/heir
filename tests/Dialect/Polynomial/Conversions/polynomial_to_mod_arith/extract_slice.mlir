@@ -14,7 +14,28 @@
 // CHECK-SAME: (%[[ARG:.*]]: tensor<4096x!{{.*}}>)
 func.func @extract_slice(%arg0: !poly) -> !poly0 {
   // CHECK: %[[SLICE:.*]] = rns.extract_slice %[[ARG]] <start = 0, size = 1>
-  %slice = polynomial.extract_slice %arg0 <start = 0, size = 1> : !poly -> !poly0
+  %slice = polynomial.apply_coefficientwise (%arg0 : !poly) {
+  ^body(%coeff: !rns, %degree: index):
+    %0 = rns.extract_slice %coeff <start = 0, size = 1> : !rns -> !rns0
+    polynomial.yield %0 : !rns0
+  } -> !poly0
   // CHECK: return %[[SLICE]]
   return %slice : !poly0
+}
+
+!poly_eval = !polynomial.polynomial<ring = #ring, form = eval>
+!poly0_eval = !polynomial.polynomial<ring = #ring0, form = eval>
+
+// CHECK: @extract_slice_eval
+// CHECK-SAME: (%[[ARG:.*]]: tensor<4096x!{{.*}}>)
+func.func @extract_slice_eval(%arg0: !poly_eval) -> !poly0_eval {
+  // CHECK-NOT: scf.for
+  // CHECK: %[[SLICE:.*]] = rns.extract_slice %[[ARG]] <start = 0, size = 1>
+  %slice = polynomial.apply_coefficientwise (%arg0 : !poly_eval) {
+  ^body(%coeff: !rns, %degree: index):
+    %0 = rns.extract_slice %coeff <start = 0, size = 1> : !rns -> !rns0
+    polynomial.yield %0 : !rns0
+  } -> !poly0_eval
+  // CHECK: return %[[SLICE]]
+  return %slice : !poly0_eval
 }

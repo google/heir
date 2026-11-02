@@ -18,6 +18,7 @@
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Polynomial/RNSPolynomial.h"
 #include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
@@ -95,6 +96,36 @@ void ApplyCoefficientwiseOp::build(
   Value coeff = block->getArgument(0);
   Value degree = block->getArgument(1);
   YieldOp::create(b, transformCoeff(b, coeff, degree));
+}
+
+rns::ExtractSliceOp ApplyCoefficientwiseOp::getLimbSlice() {
+  Block& block = getBody().front();
+  // Exactly one op and the terminator
+  if (!llvm::hasNItems(block, 2)) return nullptr;
+  auto sliceOp = dyn_cast<rns::ExtractSliceOp>(block.front());
+  if (!sliceOp || sliceOp.getInput() != block.getArgument(0)) return nullptr;
+  auto yieldOp = dyn_cast<YieldOp>(block.getTerminator());
+  if (!yieldOp || yieldOp.getOperand() != sliceOp.getOutput()) return nullptr;
+  return sliceOp;
+}
+
+Value buildLimbSlice(ImplicitLocOpBuilder& b, Value input, IntegerAttr start,
+                     IntegerAttr size) {
+  auto inputPolyTy = cast<PolynomialType>(input.getType());
+  RingAttr ring = inputPolyTy.getRing();
+  auto rnsTy = cast<rns::RNSType>(ring.getCoefficientType());
+  ArrayRef<Type> slicedBasis = rnsTy.getBasisTypes().slice(
+      start.getValue().getZExtValue(), size.getValue().getZExtValue());
+  RingAttr outputRing =
+      RingAttr::get(rns::RNSType::get(b.getContext(), slicedBasis),
+                    ring.getPolynomialModulus());
+  auto outputPolyTy =
+      PolynomialType::get(b.getContext(), outputRing, inputPolyTy.getForm());
+  return ApplyCoefficientwiseOp::create(
+      b, input, outputPolyTy,
+      [&](ImplicitLocOpBuilder& nestedBuilder, Value coeff, Value) -> Value {
+        return rns::ExtractSliceOp::create(nestedBuilder, coeff, start, size);
+      });
 }
 
 void FromTensorOp::build(OpBuilder& builder, OperationState& result,
@@ -403,21 +434,6 @@ LogicalResult EvalOp::verify() {
   return success();
 }
 
-LogicalResult ExtractSliceOp::verify() {
-  auto polyType = dyn_cast<PolynomialType>(getInput().getType());
-  if (!polyType) {
-    return failure();
-  }
-  auto rnsType =
-      dyn_cast<rns::RNSType>(polyType.getRing().getCoefficientType());
-  if (!rnsType) {
-    return failure();
-  }
-  int64_t start = getStart().getZExtValue();
-  int64_t size = getSize().getZExtValue();
-  return verifyExtractSliceOp(this, rnsType, start, size);
-}
-
 ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   auto loc = parser.getCurrentLocation();
 
@@ -535,31 +551,6 @@ LogicalResult INTTOp::inferReturnTypes(
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   if (operands.empty()) return failure();
   return inferNTTReturnType(ctx, operands.front().getType(), results);
-}
-
-LogicalResult ExtractSliceOp::inferReturnTypes(
-    MLIRContext* context, std::optional<Location> /*loc*/, ValueRange operands,
-    DictionaryAttr attrs, mlir::PropertyRef properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
-  if (operands.empty()) return failure();
-  auto polyType = dyn_cast<PolynomialType>(operands[0].getType());
-  if (!polyType) return failure();
-  RingAttr ringAttr = polyType.getRing();
-  rns::RNSType elementType =
-      dyn_cast<rns::RNSType>(ringAttr.getCoefficientType());
-  if (!elementType) return failure();
-
-  APInt start = op.getStart();
-  APInt size = op.getSize();
-
-  rns::RNSType outputRNSType =
-      inferExtractSliceReturnTypes(context, &op, elementType);
-  RingAttr outputRingAttr =
-      RingAttr::get(outputRNSType, ringAttr.getPolynomialModulus());
-  results.push_back(
-      PolynomialType::get(context, outputRingAttr, polyType.getForm()));
-  return success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1148,18 +1139,21 @@ OpFoldResult INTTOp::fold(FoldAdaptor adaptor) {
       });
 }
 
-OpFoldResult ExtractSliceOp::fold(FoldAdaptor adaptor) {
+OpFoldResult ApplyCoefficientwiseOp::fold(FoldAdaptor adaptor) {
+  rns::ExtractSliceOp limbSlice = getLimbSlice();
+  if (!limbSlice) return nullptr;
+
   auto inputAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput());
   if (!inputAttr) return nullptr;
 
   RNSPolynomial poly = inputAttr.getPolynomial();
 
-  int64_t start = getStart().getZExtValue();
-  int64_t size = getSize().getZExtValue();
+  int64_t start = limbSlice.getStart().getZExtValue();
+  int64_t size = limbSlice.getSize().getZExtValue();
 
   RNSPolynomial resultPoly = poly.slice(start, size);
 
-  auto resultType = getResult().getType();
+  auto resultType = getOutput().getType();
   auto elementType = inputAttr.getCoefficients().getElementType();
 
   SmallVector<int64_t, 2> resultShape = {size, (int64_t)poly.getNumCoeffs()};

@@ -615,8 +615,8 @@ struct ConvertExtractSlice : public OpConversionPattern<ExtractSliceOp> {
       ExtractSliceOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-    Value polySlice = polynomial::ExtractSliceOp::create(
-        b, adaptor.getInput(), adaptor.getStart(), adaptor.getSize());
+    Value polySlice = polynomial::buildLimbSlice(
+        b, adaptor.getInput(), op.getStartAttr(), op.getSizeAttr());
     rewriter.replaceOp(op, polySlice);
     return success();
   }

@@ -65,15 +65,19 @@ enum class OpFormClass {
 OpFormClass opFormClass(Operation* op) {
   if (isa<func::ReturnOp>(op)) {
     return OpFormClass::RETURN;
+  } else if (auto applyOp = dyn_cast<ApplyCoefficientwiseOp>(op);
+             applyOp && applyOp.getLimbSlice()) {
+    // Selecting RNS limbs acts on each limb independently, so it is valid in
+    // either form.
+    return OpFormClass::EITHER;
   } else if (isa<ToTensorOp, LeadingTermOp, EvalOp, MonomialOp,
                  MonicMonomialMulOp, FromTensorOp, ApplyCoefficientwiseOp>(
                  op)) {
     return OpFormClass::COEFF;
   } else if (isa<MulOp>(op)) {
     return OpFormClass::EVAL;
-  } else if (isa<AddOp, SubOp, MulScalarOp, ModSwitchOp, ExtractSliceOp,
-                 tensor::ExtractSliceOp, tensor::ExtractOp,
-                 tensor::FromElementsOp>(op)) {
+  } else if (isa<AddOp, SubOp, MulScalarOp, ModSwitchOp, tensor::ExtractSliceOp,
+                 tensor::ExtractOp, tensor::FromElementsOp>(op)) {
     return OpFormClass::EITHER;
   } else if (isa<ConstantOp>(op)) {
     return OpFormClass::CONST;

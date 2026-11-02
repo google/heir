@@ -260,28 +260,6 @@ struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
   }
 };
 
-struct ConvertPolynomialExtractSlice
-    : public OpConversionPattern<ExtractSliceOp> {
-  ConvertPolynomialExtractSlice(mlir::MLIRContext* context)
-      : OpConversionPattern<ExtractSliceOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ExtractSliceOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    auto resultType = getTypeConverter()->convertType(op.getOutput().getType());
-    if (!resultType) {
-      return rewriter.notifyMatchFailure(op, "result type conversion failed");
-    }
-
-    rewriter.replaceOpWithNewOp<rns::ExtractSliceOp>(
-        op, resultType, adaptor.getInput(), op.getStartAttr(),
-        op.getSizeAttr());
-    return success();
-  }
-};
-
 struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   ConvertConstant(mlir::MLIRContext* context)
       : OpConversionPattern<ConstantOp>(context) {}
@@ -748,6 +726,19 @@ struct ConvertApplyCoefficientwise
   LogicalResult matchAndRewrite(
       ApplyCoefficientwiseOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    // Selecting RNS limbs doesn't need a loop over the coefficients, and it is
+    // valid in either form because each limb is handled independently.
+    if (rns::ExtractSliceOp limbSlice = op.getLimbSlice()) {
+      Type resultType = typeConverter->convertType(op.getOutput().getType());
+      if (!resultType) {
+        return rewriter.notifyMatchFailure(op, "result type conversion failed");
+      }
+      rewriter.replaceOpWithNewOp<rns::ExtractSliceOp>(
+          op, resultType, adaptor.getInput(), limbSlice.getStartAttr(),
+          limbSlice.getSizeAttr());
+      return success();
+    }
+
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res))
       return rewriter.notifyMatchFailure(
@@ -1732,14 +1723,13 @@ void PolynomialToModArith::runOnOperation() {
   target.addIllegalDialect<PolynomialDialect>();
   RewritePatternSet patterns(context);
 
-  patterns
-      .add<ConvertFromTensor, ConvertToTensor, ConvertPolynomialExtractSlice,
-           ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
-           ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
-           ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
-           ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
-           ConvertApplyCoefficientwise, ConvertMulEvalForm>(typeConverter,
-                                                            context);
+  patterns.add<ConvertFromTensor, ConvertToTensor,
+               ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
+               ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
+               ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
+               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
+               ConvertApplyCoefficientwise, ConvertMulEvalForm>(typeConverter,
+                                                                context);
   patterns.add<ConvertMulCoeffForm>(typeConverter, patterns.getContext(),
                                     getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);

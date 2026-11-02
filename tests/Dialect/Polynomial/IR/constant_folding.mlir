@@ -136,11 +136,15 @@ func.func @test_fold_rns_intt() -> !rns_poly_ty {
 
 // CHECK: @test_fold_rns_extract_slice
 func.func @test_fold_rns_extract_slice() -> !rns_sliced_poly_ty {
-  // CHECK-NOT: polynomial.extract_slice
+  // CHECK-NOT: polynomial.apply_coefficientwise
   // CHECK: %[[CST:.*]] = polynomial.constant #polynomial<rns_polynomial<dense<{{\[\[}}3, 4{{\]\]}}> : tensor<1x2xi32>> : [[TY7:![a-zA-Z0-9_]+]]> : [[TY7]]
   // CHECK: return %[[CST]] : [[TY7]]
   %0 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>> : !rns_poly_ty
-  %1 = polynomial.extract_slice %0 <start = 1, size = 1> : !rns_poly_ty -> !rns_sliced_poly_ty
+  %1 = polynomial.apply_coefficientwise (%0 : !rns_poly_ty) {
+  ^body(%coeff: !rns_ty, %degree: index):
+    %2 = rns.extract_slice %coeff <start = 1, size = 1> : !rns_ty -> !rns_sliced_basis
+    polynomial.yield %2 : !rns_sliced_basis
+  } -> !rns_sliced_poly_ty
   return %1 : !rns_sliced_poly_ty
 }
 

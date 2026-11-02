@@ -409,23 +409,6 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
   let hasVerifier = 1;
 }
 
-def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, SameOperandsAndResultForm, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
-  let hasFolder = 1;
-  let summary = "Extract a subset of the polynomial's RNS basis";
-  let description = [{
-    Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
-    RNS components for each coefficient, starting at `start` and having size `size`.
-
-    The result type is a polynomial with RNS type containing the subset of basis types
-    corresponding to the extracted slice. This is useful for operations like
-    truncating or partitioning a modulus chain.
-  }];
-  let arguments = (ins Polynomial_PolynomialType:$input, IndexAttr:$start, IndexAttr:$size);
-  let results = (outs Polynomial_PolynomialType:$output);
-  let assemblyFormat = "$input prop-dict attr-dict `:` type($input) `->` type($output)";
-  let hasVerifier = 1;
-}
-
 def Polynomial_YieldOp : Polynomial_Op<"yield", [Terminator, HasParent<"ApplyCoefficientwiseOp">]> {
   let summary = "Yield a value from a polynomial.apply_coefficientwise region.";
   let arguments = (ins AnyType:$operand);
@@ -433,7 +416,7 @@ def Polynomial_YieldOp : Polynomial_Op<"yield", [Terminator, HasParent<"ApplyCoe
 }
 
 def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
-    Pure, SingleBlock]> {
+    Pure, SingleBlock, SameOperandsAndResultForm]> {
   let summary = "Apply a region to each coefficient of a polynomial.";
   let description = [{
     `polynomial.apply_coefficientwise` takes a polynomial and applies a series
@@ -459,6 +442,20 @@ def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
       polynomial.yield %3 : f32
     } -> !poly_ty_2
     ```
+
+    A body consisting of a single `rns.extract_slice` of the coefficient, whose
+    result is yielded directly, selects a subset of the polynomial's RNS limbs.
+    Because this acts on each limb independently, it is the one body that is
+    also supported on polynomials in eval form. All other bodies require coeff
+    form to be lowered.
+
+    ```mlir
+    %1 = polynomial.apply_coefficientwise(%0 : !poly_ty) {
+    ^body(%coeff: !rns_ty, %degree: index):
+      %2 = rns.extract_slice %coeff <start = 0, size = 1> : !rns_ty -> !rns_slice_ty
+      polynomial.yield %2 : !rns_slice_ty
+    } -> !poly_slice_ty
+    ```
   }];
   let arguments = (ins Polynomial_PolynomialType:$input);
   let results = (outs Polynomial_PolynomialType:$output);
@@ -472,7 +469,12 @@ def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
   ];
   let assemblyFormat = "`(` $input `:` type($input) `)` attr-dict-with-keyword $body `->` type($output)";
   let hasVerifier = 1;
+  let hasFolder = 1;
   let extraClassDeclaration = [{
+    /// If the body only selects a subset of RNS limbs, returns the
+    /// `rns.extract_slice` op that does so. Otherwise, returns a null op.
+    ::mlir::heir::rns::ExtractSliceOp getLimbSlice();
+
     /// Callback used by the custom builder to populate the body of
     /// `polynomial.apply_coefficientwise`.
     ///
