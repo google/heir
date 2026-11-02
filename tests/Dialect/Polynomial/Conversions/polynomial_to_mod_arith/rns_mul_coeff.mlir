@@ -26,9 +26,11 @@ func.func @test_rns_mul_coeff(%lhs: !poly, %rhs: !poly) -> !poly {
 // CHECK: func.func private @__heir_poly_mod_7x_rns_17_i32_19_i32_1_x4
 // CHECK: %[[INVERSE_STORAGE:.*]] = arith.constant dense<1> : tensor<2xi32>
 // CHECK: %[[INVERSE:.*]] = mod_arith.encapsulate %[[INVERSE_STORAGE]] : tensor<2xi32> -> !rns.rns<{{.*}}>
+// The divisor constant is loop-invariant, so it is materialized before the loop.
+// CHECK: %[[DIVISOR_STORAGE:.*]] = arith.constant dense<{{.*}}> : tensor<7x2xi32>
+// CHECK: %[[DIVISOR:.*]] = mod_arith.encapsulate %[[DIVISOR_STORAGE]] : tensor<7x2xi32> -> tensor<7x!rns.rns<{{.*}}>>
+// CHECK: scf.while
 // CHECK: rns.extract_residue {{.*}} <index = 0>
 // CHECK: rns.extract_residue {{.*}} <index = 1>
 // CHECK: arith.andi
-// CHECK: %[[DIVISOR_STORAGE:.*]] = arith.constant dense<{{.*}}> : tensor<7x2xi32>
-// CHECK: %[[DIVISOR:.*]] = mod_arith.encapsulate %[[DIVISOR_STORAGE]] : tensor<7x2xi32> -> tensor<7x!rns.rns<{{.*}}>>
 // CHECK: mod_arith.mul {{.*}}, %[[INVERSE]]

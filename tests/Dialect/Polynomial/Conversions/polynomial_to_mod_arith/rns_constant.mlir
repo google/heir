@@ -15,3 +15,26 @@ func.func @test_rns_constant() -> !poly {
   // CHECK: return %[[CONSTANT]]
   return %0 : !poly
 }
+
+// CHECK: func.func @test_rns_polynomial_attr_constant
+func.func @test_rns_polynomial_attr_constant() -> !poly {
+  // The attribute stores residues limb-major (numLimbs x numCoeffs), while the
+  // lowered storage is coefficient-major (degree x numLimbs) and zero-padded to
+  // the ring degree.
+  // CHECK: %[[STORAGE:.*]] = arith.constant dense<{{\[\[1, 3\], \[2, 4\], \[0, 0\], \[0, 0\]\]}}> : tensor<4x2xi32>
+  // CHECK: %[[CONSTANT:.*]] = mod_arith.encapsulate %[[STORAGE]] : tensor<4x2xi32> -> tensor<4x!rns.rns<{{.*}}>>
+  %0 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>> : !poly
+  // CHECK: return %[[CONSTANT]]
+  return %0 : !poly
+}
+
+!poly_eval = !polynomial.polynomial<ring = #ring, form = eval>
+
+// CHECK: func.func @test_rns_polynomial_attr_constant_eval
+func.func @test_rns_polynomial_attr_constant_eval() -> !poly_eval {
+  // CHECK: %[[STORAGE:.*]] = arith.constant dense<{{\[\[1, 5\], \[2, 6\], \[3, 7\], \[4, 8\]\]}}> : tensor<4x2xi32>
+  // CHECK: %[[CONSTANT:.*]] = mod_arith.encapsulate %[[STORAGE]] : tensor<4x2xi32> -> tensor<4x!rns.rns<{{.*}}>>
+  %0 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2, 3, 4], [5, 6, 7, 8]]> : tensor<2x4xi32>, eval> : !poly_eval
+  // CHECK: return %[[CONSTANT]]
+  return %0 : !poly_eval
+}

@@ -30,6 +30,8 @@
 // CHECK: func.func private @__heir_poly_mod_2047x_65536_i32_1_x1024(%[[MOD_ARG0:.*]]: [[NAIVE_POLYMUL_TENSOR_TY]]) -> [[INPUT_TENSOR_TY]] attributes {llvm.linkage = #llvm.linkage<linkonce_odr>} {
 // CHECK:    %[[c1_modarith:.*]] = mod_arith.constant 1 : [[COEFF_TY]]
 // CHECK:    %[[c1024:.*]] = arith.constant 1024 : index
+// CHECK:    %[[DIVISOR:.*]] = arith.constant dense<"0x[[DIVISOR_COEFFS:010*10*]]"> : tensor<2047xi32>
+// CHECK:    %[[DIVISOR_MODARITH:.*]] = mod_arith.encapsulate %[[DIVISOR]]
 // CHECK:    %[[rem_result:.*]] = scf.while (%[[WHILE_ARG1:.*]] = %[[MOD_ARG0]]) : ([[NAIVE_POLYMUL_TENSOR_TY]]) -> [[NAIVE_POLYMUL_TENSOR_TY]] {
 // CHECK:      %[[c0_i32:.*]] = arith.constant 0 : i32
 // CHECK:      %[[c1:.*]] = arith.constant 1 : index
@@ -49,8 +51,6 @@
 // CHECK:      scf.condition(%[[CMP1]]) %[[WHILE_ARG1]]
 // CHECK:    } do {
 // CHECK:    ^[[bb0:.*]](%[[DIVIDEND:.*]]: [[NAIVE_POLYMUL_TENSOR_TY]]):
-// CHECK:      %[[DIVISOR:.*]] = arith.constant dense<"0x[[DIVISOR_COEFFS:010*10*]]"> : tensor<2047xi32>
-// CHECK:      %[[DIVISOR_MODARITH:.*]] = mod_arith.encapsulate %[[DIVISOR]]
 // CHECK:      %[[c0_i32:.*]] = arith.constant 0 : i32
 // CHECK:      %[[c1:.*]] = arith.constant 1 : index
 // CHECK:      %[[c2046:.*]] = arith.constant 2046 : index
