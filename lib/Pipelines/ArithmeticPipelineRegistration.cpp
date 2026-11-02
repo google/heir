@@ -168,6 +168,7 @@ void cleanupAfterLowerAssignLayout(OpPassManager& pm) {
   pm.addPass(createSCCPPass());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+  pm.addPass(createLoopInvariantCodeMotionPass());
   pm.addPass(createRemoveDeadValuesPass());
   pm.addPass(createSymbolDCEPass());
   pm.addPass(createCanonicalizerPass());
