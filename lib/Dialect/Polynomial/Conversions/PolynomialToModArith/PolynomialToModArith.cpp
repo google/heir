@@ -277,12 +277,6 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   LogicalResult matchAndRewrite(
       ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
-    if (isa<RNSPolynomialAttr>(op.getValue())) {
-      op->emitWarning(
-          "Native lowering for RNSPolynomialAttr is not implemented yet");
-      // TODO(#97): Implement native RNS constant lowering.
-      return failure();
-    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res))
@@ -290,12 +284,55 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
           op, "failed to construct common conversion info");
 
     auto typeInfo = res.value();
+    Type eltStorageType = typeInfo.coefficientStorageType;
+
+    // An RNSPolynomialAttr stores already-reduced residues in limb-major
+    // order, i.e., with shape numLimbs x numCoeffs. The lowered storage is
+    // coefficient-major, i.e., with shape degree x numLimbs, so transpose and
+    // zero-pad up to the ring degree. The form (coeff vs eval) does not affect
+    // the lowered type, so the stored values are used as-is.
+    if (auto rnsAttr = dyn_cast<RNSPolynomialAttr>(op.getValue())) {
+      auto rnsTy = dyn_cast<RNSType>(typeInfo.coefficientType);
+      if (!rnsTy)
+        return rewriter.notifyMatchFailure(
+            op, "expected RNS coefficient type for RNS polynomial attr");
+
+      DenseIntElementsAttr coefficients = rnsAttr.getCoefficients();
+      ArrayRef<int64_t> attrShape = coefficients.getType().getShape();
+      int64_t degree = typeInfo.tensorType.getShape()[0];
+      int64_t numLimbs = rnsTy.getBasisTypes().size();
+      if (attrShape.size() != 2 || attrShape[0] != numLimbs)
+        return rewriter.notifyMatchFailure(
+            op, "expected RNS polynomial attr of shape numLimbs x numCoeffs");
+      int64_t numCoeffs = attrShape[1];
+      if (numCoeffs > degree)
+        return rewriter.notifyMatchFailure(
+            op, "RNS polynomial attr has more coefficients than ring degree");
+
+      unsigned storageWidth = eltStorageType.getIntOrFloatBitWidth();
+      SmallVector<APInt> residues(degree * numLimbs, APInt(storageWidth, 0));
+      for (auto [flatIndex, value] :
+           llvm::enumerate(coefficients.getValues<APInt>())) {
+        int64_t limbIndex = flatIndex / numCoeffs;
+        int64_t coefficientIndex = flatIndex % numCoeffs;
+        residues[coefficientIndex * numLimbs + limbIndex] =
+            value.zextOrTrunc(storageWidth);
+      }
+
+      auto storageTensorType =
+          RankedTensorType::get({degree, numLimbs}, eltStorageType);
+      auto constOp = arith::ConstantOp::create(
+          b, DenseElementsAttr::get(storageTensorType, residues));
+      rewriter.replaceOpWithNewOp<mod_arith::EncapsulateOp>(
+          op, typeInfo.tensorType, constOp.getResult());
+      return success();
+    }
+
     auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getValue());
     if (!attr)
       return rewriter.notifyMatchFailure(op,
                                          "expected typed int polynomial attr");
     SmallVector<Attribute> coeffs;
-    Type eltStorageType = typeInfo.coefficientStorageType;
 
     // RNS coefficients require one stored integer per residue. Materialize a
     // degree-by-limb tensor and reduce each integer polynomial coefficient
@@ -1190,6 +1227,9 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   auto divisorDeg =
       arith::ConstantOp::create(builder, builder.getIndexType(),
                                 builder.getIndexAttr(divisor.getDegree()));
+  auto divisorOp = ConstantOp::create(
+      builder, remRingPolynomialType,
+      TypedIntPolynomialAttr::get(remRingPolynomialType, divisor));
 
   // while remainder.degree() >= divisorDeg:
   auto remainder = fromTensorOp.getResult();
@@ -1213,10 +1253,6 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
       [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         Value remainder = args[0];
-        // TODO(#97): move this out of the loop when it has ConstantLike trait
-        auto divisorOp = ConstantOp::create(
-            builder, remRingPolynomialType,
-            TypedIntPolynomialAttr::get(remRingPolynomialType, divisor));
 
         // monomialExponent = remainder.degree() - divisorDeg
         auto ltOp = LeadingTermOp::create(
