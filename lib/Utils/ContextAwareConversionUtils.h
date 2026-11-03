@@ -137,7 +137,7 @@ class SecretGenericOpConversion
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    if (op.getBody()->getOperations().size() > 2) {
+    if (!llvm::hasNItemsOrLess(op.getBody()->without_terminator(), 1)) {
       // Each secret.generic should contain at most one instruction -
       // secret-distribute-generic can be used to distribute through the
       // arithmetic ops.
@@ -419,7 +419,7 @@ struct SecretGenericOpIdentityConversion
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const override {
-    if (op.getBody()->getOperations().size() > 2) {
+    if (!llvm::hasNItemsOrLess(op.getBody()->without_terminator(), 1)) {
       return failure();
     }
 

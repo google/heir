@@ -910,5 +910,47 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
   return rel;
 }
 
+presburger::IntegerRelation get2dConvInterchangedResultRelation(
+    RankedTensorType outputType, ArrayRef<int64_t> strides,
+    int64_t minSlotCount) {
+  assert(llvm::all_equal(strides) && "strides must be equal");
+  int64_t n = outputType.getDimSize(0);
+  assert(n == 1 && "expected unit batch size");
+  int64_t c = outputType.getDimSize(1);
+  int64_t h = outputType.getDimSize(2);
+  int64_t w = outputType.getDimSize(3);
+  int64_t g = strides[0];
+  int64_t g2 = g * g;
+  int64_t hOut = h * g;
+  int64_t wOut = w * g;
+  int64_t hwOut = hOut * wOut;
+  int64_t paddedC = getPaddedConvChannels(c, g2);
+  int64_t ambientElements = paddedC * h * w;
+  int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
+  int64_t paddedSize = llvm::PowerOf2Ceil(ambientElements);
+
+  std::string islStr;
+  if (numCiphertexts == 1) {
+    islStr = llvm::formatv(
+        "{{ [d0, ci, hi, wi] -> [ct, slot] : "
+        "0 <= d0 < {0} and 0 <= ci < {1} and 0 <= hi < {2} and 0 <= wi < {3} "
+        "and ct = 0 and 0 <= slot < {9} and "
+        "(slot - ((wi * {4} + (ci - {4} * (ci // {4}))) + "
+        "(hi * {4} + ((ci // {4}) - {4} * (ci // {5}))) * {6} + "
+        "(ci // {5}) * {7})) % {8} = 0 }",
+        n, c, h, w, g, g2, wOut, hwOut, paddedSize, minSlotCount);
+  } else {
+    islStr = llvm::formatv(
+        "{{ [d0, ci, hi, wi] -> [ct, slot] : "
+        "0 <= d0 < {0} and 0 <= ci < {1} and 0 <= hi < {2} and 0 <= wi < {3} "
+        "and 0 <= ct < {8} and 0 <= slot < {9} and "
+        "ct * {9} + slot = (wi * {4} + (ci - {4} * (ci // {4}))) + "
+        "(hi * {4} + ((ci // {4}) - {4} * (ci // {5}))) * {6} + "
+        "(ci // {5}) * {7} }",
+        n, c, h, w, g, g2, wOut, hwOut, numCiphertexts, minSlotCount);
+  }
+  return getIntegerRelationFromIslStr(islStr).value();
+}
+
 }  // namespace heir
 }  // namespace mlir

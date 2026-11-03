@@ -171,6 +171,11 @@ bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
 bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
                          const presburger::IntegerRelation& relation);
 
+// Whether each reassociation group has at most one dimension of size other
+// than 1 in `type`, i.e. the reshape only adds or drops unit dimensions.
+bool onlyUnitDimsChange(RankedTensorType type,
+                        ArrayRef<ReassociationIndices> reassociation);
+
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions collapsed (row-major within each group), keeping
 // every element in its slot.

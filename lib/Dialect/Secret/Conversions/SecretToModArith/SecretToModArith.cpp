@@ -411,7 +411,7 @@ class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const final {
-    if (op.getBody()->getOperations().size() > 2) {
+    if (!llvm::hasNItemsOrLess(op.getBody()->without_terminator(), 1)) {
       return rewriter.notifyMatchFailure(
           op, "secret.generic should contain at most one instruction");
     }

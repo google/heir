@@ -79,6 +79,26 @@ struct CollapseShapeHoistingImpl
   }
 };
 
+struct ExpandShapeHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          ExpandShapeHoistingImpl, tensor::ExpandShapeOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+    tensor::ExpandShapeOp expandShapeOp = cast<tensor::ExpandShapeOp>(op);
+
+    if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Layout attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    hoisters.push_back(createExpandShapeHoister(expandShapeOp));
+
+    return hoisters;
+  }
+};
+
 struct PadHoistingImpl
     : public LayoutConversionHoistableOpInterface::ExternalModel<
           PadHoistingImpl, tensor::PadOp> {
@@ -215,17 +235,7 @@ Hoister createTrivialHoister(Operation* op) {
 }
 
 static bool isTrivialRankReduction(tensor::CollapseShapeOp op) {
-  auto srcType = op.getSrcType();
-  for (const auto& reassociation : op.getReassociationIndices()) {
-    int64_t numNonUnit = 0;
-    for (auto i : reassociation) {
-      if (srcType.getDimSize(i) != 1) {
-        numNonUnit++;
-      }
-    }
-    if (numNonUnit > 1) return false;
-  }
-  return true;
+  return onlyUnitDimsChange(op.getSrcType(), op.getReassociationIndices());
 }
 
 static LayoutAttr hoistLayoutThroughCollapseShape(LayoutAttr attr,
@@ -279,6 +289,38 @@ Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
     result.newKernel = KernelName::Trivial;
 
     auto hoistedLayout = hoistLayoutThroughCollapseShape(toLayout, op);
+    result.newInputLayouts = SmallVector<Attribute>{hoistedLayout};
+
+    return result;
+  };
+}
+
+static bool isTrivialRankExpansion(tensor::ExpandShapeOp op) {
+  return onlyUnitDimsChange(op.getResultType(), op.getReassociationIndices());
+}
+
+static LayoutAttr hoistLayoutThroughExpandShape(LayoutAttr attr,
+                                                tensor::ExpandShapeOp op) {
+  return LayoutAttr::getFromIntegerRelation(
+      op.getContext(),
+      collapseDimensions(attr.getIntegerRelation(), op.getResultType(),
+                         op.getReassociationIndices()));
+}
+
+Hoister createExpandShapeHoister(tensor::ExpandShapeOp op) {
+  return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
+    if (!isTrivialRankExpansion(op)) return failure();
+
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+    if (!fromLayout || !toLayout) return failure();
+
+    HoistResult result;
+    result.convertLayoutOp = convertLayoutOp;
+    result.newOutputLayout = toLayout;
+    result.newKernel = KernelName::Trivial;
+
+    auto hoistedLayout = hoistLayoutThroughExpandShape(toLayout, op);
     result.newInputLayouts = SmallVector<Attribute>{hoistedLayout};
 
     return result;
@@ -410,6 +452,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   });
   registry.addExtension(+[](MLIRContext* ctx, tensor::TensorDialect* dialect) {
     tensor::CollapseShapeOp::attachInterface<CollapseShapeHoistingImpl>(*ctx);
+    tensor::ExpandShapeOp::attachInterface<ExpandShapeHoistingImpl>(*ctx);
     tensor::PadOp::attachInterface<PadHoistingImpl>(*ctx);
   });
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {

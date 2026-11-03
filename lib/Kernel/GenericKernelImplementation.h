@@ -12,6 +12,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -19,9 +20,12 @@
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Utils/Layout/GenericKernel.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/Hashing.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/ScopeExit.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 // A layout-driven FHE kernel for structured (linalg.generic-style) ops.
 //
@@ -178,15 +182,37 @@ implementGenericKernel(const GenericKernelSpec& spec,
         std::vector<double>(values.begin(), values.end()), type);
   };
   // Masks in the result type, shared between groups that write the same slots.
-  std::map<std::vector<int64_t>, NodePtr> masks;
+  std::unordered_map<size_t, SmallVector<NodePtr, 1>> masksByHash;
   auto getMask = [&](const std::vector<int64_t>& values) {
-    NodePtr& result = masks[values];
-    if (!result) result = constant(values, ctType);
-    return result;
+    llvm::hash_code h = llvm::hash_value(0);
+    for (size_t idx = 0; idx < values.size(); ++idx) {
+      if (values[idx] != 0) h = llvm::hash_combine(h, idx, values[idx]);
+    }
+    auto& bucket = masksByHash[static_cast<size_t>(h)];
+    for (const NodePtr& cand : bucket) {
+      const auto& cNode = std::get<ConstantTensorNode>(cand->node_variant);
+      if (cNode.value.size() == values.size() &&
+          std::equal(values.begin(), values.end(), cNode.value.begin())) {
+        return cand;
+      }
+    }
+    NodePtr created = constant(values, ctType);
+    bucket.push_back(created);
+    return created;
   };
-  auto zero = [&](const DagType& elementType) {
+  auto makeZero = [&](const DagType& elementType) {
     return constant(std::vector<int64_t>(numSlots, 0),
                     tensorOfElementType(elementType, {1, numSlots}));
+  };
+  NodePtr outputZero;
+  auto getOutputZero = [&]() {
+    if (!outputZero) outputZero = makeZero(config.elementType);
+    return outputZero;
+  };
+  std::vector<NodePtr> inputZeros(inputs.size());
+  auto getInputZero = [&](size_t i) {
+    if (!inputZeros[i]) inputZeros[i] = makeZero(config.inputElementTypes[i]);
+    return inputZeros[i];
   };
   // Shared nodes, so each extraction, rotation and gather is built once.
   std::map<std::pair<size_t, int64_t>, NodePtr> extracted;
@@ -201,11 +227,20 @@ implementGenericKernel(const GenericKernelSpec& spec,
     result = shift == 0 ? ciphertext : NodeTy::leftRotate(ciphertext, shift);
     return result;
   };
-  std::map<std::pair<size_t, std::vector<int64_t>>, NodePtr> gathered;
-  auto getGathered = [&](size_t input, const std::vector<int64_t>& indices) {
-    NodePtr& result = gathered[{input, indices}];
-    if (!result) result = NodeTy::gather(inputs[input], indices, {1, numSlots});
-    return result;
+  std::unordered_map<size_t, SmallVector<NodePtr, 1>> gatheredByHash;
+  auto getGathered = [&](size_t input, const std::vector<int64_t>& indices,
+                         size_t rowHash) {
+    size_t h = static_cast<size_t>(llvm::hash_combine(input, rowHash));
+    auto& bucket = gatheredByHash[h];
+    for (const NodePtr& cand : bucket) {
+      const auto& gNode = std::get<GatherNode<T>>(cand->node_variant);
+      if (gNode.source == inputs[input] && gNode.indices == indices) {
+        return cand;
+      }
+    }
+    NodePtr created = NodeTy::gather(inputs[input], indices, {1, numSlots});
+    bucket.push_back(created);
+    return created;
   };
   std::map<int64_t, NodePtr> initCiphertexts;
   auto getInit = [&](int64_t ct) {
@@ -220,10 +255,18 @@ implementGenericKernel(const GenericKernelSpec& spec,
 
   // A key yields one group per r: group r reads the r-th distinct cleartext
   // read of every slot, so no slot needs two cleartext values at once.
+  const size_t numCleartextInputs = llvm::count_if(
+      spec.inputs, [](const auto& input) { return input.isCleartext(); });
   std::vector<std::vector<NodePtr>> terms(numCts);
   std::map<int64_t, NodePtr> idempotentAcc;
   // Per output ciphertext, the slots an idempotent reduction has written.
   std::map<int64_t, std::vector<int64_t>> seenSlots;
+  std::vector<int64_t> mask(numSlots, 0);
+  std::vector<std::vector<int64_t>> rows(numCleartextInputs,
+                                         std::vector<int64_t>(numSlots, -1));
+  SmallVector<int64_t, 64> activeSlots;
+  SmallVector<llvm::hash_code, 2> rowHashes(numCleartextInputs);
+
   for (const auto& [key, slots] : readsByKey) {
     const int64_t outputCt = key[0];
     size_t numGroups = 0;
@@ -231,35 +274,52 @@ implementGenericKernel(const GenericKernelSpec& spec,
       numGroups = std::max(numGroups, reads.size());
     }
     for (size_t r = 0; r < numGroups; ++r) {
-      std::vector<int64_t> mask(numSlots, 0);
-      std::vector<std::vector<int64_t>> rows;
+      activeSlots.clear();
+      bool anyMultNe1 = false;
+      rowHashes.assign(numCleartextInputs, llvm::hash_value(0));
       for (const auto& [slot, reads] : slots) {
         if (r >= reads.size()) continue;
-        mask[slot] = reads[r].second;
-        rows.resize(reads[r].first.size(), std::vector<int64_t>(numSlots, -1));
-        for (auto [row, read] : llvm::zip(rows, reads[r].first)) {
-          row[slot] = read;
+        int64_t mult = reads[r].second;
+        assert(mult > 0 && "expected positive multiplicity");
+        assert(reads[r].first.size() == numCleartextInputs &&
+               "expected one read index per cleartext input");
+        mask[slot] = mult;
+        activeSlots.push_back(slot);
+        if (mult != 1) anyMultNe1 = true;
+        for (size_t c = 0; c < numCleartextInputs; ++c) {
+          int64_t rd = reads[r].first[c];
+          rows[c][slot] = rd;
+          if (rd >= 0) {
+            rowHashes[c] = llvm::hash_combine(rowHashes[c], slot, rd);
+          }
         }
       }
+      auto resetScratch = llvm::scope_exit([&]() {
+        for (int64_t slot : activeSlots) {
+          mask[slot] = 0;
+          for (auto& row : rows) row[slot] = -1;
+        }
+      });
       std::vector<NodePtr> args;
       // Arguments that are zero in the slots the group does not write.
       std::set<const NodeTy*> zeroOutsideGroup;
       for (size_t i = 0, secret = 1, cleartext = 0; i < inputs.size(); ++i) {
         if (spec.inputs[i].isCleartext()) {
-          args.push_back(getGathered(i, rows[cleartext++]));
+          args.push_back(getGathered(
+              i, rows[cleartext], static_cast<size_t>(rowHashes[cleartext])));
+          ++cleartext;
           zeroOutsideGroup.insert(args.back().get());
           continue;
         }
         args.push_back(key[secret] < 0
-                           ? zero(config.inputElementTypes[i])
+                           ? getInputZero(i)
                            : getRotated(i, key[secret], key[secret + 1]));
         secret += 2;
       }
       NodePtr term =
           body(args, config.bodyReadsInit ? getInit(outputCt) : nullptr);
-      std::vector<int64_t> written;
-      for (int64_t m : mask) written.push_back(m > 0 ? 1 : 0);
-      const bool writesAll = !llvm::is_contained(written, 0);
+      const bool writesAll =
+          activeSlots.size() == static_cast<size_t>(numSlots);
       if (isIdempotent) {
         // A group sets the slots it writes first and combines into the slots
         // written before: acc + first * (term - acc) + later * (combine(acc,
@@ -271,9 +331,9 @@ implementGenericKernel(const GenericKernelSpec& spec,
             seenSlots.try_emplace(outputCt, numSlots, readsInit ? 1 : 0);
         if (!acc && readsInit) acc = getInit(outputCt);
         std::vector<int64_t> first(numSlots, 0), later(numSlots, 0);
-        for (int64_t slot = 0; slot < numSlots; ++slot) {
-          (seen->second[slot] ? later : first)[slot] = written[slot];
-          seen->second[slot] |= written[slot];
+        for (int64_t slot : activeSlots) {
+          (seen->second[slot] ? later : first)[slot] = 1;
+          seen->second[slot] = 1;
         }
         if (!acc) {
           acc = writesAll ? term : NodeTy::mul(term, getMask(first));
@@ -297,15 +357,15 @@ implementGenericKernel(const GenericKernelSpec& spec,
       }
       // Sums skip terms that are zero, e.g. products with zero padding.
       if (!isMul && vanishesWith<T>(term, {})) continue;
-      if (mask != std::vector<int64_t>(numSlots, 1)) {
+      if (!writesAll || anyMultNe1) {
         // A gathered cleartext is zero exactly where the group writes nothing,
         // so a cleartext factor masks the term already.
-        bool masked = mask == written && vanishesWith(term, zeroOutsideGroup);
+        bool masked = !anyMultNe1 && vanishesWith(term, zeroOutsideGroup);
         if (!masked) term = NodeTy::mul(term, getMask(mask));
         if (isMul) {
           // Slots outside the group must multiply by one.
-          std::vector<int64_t> complement;
-          for (int64_t w : written) complement.push_back(1 - w);
+          std::vector<int64_t> complement(numSlots, 1);
+          for (int64_t slot : activeSlots) complement[slot] = 0;
           term = NodeTy::add(term, getMask(complement));
         }
       }
@@ -322,7 +382,7 @@ implementGenericKernel(const GenericKernelSpec& spec,
     NodePtr acc = isIdempotent ? idempotentAcc[ct]
                                : combineBalanced(std::move(terms[ct]), combine);
     // Every term of a written ciphertext may have vanished.
-    if (!acc && isWritten && !isIdempotent) acc = zero(config.elementType);
+    if (!acc && isWritten && !isIdempotent) acc = getOutputZero();
     if (!acc) {
       // An unwritten ciphertext is the init.
       if (config.initKind == GenericInitKind::Empty) continue;

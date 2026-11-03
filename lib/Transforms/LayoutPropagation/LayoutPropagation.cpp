@@ -155,6 +155,10 @@ std::pair<Value, LayoutAttr> convertToLayout(
   convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
                            layoutAttr);
   Value toReplace = convertLayoutOp.getResult();
+  if (auto info = findAttributeAssociatedWith(value, kKernelInfoAttrName);
+      succeeded(info)) {
+    setAttributeAssociatedWith(toReplace, kKernelInfoAttrName, *info);
+  }
   builder.replaceUsesWithIf(value, toReplace, [&](OpOperand& operand) {
     return operand.getOwner() == op;
   });
@@ -421,19 +425,17 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
       return layoutAttr;
     }
     if (auto arrayAttr = dyn_cast<ArrayAttr>(attr)) {
-      auto layoutAttrs = arrayAttr.getAsRange<LayoutAttr>();
-      auto it = layoutAttrs.begin();
-      presburger::IntegerRelation composedRel = (*it).getIntegerRelation();
-      ++it;
-      for (; it != layoutAttrs.end(); ++it) {
-        composedRel.compose((*it).getIntegerRelation());
+      auto& cached = composedLayouts[arrayAttr];
+      if (!cached) {
+        cached = LayoutAttr::composeLayouts(arrayAttr, &getContext());
       }
-      return LayoutAttr::getFromIntegerRelation(&getContext(), composedRel);
+      return cached;
     }
     llvm_unreachable("unexpected attribute type in assignedLayouts");
   }
 
   DenseMap<Value, Attribute> assignedLayouts;
+  DenseMap<Attribute, LayoutAttr> composedLayouts;
   DataFlowSolver* solver;
   // Set when generalizeAndVisit erased the visited op, so the walk skips
   // it.
@@ -776,7 +778,24 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   Value result = op.getResult(0);
   assignedLayouts.insert({result, resultLayout});
   debugAssignLayout(result, resultLayout);
-  setResultLayoutAttr(op);
+  Attribute kernelInfoAttr;
+  for (Value operand : op->getOperands()) {
+    if (operand.getType() == resultType && assignedLayouts.contains(operand) &&
+        getComposedLayoutAttr(operand) == resultLayout) {
+      if (auto info = findAttributeAssociatedWith(operand, kKernelInfoAttrName);
+          succeeded(info)) {
+        kernelInfoAttr = *info;
+        break;
+      }
+    }
+  }
+  if (!kernelInfoAttr) {
+    kernelInfoAttr = makeKernelInfoAttr(
+        &getContext(),
+        KernelInfo{.resultShape = llvm::to_vector(resultType.getShape()),
+                   .gapFactor = 1});
+  }
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 
@@ -822,7 +841,6 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     IntegerRelation layout;
     int64_t conversionCost;
   };
-  std::vector<Candidate> candidates;
   for (OpOperand* input : op.getDpsInputOperands()) {
     Value value = input->get();
     StructuredOperand& operand = spec.inputs.emplace_back();
@@ -834,7 +852,17 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
       continue;
     }
     operand.layout = getComposedLayoutAttr(value).getIntegerRelation();
-    if (!type) continue;
+  }
+  std::optional<int64_t> current;
+  bool currentComputed = false;
+  std::vector<Candidate> candidates;
+  for (OpOperand* input : op.getDpsInputOperands()) {
+    Value value = input->get();
+    const StructuredOperand& operand = spec.inputs[input->getOperandNumber()];
+    auto type = dyn_cast<RankedTensorType>(value.getType());
+    if (!assignedLayouts.contains(value) || !isSecret(value, solver) || !type) {
+      continue;
+    }
     std::string reason;
     FailureOr<IntegerRelation> pulled =
         pullBackInputLayout(loopRanges, isReduction, operand.indexingMap,
@@ -851,7 +879,16 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     if (!pulledCts || !currentCts) continue;
     int64_t addedCts = *pulledCts - *currentCts;
     int64_t conversionCost = std::max<int64_t>(addedCts, 0);
-    if (!isLayoutFree(value, solver) || !value.hasOneUse()) {
+    bool needsCopy = !isLayoutFree(value, solver) || !value.hasOneUse();
+    if (!currentComputed) {
+      current = groupsAndRotations(spec);
+      currentComputed = true;
+    }
+    // Every non-empty kernel requires at least 1 instance group, and a copy
+    // kernel requires at least 1 instance group.
+    if (current && 1 + conversionCost + (needsCopy ? 1 : 0) >= *current)
+      continue;
+    if (needsCopy) {
       GenericKernelSpec copy;
       copy.loopRanges = llvm::to_vector(type.getShape());
       copy.numSlots = minSlotCount;
@@ -862,6 +899,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
       std::optional<int64_t> cost = groupsAndRotations(copy);
       if (!cost) continue;
       conversionCost += *cost;
+      if (current && 1 + conversionCost >= *current) continue;
     }
     candidates.push_back({input, *pulled, conversionCost});
   }
@@ -902,7 +940,9 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     best = bestReturn;
     chosen[returned] = false;
   }
-  std::optional<int64_t> current = groupsAndRotations(spec);
+  if (!currentComputed) {
+    current = groupsAndRotations(spec);
+  }
   if (!best || (current && *best >= *current)) return;
 
   IRRewriter builder(&getContext());
@@ -916,9 +956,12 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
         LayoutAttr::getFromIntegerRelation(&getContext(), candidate.layout);
     auto converted = ConvertLayoutOp::create(
         builder, op->getLoc(), value, getComposedLayoutAttr(value), layout);
-    converted->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
+    solver->getOrCreateState<SecretnessLattice>(converted.getResult())
+        ->getValue()
+        .setSecretness(isSecret(value, solver));
     candidate.input->set(converted);
     assignedLayouts.insert({converted, layout});
+    setResultLayoutAttr(converted);
     debugAssignLayout(converted, layout);
   }
 }
@@ -940,8 +983,10 @@ LogicalResult LayoutPropagation::generalizeAndVisit(linalg::LinalgOp op) {
   if (failed(generic)) return op->emitError() << "failed to generalize";
   for (auto [result, secret] :
        llvm::zip(generic->getResults(), secretResults)) {
-    solver->getOrCreateState<SecretnessLattice>(result)->join(
+    (void)solver->getOrCreateState<SecretnessLattice>(result)->join(
         Secretness(secret));
+    (void)solver->getOrCreateState<LayoutIsFreeLattice>(result)->join(
+        LayoutIsFree(false));
   }
   erasedVisitedOp = true;
   // The generic op's operands get their default layouts like any other op's.
@@ -1128,21 +1173,15 @@ LayoutPropagation::selectBatchMatmulKernel(BatchMatmulOp op,
 }
 
 LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
-  // Reassociate the dimensions to collapse. For e.g. if we collapse d0 x d1 x
-  // d2 to d' then we need to construct the row-major relation from (d0, d1, d2)
-  // -> d'. Then the relation on the collapsed tensor will be the composition
-  // from d' -> (d0, d1, d2) -> (ct, slot).
-  auto rowMajorRelation = getCollapsedRelation(
-      op.getSrcType(), op.getResultType(), op.getReassociationIndices());
-
   auto tensor = op.getSrc();
   LayoutAttr inputLayout = getComposedLayoutAttr(tensor);
-  IntegerRelation relation = inputLayout.getIntegerRelation();
+  IntegerRelation collapsedRelation =
+      collapseDimensions(inputLayout.getIntegerRelation(), op.getSrcType(),
+                         op.getReassociationIndices());
 
-  relation.applyDomain(rowMajorRelation);
   MLIRContext* ctx = &getContext();
   LayoutAttr resultLayoutAttr =
-      LayoutAttr::getFromIntegerRelation(ctx, relation);
+      LayoutAttr::getFromIntegerRelation(ctx, collapsedRelation);
   Attribute kernelInfoAttr =
       cloneKernelInfoWithResultShape(tensor, op.getResultType().getShape());
 
@@ -1773,6 +1812,10 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
     LayoutAttr layout1 = LayoutAttr::getFromIntegerRelation(ctx, rel1);
     LayoutAttr layout2 = LayoutAttr::getFromIntegerRelation(ctx, rel2);
     resultLayoutAttr = ArrayAttr::get(ctx, {layout1, layout2});
+    composedLayouts.try_emplace(
+        resultLayoutAttr, LayoutAttr::getFromIntegerRelation(
+                              ctx, get2dConvInterchangedResultRelation(
+                                       outputType, strides, minSlotCount)));
   } else {
     resultLayoutAttr = LayoutAttr::getFromIntegerRelation(ctx, rel1);
   }

@@ -74,9 +74,9 @@ struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
   LogicalResult matchAndRewrite(GenericOp op,
                                 PatternRewriter& rewriter) const override {
     // Erase a generic that only contains a separator operation and no results.
-    auto& operations = op.getBody()->getOperations();
-    if (operations.size() != 2 ||
-        !isa<secret::SeparatorOp>(operations.front())) {
+    Block* body = op.getBody();
+    if (!llvm::hasSingleElement(body->without_terminator()) ||
+        !isa<secret::SeparatorOp>(body->front())) {
       return rewriter.notifyMatchFailure(
           op, "generic must contain only a separator op");
     }
@@ -250,7 +250,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       PatternRewriter& rewriter) const {
     assert(opToDistribute.getNumRegions() > 0 &&
            "opToDistribute must have at least one region");
-    assert(genericOp.getBody()->getOperations().size() == 2 &&
+    assert(llvm::hasSingleElement(genericOp.getBody()->without_terminator()) &&
            "opToDistribute must have one non-yield op");
 
     if (auto ifOp = dyn_cast<scf::IfOp>(opToDistribute)) {
@@ -720,15 +720,16 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   LogicalResult matchAndRewrite(GenericOp op,
                                 PatternRewriter& rewriter) const override {
     Block* body = op.getBody();
-    unsigned numOps = body->getOperations().size();
-    assert(numOps > 0 &&
+    assert(!body->empty() &&
            "secret.generic must have nonempty body (the verifier should "
            "enforce this)");
+    bool hasSingleNonTerminatorOp =
+        llvm::hasSingleElement(body->without_terminator());
 
     // Recursive base case: stop if there's only one op left, and it has no
-    // regions, noting that we check for 2 ops because the last op is enforced
-    // to be a yield op by the verifier.
-    if (numOps == 2 && body->front().getRegions().empty()) {
+    // regions, noting that the last op is enforced to be a yield op by the
+    // verifier.
+    if (hasSingleNonTerminatorOp && body->front().getRegions().empty()) {
       return rewriter.notifyMatchFailure(
           op, "generic has only one op with no regions");
     }
@@ -758,7 +759,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       return rewriter.notifyMatchFailure(
           op, "no ops to distribute found in generic");
 
-    if (numOps == 2 && !opToDistribute->getRegions().empty()) {
+    if (hasSingleNonTerminatorOp && !opToDistribute->getRegions().empty()) {
       LLVM_DEBUG(opToDistribute->emitRemark()
                  << "Distributing through region holding op isolated in its "
                     "own generic\n");

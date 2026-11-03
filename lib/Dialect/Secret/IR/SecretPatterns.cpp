@@ -572,7 +572,7 @@ bool HoistOpBeforeGeneric::canHoist(Operation& op, GenericOp genericOp) const {
 LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
   auto& opRange = genericOp.getBody()->getOperations();
-  if (opRange.size() <= 2) {
+  if (llvm::hasNItemsOrLess(genericOp.getBody()->without_terminator(), 1)) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
     // it will be in a single-op generic, (yield is the second op), and if
     // that triggers the pattern, it will be an infinite loop.
@@ -604,7 +604,7 @@ bool HoistOpAfterGeneric::canHoist(Operation& op) const {
 LogicalResult HoistOpAfterGeneric::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
   auto& opRange = genericOp.getBody()->getOperations();
-  if (opRange.size() <= 2) {
+  if (llvm::hasNItemsOrLess(genericOp.getBody()->without_terminator(), 1)) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
     // it will be in a single-op generic, (yield is the second op), and if
     // that triggers the pattern, it will be an infinite loop.
@@ -682,7 +682,7 @@ bool HoistPlaintextOps::canHoist(Operation& op) const {
 LogicalResult HoistPlaintextOps::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
   auto& opRange = genericOp.getBody()->getOperations();
-  if (opRange.size() <= 2) {
+  if (llvm::hasNItemsOrLess(genericOp.getBody()->without_terminator(), 1)) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
     // it will be in a single-op generic, (yield is the second op), and if
     // that triggers the pattern, it will be an infinite loop.

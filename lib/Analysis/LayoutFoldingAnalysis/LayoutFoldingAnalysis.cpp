@@ -1,32 +1,22 @@
 #include "lib/Analysis/LayoutFoldingAnalysis/LayoutFoldingAnalysis.h"
 
-#include <set>
-
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Interface/HoistingInterfaces.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
-#include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                   // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/CallInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 #define DEBUG_TYPE "layout-folding-analysis"
 
 namespace mlir {
 namespace heir {
-
-namespace {
-
-const std::set<std::string> layoutChangingOps = {
-    "linalg.reduce",
-};
-
-const std::set<std::string> layoutFixingOps = {
-    "tensor_ext.assign_layout",
-};
-
-}  // namespace
 
 void LayoutIsFreeAnalysis::setToEntryState(LayoutIsFreeLattice* lattice) {
   // TODO(#1311): if the anchor is an arg of a non-main func, it may not be
@@ -36,8 +26,7 @@ void LayoutIsFreeAnalysis::setToEntryState(LayoutIsFreeLattice* lattice) {
 
 LogicalResult isKnownToBeFree(Operation* operation,
                               ArrayRef<const LayoutIsFreeLattice*> operands) {
-  if (operands.empty() ||
-      layoutFixingOps.contains(operation->getName().getStringRef().str())) {
+  if (operands.empty() || isa<tensor_ext::AssignLayoutOp>(operation)) {
     LLVM_DEBUG(llvm::dbgs()
                << "Op " << operation->getName() << " is known to be free.\n");
     return success();
@@ -73,9 +62,12 @@ LogicalResult LayoutIsFreeAnalysis::visitOperation(
     if (!resultLayoutIsFree.getValue()) break;
   }
 
-  // Distinguished ops that change the layout of their results.
-  std::string opName(operation->getName().getStringRef());
-  if (layoutChangingOps.contains(opName)) {
+  // Structured ops that do not implement layout hoisting (or linalg.matmul,
+  // whose hoister only rotates the RHS operand rather than changing the output
+  // layout for free) fix the layout of their results.
+  if (isa<linalg::LinalgOp>(operation) &&
+      (!isa<LayoutConversionHoistableOpInterface>(operation) ||
+       isa<linalg::MatmulOp>(operation))) {
     LLVM_DEBUG(llvm::dbgs() << "Op is designated to make results not free\n");
     resultLayoutIsFree = LayoutIsFree(false);
   }

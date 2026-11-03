@@ -270,7 +270,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
         return a.cost < b.cost;
       });
 
-  if (minHoistingCost->cost > 0) {
+  if (hoistingOptions.empty() || minHoistingCost->cost > 0) {
     LLVM_DEBUG(llvm::dbgs()
                << "Skipping op, all hoisting results have positive net cost\n");
     return UNHOISTABLE;

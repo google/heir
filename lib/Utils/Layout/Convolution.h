@@ -164,6 +164,13 @@ presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
     RankedTensorType outputType, ArrayRef<int64_t> strides,
     int64_t minSlotCount);
 
+// Returns the composed 2-D multi-channel convolution result relation after row
+// interchange (pixel shuffling), constructed directly without intermediate
+// composition existential variables.
+presburger::IntegerRelation get2dConvInterchangedResultRelation(
+    RankedTensorType outputType, ArrayRef<int64_t> strides,
+    int64_t minSlotCount);
+
 }  // namespace heir
 }  // namespace mlir
 
