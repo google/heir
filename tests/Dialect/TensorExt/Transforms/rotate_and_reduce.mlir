@@ -597,7 +597,7 @@ func.func @simple_sum_operand_from_another_tensor(%arg0: tensor<8xi32>, %arg1: t
 // -----
 
 // one tensor reduced and add another tensor
-// TODO(#522): arg1 could be saved and applied later
+// Possible improvement: arg1 could be saved and applied later
 // CHECK: @not_supported_save_not_rotated_tensor
 // CHECK-COUNT-7: tensor_ext.rotate
 func.func @not_supported_save_not_rotated_tensor(%arg0: tensor<8xi32>, %arg1: tensor<8xi32>) -> tensor<8xi32> {

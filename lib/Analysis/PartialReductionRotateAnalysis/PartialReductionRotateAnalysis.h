@@ -198,12 +198,11 @@ class PartialReduction {
     if (lhs.opName.has_value() && *lhs.opName != opName) {
       return false;
     }
-    // Only support saving scalar value.
-    // If the saved rhs is a tensor, it might get rotated alongside
-    // the reduction tree later.
+    // Only support saving scalar value. If the saved rhs is a tensor, it might
+    // get rotated alongside the reduction tree later.
     //
-    // TODO(#522): if no rotation later then a tensor can be saved.
-    // This can be implemented via checking in a canRotate method.
+    // Possible (deprioritized) improvement: if no rotation later then a tensor
+    // can be saved. This can be implemented via checking in a canRotate method.
     //
     // Note that for the full rotation case, the new PartialReduction
     // created from the result tensor in analysis would suffice

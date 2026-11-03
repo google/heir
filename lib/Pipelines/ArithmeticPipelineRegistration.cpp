@@ -101,7 +101,6 @@ void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
   // smarter about this and do an affine loop analysis.
-  // TODO(#589): avoid unrolling loops
   if (!disableLoopUnroll) {
     manager.addPass(createFullLoopUnroll());
   }

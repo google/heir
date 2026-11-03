@@ -47,7 +47,6 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
 
   // In this and the next pattern, the non-tensor arg must be elevated to a tensor
   // by repeating it across the right dimension.
-  // TODO(#586): support more than just constant operands
   def InsertRotations_SplatRHSToTensor_#ArithOp : Pattern<
     (ArithOp:$arithOp
       (Tensor_ExtractOp $t1, (variadic $i1)),
@@ -140,9 +139,6 @@ foreach ArithOp = [Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
 // that case, the above pattern will still replace extractions with
 // rotations, and the simplifications will occur by replacing triples
 // of rotations with pairs.
-// TODO(#514): handle OuterOp with two different InnerOps on the LHS and RHS
-// TODO(#579): determine if these patterns are still necessary after the
-// target slot analysis was improved.
 foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
     // Left associated grouping handles (add (add (rotate t1 i1) (rotate t2 i2)) (rotate t3 i3))

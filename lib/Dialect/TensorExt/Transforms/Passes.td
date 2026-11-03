@@ -29,7 +29,6 @@ def InsertRotate : Pass<"insert-rotate"> {
   let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
 }
 
-// TODO(#512): Investigate replacing this pattern with a tensor_ext.combine op
 def CollapseInsertionChains : Pass<"collapse-insertion-chains"> {
   let summary = "Collapse chains of extract/insert ops into rotate ops when possible";
   let description = [{
