@@ -1,6 +1,5 @@
-// TODO(#519): disable FileChecks until nondeterminism issues are resolved
-// RUN: heir-opt --straight-line-vectorize %s | FileCheck %s
-// RUN: heir-opt --cggi-decompose-operations=expand-lincomb=false --straight-line-vectorize %s | FileCheck %s --check-prefix=CANONICAL
+// RUN: heir-opt --straight-line-vectorize %s | FileCheck %s --check-prefixes=CHECK,COMMON
+// RUN: heir-opt --cggi-decompose-operations=expand-lincomb=false --straight-line-vectorize %s | FileCheck %s --check-prefixes=CANONICAL,COMMON
 
 #key = #lwe.key<slot_index = 0>
 #poly = #polynomial.int_polynomial<x>
@@ -55,7 +54,15 @@ func.func @add_one(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   return %from_elements : tensor<8x!ct_ty>
 }
 
-// CHECK: require_post_pass_toposort
+// COMMON: require_post_pass_toposort
+// COMMON: %[[X0:.*]] = tensor.extract %arg0[%c0]
+// COMMON: %[[X1:.*]] = tensor.extract %arg0[%c1]
+// COMMON: %[[X2:.*]] = tensor.extract %arg0[%c2]
+// COMMON: %[[X3:.*]] = tensor.extract %arg0[%c3]
+// COMMON: %[[X4:.*]] = tensor.extract %arg0[%c4]
+// COMMON: %[[X5:.*]] = tensor.extract %arg0[%c5]
+// COMMON: %[[X6:.*]] = tensor.extract %arg0[%c6]
+// COMMON: %[[X7:.*]] = tensor.extract %arg0[%c7]
 func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
@@ -89,16 +96,26 @@ func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_t
   %r7 = cggi.lut3 %7, %1, %6 <lookup_table = 8 : ui8> : !ct_ty
   %r8 = cggi.lut3 %3, %6, %0 <lookup_table = 8 : ui8> : !ct_ty
 
-  // The not op has to occur after the lut3s, since it depends on one of the
-  // results.
+  // The not op depends on %r4, so %r4 is scheduled one level earlier than the
+  // other lut3s and is not vectorized with them. The remaining lut3s are
+  // packed in block order after the not op.
+  // CHECK: %[[R4:.*]] = cggi.lut3 %[[X5]], %[[X6]], %[[X7]] <lookup_table = 8 : ui8>
+  // CHECK-NEXT: %[[NOT:.*]] = cggi.not %[[R4]]
+  // CHECK-NEXT: %[[A:.*]] = tensor.from_elements %[[X0]], %[[X3]], %[[X4]], %[[X0]], %[[X2]], %[[X7]], %[[X3]] : tensor<7x
+  // CHECK-NEXT: %[[B:.*]] = tensor.from_elements %[[X1]], %[[X4]], %[[X5]], %[[X3]], %[[X5]], %[[X1]], %[[X6]] : tensor<7x
+  // CHECK-NEXT: %[[C:.*]] = tensor.from_elements %[[X2]], %[[X5]], %[[X6]], %[[X1]], %[[X6]], %[[X6]], %[[X0]] : tensor<7x
+  // CHECK-NEXT: cggi.lut3 %[[A]], %[[B]], %[[C]] <lookup_table = 8 : ui8> : tensor<7x
+  // CHECK: tensor.from_elements {{.*}}, %[[R4]], {{.*}}, %[[NOT]] : tensor<8x
 
-  // TODO(#519): nondeterminism may have the other 7 LUT3's vectorized and the
-  // cggi.not occurring after its single result.
-
-
-  // CHECK-CANONICAL: cggi.lut_lincomb %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] <coefficients = [4, 2, 1], lookup_table = 8 : ui8> : tensor<7x![[ct_ty]]
-  // CHECK-CANONICAL: cggi.not
-  // CHECK-CANONICAL: cggi.lut_lincomb
+  // %r8 is dead, so --cggi-decompose-operations erases it and only six ops are
+  // vectorized.
+  // CANONICAL: %[[R4:.*]] = cggi.lut_lincomb %[[X5]], %[[X6]], %[[X7]] <coefficients = [4, 2, 1], lookup_table = 8 : ui8>
+  // CANONICAL-NEXT: %[[NOT:.*]] = cggi.not %[[R4]]
+  // CANONICAL-NEXT: %[[A:.*]] = tensor.from_elements %[[X0]], %[[X3]], %[[X4]], %[[X0]], %[[X2]], %[[X7]] : tensor<6x
+  // CANONICAL-NEXT: %[[B:.*]] = tensor.from_elements %[[X1]], %[[X4]], %[[X5]], %[[X3]], %[[X5]], %[[X1]] : tensor<6x
+  // CANONICAL-NEXT: %[[C:.*]] = tensor.from_elements %[[X2]], %[[X5]], %[[X6]], %[[X1]], %[[X6]], %[[X6]] : tensor<6x
+  // CANONICAL-NEXT: cggi.lut_lincomb %[[A]], %[[B]], %[[C]] <coefficients = [4, 2, 1], lookup_table = 8 : ui8> : tensor<6x
+  // CANONICAL: tensor.from_elements {{.*}}, %[[R4]], {{.*}}, %[[NOT]] : tensor<8x
   %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %x : tensor<8x!ct_ty>
   return %from_elements : tensor<8x!ct_ty>
 }

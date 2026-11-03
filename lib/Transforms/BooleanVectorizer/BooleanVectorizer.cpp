@@ -6,6 +6,7 @@
 
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Utils/Graph/Graph.h"
+#include "llvm/include/llvm/ADT/MapVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
@@ -84,9 +85,15 @@ int bucketSize(const SmallVector<SmallVector<Operation*>>& buckets) {
   return size;
 }
 
-DenseMap<Operation*, SmallVector<SmallVector<Operation*>>> buildCompatibleOps(
-    std::vector<mlir::Operation*> level, int parallelism) {
-  DenseMap<Operation*, SmallVector<SmallVector<Operation*>>> compatibleOps;
+llvm::MapVector<Operation*, SmallVector<SmallVector<Operation*>>>
+buildCompatibleOps(std::vector<mlir::Operation*> level, int parallelism) {
+  // The graph orders the ops in a level by pointer value, which depends on
+  // heap layout. Sort by position in the block and use an insertion-ordered
+  // map so the vectorized output is deterministic.
+  llvm::sort(level,
+             [](Operation* a, Operation* b) { return a->isBeforeInBlock(b); });
+  llvm::MapVector<Operation*, SmallVector<SmallVector<Operation*>>>
+      compatibleOps;
 
   for (auto* op : level) {
     bool foundCompatible = false;
@@ -162,15 +169,15 @@ bool tryBoolVectorizeBlock(Block* block, MLIRContext& context,
 
   bool madeReplacement = false;
   for (const auto& level : levels) {
-    DenseMap<Operation*, SmallVector<SmallVector<Operation*>>> compatibleOps =
-        buildCompatibleOps(level, parallelism);
+    llvm::MapVector<Operation*, SmallVector<SmallVector<Operation*>>>
+        compatibleOps = buildCompatibleOps(level, parallelism);
 
     LLVM_DEBUG({
       llvm::dbgs()
           << " ########## Overview of the Compatible Ops object ##########\n";
       for (const auto& elem : compatibleOps) {
         llvm::dbgs() << " KEY " << *elem.first << "\n";
-        for (const auto op : elem.getSecond()) {
+        for (const auto op : elem.second) {
           for (const auto opp : op) {
             llvm::dbgs() << " - " << *opp << "\n";
           }
