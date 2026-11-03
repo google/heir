@@ -2,6 +2,7 @@
 #define LIB_DIALECT_RANDOM_IR_RANDOMOPS_H_
 
 // NOLINTBEGIN(misc-include-cleaner): Required to define RandomOps
+#include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project

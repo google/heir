@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_RANDOM_IR_RANDOMOPS_TD_
 #define LIB_DIALECT_RANDOM_IR_RANDOMOPS_TD_
 
+include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.td"
 include "lib/Dialect/Random/IR/RandomDialect.td"
 include "lib/Dialect/Random/IR/RandomTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -83,6 +84,38 @@ def Random_SampleOp : Random_Op<"sample"> {
   }];
   let arguments = (ins Distribution:$input);
   let results = (outs AnyType:$output);
+}
+
+def Random_ModQLike : TypeOrValueSemanticsContainer<ModQTypeInterface, "mod_q-like">;
+
+def Random_SampleModQOp : Random_Op<"sample_modq"> {
+  let summary = "Samples uniformly at random from a modular ring";
+  let description = [{
+    Samples a value uniformly at random from the modular ring described by the
+    result type, using the PRNG as the source of randomness. The result type
+    must implement `ModQTypeInterface` (e.g., a `mod_arith` or RNS type), or be
+    a shaped type (e.g., a tensor) whose elements implement it, in which case
+    each element is sampled independently.
+
+    For a type with multiple residues (e.g., an RNS type), each residue is
+    sampled independently and uniformly modulo its own modulus `q_i`, i.e.,
+    from `[0, q_i)`. By the Chinese Remainder Theorem, this is equivalent to
+    sampling uniformly modulo the product of the moduli, without having to
+    materialize that product.
+
+    Example:
+
+    ```mlir
+    !Z1095233372161 = !mod_arith.int<1095233372161 : i64>
+    !Z1032955396097 = !mod_arith.int<1032955396097 : i64>
+    !rns = !rns.rns<!Z1095233372161, !Z1032955396097>
+
+    %prng = random.init_prng %seed <num_bits = 32> : (index) -> !random.prng
+    %coeffs = random.sample_modq %prng : (!random.prng) -> tensor<1024x!rns>
+    ```
+  }];
+  let arguments = (ins PRNG:$input);
+  let results = (outs Random_ModQLike:$output);
 }
 
 #endif  // LIB_DIALECT_RANDOM_IR_RANDOMOPS_TD_
