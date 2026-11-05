@@ -158,7 +158,7 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
     auto input = adaptor.getInput();
     auto secretKey = adaptor.getSecretKey();
 
-    // TODO(#882): Support `msb` (BFV) and `mix` (CKKS) decryption, which
+    // TODO(#882): Support `msb` (BFV) and `ckks` decryption, which
     // differ from BGV in how the plaintext is recovered from c_0 + c_1 * s.
     if (failed(requireEncryptionType(op, op.getInput().getType(),
                                      lwe::LweEncryptionType::lsb))) {
