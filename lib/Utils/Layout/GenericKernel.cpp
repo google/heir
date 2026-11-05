@@ -725,12 +725,11 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
 
     auto swapShiftAndCt =
         [&](__isl_take isl_pw_multi_aff* pma,
-            __isl_take isl_set* fullDom) -> isl_pw_multi_aff* {
+            __isl_take isl_set* restrictDom) -> isl_pw_multi_aff* {
       struct SwapData {
-        isl_set* fullDom;
-        bool singlePiece;
+        isl_set* restrictDom;
         isl_pw_multi_aff* res;
-      } sdata{fullDom, isl_pw_multi_aff_n_piece(pma) == 1,
+      } sdata{restrictDom,
               isl_pw_multi_aff_empty(isl_pw_multi_aff_get_space(pma))};
       isl_pw_multi_aff_foreach_piece(
           pma,
@@ -741,13 +740,8 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
             isl_aff* c = isl_multi_aff_get_aff(maff, 1);
             maff = isl_multi_aff_set_aff(maff, 0, c);
             maff = isl_multi_aff_set_aff(maff, 1, shift);
-            if (d->fullDom) {
-              if (d->singlePiece) {
-                isl_set_free(dom);
-                dom = isl_set_copy(d->fullDom);
-              } else {
-                dom = isl_set_intersect(dom, isl_set_copy(d->fullDom));
-              }
+            if (d->restrictDom) {
+              dom = isl_set_intersect(dom, isl_set_copy(d->restrictDom));
             }
             maff = isl_multi_aff_gist(maff, isl_set_copy(dom));
             d->res = isl_pw_multi_aff_union_add(
@@ -755,7 +749,7 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
             return isl_stat_ok;
           },
           &sdata);
-      isl_set_free(fullDom);
+      isl_set_free(restrictDom);
       isl_pw_multi_aff_free(pma);
       return sdata.res;
     };
@@ -781,12 +775,8 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
       isl_map_free(anyOnRem);
     }
     if (onlyZeroShift) {
-      isl_set* zeroDom =
-          (isl_set_is_empty(rem) == isl_bool_true)
-              ? isl_set_copy(instances)
-              : isl_set_subtract(isl_set_copy(instances), isl_set_copy(rem));
       inputKey = isl_pw_multi_aff_union_add(inputKey,
-                                            swapShiftAndCt(zeroKey, zeroDom));
+                                            swapShiftAndCt(zeroKey, nullptr));
     } else {
       isl_pw_multi_aff_free(zeroKey);
       isl_set_free(rem);
@@ -799,9 +789,8 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
         isl_set* nextRem = isl_set_subtract(
             isl_set_copy(rem),
             isl_pw_multi_aff_domain(isl_pw_multi_aff_copy(piece)));
-        isl_set* pieceDom = (isl_set_is_empty(nextRem) == isl_bool_true)
-                                ? rem
-                                : isl_set_subtract(rem, isl_set_copy(nextRem));
+        isl_set* pieceDom = (offset == 0) ? nullptr : rem;
+        if (offset == 0) isl_set_free(rem);
         inputKey = isl_pw_multi_aff_union_add(inputKey,
                                               swapShiftAndCt(piece, pieceDom));
         rem = nextRem;
@@ -857,6 +846,8 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
 
               // Substitute div-free equalities with a unit-coefficient pivot
               // into `bMaff`.
+              assert(isl_basic_set_dim(bset, isl_dim_param) == 0 &&
+                     "expected parameter-free instance basic set");
               isl_mat* eqMat = isl_basic_set_equalities_matrix(
                   bset, isl_dim_set, isl_dim_div, isl_dim_param, isl_dim_cst);
               unsigned nEq = isl_mat_rows(eqMat);
@@ -969,7 +960,9 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                 }
               };
               unsigned remDim = isl_basic_set_dim(bset, isl_dim_set);
-              auto parseOne = [remDim](__isl_keep isl_aff* a) {
+              auto parseOne = [remDim](__isl_keep isl_aff* a,
+                                       std::optional<unsigned> maxDivIdx =
+                                           std::nullopt) {
                 LinearFloor lf;
                 isl_val* dVal = isl_aff_get_denominator_val(a);
                 lf.denom = isl_val_get_num_si(dVal);
@@ -984,7 +977,12 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                     isl_val* v = isl_aff_get_coefficient_val(scaled, type, j);
                     int64_t c = isl_val_get_num_si(v);
                     isl_val_free(v);
-                    if (c != 0) lf.terms.push_back({offset + j, c});
+                    if (c != 0) {
+                      assert((type != isl_dim_div || !maxDivIdx ||
+                              j < *maxDivIdx) &&
+                             "expected topological div ordering");
+                      lf.terms.push_back({offset + j, c});
+                    }
                   }
                 }
                 isl_aff_free(scaled);
@@ -1012,7 +1010,7 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                 // into `sctx->pt[remDim + j]`.
                 for (unsigned k = 0; k < aDiv; ++k) {
                   isl_aff* d = isl_aff_get_div(aff, k);
-                  chain.push_back(parseOne(d));
+                  chain.push_back(parseOne(d, k));
                   isl_aff_free(d);
                 }
                 chain.push_back(parseOne(aff));

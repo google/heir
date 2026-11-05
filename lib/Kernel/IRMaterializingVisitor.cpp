@@ -474,9 +474,15 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   Attribute constant;
   if (!source || matchPattern(source, m_Constant(&constant))) {
     if (auto dense = dyn_cast_if_present<DenseElementsAttr>(constant)) {
-      if (dense.isSplat() &&
-          llvm::all_of(node.indices,
-                       [](int64_t index) { return index >= 0; })) {
+      int64_t numSourceElements = dense.getNumElements();
+      assert(static_cast<int64_t>(node.indices.size()) == numElements);
+      assert(llvm::all_of(
+                 node.indices,
+                 [&](int64_t index) { return index < numSourceElements; }) &&
+             "gather index out of bounds");
+      if (dense.isSplat() && llvm::all_of(node.indices, [](int64_t index) {
+            return index >= 0;
+          })) {
         return {create(arith::ConstantOp::create(
             builder, resultType,
             DenseElementsAttr::get(resultType,
@@ -486,15 +492,15 @@ std::vector<Value> IRMaterializingVisitor::operator()(
         ArrayRef<char> rawData = dense.getRawData();
         int64_t bitWidth = dense.getElementType().getIntOrFloatBitWidth();
         if (bitWidth >= 8 && bitWidth % 8 == 0) {
-          // resultType has the source's element type, so bytes copy as is.
-          assert(static_cast<int64_t>(node.indices.size()) == numElements);
+          // resultType has the source's element type, so bytes copy as is;
+          // zero-initialized bytes represent 0 / +0.0 for unplaced (idx < 0)
+          // slots.
+          assert(dense.getElementType() == resultType.getElementType());
           int64_t byteWidth = bitWidth / 8;
-          int64_t numSourceElements = dense.getNumElements();
           bool isSplat = dense.isSplat();
           std::vector<char> rawResult(numElements * byteWidth, 0);
           for (int64_t i = 0; i < numElements; ++i) {
             int64_t idx = node.indices[i];
-            assert(idx < numSourceElements && "gather index out of bounds");
             if (idx >= 0) {
               std::memcpy(rawResult.data() + i * byteWidth,
                           rawData.data() + (isSplat ? 0 : idx * byteWidth),

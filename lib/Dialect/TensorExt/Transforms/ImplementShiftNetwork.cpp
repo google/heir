@@ -209,8 +209,11 @@ void populateMappingFromDenseElementsAttr(
   }
 }
 
-LogicalResult convertRemapOp(RemapOp op,
-                             VosVosErkinShiftNetworks& shiftNetworks) {
+using MappingCacheKey = std::tuple<Attribute, int64_t, int64_t>;
+
+LogicalResult convertRemapOp(
+    RemapOp op, VosVosErkinShiftNetworks& shiftNetworks,
+    llvm::DenseMap<MappingCacheKey, Mapping>& mappingCache) {
   LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   ImplicitLocOpBuilder b(op.getLoc(), op.getContext());
   RankedTensorType tensorTy = op.getInput().getType();
@@ -234,17 +237,24 @@ LogicalResult convertRemapOp(RemapOp op,
 
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
-  Mapping mapping(minSlotCount, numCiphertexts);
-  if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
-    populateMappingFromLayoutAttr(layoutAttr, mapping);
-  } else if (auto denseElementsAttr =
-                 dyn_cast<DenseIntElementsAttr>(op.getPermutation())) {
-    populateMappingFromDenseElementsAttr(denseElementsAttr, mapping);
-  } else {
-    return op.emitOpError()
-           << "requires permutation attribute to be either LayoutAttr or "
-              "DenseIntElementsAttr";
+  MappingCacheKey mappingKey{op.getPermutation(), minSlotCount, numCiphertexts};
+  auto mappingIt = mappingCache.find(mappingKey);
+  if (mappingIt == mappingCache.end()) {
+    Mapping newMapping(minSlotCount, numCiphertexts);
+    if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
+      populateMappingFromLayoutAttr(layoutAttr, newMapping);
+    } else if (auto denseElementsAttr =
+                   dyn_cast<DenseIntElementsAttr>(op.getPermutation())) {
+      populateMappingFromDenseElementsAttr(denseElementsAttr, newMapping);
+    } else {
+      return op.emitOpError()
+             << "requires permutation attribute to be either LayoutAttr or "
+                "DenseIntElementsAttr";
+    }
+    mappingIt =
+        mappingCache.try_emplace(mappingKey, std::move(newMapping)).first;
   }
+  const Mapping& mapping = mappingIt->second;
 
   b.setInsertionPointAfter(op);
 
@@ -335,8 +345,9 @@ struct ImplementShiftNetwork
 
   void runOnOperation() override {
     VosVosErkinShiftNetworks shiftNetworks;
+    llvm::DenseMap<MappingCacheKey, Mapping> mappingCache;
     getOperation()->walk([&](RemapOp op) {
-      if (failed(convertRemapOp(op, shiftNetworks))) {
+      if (failed(convertRemapOp(op, shiftNetworks, mappingCache))) {
         signalPassFailure();
       }
     });

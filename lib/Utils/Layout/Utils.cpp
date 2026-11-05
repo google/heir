@@ -1034,11 +1034,12 @@ void forEachDomainImagePoint(
                                     isl_val_int_from_si(ctx, point[i]));
     }
     isl_basic_set* imageBset = isl_basic_map_range(fixed);
-    bool hadDivs = isl_basic_set_dim(imageBset, isl_dim_div) > 0;
-    if (hadDivs) {
-      // Lift existential local variables into set dimensions before any
-      // range-dimension projection so `isl_set_foreach_point` scans concrete
-      // integer points directly without invoking ISL's parametric-ILP div
+    bool liftedDivs = numRangeDims && *numRangeDims < numRange &&
+                      isl_basic_set_dim(imageBset, isl_dim_div) > 0;
+    if (liftedDivs) {
+      // Lift existential local variables into set dimensions before projecting
+      // out unused range dimensions so `isl_set_project_out` and
+      // `isl_set_foreach_point` do not invoke ISL's parametric-ILP div
       // elimination (`isl_map_compute_divs`), and without promoting projected
       // range dimensions back into set dimensions.
       imageBset = isl_basic_set_flatten(isl_basic_set_lift(imageBset));
@@ -1047,7 +1048,7 @@ void forEachDomainImagePoint(
     if (numRangeDims && *numRangeDims < numRange)
       image = isl_set_project_out(image, isl_dim_set, *numRangeDims,
                                   numRange - *numRangeDims);
-    if (hadDivs && !numRangeDims) {
+    if (liftedDivs) {
       SmallVector<SmallVector<int64_t, 2>, 8> seenRangePoints;
       auto dedupOnImagePoint = [&](ArrayRef<int64_t> domainPoint,
                                    __isl_keep isl_point* imagePoint) {
@@ -1055,8 +1056,7 @@ void forEachDomainImagePoint(
         for (unsigned i = 0; i < outDims; ++i) {
           isl_val* coord =
               isl_point_get_coordinate_val(imagePoint, isl_dim_set, i);
-          if (isl_val_is_int(coord))
-            rangePoint[i] = isl_val_get_num_si(coord);
+          if (isl_val_is_int(coord)) rangePoint[i] = isl_val_get_num_si(coord);
           isl_val_free(coord);
         }
         if (llvm::is_contained(seenRangePoints, rangePoint)) return;
@@ -1137,8 +1137,8 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
             isl_val_free(coord);
           }
           for (int i = 0; i < c->numRange; i++) {
-            isl_val* coord = isl_point_get_coordinate_val(
-                pnt, isl_dim_set, c->numDomain + i);
+            isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set,
+                                                          c->numDomain + i);
             if (isl_val_is_int(coord))
               rangePoint[i] = isl_val_get_num_si(coord);
             isl_val_free(coord);
