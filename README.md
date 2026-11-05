@@ -20,8 +20,8 @@ There are currently three ways to use HEIR:
   [`rules_heir`](https://registry.bazel.build/modules/rules_heir/) with either
   the [OpenFHE](https://openfhe.org/) or
   [Lattigo](https://github.com/tuneinsight/lattigo) backends.
-- Install [OpenFHE](https://openfhe.org/) and use the
-  [`heir_py`](https://pypi.org/project/heir-py/) Python package.
+- Use the [`heir_py`](https://pypi.org/project/heir-py/) Python package, which
+  exposes HEIR's dialects, passes, and code emitters via Python bindings.
 - Install HEIR from source and invoke the `heir-opt` and `heir-translate`
   binaries directly, extracting the generated backend code and integrating it
   into your project manually.

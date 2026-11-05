@@ -1,38 +1,34 @@
 load("@llvm-project//mlir:build_defs.bzl", "mlir_c_api_cc_library")
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_filegroup")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@rules_python//python:py_library.bzl", "py_library")
-load("@rules_python//python:py_test.bzl", "py_test")
-load(":python_package.bzl", "mlir_python_package")
 
-# PROTOTYPE: nanobind-based MLIR python bindings for HEIR, following the layout
-# used by upstream's CMake build (and by JAX's bazel build):
+# Native code for HEIR's nanobind-based MLIR python bindings. The python
+# package itself is assembled in //python. The layout follows upstream MLIR's
+# CMake build (and JAX's bazel build):
 #
-#   heir_mlir/
-#     ir.py, passmanager.py, ...            (upstream python sources)
-#     dialects/{func,arith,tensor}.py, ...  (upstream python sources + ODS gen)
-#     dialects/secret.py, _secret_ops_gen.py (HEIR ODS gen)
-#     _mlir_libs/
-#       __init__.py                         (upstream)
-#       libHEIRPythonCAPI.so                (ALL of MLIR + HEIR C++, one copy)
-#       _mlir.so                            (core nanobind ext, upstream src)
-#       _site_initialize_0.so               (HEIR dialect/pass registration)
+#   heir/_mlir_libs/
+#     libHEIRPythonCAPI.so   ALL compiler code (MLIR + HEIR), exactly one copy
+#     _mlir.so               upstream's core extension (ir, passmanager, ...)
+#     _heir.so               HEIR registration + heir-translate access
+#
+# Both extensions link libHEIRPythonCAPI.so dynamically, so that there is only
+# one copy of MLIR's global state (TypeIDs, pass registry, ...) in the process.
+# Never link MLIR statically into an extension module.
 
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
 )
 
-PACKAGE_NAME = "heir_mlir"
-
-# Every nanobind extension (and the recompiled upstream core sources) must agree
-# on these, otherwise capsule names / nanobind type names won't match.
+# Every extension module (and the recompiled upstream core sources) must agree
+# on these, otherwise capsule names and nanobind type names won't match. The
+# package prefix must match the python package name used in //python.
 cc_library(
     name = "python_defines",
     defines = [
-        "MLIR_PYTHON_PACKAGE_PREFIX=%s." % PACKAGE_NAME,
+        "MLIR_PYTHON_PACKAGE_PREFIX=heir.",
         "MLIR_BINDINGS_PYTHON_DOMAIN=heir",
+        "NB_DOMAIN=heir",
     ],
 )
 
@@ -43,6 +39,12 @@ PY_COPTS = [
 
 PY_FEATURES = ["-use_header_modules"]
 
+# Native extensions find libHEIRPythonCAPI.so next to themselves.
+PY_LINKOPTS = select({
+    "@platforms//os:macos": ["-Wl,-rpath,@loader_path"],
+    "//conditions:default": ["-Wl,-rpath,$$ORIGIN"],
+})
+
 ##---------------------------------------------------------------------------##
 # C API (the only interface the python extensions use to talk to the compiler)
 ##---------------------------------------------------------------------------##
@@ -52,33 +54,27 @@ mlir_c_api_cc_library(
     srcs = ["HEIRCAPI.cpp"],
     hdrs = ["HEIRCAPI.h"],
     capi_deps = ["@llvm-project//mlir:CAPIIR"],
-    header_deps = [],
     deps = [
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Dialect/Secret/Transforms",
-        "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:FuncDialect",
+        "@heir//lib/Tools:HeirOptRegistration",
+        "@heir//lib/Tools:HeirTranslateRegistration",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:BytecodeWriter",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:TensorDialect",
-        "@llvm-project//mlir:Transforms",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TranslateLib",
     ],
 )
 
-# The single shared library holding all compiler code. Everything else links
-# against this dynamically so there is exactly one copy of MLIR's global state
-# (TypeIDs, pass registry, ...) in the process.
 cc_binary(
     name = "libHEIRPythonCAPI.so",
-    linkopts = [
-        "-Wl,-soname,libHEIRPythonCAPI.so",
-        "-Wl,-rpath,$$ORIGIN",
-    ],
+    linkopts = select({
+        "@platforms//os:macos": ["-Wl,-install_name,@rpath/libHEIRPythonCAPI.so"],
+        "//conditions:default": ["-Wl,-soname,libHEIRPythonCAPI.so"],
+    }) + PY_LINKOPTS,
     linkshared = 1,
     linkstatic = 1,
     deps = [
         ":HEIRCAPIObjects",
-        "@llvm-project//mlir:CAPIArithObjects",
-        "@llvm-project//mlir:CAPITensorObjects",
         "@llvm-project//mlir:MLIRBindingsPythonCAPIObjects",
     ],
 )
@@ -88,11 +84,9 @@ cc_library(
     srcs = [":libHEIRPythonCAPI.so"],
     deps = [
         ":HEIRCAPIHeaders",
-        "@llvm-project//mlir:CAPIArithHeaders",
         "@llvm-project//mlir:CAPIAsyncHeaders",
         "@llvm-project//mlir:CAPIDebugHeaders",
         "@llvm-project//mlir:CAPIIRHeaders",
-        "@llvm-project//mlir:CAPITensorHeaders",
         "@llvm-project//mlir:CAPITransformsHeaders",
     ],
 )
@@ -125,7 +119,7 @@ cc_binary(
     srcs = ["@llvm-project//mlir:lib/Bindings/Python/MainModule.cpp"],
     copts = PY_COPTS,
     features = PY_FEATURES,
-    linkopts = ["-Wl,-rpath,$$ORIGIN"],
+    linkopts = PY_LINKOPTS,
     linkshared = 1,
     linkstatic = 1,
     deps = [
@@ -137,11 +131,11 @@ cc_binary(
 )
 
 cc_binary(
-    name = "_site_initialize_0.so",
-    srcs = ["SiteInitialize.cpp"],
+    name = "_heir.so",
+    srcs = ["HeirModule.cpp"],
     copts = PY_COPTS,
     features = PY_FEATURES,
-    linkopts = ["-Wl,-rpath,$$ORIGIN"],
+    linkopts = PY_LINKOPTS,
     linkshared = 1,
     linkstatic = 1,
     deps = [
@@ -150,60 +144,4 @@ cc_binary(
         "@llvm-project//mlir:MLIRBindingsPythonNanobindHeaders",
         "@nanobind",
     ],
-)
-
-##---------------------------------------------------------------------------##
-# Python sources
-##---------------------------------------------------------------------------##
-
-gentbl_filegroup(
-    name = "SecretOpsPyGen",
-    tbl_outs = {
-        "heir_mlir/dialects/_secret_ops_gen.py": [
-            "-gen-python-op-bindings",
-            "-bind-dialect=secret",
-        ],
-    },
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "@heir//lib/Dialect/Secret/IR:SecretOps.td",
-    deps = ["@heir//lib/Dialect/Secret/IR:td_files"],
-)
-
-mlir_python_package(
-    name = "heir_mlir_pkg",
-    package_name = PACKAGE_NAME,
-    srcs = [
-        "heir_mlir/__init__.py",
-        "heir_mlir/dialects/secret.py",
-        ":SecretOpsPyGen",
-    ],
-    native_libs = [
-        ":_mlir.so",
-        ":_site_initialize_0.so",
-        ":libHEIRPythonCAPI.so",
-    ],
-    upstream_srcs = [
-        "@llvm-project//mlir/python:ArithOpsPyFiles",
-        "@llvm-project//mlir/python:BuiltinOpsPyFiles",
-        "@llvm-project//mlir/python:DialectCorePyFiles",
-        "@llvm-project//mlir/python:ExtrasPyFiles",
-        "@llvm-project//mlir/python:FuncPyFiles",
-        "@llvm-project//mlir/python:IRPyFiles",
-        "@llvm-project//mlir/python:MlirLibsPyFiles",
-        "@llvm-project//mlir/python:PassManagerPyFiles",
-        "@llvm-project//mlir/python:RewritePyFiles",
-        "@llvm-project//mlir/python:TensorOpsPyFiles",
-    ],
-)
-
-py_library(
-    name = "heir_mlir",
-    data = [":heir_mlir_pkg"],
-    imports = ["heir_mlir_pkg"],
-)
-
-py_test(
-    name = "heir_mlir_test",
-    srcs = ["heir_mlir_test.py"],
-    deps = [":heir_mlir"],
 )

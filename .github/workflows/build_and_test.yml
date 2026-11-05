@@ -13,9 +13,6 @@ concurrency:
 jobs:
   build-and-test:
     runs-on:
-      # Pinned rather than ubuntu-latest: apt.llvm.org lags behind new Ubuntu
-      # releases, and install_clang_version.sh needs an LLVM apt suite that
-      # exists for the runner's codename.
       labels: ubuntu-24.04
     env:
       BUILDBUDDY_API_KEY: ${{ github.repository == 'google/heir' && secrets.BUILDBUDDY_API_KEY || 'SEVzwPt2S7PHhY1OxD3u' }}
@@ -23,18 +20,6 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
-
-      # needed to build OpenFHE and for the frontend tests
-      - name: Install dependencies
-        run: |
-          ./.github/install_clang_version.sh 19
-
-      - name: Cache OpenFHE
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
-        with:
-          path: |
-            openfhe-install
-          key: ${{ runner.os }}-openfhe-clang19-${{ hashFiles('.github/build_openfhe.sh') }}
 
       # Bazel tests
       - name: "Run `bazel build`"
@@ -52,25 +37,3 @@ jobs:
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
             --build_metadata=ROLE=CI_BUILD_AND_TEST_TEST \
             //...
-
-      # Frontend tests
-      - name: Build OpenFHE
-        run: |
-          ./.github/build_openfhe.sh
-
-      - name: Install Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-          cache: 'pip'
-          cache-dependency-path: 'pyproject.toml'
-
-      - name: Install python package in editable mode
-        run: |
-          python -m pip install --upgrade pip
-          # This should reuse the pre-built binaries from `bazel build` above.
-          pip install -e ".[dev,python,openfhe]"
-
-      - name: Run Python frontend tests
-        run: |
-          pytest -n auto frontend/

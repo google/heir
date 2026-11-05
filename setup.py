@@ -2,7 +2,6 @@
 
 from collections.abc import Generator
 import contextlib
-import fnmatch
 import os
 import pathlib
 import platform
@@ -21,10 +20,11 @@ IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
 
-# hardcoded SABI-related options. Requires that each Python interpreter
-# (hermetic or not) participating is of the same major-minor version.
-py_limited_api = sys.version_info >= (3, 10)
-options = {"bdist_wheel": {"py_limited_api": "cp310"}} if py_limited_api else {}
+# The native extensions are built against CPython's stable ABI for 3.12+ (see
+# patches/nanobind_stable_abi.patch), so a single abi3 wheel per platform works
+# for all supported Python versions.
+py_limited_api = True
+options = {"bdist_wheel": {"py_limited_api": "cp312"}}
 
 
 def is_cibuildwheel() -> bool:
@@ -67,29 +67,6 @@ def _maybe_patch_toolchains() -> Generator[None, None, None]:
       module_bazel.write_text(content)
 
 
-# A hack to tell shutils.copytree to only include files of a certain kind
-def include_patterns(patterns):
-  """Function that can be used as shutil.copytree() ignore parameter.
-
-  Copies only files matching the given patterns.
-  """
-
-  def _ignore_patterns(path, names):
-    # Return all names that don't match any pattern
-    keep = set()
-    for pattern in patterns:
-      keep |= set(fnmatch.filter(names, pattern))
-
-    # if it's a directory, keep it to ensure recursive search
-    for name in names:
-      if (Path(path) / name).resolve().is_dir():
-        keep.add(name)
-
-    return set(names) - keep
-
-  return _ignore_patterns
-
-
 class BazelExtension(setuptools.Extension):
   """A C/C++ extension that is defined as a Bazel BUILD target."""
 
@@ -100,6 +77,7 @@ class BazelExtension(setuptools.Extension):
       generated_so_file: Path,
       target_file: str,
       is_binary: bool = False,
+      is_tree: bool = False,
       aggressive_strip: bool = False,
       **kwargs: Any,
   ):
@@ -114,6 +92,10 @@ class BazelExtension(setuptools.Extension):
     self.relpath, self.target_name = stripped_target.split(":")
     self.is_binary = is_binary
 
+    # Whether generated_so_file is a directory whose contents should be merged
+    # into the package directory (target_file is then ignored).
+    self.is_tree = is_tree
+
     # Determines whether to `strip-all` when building a target for PyPI.
     # Critically, this should only be used for cc_binary targets that are run as
     # a subprocess, not cc_library targets that are loaded into Python.
@@ -125,13 +107,16 @@ class BuildBazelExtension(build_ext.build_ext):
 
   def run(self):
     if self.inplace:
-      # This corresponds to pip install --editable, and here there is nothing
-      # to do. Assumes the user had previously run `bazel build`, and then
-      # the python module will automatically detect that it is installed in
-      # place and use the development config to find the binaries, etc.
-      return
+      # This corresponds to pip install --editable. The package consists mostly
+      # of bazel-generated files (MLIR python sources, generated dialect
+      # bindings, and native extensions), so an editable install of the source
+      # tree would not be importable.
+      raise RuntimeError(
+          "Editable installs are not supported. Either run `pip install .`, or"
+          " run `bazel build //python:heir_pkg` and add"
+          " `bazel-bin/python/heir_pkg` to PYTHONPATH."
+      )
 
-    self.copy_yosys_techmaps()
     for ext in self.extensions:
       self.bazel_build(ext)
     # explicitly call `bazel shutdown` for graceful exit
@@ -143,23 +128,6 @@ class BuildBazelExtension(build_ext.build_ext):
     This is done in the ``bazel_build`` method, so it's not necessary to
     do again in the `build_ext` base class.
     """
-
-  def copy_yosys_techmaps(self):
-    """Copy Yosys techmap files from source tree to the libdir."""
-    src = Path("lib/Transforms/YosysOptimizer/yosys")
-    dst = Path(self.build_lib) / "heir" / "techmaps"
-    patterns = (
-        "*.v",  # techmap files
-        "LICENSE",
-        "README.md",
-    )
-    print(f"Copying {src} to {dst}")
-    shutil.copytree(
-        src=src,
-        dst=dst,
-        ignore=include_patterns(patterns),
-        dirs_exist_ok=True,
-    )
 
   def bazel_build(self, ext: BazelExtension) -> None:  # noqa: C901
     """Runs the bazel build to create the package."""
@@ -220,6 +188,13 @@ class BuildBazelExtension(build_ext.build_ext):
 
     # map from srcdir-relative paths to libdir-relative paths
     srcdir_path = srcdir / ext.generated_so_file
+    if ext.is_tree:
+      print(f"Copying {srcdir_path} to {libdir}")
+      shutil.copytree(
+          src=srcdir_path, dst=libdir, symlinks=False, dirs_exist_ok=True
+      )
+      return
+
     libdir_path = libdir / ext.target_file
     print(f"Copying {srcdir_path} to {libdir_path}")
     shutil.copyfile(srcdir_path, libdir_path)
@@ -242,23 +217,6 @@ class BuildBazelExtension(build_ext.build_ext):
           | stat.S_IXOTH,
       )
 
-      # Also copy binaries to project root so they are visible when running from
-      # Python as a subprocess.
-      root_path = Path(ext.target_file)
-      print(f"Copying {srcdir_path} to {root_path}")
-      shutil.copyfile(srcdir_path, root_path)
-      os.chmod(
-          root_path,
-          stat.S_IRUSR
-          | stat.S_IWUSR
-          | stat.S_IXUSR
-          | stat.S_IRGRP
-          | stat.S_IWGRP
-          | stat.S_IXGRP
-          | stat.S_IROTH
-          | stat.S_IXOTH,
-      )
-
 
 setuptools.setup(
     cmdclass={
@@ -268,10 +226,19 @@ setuptools.setup(
         "heir": [
             "py.typed",
             "*.pyi",
-            "techmaps/*",
         ]
     },
     ext_modules=[
+        # The python package: MLIR python bindings, generated dialect bindings,
+        # the native extensions, and the hand-written python sources.
+        BazelExtension(
+            name="heir._mlir_libs._heir",
+            bazel_target="//python:heir_pkg",
+            generated_so_file=Path("python") / "heir_pkg" / "heir",
+            target_file="",
+            py_limited_api=py_limited_api,
+            is_tree=True,
+        ),
         BazelExtension(
             name="heir._heir_opt",
             bazel_target="//tools:heir-opt.stripped",
@@ -286,15 +253,6 @@ setuptools.setup(
             bazel_target="//tools:heir-translate.stripped",
             generated_so_file=Path("tools") / "heir-translate.stripped",
             target_file="heir-translate",
-            py_limited_api=py_limited_api,
-            is_binary=True,
-            aggressive_strip=is_cibuildwheel(),
-        ),
-        BazelExtension(
-            name="heir._abc",
-            bazel_target="@abc//:abc_bin.stripped",
-            generated_so_file=Path("external") / "abc+" / "abc_bin.stripped",
-            target_file="abc_bin",
             py_limited_api=py_limited_api,
             is_binary=True,
             aggressive_strip=is_cibuildwheel(),
