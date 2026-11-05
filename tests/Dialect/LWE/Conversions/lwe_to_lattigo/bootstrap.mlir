@@ -23,8 +23,8 @@
 !rns_L2 = !rns.rns<!Z1106058412451299513_i64, !Z1056763241666817029_i64, !Z957769724367225479_i64>
 #ring_rns_L13_1_x131072 = #polynomial.ring<coefficientType = !rns_L13, polynomialModulus = <1 + x**131072>>
 #ring_rns_L2_1_x131072 = #polynomial.ring<coefficientType = !rns_L2, polynomialModulus = <1 + x**131072>>
-#ciphertext_space_L13 = #lwe.ciphertext_space<ring = #ring_rns_L13_1_x131072, encryption_type = mix>
-#ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2_1_x131072, encryption_type = mix>
+#ciphertext_space_L13 = #lwe.ciphertext_space<ring = #ring_rns_L13_1_x131072, encryption_type = ckks>
+#ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2_1_x131072, encryption_type = ckks>
 !ct_L13 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x131072, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L13, key = #key, modulus_chain = #modulus_chain_L13_C13>
 !ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x131072, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #modulus_chain_L2_C2>
 

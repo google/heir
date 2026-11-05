@@ -13,8 +13,8 @@
 !rns_L2 = !rns.rns<!mod_arith.int<36028797018652673 : i64>, !mod_arith.int<35184372121601 : i64>, !mod_arith.int<35184372744193 : i64>>
 #ring_rns_L0 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ring_rns_L2 = #polynomial.ring<coefficientType = !rns_L2, polynomialModulus = <1 + x**1024>>
-#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0, encryption_type = mix>
-#ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2, encryption_type = mix>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0, encryption_type = ckks>
+#ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2, encryption_type = ckks>
 
 // The fully consumed value carries only one chain element, so its own list puts
 // its "top" at level 0 and would report a depth of 0.

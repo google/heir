@@ -31,17 +31,17 @@ func.func @test_sk_encrypt_msb(%arg0: !plaintext_rlwe, %arg1: !sk) -> !ciphertex
 #ring_Z65537_i64_1_x8_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**8>>
 #full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 2>
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x8_, encoding = #full_crt_packing_encoding>
-#ciphertext_space_mix = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = mix>
+#ciphertext_space_ckks = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = ckks>
 
 !plaintext_rlwe = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ciphertext_mix = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_mix, key = #key>
+!ciphertext_ckks = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_ckks, key = #key>
 !pk = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L0_1_x8_>
 
-func.func @test_pk_encrypt_mix(%arg0: !plaintext_rlwe, %arg1: !pk) -> !ciphertext_mix {
-  // expected-error@below {{only lsb encryption is supported, got encryption type mix}}
+func.func @test_pk_encrypt_ckks(%arg0: !plaintext_rlwe, %arg1: !pk) -> !ciphertext_ckks {
+  // expected-error@below {{only lsb encryption is supported, got encryption type ckks}}
   // expected-error@below {{failed to legalize operation 'lwe.rlwe_encrypt'}}
-  %0 = lwe.rlwe_encrypt %arg0, %arg1 : (!plaintext_rlwe, !pk) -> !ciphertext_mix
-  return %0 : !ciphertext_mix
+  %0 = lwe.rlwe_encrypt %arg0, %arg1 : (!plaintext_rlwe, !pk) -> !ciphertext_ckks
+  return %0 : !ciphertext_ckks
 }
 
 // -----

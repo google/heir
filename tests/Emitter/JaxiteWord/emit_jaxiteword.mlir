@@ -4,8 +4,8 @@
 #key = #lwe.key<>
 #ring_f64_1_x8 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**8>>
 #ring_i32_1_x8 = #polynomial.ring<coefficientType = i32, polynomialModulus = <1 + x**8>>
-#ciphertext_space = #lwe.ciphertext_space<ring = #ring_i32_1_x8, encryption_type = mix>
-#ciphertext_space_D3 = #lwe.ciphertext_space<ring = #ring_i32_1_x8, encryption_type = mix, size = 3>
+#ciphertext_space = #lwe.ciphertext_space<ring = #ring_i32_1_x8, encryption_type = ckks>
+#ciphertext_space_D3 = #lwe.ciphertext_space<ring = #ring_i32_1_x8, encryption_type = ckks, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
 #modulus_chain_L2 = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64>, current = 1>
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
