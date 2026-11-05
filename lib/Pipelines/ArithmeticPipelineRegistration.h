@@ -264,6 +264,9 @@ BackendPipelineBuilder toLattigoPipelineBuilder();
 // FHE.
 void linalgPreprocessingBuilder(OpPassManager& manager);
 
+// Lowers CKKS to the polynomial arithmetic
+void ckksToPolynomialPipelineBuilder(OpPassManager& pm);
+
 void torchLinalgToCkksBuilder(OpPassManager& manager,
                               const MlirToRLWEPipelineOptions& options);
 

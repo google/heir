@@ -5,12 +5,15 @@
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
+#include "lib/Dialect/CKKS/Transforms/DecomposeRelinearize.h"
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/Kernel/Transforms/PrepareLinearTransforms.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
+#include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
 #include "lib/Dialect/LWE/Transforms/AnnotatePlaintextLevel.h"
+#include "lib/Dialect/LWE/Transforms/DecomposeLWEOps.h"
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
@@ -18,9 +21,12 @@
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Openfhe/Transforms/FastRotationPrecompute.h"
+#include "lib/Dialect/Polynomial/Transforms/AttachNTTRoots.h"
+#include "lib/Dialect/Polynomial/Transforms/PolyMulToNTT.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
 #include "lib/Dialect/Preprocessing/Transforms/ValidatePreprocessing.h"
+#include "lib/Dialect/RNS/Transforms/LowerConvertBasis.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
@@ -722,6 +728,16 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createLinalgCanonicalizations());
   manager.addPass(createReductionCanonicalizations());
   manager.addPass(createSoftmaxCanonicalizations());
+}
+
+void ckksToPolynomialPipelineBuilder(OpPassManager& pm) {
+  pm.addPass(ckks::createDecomposeRelinearize());
+  pm.addPass(ckks::createCKKSToLWE());
+  pm.addPass(lwe::createDecomposeLWEOps());
+  pm.addPass(lwe::createLWEToPolynomial());
+  pm.addNestedPass<func::FuncOp>(polynomial::createPolyMulToNTT());
+  pm.addPass(polynomial::createAttachNTTRoots());
+  pm.addPass(rns::createLowerConvertBasis());
 }
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,
