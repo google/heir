@@ -127,3 +127,22 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 // expected-error@+1 {{moduliPerLevel entries must be positive, got 0}}
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45, moduliPerLevel = [0, 2]>, scheme.ckks} {
 }
+
+// -----
+
+!Z35184372121601_i64_ = !mod_arith.int<35184372121601 : i64>
+!Z36028797019389953_i64_ = !mod_arith.int<36028797019389953 : i64>
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+#key = #lwe.key<>
+#ring_f64_1_x1024_ = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
+!rns_L1_ = !rns.rns<!Z36028797019389953_i64_, !Z35184372121601_i64_>
+!rns_other_ = !rns.rns<!Z35184372121601_i64_>
+#ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
+#ring_rns_other_1_x1024_ = #polynomial.ring<coefficientType = !rns_other_, polynomialModulus = <1 + x**1024>>
+!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = <ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>, key = #key>
+!ct_other_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = <ring = #ring_rns_other_1_x1024_, encryption_type = lsb>, key = #key>
+func.func @rescale_not_prefix(%ct: !ct_L1_) -> !ct_other_ {
+  // expected-error@+1 {{'ckks.rescale' op output ring basis should be a prefix of the input ring basis}}
+  %ct_1 = ckks.rescale %ct <to_ring = #ring_rns_other_1_x1024_> : !ct_L1_ -> !ct_other_
+  return %ct_1 : !ct_other_
+}
