@@ -539,6 +539,11 @@ int main(int argc, char** argv) {
   registerReducesLevelOpInterfaceExternalModels(registry);
 
   PassPipelineRegistration<>(
+      "ckks-to-polynomial",
+      "Lower CKKS ops, including relinearization, to the polynomial dialect",
+      ::mlir::heir::ckksToPolynomialPipelineBuilder);
+
+  PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
       "Run passes to lower the polynomial dialect to LLVM",
       polynomialToLLVMPipelineBuilder);
