@@ -1,44 +1,53 @@
 name: First Interaction Welcome
 
+# Stage 2 of 2 of the first-time contributor welcome flow.
+#
+# Triggered when first_interaction_trigger.yml (stage 1) completes. A
+# `workflow_run` workflow always runs the version of this file on the default
+# branch, so it can safely be given write permissions even for PRs from forks.
+#
+# The decision logic lives in scripts/first_interaction.py (see
+# scripts/test_first_interaction.py for tests). The checkout below uses the
+# default `ref` for `workflow_run`, i.e., the latest commit on the default
+# branch, so code from the PR is never checked out or executed. PR-controlled
+# values are passed via environment variables, never interpolated into `run`.
+
 on:
-  issues:
-    types: [opened]
-  pull_request:
-    types: [opened]
+  workflow_run:
+    workflows: ["First Interaction Trigger"]
+    types: [completed]
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: write
 
 jobs:
   welcome:
     runs-on: ubuntu-latest
-    if: github.actor != 'copybara-service[bot]'
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Welcome new contributor
-        uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
+      - name: Check out script from the default branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          issue_message: |
-            Welcome to HEIR!
+          persist-credentials: false
+          sparse-checkout: scripts/first_interaction.py
+          sparse-checkout-cone-mode: false
 
-            Thank you for opening your first issue! We appreciate you joining our community.
-
-            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md)) requires unrecognized users to meet a maintainer in a non-textual format before opening their first PR.
-
-            If you have already met a maintainer, or you're sure the maintainers know who you are, you can safely ignore this message. Otherwise, you can join one of our open meetings on our [community calendar](https://heir.dev/community), schedule a dedicated call with a maintainer, or reach out in the `#heir` channel on [Discord](https://discord.fhe.org/).
-
-            We look forward to connecting with you!
-          pr_message: |
-            Welcome to HEIR!
-
-            Thank you for opening your first pull request! We appreciate you joining our community.
-
-            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md)) requires unrecognized users to meet a maintainer in a non-textual format before their first PR will be reviewed.
-
-            If you have already met a maintainer, or you're sure the maintainers know who you are, you can safely ignore this message. Otherwise, a maintainer will likely close this PR shortly.
-
-            Don't take it personally! Instead, we welcome you to attend one of our open meetings on our [community calendar](https://heir.dev/community), schedule a dedicated call with a maintainer, or reach out in the `#heir` channel on [Discord](https://discord.fhe.org/).
-
-            We look forward to connecting with you!
+      - name: Welcome first-time contributor
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          python3 scripts/first_interaction.py \
+            --repo="${REPO}" \
+            --default-branch="${DEFAULT_BRANCH}" \
+            --head-owner="${HEAD_OWNER}" \
+            --head-branch="${HEAD_BRANCH}" \
+            --head-sha="${HEAD_SHA}"

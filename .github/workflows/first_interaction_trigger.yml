@@ -1,0 +1,32 @@
+name: First Interaction Trigger
+
+# Stage 1 of 2 of the first-time contributor welcome flow.
+#
+# This workflow runs on `pull_request`, so for PRs from forks it has a
+# read-only token and no access to secrets. It intentionally does nothing except
+# exist, so that its completion fires the `workflow_run` event consumed by
+# first_interaction.yml (stage 2), which runs from the default branch with write
+# permissions.
+#
+# No data (e.g., a PR number artifact) is passed from this workflow to stage 2:
+# a fork PR can modify this file, so anything it produces is untrusted. Stage 2
+# instead identifies the PR from the GitHub-provided `workflow_run` payload.
+#
+# NOTE: stage 2 matches this workflow by `name`, so keep them in sync.
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.type != 'Bot'
+    steps:
+      - name: Trigger first interaction check
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "PR #${PR_NUMBER} opened; first_interaction.yml will decide whether to post a welcome comment."
