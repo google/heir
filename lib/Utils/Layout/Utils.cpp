@@ -1034,8 +1034,7 @@ void forEachDomainImagePoint(
                                     isl_val_int_from_si(ctx, point[i]));
     }
     isl_basic_set* imageBset = isl_basic_map_range(fixed);
-    bool liftedDivs = numRangeDims && *numRangeDims < numRange &&
-                      isl_basic_set_dim(imageBset, isl_dim_div) > 0;
+    bool liftedDivs = isl_basic_set_dim(imageBset, isl_dim_div) > 0;
     if (liftedDivs) {
       // Lift existential local variables into set dimensions before projecting
       // out unused range dimensions so `isl_set_project_out` and
@@ -1082,6 +1081,169 @@ void forEachDomainImagePoint(
     if (shouldStop && shouldStop()) break;
   } while (nextGridPoint(point, lb, ub));
 }
+
+__int128 floorDivI128(__int128 a, __int128 b) {
+  __int128 q = a / b;
+  __int128 r = a % b;
+  if (r < 0) --q;
+  return q;
+}
+
+__int128 ceilDivI128(__int128 a, __int128 b) { return -floorDivI128(-a, b); }
+
+uint64_t absI128(__int128 x) {
+  return x < 0 ? static_cast<uint64_t>(-x) : static_cast<uint64_t>(x);
+}
+
+// Recovers exact integer equalities implied by pairs of opposite-facing strip
+// inequalities `0 <= L(x) + c <= w` when a strip or sum/difference of strips
+// has variable-coefficient GCD `g > 1` with a unique multiple of `g` in the
+// strip interval (`ceil(-c / g) == floor((w - c) / g)`).
+void tightenStripEqualities(presburger::IntegerRelation& rel) {
+  if (rel.getNumLocalVars() == 0 || rel.getNumInequalities() < 2) return;
+  unsigned numCols = rel.getNumCols();
+  unsigned constCol = numCols - 1;
+  unsigned localOffset = rel.getVarKindOffset(VarKind::Local);
+
+  struct Strip {
+    SmallVector<__int128, 12> coeffs;
+    __int128 cst;
+    __int128 width;
+  };
+
+  SmallVector<Strip, 16> strips;
+  unsigned numIneq = rel.getNumInequalities();
+  for (unsigned r1 = 0; r1 < numIneq; ++r1) {
+    for (unsigned r2 = r1 + 1; r2 < numIneq; ++r2) {
+      bool opposite = true;
+      bool nonZero = false;
+      for (unsigned j = 0; j < constCol; ++j) {
+        int64_t c1 = rel.atIneq64(r1, j);
+        int64_t c2 = rel.atIneq64(r2, j);
+        if (c1 + c2 != 0) {
+          opposite = false;
+          break;
+        }
+        if (c1 != 0) nonZero = true;
+      }
+      if (!opposite || !nonZero) continue;
+      __int128 w = static_cast<__int128>(rel.atIneq64(r1, constCol)) +
+                   static_cast<__int128>(rel.atIneq64(r2, constCol));
+      if (w < 0) continue;
+      SmallVector<__int128, 12> c1(constCol), c2(constCol);
+      for (unsigned j = 0; j < constCol; ++j) {
+        c1[j] = rel.atIneq64(r1, j);
+        c2[j] = rel.atIneq64(r2, j);
+      }
+      strips.push_back(Strip{std::move(c1), rel.atIneq64(r1, constCol), w});
+      strips.push_back(Strip{std::move(c2), rel.atIneq64(r2, constCol), w});
+    }
+  }
+  if (strips.empty()) return;
+
+  SmallVector<SmallVector<__int128, 12>, 8> eqs;
+  auto normalizeAndAddEq = [&](SmallVector<__int128, 12> eq,
+                               bool addToRel) -> bool {
+    uint64_t g = 0;
+    int firstSign = 0;
+    for (unsigned j = 0; j < numCols; ++j) {
+      if (j < constCol && eq[j] != 0 && firstSign == 0) {
+        firstSign = eq[j] > 0 ? 1 : -1;
+      }
+      g = std::gcd(g, absI128(eq[j]));
+    }
+    if (firstSign == 0 || g == 0) return false;
+    SmallVector<int64_t, 12> eq64(numCols);
+    for (unsigned j = 0; j < numCols; ++j) {
+      eq[j] = (eq[j] / static_cast<__int128>(g)) * firstSign;
+      if (eq[j] < std::numeric_limits<int64_t>::min() ||
+          eq[j] > std::numeric_limits<int64_t>::max()) {
+        return false;
+      }
+      eq64[j] = static_cast<int64_t>(eq[j]);
+    }
+    if (llvm::is_contained(eqs, eq)) return false;
+    eqs.push_back(std::move(eq));
+    if (addToRel) rel.addEquality(eq64);
+    return true;
+  };
+
+  for (unsigned r = 0; r < rel.getNumEqualities(); ++r) {
+    SmallVector<__int128, 12> eq(numCols);
+    for (unsigned j = 0; j < numCols; ++j) eq[j] = rel.atEq64(r, j);
+    normalizeAndAddEq(std::move(eq), /*addToRel=*/false);
+  }
+
+  for (unsigned iter = 0; iter < 6; ++iter) {
+    for (const auto& eq : eqs) {
+      int pivotCol = -1;
+      for (unsigned j = localOffset; j < constCol; ++j) {
+        if (absI128(eq[j]) == 1) {
+          pivotCol = static_cast<int>(j);
+          break;
+        }
+      }
+      if (pivotCol < 0) continue;
+      __int128 pSign = eq[pivotCol];
+      for (auto& s : strips) {
+        __int128 coeff = s.coeffs[pivotCol];
+        if (coeff == 0) continue;
+        __int128 mult = coeff * pSign;
+        for (unsigned j = 0; j < constCol; ++j) {
+          s.coeffs[j] -= mult * eq[j];
+        }
+        s.cst -= mult * eq[constCol];
+      }
+    }
+
+    bool changed = false;
+    for (auto& s : strips) {
+      uint64_t g = 0;
+      for (unsigned j = 0; j < constCol; ++j) {
+        g = std::gcd(g, absI128(s.coeffs[j]));
+      }
+      if (g <= 1) continue;
+      __int128 g128 = static_cast<__int128>(g);
+      __int128 kMin = ceilDivI128(-s.cst, g128);
+      __int128 kMax = floorDivI128(s.width - s.cst, g128);
+      if (kMin == kMax) {
+        SmallVector<__int128, 12> eq(numCols);
+        for (unsigned j = 0; j < constCol; ++j) eq[j] = s.coeffs[j] / g128;
+        eq[constCol] = -kMin;
+        changed |= normalizeAndAddEq(std::move(eq), /*addToRel=*/true);
+      } else if (kMin < kMax && (kMax - kMin) < s.width) {
+        for (unsigned j = 0; j < constCol; ++j) s.coeffs[j] /= g128;
+        s.cst = -kMin;
+        s.width = kMax - kMin;
+      }
+    }
+
+    size_t numStrips = strips.size();
+    for (size_t a = 0; a < numStrips; ++a) {
+      for (size_t b = a + 1; b < numStrips; ++b) {
+        uint64_t g = 0;
+        for (unsigned j = 0; j < constCol; ++j) {
+          g = std::gcd(g, absI128(strips[a].coeffs[j] + strips[b].coeffs[j]));
+        }
+        if (g <= 1) continue;
+        __int128 g128 = static_cast<__int128>(g);
+        __int128 cst = strips[a].cst + strips[b].cst;
+        __int128 width = strips[a].width + strips[b].width;
+        __int128 kMin = ceilDivI128(-cst, g128);
+        __int128 kMax = floorDivI128(width - cst, g128);
+        if (kMin == kMax) {
+          SmallVector<__int128, 12> eq(numCols);
+          for (unsigned j = 0; j < constCol; ++j) {
+            eq[j] = (strips[a].coeffs[j] + strips[b].coeffs[j]) / g128;
+          }
+          eq[constCol] = -kMin;
+          changed |= normalizeAndAddEq(std::move(eq), /*addToRel=*/true);
+        }
+      }
+    }
+    if (!changed) break;
+  }
+}
 }  // namespace
 
 void enumeratePoints(const presburger::IntegerRelation& relation,
@@ -1092,10 +1254,12 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
   assert(relation.getNumRangeVars() ==
              static_cast<unsigned>(collector.rangeDims) &&
          "collector rangeDims must match the relation's range rank");
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+  presburger::IntegerRelation tightenedRel = relation;
+  tightenStripEqualities(tightenedRel);
+  isl_basic_map* bmap = convertRelationToBasicMap(tightenedRel, collector.ctx);
 
   SmallVector<int64_t> lb, ub;
-  getDomainBox(relation, lb, ub);
+  getDomainBox(tightenedRel, lb, ub);
 
   // When the domain box exceeds `kMaxDomainBoxVolume` points and the relation
   // has no unresolved existential local variables, scanning the wrapped basic
@@ -1205,7 +1369,9 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   int64_t numCts = outputType.getDimSize(0);
   if (numCts <= 0) return;
 
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+  presburger::IntegerRelation tightenedRel = relation;
+  tightenStripEqualities(tightenedRel);
+  isl_basic_map* bmap = convertRelationToBasicMap(tightenedRel, collector.ctx);
   std::vector<bool> seen(numCts, false);
   int64_t seenCount = 0;
 
@@ -1244,7 +1410,7 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   } else {
     isl_basic_set_free(ctRange);
     SmallVector<int64_t> lb, ub;
-    getDomainBox(relation, lb, ub);
+    getDomainBox(tightenedRel, lb, ub);
 
     // Mark which ct indices (range var 0) appear in the range, enumerating the
     // domain box (see forEachDomainImagePoint). Once every ct is accounted for

@@ -24,9 +24,11 @@
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/Layout/Utils.h"
-#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -179,10 +181,224 @@ VosVosErkinShiftNetworks::CacheKey VosVosErkinShiftNetworks::makeCacheKey(
   return std::make_pair(mapping, frozenShiftOrder);
 }
 
+bool tryPopulateFactoredMapping(const presburger::IntegerRelation& rel,
+                                Mapping& mapping) {
+  if (rel.getNumDomainVars() != 2 || rel.getNumRangeVars() != 2 ||
+      rel.getNumSymbolVars() != 0 || rel.getNumLocalVars() == 0) {
+    return false;
+  }
+
+  unsigned localOffset = rel.getVarKindOffset(presburger::VarKind::Local);
+  unsigned numLocals = rel.getNumLocalVars();
+  unsigned numCols = rel.getNumCols();
+  unsigned constCol = numCols - 1;
+  unsigned numIneq = rel.getNumInequalities();
+
+  SmallVector<bool> isFloorDivLocal(numLocals, false);
+  for (unsigned k = 0; k < numLocals; ++k) {
+    unsigned col = localOffset + k;
+    for (unsigned r1 = 0; r1 < numIneq && !isFloorDivLocal[k]; ++r1) {
+      int64_t c1 = rel.atIneq64(r1, col);
+      if (std::abs(c1) <= 1) continue;
+      for (unsigned r2 = r1 + 1; r2 < numIneq; ++r2) {
+        if (rel.atIneq64(r2, col) != -c1) continue;
+        bool opposite = true;
+        for (unsigned j = 0; j < constCol; ++j) {
+          if (rel.atIneq64(r1, j) + rel.atIneq64(r2, j) != 0) {
+            opposite = false;
+            break;
+          }
+        }
+        if (opposite) {
+          isFloorDivLocal[k] = true;
+          break;
+        }
+      }
+    }
+  }
+
+  constexpr int64_t kMaxSharedBoxVolume = 200000;
+  SmallVector<unsigned> sharedLocals;
+  SmallVector<int64_t> lbs, ubs;
+  int64_t volume = 1;
+  for (unsigned k = 0; k < numLocals; ++k) {
+    if (isFloorDivLocal[k]) continue;
+    auto lb =
+        rel.getConstantBound64(presburger::BoundType::LB, localOffset + k);
+    auto ub =
+        rel.getConstantBound64(presburger::BoundType::UB, localOffset + k);
+    if (!lb || !ub || *lb > *ub) continue;
+    int64_t diff = *ub - *lb + 1;
+    if (diff <= 0 || volume > kMaxSharedBoxVolume / diff) return false;
+    volume *= diff;
+    sharedLocals.push_back(k);
+    lbs.push_back(*lb);
+    ubs.push_back(*ub);
+  }
+  if (sharedLocals.empty()) return false;
+
+  // side[c]: 0 = shared, 1 = src, 2 = dst, -1 = unassigned
+  SmallVector<int> side(constCol, -1);
+  side[0] = 1;
+  side[1] = 1;
+  side[2] = 2;
+  side[3] = 2;
+  for (unsigned k : sharedLocals) side[localOffset + k] = 0;
+
+  auto rowTouchMask = [&](bool isEq, unsigned r) -> unsigned {
+    unsigned mask = 0;
+    for (unsigned c = 0; c < constCol; ++c) {
+      int64_t v = isEq ? rel.atEq64(r, c) : rel.atIneq64(r, c);
+      if (v != 0 && side[c] > 0) mask |= (1u << side[c]);
+    }
+    return mask;
+  };
+
+  bool progress = true;
+  while (progress) {
+    progress = false;
+    for (int isEq = 0; isEq < 2; ++isEq) {
+      unsigned numRows =
+          isEq ? rel.getNumEqualities() : rel.getNumInequalities();
+      for (unsigned r = 0; r < numRows; ++r) {
+        unsigned mask = rowTouchMask(isEq, r);
+        if (mask != 2u && mask != 4u) continue;
+        int rowSide = (mask == 2u) ? 1 : 2;
+        for (unsigned c = localOffset; c < constCol; ++c) {
+          int64_t v = isEq ? rel.atEq64(r, c) : rel.atIneq64(r, c);
+          if (v != 0 && side[c] == -1) {
+            side[c] = rowSide;
+            progress = true;
+          }
+        }
+      }
+    }
+  }
+
+  SmallVector<unsigned> srcLocals, dstLocals;
+  for (unsigned k = 0; k < numLocals; ++k) {
+    int s = side[localOffset + k];
+    if (s == -1) return false;
+    if (s == 1) srcLocals.push_back(k);
+    if (s == 2) dstLocals.push_back(k);
+  }
+
+  for (int isEq = 0; isEq < 2; ++isEq) {
+    unsigned numRows = isEq ? rel.getNumEqualities() : rel.getNumInequalities();
+    for (unsigned r = 0; r < numRows; ++r) {
+      if ((rowTouchMask(isEq, r) & 6u) == 6u) return false;
+    }
+  }
+
+  unsigned numShared = sharedLocals.size();
+  SmallVector<int> srcColMap(constCol, -1), dstColMap(constCol, -1);
+  for (unsigned i = 0; i < numShared; ++i) {
+    srcColMap[localOffset + sharedLocals[i]] = i;
+    dstColMap[localOffset + sharedLocals[i]] = i;
+  }
+  srcColMap[0] = numShared;
+  srcColMap[1] = numShared + 1;
+  dstColMap[2] = numShared;
+  dstColMap[3] = numShared + 1;
+  for (unsigned i = 0; i < srcLocals.size(); ++i) {
+    srcColMap[localOffset + srcLocals[i]] = numShared + 2 + i;
+  }
+  for (unsigned i = 0; i < dstLocals.size(); ++i) {
+    dstColMap[localOffset + dstLocals[i]] = numShared + 2 + i;
+  }
+
+  presburger::IntegerRelation srcRel(
+      presburger::PresburgerSpace::getRelationSpace(numShared, 2, 0,
+                                                    srcLocals.size()));
+  presburger::IntegerRelation dstRel(
+      presburger::PresburgerSpace::getRelationSpace(numShared, 2, 0,
+                                                    dstLocals.size()));
+
+  for (int isEq = 0; isEq < 2; ++isEq) {
+    unsigned numRows = isEq ? rel.getNumEqualities() : rel.getNumInequalities();
+    for (unsigned r = 0; r < numRows; ++r) {
+      unsigned mask = rowTouchMask(isEq, r);
+      int64_t cst = isEq ? rel.atEq64(r, constCol) : rel.atIneq64(r, constCol);
+      if ((mask & 4u) == 0) {
+        SmallVector<int64_t> row(srcRel.getNumCols(), 0);
+        for (unsigned c = 0; c < constCol; ++c) {
+          int64_t v = isEq ? rel.atEq64(r, c) : rel.atIneq64(r, c);
+          if (v != 0) row[srcColMap[c]] = v;
+        }
+        row.back() = cst;
+        if (isEq)
+          srcRel.addEquality(row);
+        else
+          srcRel.addInequality(row);
+      }
+      if ((mask & 2u) == 0) {
+        SmallVector<int64_t> row(dstRel.getNumCols(), 0);
+        for (unsigned c = 0; c < constCol; ++c) {
+          int64_t v = isEq ? rel.atEq64(r, c) : rel.atIneq64(r, c);
+          if (v != 0) row[dstColMap[c]] = v;
+        }
+        row.back() = cst;
+        if (isEq)
+          dstRel.addEquality(row);
+        else
+          dstRel.addInequality(row);
+      }
+    }
+  }
+
+  PointPairCollector srcCollector(numShared, 2);
+  PointPairCollector dstCollector(numShared, 2);
+  enumeratePoints(srcRel, srcCollector);
+  enumeratePoints(dstRel, dstCollector);
+
+  auto flatIndex = [&](ArrayRef<int64_t> coord) -> int64_t {
+    int64_t idx = 0;
+    for (unsigned i = 0; i < numShared; ++i) {
+      if (coord[i] < lbs[i] || coord[i] > ubs[i]) return -1;
+      idx = idx * (ubs[i] - lbs[i] + 1) + (coord[i] - lbs[i]);
+    }
+    return idx;
+  };
+
+  std::vector<SmallVector<CtSlot, 8>> srcByCoord(volume), dstByCoord(volume);
+  for (const auto& [coord, slot] : srcCollector.points) {
+    int64_t idx = flatIndex(coord);
+    if (idx >= 0) srcByCoord[idx].push_back(CtSlot{slot[0], slot[1]});
+  }
+  for (const auto& [coord, slot] : dstCollector.points) {
+    int64_t idx = flatIndex(coord);
+    if (idx >= 0) dstByCoord[idx].push_back(CtSlot{slot[0], slot[1]});
+  }
+
+  // First pass: map any target slot that already holds its required coordinate
+  // in-place (`sourceSlot == targetSlot`, zero rotation).
+  for (int64_t idx = 0; idx < volume; ++idx) {
+    if (srcByCoord[idx].empty() || dstByCoord[idx].empty()) continue;
+    for (const CtSlot& target : dstByCoord[idx]) {
+      if (llvm::is_contained(srcByCoord[idx], target)) {
+        mapping.add(target, target);
+      }
+    }
+  }
+  // Second pass: map any remaining target slots from the first available
+  // source replica for that coordinate.
+  for (int64_t idx = 0; idx < volume; ++idx) {
+    if (srcByCoord[idx].empty() || dstByCoord[idx].empty()) continue;
+    const CtSlot& firstSrc = srcByCoord[idx][0];
+    for (const CtSlot& target : dstByCoord[idx]) {
+      mapping.add(firstSrc, target);
+    }
+  }
+  return true;
+}
+
 void populateMappingFromLayoutAttr(const LayoutAttr& layoutAttr,
                                    Mapping& mapping) {
+  const presburger::IntegerRelation& rel = layoutAttr.getIntegerRelation();
+  if (tryPopulateFactoredMapping(rel, mapping)) return;
+
   PointPairCollector collector(2, 2);
-  enumeratePoints(layoutAttr.getIntegerRelation(), collector);
+  enumeratePoints(rel, collector);
 
   // Put the data from collector into Mapping. Probably can be more efficient
   // here by avoiding a copy and making a custom PointPairCollector that

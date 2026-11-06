@@ -475,6 +475,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   if (!source || matchPattern(source, m_Constant(&constant))) {
     if (auto dense = dyn_cast_if_present<DenseElementsAttr>(constant)) {
       int64_t numSourceElements = dense.getNumElements();
+      assert(dense.getElementType() == resultType.getElementType());
       assert(static_cast<int64_t>(node.indices.size()) == numElements);
       assert(llvm::all_of(
                  node.indices,
@@ -495,7 +496,6 @@ std::vector<Value> IRMaterializingVisitor::operator()(
           // resultType has the source's element type, so bytes copy as is;
           // zero-initialized bytes represent 0 / +0.0 for unplaced (idx < 0)
           // slots.
-          assert(dense.getElementType() == resultType.getElementType());
           int64_t byteWidth = bitWidth / 8;
           bool isSplat = dense.isSplat();
           std::vector<char> rawResult(numElements * byteWidth, 0);
