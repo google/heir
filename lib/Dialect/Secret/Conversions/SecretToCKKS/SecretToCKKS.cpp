@@ -73,7 +73,7 @@ class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
   }
 
   lwe::LweEncryptionType getEncryptionType() const override {
-    return lwe::LweEncryptionType::mix;
+    return lwe::LweEncryptionType::ckks;
   }
 };
 

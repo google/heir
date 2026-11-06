@@ -6,7 +6,7 @@
 #ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
 !rns_L45 = !rns.rns<!mod_arith.int<36028797005856769 : i64>, !mod_arith.int<35184478519297 : i64>>
 #ring_rns_L45_1_x1024 = #polynomial.ring<coefficientType = !rns_L45, polynomialModulus = <1 + x**1024>>
-#ciphertext_space_L45 = #lwe.ciphertext_space<ring = #ring_rns_L45_1_x1024, encryption_type = mix>
+#ciphertext_space_L45 = #lwe.ciphertext_space<ring = #ring_rns_L45_1_x1024, encryption_type = ckks>
 !ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L45, key = #key, modulus_chain = #modulus_chain>
 
 // CHECK: ![[CC:.*]] = !openfhe.crypto_context

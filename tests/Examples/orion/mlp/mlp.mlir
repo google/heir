@@ -18,11 +18,11 @@
 #ring_rns_L3_1_x8192 = #polynomial.ring<coefficientType = !rns_L3, polynomialModulus = <1 + x**8192>>
 #ring_rns_L4_1_x8192 = #polynomial.ring<coefficientType = !rns_L4, polynomialModulus = <1 + x**8192>>
 #ring_rns_L5_1_x8192 = #polynomial.ring<coefficientType = !rns_L5, polynomialModulus = <1 + x**8192>>
-#ciphertext_space_L3 = #lwe.ciphertext_space<ring = #ring_rns_L3_1_x8192, encryption_type = mix>
-#ciphertext_space_L4 = #lwe.ciphertext_space<ring = #ring_rns_L4_1_x8192, encryption_type = mix>
-#ciphertext_space_L4_D3 = #lwe.ciphertext_space<ring = #ring_rns_L4_1_x8192, encryption_type = mix, size = 3>
-#ciphertext_space_L5 = #lwe.ciphertext_space<ring = #ring_rns_L5_1_x8192, encryption_type = mix>
-#ciphertext_space_L5_D3 = #lwe.ciphertext_space<ring = #ring_rns_L5_1_x8192, encryption_type = mix, size = 3>
+#ciphertext_space_L3 = #lwe.ciphertext_space<ring = #ring_rns_L3_1_x8192, encryption_type = ckks>
+#ciphertext_space_L4 = #lwe.ciphertext_space<ring = #ring_rns_L4_1_x8192, encryption_type = ckks>
+#ciphertext_space_L4_D3 = #lwe.ciphertext_space<ring = #ring_rns_L4_1_x8192, encryption_type = ckks, size = 3>
+#ciphertext_space_L5 = #lwe.ciphertext_space<ring = #ring_rns_L5_1_x8192, encryption_type = ckks>
+#ciphertext_space_L5_D3 = #lwe.ciphertext_space<ring = #ring_rns_L5_1_x8192, encryption_type = ckks, size = 3>
 !ct_L3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8192, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L3, key = #key, modulus_chain = #modulus_chain_L3_C3>
 !ct_L4 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8192, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L4, key = #key, modulus_chain = #modulus_chain_L4_C4>
 !ct_L4_1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8192, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L4, key = #key, modulus_chain = #modulus_chain_L4_C4>

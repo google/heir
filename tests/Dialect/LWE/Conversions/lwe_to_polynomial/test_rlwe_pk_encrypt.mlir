@@ -26,6 +26,7 @@ func.func @test_rlwe_pk_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ci
   // CHECK-DAG: %[[ONE:.*]] = arith.constant 1 : index
   // CHECK-DAG: %[[CONSTANT_T_ZN:.*]] = mod_arith.constant 65537 : [[MOD_ARITH_TY:.*]]
   // CHECK-DAG: %[[CONSTANT_T:.*]] = mod_arith.mod_switch %[[CONSTANT_T_ZN]] : [[MOD_ARITH_TY]] to [[RNS_TY:.*]]
+  // CHECK-DAG: %[[ARG0_CAST:.*]] = polynomial.mod_switch %[[ARG0]]
 
   // CHECK-DAG: %[[PRNG:.*]] = random.init_prng %[[SEED:.*]]
   // CHECK-DAG: %[[UNIFORM:.*]] = random.discrete_uniform_distribution %[[PRNG]]
@@ -38,7 +39,6 @@ func.func @test_rlwe_pk_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ci
   // CHECK:     %[[E_0:.*]] = random.sample %[[GAUSSIAN]]
   // CHECK:     %[[E_1:.*]] = random.sample %[[GAUSSIAN]]
 
-  // CHECK-DAG: %[[ARG0_CAST:.*]] = polynomial.mod_switch %[[ARG0]]
   // CHECK-DAG: %[[PK_0_TIMES_U:.*]] = polynomial.mul %[[PK_0]], %[[U]]
   // CHECK-DAG: %[[E_0_TIMES_T:.*]] = polynomial.mul_scalar %[[E_0]], %[[CONSTANT_T]]
   // CHECK-DAG: %[[PK_0_TIMES_U_PLUS_E_0_TIMES_T:.*]] = polynomial.add %[[PK_0_TIMES_U]], %[[E_0_TIMES_T]]

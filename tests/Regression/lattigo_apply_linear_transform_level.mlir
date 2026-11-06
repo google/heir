@@ -18,9 +18,9 @@
 #ring_rns_L0 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**8192>>
 #ring_rns_L1 = #polynomial.ring<coefficientType = !rns_L1, polynomialModulus = <1 + x**8192>>
 #ring_rns_L2 = #polynomial.ring<coefficientType = !rns_L2, polynomialModulus = <1 + x**8192>>
-#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0, encryption_type = mix>
-#ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1, encryption_type = mix>
-#ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2, encryption_type = mix>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0, encryption_type = ckks>
+#ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1, encryption_type = ckks>
+#ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2, encryption_type = ckks>
 !ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64, encoding = #encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L2_C0>
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64, encoding = #encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L2_C1>
 !ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64, encoding = #encoding>, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #modulus_chain_L2_C2>

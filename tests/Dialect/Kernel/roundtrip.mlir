@@ -17,7 +17,7 @@
 #ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
 !rns_ckks_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_ckks_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_ckks_L0, polynomialModulus = <1 + x**1024>>
-#ckks_ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_ckks_L0_1_x1024, encryption_type = mix>
+#ckks_ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_ckks_L0_1_x1024, encryption_type = ckks>
 !ckks_ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ckks_ciphertext_space_L0, key = #ckks_key, modulus_chain = #ckks_modulus_chain>
 
 // CHECK: module

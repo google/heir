@@ -6,7 +6,7 @@
 #ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
-#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = ckks>
 !ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // The ciphertext's chain has current 0, so it sits at level 0; its ring has
@@ -33,7 +33,7 @@ module attributes {backend.lattigo, scheme.ckks} {
 #ring_f64_1_x4096 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**4096>>
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x4096 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**4096>>
-#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x4096, encryption_type = mix>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x4096, encryption_type = ckks>
 !ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x4096, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // The ciphertext's chain has current 0, so it sits at level 0; use the
@@ -61,7 +61,7 @@ module attributes {backend.lattigo, scheme.ckks,  scheme.requested_slot_count = 
 #ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
-#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
+#ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = ckks>
 !ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // A target that does not declare hasKernelLinearTransform skips the
