@@ -103,8 +103,7 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
 
   // Computes cost of changed result.
   Cost costOfChangedResult(Operation* kernel, Attribute newLayout,
-                           KernelAttr oldKernel, KernelName newKernel,
-                           Cost totalOperandChangeCost);
+                           KernelAttr oldKernel, KernelName newKernel);
 
   void runOnOperation() override;
 };
@@ -408,8 +407,7 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
 Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
                                              Attribute newLayout,
                                              KernelAttr oldKernel,
-                                             KernelName newKernel,
-                                             Cost totalOperandChangeCost) {
+                                             KernelName newKernel) {
   LLVM_DEBUG(llvm::dbgs() << "Computing cost of changed result to new layout "
                           << newLayout << "\n");
 
@@ -417,9 +415,11 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   // change. This is true of all current trivial kernels (tensor.collapse_shape
   // and all arithmetic trivial kernels) and will continue to hold as long as
   // trivial kernels are implemented with equivalent ciphertext-semantic
-  // operations.
-  if (totalOperandChangeCost <= 0 &&
-      ((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
+  // operations. Returning 0 here prevents gratuitously hoisting a layout
+  // conversion above a metadata reshape (e.g. tensor.collapse_shape) when its
+  // operand is a non-free computed value (see
+  // hoist_collapse_computed_operand.mlir).
+  if (((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
        (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
         newKernel == KernelName::Trivial)) &&
       llvm::all_of(kernel->getResult(0).getUsers(), [&](Operation* user) {
@@ -624,8 +624,8 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
                             << totalOperandChangeCost << "\n");
     option.cost += totalOperandChangeCost;
 
-    Cost resultChangeCost = costOfChangedResult(
-        op, outputLayout, oldKernel, result.newKernel, totalOperandChangeCost);
+    Cost resultChangeCost =
+        costOfChangedResult(op, outputLayout, oldKernel, result.newKernel);
     LLVM_DEBUG(llvm::dbgs()
                << "\tresult change cost: " << resultChangeCost << "\n");
     option.cost += resultChangeCost;
