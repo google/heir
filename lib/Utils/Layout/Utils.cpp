@@ -675,6 +675,15 @@ static RankedTensorType getCollapsedType(
   return RankedTensorType::get(shape, type.getElementType());
 }
 
+// Returns the kept dimension in `group` when `onlyUnitDimsChange` holds.
+static int64_t getKeptDim(RankedTensorType type,
+                          const ReassociationIndices& group) {
+  for (int64_t dim : group) {
+    if (type.getDimSize(dim) > 1) return dim;
+  }
+  return group.front();
+}
+
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation) {
@@ -691,9 +700,8 @@ presburger::IntegerRelation collapseDimensions(
   }
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
   if (reassociation.empty()) {
-    for (int64_t dim = sourceType.getRank() - 1; dim >= 0; --dim) {
-      clonedRelation->setAndEliminate(dim, 0);
-    }
+    clonedRelation->setAndEliminate(
+        0, SmallVector<int64_t>(sourceType.getRank(), 0));
     return *clonedRelation;
   }
   for (const ReassociationIndices& associationGroup :
@@ -702,13 +710,7 @@ presburger::IntegerRelation collapseDimensions(
     if (associationGroup.size() == 1) {
       continue;
     }
-    int64_t keptDim = associationGroup.front();
-    for (int64_t dim : associationGroup) {
-      if (sourceType.getShape()[dim] > 1) {
-        keptDim = dim;
-        break;
-      }
-    }
+    int64_t keptDim = getKeptDim(sourceType, associationGroup);
     // Iterate starting from the largest index so that earlier deletion do not
     // impact later indices
     for (int64_t reassocDim : llvm::reverse(associationGroup)) {
@@ -760,13 +762,7 @@ presburger::IntegerRelation expandDimensions(
       continue;
     }
 
-    int64_t keptDim = associationGroup.front();
-    for (int64_t dim : associationGroup) {
-      if (resultType.getShape()[dim] > 1) {
-        keptDim = dim;
-        break;
-      }
-    }
+    int64_t keptDim = getKeptDim(resultType, associationGroup);
     for (int64_t reassocDim : associationGroup) {
       if (reassocDim == keptDim) {
         ++oldDim;
@@ -969,64 +965,35 @@ void forEachDomainImagePoint(
     llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
         onImagePoint,
     llvm::function_ref<bool()> shouldStop = nullptr,
-    unsigned numRangeDims = UINT_MAX,
-    llvm::function_ref<bool(int64_t)> filterRangeDim0 = nullptr) {
+    unsigned numRangeDims = UINT_MAX) {
   unsigned numDomain = lb.size();
   unsigned totalRange = isl_basic_map_dim(bmap, isl_dim_out);
   numRangeDims = std::min(numRangeDims, totalRange);
 
+  // An empty box (some lb > ub) contains no points.
+  for (unsigned i = 0; i < numDomain; ++i)
+    if (lb[i] > ub[i]) return;
+
   // Fix the domain to `point`, then invoke onImagePoint for every point of the
-  // resulting (now fully concrete) range.
+  // resulting (now fully concrete) range. Projecting out unused range
+  // dimensions after fixing the domain (and before projecting out the domain in
+  // isl_basic_map_range) lets isl simplify domain-dependent local variables
+  // first and then drop range-only local variables without unimodular basis
+  // changes on coupled equalities.
   auto processImageOfPoint = [&](ArrayRef<int64_t> point) {
     isl_basic_map* fixed = isl_basic_map_copy(bmap);
     for (unsigned i = 0; i < numDomain; ++i) {
       fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
     }
-    for (unsigned d = 0, n = isl_basic_map_dim(fixed, isl_dim_div); d <= n;
-         ++d) {
-      fixed = isl_basic_map_detect_equalities(fixed);
-      if (isl_basic_map_dim(fixed, isl_dim_div) == 0 ||
-          (numRangeDims == 1 && isl_basic_map_plain_is_fixed(
-                                    fixed, isl_dim_out, 0) == isl_bool_true)) {
-        break;
-      }
-    }
-    if (numRangeDims == 1) {
-      isl_val* val =
-          isl_basic_map_plain_get_val_if_fixed(fixed, isl_dim_out, 0);
-      if (isl_val_is_int(val) == isl_bool_true) {
-        int64_t c0 = isl_val_get_num_si(val);
-        if (!filterRangeDim0 || filterRangeDim0(c0)) {
-          if (isl_basic_map_is_empty(fixed) == isl_bool_false) {
-            isl_space* ptSpace =
-                isl_space_set_alloc(isl_basic_map_get_ctx(fixed), 0, 1);
-            isl_point* pt = isl_point_zero(ptSpace);
-            pt = isl_point_set_coordinate_val(pt, isl_dim_set, 0, val);
-            onImagePoint(point, pt);
-            isl_point_free(pt);
-            isl_basic_map_free(fixed);
-            return;
-          }
-        }
-        isl_val_free(val);
-        isl_basic_map_free(fixed);
-        return;
-      }
-      isl_val_free(val);
+    if (numRangeDims < totalRange) {
+      fixed = isl_basic_map_project_out(fixed, isl_dim_out, numRangeDims,
+                                        totalRange - numRangeDims);
     }
     isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
-    if (numRangeDims < totalRange) {
-      image = isl_set_project_out(image, isl_dim_set, numRangeDims,
-                                  totalRange - numRangeDims);
-    }
     ImageCtx imageCtx{onImagePoint, point};
     isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
     isl_set_free(image);
   };
-
-  // An empty box (some lb > ub) contains no points.
-  for (unsigned i = 0; i < numDomain; ++i)
-    if (lb[i] > ub[i]) return;
 
   SmallVector<int64_t> point(lb.begin(), lb.end());
   do {
@@ -1190,9 +1157,7 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
       /*shouldStop=*/[&]() { return seenCount == numCts; },
       // Only the ct matters; enumerating slots too multiplies the points by
       // the slot count.
-      /*numRangeDims=*/1,
-      /*filterRangeDim0=*/
-      [&](int64_t ct) { return ct >= 0 && ct < numCts && !seen[ct]; });
+      /*numRangeDims=*/1);
 
   isl_basic_map_free(bmap);
 

@@ -409,21 +409,20 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
                           << newLayout << "\n");
 
   // Note: this assumes that trivial kernels have no result layout cost
-  // change for the hoisted layout conversion itself. This is true of all
-  // current trivial kernels (tensor.collapse_shape, tensor.expand_shape, and
-  // all arithmetic trivial kernels) and will continue to hold as long as
+  // change. This is true of all current trivial kernels (tensor.collapse_shape
+  // and all arithmetic trivial kernels) and will continue to hold as long as
   // trivial kernels are implemented with equivalent ciphertext-semantic
   // operations.
-  bool isTrivial =
-      (oldKernel == nullptr && newKernel == KernelName::Trivial) ||
+  if ((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
       (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
-       newKernel == KernelName::Trivial);
+       newKernel == KernelName::Trivial)) {
+    return 0;
+  }
 
   Cost totalCost = 0;
   for (auto* user : kernel->getResult(0).getUsers()) {
     LLVM_DEBUG(llvm::dbgs() << "\tConvert layout use: " << *user << "\n");
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
-      if (isTrivial && convertLayoutOp.getToLayout() == newLayout) continue;
       Cost originalConversion = costOfLayoutConversion(
           convertLayoutOp.getFromLayout(), convertLayoutOp.getToLayout());
       Cost foldedConversion =

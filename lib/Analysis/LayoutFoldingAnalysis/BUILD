@@ -15,7 +15,6 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:LinalgInterfaces",
         "@llvm-project//mlir:Support",
     ],
