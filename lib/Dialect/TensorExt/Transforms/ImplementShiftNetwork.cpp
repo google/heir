@@ -8,6 +8,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <random>
 #include <tuple>
 #include <unordered_map>
@@ -24,9 +25,10 @@
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/Layout/Utils.h"
-#include "llvm/include/llvm/ADT/DenseSet.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -199,9 +201,13 @@ bool tryPopulateFactoredMapping(const presburger::IntegerRelation& rel,
     unsigned col = localOffset + k;
     for (unsigned r1 = 0; r1 < numIneq && !isFloorDivLocal[k]; ++r1) {
       int64_t c1 = rel.atIneq64(r1, col);
-      if (std::abs(c1) <= 1) continue;
+      int64_t d = std::abs(c1);
+      if (d <= 1) continue;
       for (unsigned r2 = r1 + 1; r2 < numIneq; ++r2) {
         if (rel.atIneq64(r2, col) != -c1) continue;
+        if (rel.atIneq64(r1, constCol) + rel.atIneq64(r2, constCol) != d - 1) {
+          continue;
+        }
         bool opposite = true;
         for (unsigned j = 0; j < constCol; ++j) {
           if (rel.atIneq64(r1, j) + rel.atIneq64(r2, j) != 0) {
@@ -217,23 +223,62 @@ bool tryPopulateFactoredMapping(const presburger::IntegerRelation& rel,
     }
   }
 
+  // Extract explicit single-variable constant bounds for local variables
+  // without invoking Fourier-Motzkin elimination.
+  SmallVector<std::optional<int64_t>> explicitLb(numLocals),
+      explicitUb(numLocals);
+  auto singleLocalRow = [&](bool isEq, unsigned r) -> std::optional<unsigned> {
+    int foundLocal = -1;
+    for (unsigned c = 0; c < constCol; ++c) {
+      int64_t v = isEq ? rel.atEq64(r, c) : rel.atIneq64(r, c);
+      if (v == 0) continue;
+      if (c < localOffset || foundLocal != -1) return std::nullopt;
+      foundLocal = static_cast<int>(c - localOffset);
+    }
+    if (foundLocal < 0) return std::nullopt;
+    return static_cast<unsigned>(foundLocal);
+  };
+  for (unsigned r = 0; r < rel.getNumEqualities(); ++r) {
+    auto k = singleLocalRow(/*isEq=*/true, r);
+    if (!k) continue;
+    int64_t a = rel.atEq64(r, localOffset + *k);
+    int64_t b = rel.atEq64(r, constCol);
+    if (-b % a != 0) return false;
+    int64_t val = -b / a;
+    explicitLb[*k] = explicitLb[*k] ? std::max(*explicitLb[*k], val) : val;
+    explicitUb[*k] = explicitUb[*k] ? std::min(*explicitUb[*k], val) : val;
+  }
+  for (unsigned r = 0; r < numIneq; ++r) {
+    auto k = singleLocalRow(/*isEq=*/false, r);
+    if (!k) continue;
+    int64_t a = rel.atIneq64(r, localOffset + *k);
+    int64_t b = rel.atIneq64(r, constCol);
+    if (a > 0) {
+      int64_t bound = -llvm::divideFloorSigned(b, a);
+      explicitLb[*k] =
+          explicitLb[*k] ? std::max(*explicitLb[*k], bound) : bound;
+    } else {
+      int64_t bound = llvm::divideFloorSigned(b, -a);
+      explicitUb[*k] =
+          explicitUb[*k] ? std::min(*explicitUb[*k], bound) : bound;
+    }
+  }
+
   constexpr int64_t kMaxSharedBoxVolume = 200000;
   SmallVector<unsigned> sharedLocals;
   SmallVector<int64_t> lbs, ubs;
   int64_t volume = 1;
   for (unsigned k = 0; k < numLocals; ++k) {
     if (isFloorDivLocal[k]) continue;
-    auto lb =
-        rel.getConstantBound64(presburger::BoundType::LB, localOffset + k);
-    auto ub =
-        rel.getConstantBound64(presburger::BoundType::UB, localOffset + k);
-    if (!lb || !ub || *lb > *ub) continue;
-    int64_t diff = *ub - *lb + 1;
+    if (!explicitLb[k] || !explicitUb[k] || *explicitLb[k] > *explicitUb[k]) {
+      continue;
+    }
+    int64_t diff = *explicitUb[k] - *explicitLb[k] + 1;
     if (diff <= 0 || volume > kMaxSharedBoxVolume / diff) return false;
     volume *= diff;
     sharedLocals.push_back(k);
-    lbs.push_back(*lb);
-    ubs.push_back(*ub);
+    lbs.push_back(*explicitLb[k]);
+    ubs.push_back(*explicitUb[k]);
   }
   if (sharedLocals.empty()) return false;
 
@@ -370,23 +415,16 @@ bool tryPopulateFactoredMapping(const presburger::IntegerRelation& rel,
     if (idx >= 0) dstByCoord[idx].push_back(CtSlot{slot[0], slot[1]});
   }
 
-  // First pass: map any target slot that already holds its required coordinate
-  // in-place (`sourceSlot == targetSlot`, zero rotation).
   for (int64_t idx = 0; idx < volume; ++idx) {
     if (srcByCoord[idx].empty() || dstByCoord[idx].empty()) continue;
     for (const CtSlot& target : dstByCoord[idx]) {
       if (llvm::is_contained(srcByCoord[idx], target)) {
         mapping.add(target, target);
+      } else {
+        for (const CtSlot& source : srcByCoord[idx]) {
+          mapping.add(source, target);
+        }
       }
-    }
-  }
-  // Second pass: map any remaining target slots from the first available
-  // source replica for that coordinate.
-  for (int64_t idx = 0; idx < volume; ++idx) {
-    if (srcByCoord[idx].empty() || dstByCoord[idx].empty()) continue;
-    const CtSlot& firstSrc = srcByCoord[idx][0];
-    for (const CtSlot& target : dstByCoord[idx]) {
-      mapping.add(firstSrc, target);
     }
   }
   return true;

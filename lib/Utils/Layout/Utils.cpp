@@ -1091,8 +1091,18 @@ __int128 floorDivI128(__int128 a, __int128 b) {
 
 __int128 ceilDivI128(__int128 a, __int128 b) { return -floorDivI128(-a, b); }
 
-uint64_t absI128(__int128 x) {
-  return x < 0 ? static_cast<uint64_t>(-x) : static_cast<uint64_t>(x);
+unsigned __int128 absI128(__int128 x) {
+  return x < 0 ? -static_cast<unsigned __int128>(x)
+               : static_cast<unsigned __int128>(x);
+}
+
+unsigned __int128 gcdI128(unsigned __int128 a, unsigned __int128 b) {
+  while (b != 0) {
+    unsigned __int128 r = a % b;
+    a = b;
+    b = r;
+  }
+  return a;
 }
 
 // Recovers exact integer equalities implied by pairs of opposite-facing strip
@@ -1144,13 +1154,13 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
   SmallVector<SmallVector<__int128, 12>, 8> eqs;
   auto normalizeAndAddEq = [&](SmallVector<__int128, 12> eq,
                                bool addToRel) -> bool {
-    uint64_t g = 0;
+    unsigned __int128 g = 0;
     int firstSign = 0;
     for (unsigned j = 0; j < numCols; ++j) {
       if (j < constCol && eq[j] != 0 && firstSign == 0) {
         firstSign = eq[j] > 0 ? 1 : -1;
       }
-      g = std::gcd(g, absI128(eq[j]));
+      g = gcdI128(g, absI128(eq[j]));
     }
     if (firstSign == 0 || g == 0) return false;
     SmallVector<int64_t, 12> eq64(numCols);
@@ -1175,16 +1185,27 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
   }
 
   for (unsigned iter = 0; iter < 6; ++iter) {
-    for (const auto& eq : eqs) {
+    SmallVector<bool> usedPivot(constCol, false);
+    for (size_t eIdx = 0; eIdx < eqs.size(); ++eIdx) {
+      const auto& eq = eqs[eIdx];
       int pivotCol = -1;
       for (unsigned j = localOffset; j < constCol; ++j) {
-        if (absI128(eq[j]) == 1) {
+        if (!usedPivot[j] && absI128(eq[j]) == 1) {
           pivotCol = static_cast<int>(j);
           break;
         }
       }
       if (pivotCol < 0) continue;
+      usedPivot[pivotCol] = true;
       __int128 pSign = eq[pivotCol];
+      for (size_t otherIdx = eIdx + 1; otherIdx < eqs.size(); ++otherIdx) {
+        __int128 coeff = eqs[otherIdx][pivotCol];
+        if (coeff == 0) continue;
+        __int128 mult = coeff * pSign;
+        for (unsigned j = 0; j < numCols; ++j) {
+          eqs[otherIdx][j] -= mult * eq[j];
+        }
+      }
       for (auto& s : strips) {
         __int128 coeff = s.coeffs[pivotCol];
         if (coeff == 0) continue;
@@ -1198,9 +1219,9 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
 
     bool changed = false;
     for (auto& s : strips) {
-      uint64_t g = 0;
+      unsigned __int128 g = 0;
       for (unsigned j = 0; j < constCol; ++j) {
-        g = std::gcd(g, absI128(s.coeffs[j]));
+        g = gcdI128(g, absI128(s.coeffs[j]));
       }
       if (g <= 1) continue;
       __int128 g128 = static_cast<__int128>(g);
@@ -1221,9 +1242,9 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
     size_t numStrips = strips.size();
     for (size_t a = 0; a < numStrips; ++a) {
       for (size_t b = a + 1; b < numStrips; ++b) {
-        uint64_t g = 0;
+        unsigned __int128 g = 0;
         for (unsigned j = 0; j < constCol; ++j) {
-          g = std::gcd(g, absI128(strips[a].coeffs[j] + strips[b].coeffs[j]));
+          g = gcdI128(g, absI128(strips[a].coeffs[j] + strips[b].coeffs[j]));
         }
         if (g <= 1) continue;
         __int128 g128 = static_cast<__int128>(g);
