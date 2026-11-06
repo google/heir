@@ -24,8 +24,9 @@ func.func @test_rlwe_decrypt(%arg0: !ciphertext_rlwe, %arg1: !rlwe_key) -> !plai
   // CHECK-DAG: %[[CTXT_ONE:.*]] = tensor.extract %arg0[%[[ONE]]]
   // CHECK-DAG: %[[SECRET_KEY:.*]] = tensor.extract %arg1[%[[ZERO]]]
 
-  // CHECK:     %[[KEY_TIMES_CTXT_ZERO:.*]] = polynomial.mul %[[SECRET_KEY]], %[[CTXT_ZERO]]
-  // CHECK:     %[[DECRYPTED_PTXT:.*]] = polynomial.add %[[KEY_TIMES_CTXT_ZERO]], %[[CTXT_ONE]]
+  // A ciphertext (c_0, c_1) decrypts as c_0 + c_1 * s.
+  // CHECK:     %[[CTXT_ONE_TIMES_KEY:.*]] = polynomial.mul %[[CTXT_ONE]], %[[SECRET_KEY]]
+  // CHECK:     %[[DECRYPTED_PTXT:.*]] = polynomial.add %[[CTXT_ZERO]], %[[CTXT_ONE_TIMES_KEY]]
   // CHECK:     %[[DECRYPTED_PTXT_MOD_SWITCH:.*]] = polynomial.mod_switch %[[DECRYPTED_PTXT]]
   // CHECK:     return %[[DECRYPTED_PTXT_MOD_SWITCH]]
   %0 = lwe.rlwe_decrypt %arg0, %arg1 : (!ciphertext_rlwe, !rlwe_key) -> !plaintext_rlwe
