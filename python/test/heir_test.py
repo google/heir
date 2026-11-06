@@ -1,7 +1,9 @@
 """Tests for the heir python package."""
 
 import importlib
+import signal
 import subprocess
+import threading
 import unittest
 
 import heir
@@ -63,6 +65,35 @@ UPSTREAM_DIALECTS = [
     "scf",
     "tensor",
 ]
+
+
+def _long_running_cse_input(num_muls: int = 20000) -> str:
+  """A function on which each cse pass takes a while.
+
+  Only the first cse changes it, by removing the duplicate addition. A
+  canonicalize folds the addition of constants into `arith.constant 3 : i32`.
+
+  Args:
+    num_muls: the length of the chain of multiplications, which makes cse slow.
+
+  Returns:
+    The function, as MLIR assembly.
+  """
+  muls = "\n".join(
+      f"  %m{i + 1} = arith.muli %m{i}, %m{i} : i32" for i in range(num_muls)
+  )
+  return f"""
+func.func @f(%x: i32) -> (i32, i32, i32, i32) {{
+  %a = arith.addi %x, %x : i32
+  %b = arith.addi %x, %x : i32
+  %c1 = arith.constant 1 : i32
+  %c2 = arith.constant 2 : i32
+  %sum = arith.addi %c1, %c2 : i32
+  %m0 = arith.muli %x, %x : i32
+{muls}
+  return %a, %b, %sum, %m{num_muls} : i32, i32, i32, i32
+}}
+"""
 
 
 class EndToEndTest(unittest.TestCase):
@@ -206,6 +237,48 @@ class PassTest(unittest.TestCase):
         with self.subTest(name=name):
           with self.assertRaises(ValueError):
             heir.run(module, name)
+
+  @unittest.skipUnless(hasattr(signal, "setitimer"), "needs signal.setitimer")
+  def test_keyboard_interrupt_stops_run(self):
+    with heir.context():
+      module = heir.parse(_long_running_cse_input())
+      # Raise KeyboardInterrupt like Ctrl-C would, while the pipeline runs: it
+      # would take far longer than that.
+      previous_handler = signal.signal(
+          signal.SIGALRM, signal.default_int_handler
+      )
+      try:
+        signal.setitimer(signal.ITIMER_REAL, 0.5)
+        with self.assertRaises(KeyboardInterrupt):
+          heir.run(module, *["cse"] * 5000, "canonicalize")
+      finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+      # The first cse ran, but the final canonicalize didn't.
+      self.assertEqual(str(module).count("arith.addi %arg0, %arg0"), 1)
+      self.assertNotIn("arith.constant 3 : i32", str(module))
+      # The module can still be used.
+      heir.run(module, "canonicalize")
+      self.assertIn("arith.constant 3 : i32", str(module))
+
+  def test_run_on_other_thread(self):
+    # Only the main thread runs signal handlers, but heir.run works on others.
+    errors = []
+
+    def run():
+      try:
+        with heir.context():
+          module = heir.parse(_long_running_cse_input(num_muls=1))
+          heir.run(module, "cse", "canonicalize")
+          self.assertIn("arith.constant 3 : i32", str(module))
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        errors.append(e)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join()
+    self.assertEqual(errors, [])
 
 
 class TranslateTest(unittest.TestCase):

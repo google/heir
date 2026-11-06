@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "mlir-c/IR.h"       // from @llvm-project
+#include "mlir-c/Pass.h"     // from @llvm-project
 #include "mlir-c/Support.h"  // from @llvm-project
 
 #ifdef __cplusplus
@@ -22,6 +23,18 @@ MLIR_CAPI_EXPORTED void heirRegisterAllDialects(MlirDialectRegistry registry);
 /// Registers all heir-opt passes and pass pipelines with the global pass
 /// registry, except the Yosys-based ones. Idempotent.
 MLIR_CAPI_EXPORTED void heirRegisterAllPasses(void);
+
+/// Called before each pass, see heirPassManagerAddCancellationCallback.
+typedef bool (*HeirPassCancellationCallback)(void* userData);
+
+/// Makes `passManager` call `callback(userData)` before running each pass,
+/// including nested passes (so possibly from several threads at once), and
+/// fail without running the pass if it returns true. This lets callers stop a
+/// pipeline between passes, e.g., when the user presses Ctrl-C. `userData`
+/// must stay valid while the pass manager runs.
+MLIR_CAPI_EXPORTED void heirPassManagerAddCancellationCallback(
+    MlirPassManager passManager, HeirPassCancellationCallback callback,
+    void* userData);
 
 /// Callback receiving the name and description of a translation.
 typedef void (*HeirTranslationCallback)(MlirStringRef name,

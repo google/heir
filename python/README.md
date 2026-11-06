@@ -20,6 +20,8 @@ all later versions.
 
 ## Example
 
+Run from the root of a HEIR checkout:
+
 ```python
 import heir
 from heir import types
@@ -27,15 +29,18 @@ from heir.dialects import arith, func, secret
 
 with heir.context():
   # Parse MLIR, or build it with the op builders (see below).
-  module = heir.parse_file("dot_product_8.mlir")
+  module = heir.parse_file("tests/Examples/openfhe/ckks/conv_1d/conv_1d.mlir")
 
-  # Run passes and pipelines, as with heir-opt. Passes can be given as
-  # heir.Pass objects, as textual passes ("canonicalize"), or as heir-opt flags
-  # ("--mlir-to-bgv=min-slot-count=8192").
+  # Run passes and pipelines, as with heir-opt. This is the pipeline of the
+  # conv_1d test (heir_opt_flags in tests/Examples/openfhe/ckks/conv_1d/BUILD):
+  #   heir-opt --annotate-module="backend=openfhe scheme=ckks" \
+  #     --mlir-to-ckks=min-slot-count=32 --scheme-to-openfhe
+  # Passes can be given as heir.Pass objects, as textual passes
+  # ("scheme-to-openfhe"), or as heir-opt flags ("--mlir-to-ckks=...").
   heir.run(
       module,
-      heir.Pass("annotate-module", backend="openfhe", scheme="bgv"),
-      heir.Pass("mlir-to-bgv", min_slot_count=8192),
+      heir.Pass("annotate-module", backend="openfhe", scheme="ckks"),
+      heir.Pass("mlir-to-ckks", min_slot_count=32),
       "scheme-to-openfhe",
   )
 
@@ -77,29 +82,21 @@ Run the tests with
 bazel test //python:heir_test
 ```
 
-To use a locally built package outside of bazel, either install it (this runs
-the bazel build):
+To use the package outside of bazel, install it in editable mode:
 
-```bash
-pip install .
-```
+1. Create and activate a virtual environment with Python 3.12+:
+   `python3 -m venv venv && source venv/bin/activate`
+1. Run `pip install -e .` from the repository root. This builds
+   `//python:heir_pkg` with bazel, optimized like the published wheel.
+1. Use it, e.g., run the example above, or `python python/test/heir_test.py`.
 
-or install it in editable mode:
+Edits to `python/heir/*.py` take effect immediately. The rest of the package
+(the generated bindings and native libraries) is loaded from a copy of the
+bazel-built package in `build/editable/heir`, so re-run `pip install -e .` after
+changing C++ code.
 
-```bash
-pip install -e .
-```
-
-An editable install imports the hand-written sources from `python/heir/`, so
-edits to them take effect immediately, and finds the generated parts of the
-package in `bazel-bin/python/heir_pkg`. After changing C++ code, update it with
-`bazel build //python:heir_pkg`. Alternatively, point `PYTHONPATH` at the bazel
-output:
-
-```bash
-bazel build //python:heir_pkg
-PYTHONPATH=$PWD/bazel-bin/python/heir_pkg python -c "import heir"
-```
+`pip install .` instead builds and installs a copy of the whole package, like
+the published wheel.
 
 When adding a new dialect, add it to `HEIR_DIALECTS` in `python/BUILD` to
 generate its Python op bindings.

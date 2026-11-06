@@ -4,6 +4,7 @@ from typing import Any, Union
 
 from . import ir
 from . import passmanager
+from ._mlir_libs import _heir
 
 
 def _format_option_value(value: Any) -> str:
@@ -76,6 +77,24 @@ def pipeline_string(*passes: PassLike) -> str:
   return "builtin.module(" + ",".join(_normalize(p) for p in passes) + ")"
 
 
+def _run_pass_manager(pm: passmanager.PassManager, op: ir.Operation) -> None:
+  """Runs `pm` on `op`, letting signal handlers stop it between passes.
+
+  Python runs signal handlers (e.g., the one raising KeyboardInterrupt on
+  Ctrl-C) between executing Python code, so they'd otherwise have to wait for
+  the whole pipeline to finish.
+  """
+  signal_checks = _heir.check_signals_between_passes(pm)
+  try:
+    pm.run(op)
+  finally:
+    exception = signal_checks.take_exception()
+    if exception is not None:
+      # The signal handler's exception stopped the pipeline: raise it instead
+      # of the resulting MLIRError (which has no diagnostics).
+      raise exception from None
+
+
 def run(
     module: ir.Module,
     *passes: PassLike,
@@ -88,6 +107,9 @@ def run(
   Each pass can be a `Pass`, a textual pass like "mlir-to-bgv{min-slot-count=8}",
   or a heir-opt flag like "--mlir-to-bgv=min-slot-count=8". A single fully
   specified pipeline "builtin.module(...)" is also accepted.
+
+  Ctrl-C (KeyboardInterrupt) stops the pipeline after the currently running
+  pass, and leaves the module as transformed by the passes that ran.
 
   Example:
 
@@ -121,5 +143,5 @@ def run(
     pm.enable_ir_printing()
   if enable_timing:
     pm.enable_timing()
-  pm.run(module.operation)
+  _run_pass_manager(pm, module.operation)
   return module

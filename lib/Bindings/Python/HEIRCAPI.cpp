@@ -18,18 +18,39 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Bytecode/BytecodeWriter.h"     // from @llvm-project
 #include "mlir/include/mlir/CAPI/IR.h"                     // from @llvm-project
+#include "mlir/include/mlir/CAPI/Pass.h"                   // from @llvm-project
 #include "mlir/include/mlir/CAPI/Support.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Verifier.h"                 // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"                   // from @llvm-project
+#include "mlir/include/mlir/Pass/PassInstrumentation.h"    // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace {
+
+// Fails each pass before it runs if the callback says so (see
+// heirPassManagerAddCancellationCallback). A failed pass stops the pipeline.
+class CancellationInstrumentation : public mlir::PassInstrumentation {
+ public:
+  CancellationInstrumentation(HeirPassCancellationCallback callback,
+                              void* userData)
+      : callback(callback), userData(userData) {}
+
+  void runBeforePass(mlir::Pass* pass, mlir::Operation* op) override {
+    if (callback(userData)) signalPassFailure(pass);
+  }
+
+ private:
+  HeirPassCancellationCallback callback;
+  void* userData;
+};
 
 using TranslationOpt =
     llvm::cl::opt<const mlir::Translation*, false, mlir::TranslationParser>;
@@ -86,6 +107,14 @@ void heirRegisterAllDialects(MlirDialectRegistry registry) {
 void heirRegisterAllPasses(void) {
   static std::once_flag flag;
   std::call_once(flag, [] { mlir::heir::registerAllHEIRPasses(); });
+}
+
+void heirPassManagerAddCancellationCallback(
+    MlirPassManager passManager, HeirPassCancellationCallback callback,
+    void* userData) {
+  unwrap(passManager)
+      ->addInstrumentation(
+          std::make_unique<CancellationInstrumentation>(callback, userData));
 }
 
 int heirOptMain(int argc, char** argv) {

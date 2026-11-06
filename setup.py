@@ -29,6 +29,11 @@ py_limited_api = True
 options = {"bdist_wheel": {"py_limited_api": "cp{}{}".format(*MIN_PYTHON)}}
 
 
+# An editable install (`pip install -e .`) imports the hand-written python
+# sources from python/heir, and the rest of the package from a copy of the
+# bazel-built package in this directory (see python/heir/__init__.py).
+EDITABLE_GENERATED_DIR = Path(__file__).resolve().parent / "build" / "editable"
+
 # The release workflows publish standalone heir-opt and heir-translate binaries
 # for each platform; the wheel only bundles thin launchers, which run the tools
 # from the shared library holding all compiler code. If this environment
@@ -105,11 +110,16 @@ def _is_native(path: Path) -> bool:
 
 
 def _copy_tree(src: Path, dst: Path) -> None:
-  """Copies the files in the directory `src` into `dst` (see _copy_file)."""
+  """Copies the files in the directory `src` into `dst` (see _copy_file).
+
+  Skips __pycache__ directories, which python creates in the bazel-built tree
+  when something imports the package from there directly.
+  """
   for path in sorted(src.rglob("*")):
-    if path.is_dir():
+    relative_path = path.relative_to(src)
+    if path.is_dir() or "__pycache__" in relative_path.parts:
       continue
-    _copy_file(path, dst / path.relative_to(src), executable=_is_native(path))
+    _copy_file(path, dst / relative_path, executable=_is_native(path))
 
 
 class BazelExtension(setuptools.Extension):
@@ -132,14 +142,11 @@ class BuildBazelExtension(build_ext.build_ext):
   """A command that runs Bazel to build the python package."""
 
   def run(self):
-    if self.inplace:
-      self.build_for_editable_install()
-    else:
-      for ext in self.extensions:
-        self.bazel_build(ext)
-      standalone_binaries_dir = os.environ.get(STANDALONE_BINARIES_DIR_ENV)
-      if standalone_binaries_dir:
-        self.build_standalone_binaries(Path(standalone_binaries_dir))
+    for ext in self.extensions:
+      self.bazel_build(ext)
+    standalone_binaries_dir = os.environ.get(STANDALONE_BINARIES_DIR_ENV)
+    if standalone_binaries_dir and not self.inplace:
+      self.build_standalone_binaries(Path(standalone_binaries_dir))
     # explicitly call `bazel shutdown` for graceful exit
     self.spawn(["bazel", "shutdown"])
 
@@ -149,18 +156,6 @@ class BuildBazelExtension(build_ext.build_ext):
     This is done in the ``bazel_build`` method, so it's not necessary to
     do again in the `build_ext` base class.
     """
-
-  def build_for_editable_install(self) -> None:
-    """Builds the package for an editable install (`pip install -e .`).
-
-    An editable install imports `heir` from the source tree (python/heir). Its
-    __init__.py finds the generated parts of the package (the upstream MLIR
-    python sources, the generated dialect bindings, the native libraries, and
-    the heir-opt and heir-translate launchers) in bazel-bin/python/heir_pkg.
-    Build them with the default bazel configuration, so that a later
-    `bazel build //python:heir_pkg` updates the editable install.
-    """
-    self.spawn(["bazel", "build", "//python:heir_pkg"])
 
   def bazel_argv(
       self, *targets: str, strip_binaries: bool = False
@@ -218,18 +213,26 @@ class BuildBazelExtension(build_ext.build_ext):
     return bazel_argv
 
   def bazel_build(self, ext: BazelExtension) -> None:
-    """Builds the package, and copies it into setuptools' libdir.
+    """Builds the package, and copies it to where it is installed from.
 
-    The wheel is built from the libdir.
+    The wheel is built from setuptools' libdir. An editable install (`pip
+    install -e .`) imports the hand-written sources from the source tree
+    instead, and the rest of the package from a copy in EDITABLE_GENERATED_DIR
+    (see python/heir/__init__.py), so that it uses the wheel's optimized build,
+    and later bazel commands (which may change what bazel-bin points to, or
+    delete files in it) don't break it.
     """
     with _maybe_patch_toolchains():
       self.spawn(self.bazel_argv(ext.bazel_target))
 
     srcdir = Path(self.build_temp) / "bazel-bin" / ext.generated_tree
-    libdir = Path(self.build_lib) / "heir"
+    if self.inplace:
+      libdir = EDITABLE_GENERATED_DIR / "heir"
+    else:
+      libdir = Path(self.build_lib) / "heir"
     # The tree is the complete package. Replace whatever an earlier build left
     # in libdir (pip reuses the build directory), so that stale files can't end
-    # up in the wheel.
+    # up in the package.
     if libdir.exists():
       shutil.rmtree(libdir)
     print(f"Copying {srcdir} to {libdir}")

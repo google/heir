@@ -10,23 +10,16 @@ import os
 from pathlib import Path
 import sys
 
+import heir
+
 
 def _find_binary(binary_name: str) -> Path:
   """Locates a bundled executable."""
-  here = Path(__file__).resolve().parent
-  candidates = [
-      # A wheel (or the bazel-built package) bundles the executables in the
-      # package.
-      here / binary_name,
-      # An editable install (`pip install -e .`) imports the package from the
-      # source tree, and uses the bazel-built package (see __init__.py).
-      here.parents[1]
-      / "bazel-bin"
-      / "python"
-      / "heir_pkg"
-      / "heir"
-      / binary_name,
-  ]
+  # A wheel (or the bazel-built package) bundles the executables in the
+  # package. An editable install (`pip install -e .`) imports the package from
+  # the source tree, and finds them with the other generated parts of the
+  # package (see __init__.py), which are on the package's search path.
+  candidates = [Path(path) / binary_name for path in heir.__path__]
   for candidate in candidates:
     if candidate.is_file():
       return candidate

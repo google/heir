@@ -116,6 +116,7 @@ norecursedirs = [
   "bazel-heir",
   "bazel-out",
   "bazel-testlogs",
+  "build",
   "docs",
   "external",
   "tests",
