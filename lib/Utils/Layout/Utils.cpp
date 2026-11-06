@@ -1140,20 +1140,18 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
       __int128 w = static_cast<__int128>(rel.atIneq64(r1, constCol)) +
                    static_cast<__int128>(rel.atIneq64(r2, constCol));
       if (w < 0) continue;
-      SmallVector<__int128, 12> c1(constCol), c2(constCol);
+      SmallVector<__int128, 12> c1(constCol);
       for (unsigned j = 0; j < constCol; ++j) {
         c1[j] = rel.atIneq64(r1, j);
-        c2[j] = rel.atIneq64(r2, j);
       }
       strips.push_back(Strip{std::move(c1), rel.atIneq64(r1, constCol), w});
-      strips.push_back(Strip{std::move(c2), rel.atIneq64(r2, constCol), w});
     }
   }
   if (strips.empty()) return;
 
   SmallVector<SmallVector<__int128, 12>, 8> eqs;
-  auto normalizeAndAddEq = [&](SmallVector<__int128, 12> eq,
-                               bool addToRel) -> bool {
+  SmallVector<SmallVector<__int128, 12>, 8> seenEqs;
+  auto normalizeEqInPlace = [&](SmallVector<__int128, 12>& eq) -> bool {
     unsigned __int128 g = 0;
     int firstSign = 0;
     for (unsigned j = 0; j < numCols; ++j) {
@@ -1163,16 +1161,24 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
       g = gcdI128(g, absI128(eq[j]));
     }
     if (firstSign == 0 || g == 0) return false;
-    SmallVector<int64_t, 12> eq64(numCols);
     for (unsigned j = 0; j < numCols; ++j) {
       eq[j] = (eq[j] / static_cast<__int128>(g)) * firstSign;
+    }
+    return true;
+  };
+  auto normalizeAndAddEq = [&](SmallVector<__int128, 12> eq,
+                               bool addToRel) -> bool {
+    if (!normalizeEqInPlace(eq)) return false;
+    SmallVector<int64_t, 12> eq64(numCols);
+    for (unsigned j = 0; j < numCols; ++j) {
       if (eq[j] < std::numeric_limits<int64_t>::min() ||
           eq[j] > std::numeric_limits<int64_t>::max()) {
         return false;
       }
       eq64[j] = static_cast<int64_t>(eq[j]);
     }
-    if (llvm::is_contained(eqs, eq)) return false;
+    if (llvm::is_contained(seenEqs, eq)) return false;
+    seenEqs.push_back(eq);
     eqs.push_back(std::move(eq));
     if (addToRel) rel.addEquality(eq64);
     return true;
@@ -1205,6 +1211,7 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
         for (unsigned j = 0; j < numCols; ++j) {
           eqs[otherIdx][j] -= mult * eq[j];
         }
+        normalizeEqInPlace(eqs[otherIdx]);
       }
       for (auto& s : strips) {
         __int128 coeff = s.coeffs[pivotCol];
@@ -1242,23 +1249,31 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
     size_t numStrips = strips.size();
     for (size_t a = 0; a < numStrips; ++a) {
       for (size_t b = a + 1; b < numStrips; ++b) {
-        unsigned __int128 g = 0;
-        for (unsigned j = 0; j < constCol; ++j) {
-          g = gcdI128(g, absI128(strips[a].coeffs[j] + strips[b].coeffs[j]));
-        }
-        if (g <= 1) continue;
-        __int128 g128 = static_cast<__int128>(g);
-        __int128 cst = strips[a].cst + strips[b].cst;
-        __int128 width = strips[a].width + strips[b].width;
-        __int128 kMin = ceilDivI128(-cst, g128);
-        __int128 kMax = floorDivI128(width - cst, g128);
-        if (kMin == kMax) {
-          SmallVector<__int128, 12> eq(numCols);
+        for (int signB : {1, -1}) {
+          unsigned __int128 g = 0;
           for (unsigned j = 0; j < constCol; ++j) {
-            eq[j] = (strips[a].coeffs[j] + strips[b].coeffs[j]) / g128;
+            g = gcdI128(
+                g, absI128(strips[a].coeffs[j] +
+                           static_cast<__int128>(signB) * strips[b].coeffs[j]));
           }
-          eq[constCol] = -kMin;
-          changed |= normalizeAndAddEq(std::move(eq), /*addToRel=*/true);
+          if (g <= 1) continue;
+          __int128 g128 = static_cast<__int128>(g);
+          __int128 cstB =
+              (signB == 1) ? strips[b].cst : (strips[b].width - strips[b].cst);
+          __int128 cst = strips[a].cst + cstB;
+          __int128 width = strips[a].width + strips[b].width;
+          __int128 kMin = ceilDivI128(-cst, g128);
+          __int128 kMax = floorDivI128(width - cst, g128);
+          if (kMin == kMax) {
+            SmallVector<__int128, 12> eq(numCols);
+            for (unsigned j = 0; j < constCol; ++j) {
+              eq[j] = (strips[a].coeffs[j] +
+                       static_cast<__int128>(signB) * strips[b].coeffs[j]) /
+                      g128;
+            }
+            eq[constCol] = -kMin;
+            changed |= normalizeAndAddEq(std::move(eq), /*addToRel=*/true);
+          }
         }
       }
     }

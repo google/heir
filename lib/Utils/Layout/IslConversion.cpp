@@ -118,58 +118,54 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
   unsigned constCol = rel.getNumCols() - 1;
 
   // Detect local variables defined by floor-division inequality pairs
-  // 0 <= expr + c - d * q <= d - 1 in topological order so they can be
-  // bound as known ISL floor-divs before Gaussian/Bezout div elimination runs
-  // on the equalities.
+  // 0 <= expr + c - d * q <= w (with 0 <= w <= d - 1) in topological order so
+  // they can be bound as known ISL floor-divs before Gaussian/Bezout div
+  // elimination runs on the equalities.
   struct FloorDivInfo {
     unsigned ineqRow;
     int64_t divisor;
   };
   SmallVector<std::optional<FloorDivInfo>> floorDivs(numLocals);
-  for (unsigned k = 0; k < numLocals; ++k) {
-    unsigned col = localOffset + k;
-    for (unsigned r1 = 0; r1 < rel.getNumInequalities() && !floorDivs[k];
-         ++r1) {
-      int64_t negD = rel.atIneq64(r1, col);
-      if (negD >= -1) continue;
-      int64_t d = -negD;
-      for (unsigned r2 = 0; r2 < rel.getNumInequalities(); ++r2) {
-        if (rel.atIneq64(r2, col) != d) continue;
-        if (rel.atIneq64(r1, constCol) + rel.atIneq64(r2, constCol) != d - 1) {
-          continue;
-        }
-        bool match = true;
-        for (unsigned j = 0; j < constCol; ++j) {
-          if (j != col && rel.atIneq64(r1, j) + rel.atIneq64(r2, j) != 0) {
-            match = false;
-            break;
-          }
-        }
-        if (match) {
-          floorDivs[k] = FloorDivInfo{r1, d};
-          break;
-        }
-      }
-    }
-  }
-
   SmallVector<unsigned> order;
   SmallVector<bool> scheduled(numLocals, false);
   bool progress = true;
   while (progress) {
     progress = false;
     for (unsigned k = 0; k < numLocals; ++k) {
-      if (scheduled[k] || !floorDivs[k].has_value()) continue;
-      unsigned r1 = floorDivs[k]->ineqRow;
-      bool ready = true;
-      for (unsigned j = 0; j < numLocals; ++j) {
-        if (j != k && rel.atIneq64(r1, localOffset + j) != 0 &&
-            !scheduled[j]) {
-          ready = false;
-          break;
+      if (scheduled[k]) continue;
+      unsigned col = localOffset + k;
+      for (unsigned r1 = 0; r1 < rel.getNumInequalities() && !floorDivs[k];
+           ++r1) {
+        int64_t negD = rel.atIneq64(r1, col);
+        if (negD >= -1) continue;
+        bool ready = true;
+        for (unsigned j = 0; j < numLocals; ++j) {
+          if (j != k && rel.atIneq64(r1, localOffset + j) != 0 &&
+              !scheduled[j]) {
+            ready = false;
+            break;
+          }
+        }
+        if (!ready) continue;
+        int64_t d = -negD;
+        for (unsigned r2 = 0; r2 < rel.getNumInequalities(); ++r2) {
+          if (rel.atIneq64(r2, col) != d) continue;
+          int64_t w = rel.atIneq64(r1, constCol) + rel.atIneq64(r2, constCol);
+          if (w < 0 || w > d - 1) continue;
+          bool match = true;
+          for (unsigned j = 0; j < constCol; ++j) {
+            if (j != col && rel.atIneq64(r1, j) + rel.atIneq64(r2, j) != 0) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            floorDivs[k] = FloorDivInfo{r1, d};
+            break;
+          }
         }
       }
-      if (ready) {
+      if (floorDivs[k].has_value()) {
         scheduled[k] = true;
         order.push_back(k);
         progress = true;

@@ -395,6 +395,7 @@ SlotTable SlotTable::get(const IntegerRelation& layout) {
   table.shape.assign(rank, 0);
   for (const auto& [index, position] : collector.points) {
     for (unsigned i = 0; i < rank; ++i) {
+      assert(index[i] >= 0 && "expected non-negative domain coordinate");
       table.shape[i] = std::max(table.shape[i], index[i] + 1);
     }
   }
@@ -914,17 +915,25 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
               if (isl_multi_aff_involves_dims(bMaff, isl_dim_in, 0, inDim) ==
                   isl_bool_false) {
                 SmallVector<int64_t, 4> coords(collector->numCoords);
+                bool allConstInt = true;
                 for (unsigned i = 0; i < collector->numCoords; ++i) {
                   isl_aff* aff = isl_multi_aff_get_aff(bMaff, i);
                   isl_val* val = isl_aff_get_constant_val(aff);
-                  coords[i] = isl_val_get_num_si(val);
+                  if (isl_aff_dim(aff, isl_dim_div) == 0 &&
+                      isl_val_is_int(val) == isl_bool_true) {
+                    coords[i] = isl_val_get_num_si(val);
+                  } else {
+                    allConstInt = false;
+                  }
                   isl_val_free(val);
                   isl_aff_free(aff);
                 }
-                collector->keys.push_back(std::move(coords));
-                isl_basic_set_free(bset);
-                isl_multi_aff_free(bMaff);
-                return isl_stat_ok;
+                if (allConstInt) {
+                  collector->keys.push_back(std::move(coords));
+                  isl_basic_set_free(bset);
+                  isl_multi_aff_free(bMaff);
+                  return isl_stat_ok;
+                }
               }
 
               // Project out dimensions of `bset` that `bMaff` does not depend

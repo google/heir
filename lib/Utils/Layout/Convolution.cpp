@@ -926,7 +926,8 @@ presburger::IntegerRelation get2dConvInterchangedResultRelation(
   int64_t hwOut = hOut * wOut;
   int64_t paddedC = getPaddedConvChannels(c, g2);
   int64_t ambientElements = paddedC * h * w;
-  int64_t numCiphertexts = std::ceil((float)ambientElements / minSlotCount);
+  int64_t numCiphertexts =
+      llvm::divideCeilSigned(ambientElements, minSlotCount);
   int64_t paddedSize = llvm::PowerOf2Ceil(ambientElements);
 
   std::string islStr;
