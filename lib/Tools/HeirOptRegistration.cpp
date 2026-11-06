@@ -150,7 +150,6 @@
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "lib/Transforms/ValidateScale/ValidateScale.h"
-#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -636,17 +635,6 @@ void registerAllHEIRPasses() {
   PassPipelineRegistration<MlirToRLWEPipelineOptions>(
       "torch-linalg-to-ckks", "Convert linalg MLIR exported from torch to CKKS",
       torchLinalgToCkksBuilder);
-}
-
-void registerHEIRYosysPipelines(const std::string& yosysFilesPath,
-                                const std::string& abcPath) {
-  mlir::heir::registerYosysOptimizerPipeline(yosysFilesPath, abcPath);
-
-  PassPipelineRegistration<mlir::heir::MLIRToCGGIPipelineOptions>(
-      "mlir-to-cggi",
-      "Convert a func using standard MLIR dialects to FHE using "
-      "CGGI.",
-      mlirToCGGIPipelineBuilder(yosysFilesPath, abcPath));
 }
 
 }  // namespace heir

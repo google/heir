@@ -6,15 +6,30 @@ from pathlib import Path
 import sys
 
 
+def _find_binary(binary_name: str) -> Path:
+  """Locates a bundled binary."""
+  here = Path(__file__).resolve().parent
+  candidates = [
+      # A wheel bundles the binaries in the package.
+      here / binary_name,
+      # An editable install (`pip install -e .`) imports the package from the
+      # source tree, and uses the binaries built by bazel.
+      here.parents[1] / "bazel-bin" / "tools" / binary_name,
+  ]
+  for candidate in candidates:
+    if candidate.is_file():
+      return candidate
+  print(
+      f"Error: {binary_name} not found; looked in"
+      f" {', '.join(str(c) for c in candidates)}",
+      file=sys.stderr,
+  )
+  sys.exit(1)
+
+
 def _run_binary(binary_name: str) -> None:
-  """Locates and executes a bundled binary, replacing the current process."""
-  binary_path = Path(__file__).parent / binary_name
-  if not binary_path.exists():
-    print(
-        f"Error: {binary_name} not found in package at {binary_path}",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+  """Executes a bundled binary, replacing the current process."""
+  binary_path = _find_binary(binary_name)
   os.execv(binary_path, [str(binary_path)] + sys.argv[1:])
 
 

@@ -22,11 +22,11 @@ class Pass:
 
   Option names may use underscores in place of dashes. For example,
 
-    Pass("mlir-to-bgv", ciphertext_degree=1024, encryption_technique_extended=True)
+    Pass("mlir-to-bgv", min_slot_count=1024, encryption_technique_extended=True)
 
   is equivalent to the heir-opt flag
 
-    --mlir-to-bgv="ciphertext-degree=1024 encryption-technique-extended=true"
+    --mlir-to-bgv="min-slot-count=1024 encryption-technique-extended=true"
   """
 
   def __init__(self, name: str, /, **options: Any):
@@ -85,13 +85,18 @@ def run(
 ) -> ir.Module:
   """Runs passes (or pipelines) on a module in place, like heir-opt.
 
-  Each pass can be a `Pass`, a textual pass like "mlir-to-bgv{ciphertext-degree=8}",
-  or a heir-opt flag like "--mlir-to-bgv=ciphertext-degree=8". A single fully
+  Each pass can be a `Pass`, a textual pass like "mlir-to-bgv{min-slot-count=8}",
+  or a heir-opt flag like "--mlir-to-bgv=min-slot-count=8". A single fully
   specified pipeline "builtin.module(...)" is also accepted.
 
   Example:
 
-    heir.run(module, "mlir-to-bgv", heir.Pass("scheme-to-openfhe"))
+    heir.run(
+        module,
+        heir.Pass("annotate-module", backend="openfhe", scheme="bgv"),
+        "mlir-to-bgv",
+        "scheme-to-openfhe",
+    )
 
   Args:
     module: the module to transform.

@@ -53,6 +53,8 @@ dev = [
 
 # For `uv sync` (which includes `dev` by default) or / `pip install --group dev`.
 # Not visible to pip-compile, so requirements.txt is generated with explicit --extra flags.
+# Note `uv sync` installs the project in editable mode, which runs a bazel build
+# (see setup.py); use `uv sync --no-install-project` to only install the deps.
 [dependency-groups]
 dev = ["heir_py[dev]"]
 
@@ -73,9 +75,11 @@ where = ["python"]
 include = ["heir*"]
 
 [tool.cibuildwheel]
-# The wheel uses CPython's stable ABI (abi3), so building for the oldest
-# supported version yields a wheel that works for all newer ones.
-build = "cp312-*"
+# The wheel uses CPython's stable ABI (abi3) for the oldest supported version
+# (see MIN_PYTHON in setup.py). cibuildwheel builds it once, for cp312, and
+# reuses it for each later version, where it only runs the tests (and, by
+# default, `abi3audit`).
+build = "cp312-* cp313-* cp314-*"
 build-frontend = "build[uv]"
 skip = "*musllinux* *android* *ios* *pyodide*"
 # cibuildwheel runs this from an isolated directory, so `import heir` resolves

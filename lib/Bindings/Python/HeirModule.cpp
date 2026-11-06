@@ -1,6 +1,7 @@
 // The `_heir` native extension module: dialect/pass registration and
 // in-process access to heir-translate.
 
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -43,6 +44,8 @@ NB_MODULE(_heir, m) {
       "translations",
       []() {
         std::vector<std::pair<std::string, std::string>> result;
+        // Waits for concurrent translations (see heirTranslate).
+        nb::gil_scoped_release release;
         heirForEachTranslation(
             [](MlirStringRef name, MlirStringRef description, void* userData) {
               static_cast<std::vector<std::pair<std::string, std::string>>*>(

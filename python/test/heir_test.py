@@ -151,8 +151,8 @@ class PassTest(unittest.TestCase):
   def test_pass_str(self):
     self.assertEqual(str(heir.Pass("canonicalize")), "canonicalize")
     self.assertEqual(
-        str(heir.Pass("mlir-to-bgv", ciphertext_degree=8, foo_bar=True)),
-        "mlir-to-bgv{ciphertext-degree=8 foo-bar=true}",
+        str(heir.Pass("mlir-to-bgv", min_slot_count=8, foo_bar=True)),
+        "mlir-to-bgv{min-slot-count=8 foo-bar=true}",
     )
     self.assertEqual(
         str(heir.Pass("p", values=[1, 2], name="a b")),
@@ -162,13 +162,13 @@ class PassTest(unittest.TestCase):
   def test_pipeline_string(self):
     self.assertEqual(
         heir.pipeline_string(
-            "--mlir-to-bgv=ciphertext-degree=8",
-            "--mlir-to-bgv{ciphertext-degree=8}",
+            "--mlir-to-bgv=min-slot-count=8",
+            "--mlir-to-bgv{min-slot-count=8}",
             '--annotate-module="backend=openfhe scheme=bgv"',
             "cse",
         ),
-        "builtin.module(mlir-to-bgv{ciphertext-degree=8},"
-        "mlir-to-bgv{ciphertext-degree=8},"
+        "builtin.module(mlir-to-bgv{min-slot-count=8},"
+        "mlir-to-bgv{min-slot-count=8},"
         "annotate-module{backend=openfhe scheme=bgv},cse)",
     )
     self.assertEqual(
@@ -196,6 +196,15 @@ class PassTest(unittest.TestCase):
       with self.assertRaises(ValueError):
         heir.run(module, "not-a-real-pass")
 
+  def test_yosys_pipelines_are_not_available(self):
+    # The python package ships neither Yosys's techmap files nor ABC.
+    with heir.context():
+      module = heir.parse("func.func @f() { return }")
+      for name in ["mlir-to-cggi", "yosys-optimizer"]:
+        with self.subTest(name=name):
+          with self.assertRaises(ValueError):
+            heir.run(module, name)
+
 
 class TranslateTest(unittest.TestCase):
 
@@ -213,10 +222,39 @@ class TranslateTest(unittest.TestCase):
   def test_unknown_option(self):
     with heir.context():
       module = heir.parse("func.func @f() { return }")
-      with self.assertRaises(heir.TranslationError):
+      with self.assertRaisesRegex(heir.TranslationError, "unknown option"):
         heir.translate(module, "emit-openfhe-pke", not_an_option=3)
-      with self.assertRaises(heir.TranslationError):
-        heir.translate(module, "emit-openfhe-pke", help=True)
+      with self.assertRaisesRegex(heir.TranslationError, "unknown option"):
+        heir.translate(module, "emit-openfhe-pke", "not-a-flag")
+      # These would print to stdout and exit the process.
+      for flags, options in [
+          (["--help"], {}),
+          (["-h"], {}),
+          ([], {"h": True}),
+          (["--version"], {}),
+          (["--print-options"], {}),
+      ]:
+        with self.subTest(flags=flags, options=options):
+          with self.assertRaisesRegex(
+              heir.TranslationError, "unsupported option"
+          ):
+            heir.translate(module, "emit-openfhe-pke", *flags, **options)
+
+  def test_invalid_option_value(self):
+    with heir.context():
+      module = heir.parse("func.func @f() { return }")
+      # LLVM prints errors about option values to stderr, so the exception
+      # should at least name the offending options.
+      with self.assertRaisesRegex(
+          heir.TranslationError, "--openfhe-include-type=bogus"
+      ):
+        heir.translate(module, "emit-openfhe-pke", openfhe_include_type="bogus")
+      with self.assertRaisesRegex(
+          heir.TranslationError, "--openfhe-include-type"
+      ):
+        heir.translate(module, "emit-openfhe-pke", "--openfhe-include-type")
+      # The failed calls must not affect later ones.
+      self.assertIn("f", heir.translate(module, "emit-function-info"))
 
   def test_unverified_ir_raises_translation_error(self):
     with heir.module() as m:

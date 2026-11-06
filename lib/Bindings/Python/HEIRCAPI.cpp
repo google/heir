@@ -8,6 +8,7 @@
 
 #include "lib/Tools/HeirOptRegistration.h"
 #include "lib/Tools/HeirTranslateRegistration.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/ScopeExit.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/Twine.h"                // from @llvm-project
@@ -62,10 +63,11 @@ llvm::StringRef optionName(llvm::StringRef arg) {
 }
 
 // Built-in llvm::cl flags that print to stdout/stderr or call std::exit()
-// inside ParseCommandLineOptions.
+// inside ParseCommandLineOptions (`-h` is an alias of `--help`).
 bool isDisallowedCLOption(llvm::StringRef name) {
-  return name == "help" || name.starts_with("help-") || name == "version" ||
-         name == "print-options" || name == "print-all-options";
+  return name == "help" || name == "h" || name.starts_with("help-") ||
+         name == "version" || name == "print-options" ||
+         name == "print-all-options";
 }
 
 void emitError(MlirStringCallback callback, void* userData,
@@ -119,9 +121,19 @@ MlirLogicalResult heirTranslate(MlirOperation op, MlirStringRef translation,
       "heir-translate",
       ("--" + llvm::Twine(kTranslationOptName) + "=" + unwrap(translation))
           .str()};
+  auto& registered = llvm::cl::getRegisteredOptions();
   for (intptr_t i = 0; i < numOptions; ++i) {
     llvm::StringRef optStr = unwrap(options[i]);
-    if (isDisallowedCLOption(optionName(optStr))) {
+    llvm::StringRef name = optionName(optStr);
+    // Only accept registered options (e.g., translation options), so that
+    // unknown options get a clear error (parse errors for them would only
+    // name the synthetic command line).
+    if (!optStr.starts_with("-") || !registered.contains(name)) {
+      emitError(errorCallback, errorUserData,
+                ("unknown option '" + optStr + "'").str());
+      return mlirLogicalResultFailure();
+    }
+    if (isDisallowedCLOption(name)) {
       emitError(errorCallback, errorUserData,
                 ("unsupported option '" + optStr + "'").str());
       return mlirLogicalResultFailure();
@@ -135,7 +147,6 @@ MlirLogicalResult heirTranslate(MlirOperation op, MlirStringRef translation,
   // Options are global state: restore every option we touch to its default
   // afterwards, so that one call's options don't leak into the next.
   llvm::scope_exit resetOptions([&] {
-    auto& registered = llvm::cl::getRegisteredOptions();
     for (const std::string& arg : args) {
       auto it = registered.find(optionName(arg));
       if (it != registered.end()) it->second->setDefault();
@@ -148,6 +159,14 @@ MlirLogicalResult heirTranslate(MlirOperation op, MlirStringRef translation,
   llvm::cl::ResetAllOptionOccurrences();
   if (!llvm::cl::ParseCommandLineOptions(argv.size(), argv.data(), "",
                                          &parseErrorStream)) {
+    if (parseErrors.empty()) {
+      // Errors about invalid option values (e.g., an unknown enum value or a
+      // missing value) are printed to stderr rather than to parseErrorStream.
+      parseErrors = "invalid translation options";
+      for (const std::string& arg : llvm::drop_begin(args, 2))
+        parseErrors += " " + arg;
+      parseErrors += " (see stderr for details)";
+    }
     emitError(errorCallback, errorUserData, parseErrors);
     return mlirLogicalResultFailure();
   }

@@ -2,10 +2,25 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 # Registration of everything heir-opt and heir-translate support, shared by the
 # command line tools and the python bindings.
+#
+# Nothing here may depend on Yosys or ABC except HeirYosysRegistration, which
+# only heir-opt uses: the python bindings ship neither.
 
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
+)
+
+# The passes and pipelines that depend on Yosys and ABC.
+cc_library(
+    name = "HeirYosysRegistration",
+    srcs = ["HeirYosysRegistration.cpp"],
+    hdrs = ["HeirYosysRegistration.h"],
+    deps = [
+        "@heir//lib/Pipelines:YosysPipelineRegistration",
+        "@heir//lib/Transforms/YosysOptimizer",
+        "@llvm-project//mlir:Pass",
+    ],
 )
 
 cc_library(
@@ -161,7 +176,6 @@ cc_library(
         "@heir//lib/Transforms/UnusedMemRef",
         "@heir//lib/Transforms/ValidateNoise",
         "@heir//lib/Transforms/ValidateScale",
-        "@heir//lib/Transforms/YosysOptimizer",
         "@hermetic_llvm//openmp:libomp",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineToStandard",

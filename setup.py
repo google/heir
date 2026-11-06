@@ -7,8 +7,6 @@ import pathlib
 import platform
 import re
 import shutil
-import stat
-import sys
 from typing import Any
 
 import setuptools
@@ -20,11 +18,15 @@ IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
 
-# The native extensions are built against CPython's stable ABI for 3.12+ (see
-# patches/nanobind_stable_abi.patch), so a single abi3 wheel per platform works
-# for all supported Python versions.
+# The oldest supported Python version (keep in sync with `requires-python` in
+# pyproject.toml). The native extensions are built against CPython's stable ABI
+# (abi3) of this version, see the Py_LIMITED_API define in
+# patches/nanobind_stable_abi.patch, so that a single wheel per platform
+# supports this and all later Python versions.
+MIN_PYTHON = (3, 12)
+MIN_PYTHON_STR = "{}.{}".format(*MIN_PYTHON)
 py_limited_api = True
-options = {"bdist_wheel": {"py_limited_api": "cp312"}}
+options = {"bdist_wheel": {"py_limited_api": "cp{}{}".format(*MIN_PYTHON)}}
 
 
 def is_cibuildwheel() -> bool:
@@ -67,6 +69,30 @@ def _maybe_patch_toolchains() -> Generator[None, None, None]:
       module_bazel.write_text(content)
 
 
+def _copy_file(src: Path, dst: Path, executable: bool) -> None:
+  """Copies `src` to `dst`, replacing `dst` if it exists.
+
+  Bazel outputs are read-only. Copying them with their permission bits (as
+  shutil.copy2 does) would leave read-only files in the build directory, which
+  the next build (pip reuses the build directory) could not overwrite.
+  """
+  if dst.exists() or dst.is_symlink():
+    dst.unlink()
+  dst.parent.mkdir(parents=True, exist_ok=True)
+  shutil.copyfile(src, dst)
+  os.chmod(dst, 0o755 if executable else 0o644)
+
+
+def _copy_tree(src: Path, dst: Path) -> None:
+  """Copies the files in the directory `src` into `dst` (see _copy_file)."""
+  for path in sorted(src.rglob("*")):
+    if path.is_dir():
+      continue
+    _copy_file(
+        path, dst / path.relative_to(src), executable=path.suffix == ".so"
+    )
+
+
 class BazelExtension(setuptools.Extension):
   """A C/C++ extension that is defined as a Bazel BUILD target."""
 
@@ -88,8 +114,6 @@ class BazelExtension(setuptools.Extension):
     # like ("path", "to", "file.so")
     self.generated_so_file = generated_so_file
     self.target_file = target_file
-    stripped_target = bazel_target.split("//")[-1]
-    self.relpath, self.target_name = stripped_target.split(":")
     self.is_binary = is_binary
 
     # Whether generated_so_file is a directory whose contents should be merged
@@ -107,18 +131,10 @@ class BuildBazelExtension(build_ext.build_ext):
 
   def run(self):
     if self.inplace:
-      # This corresponds to pip install --editable. The package consists mostly
-      # of bazel-generated files (MLIR python sources, generated dialect
-      # bindings, and native extensions), so an editable install of the source
-      # tree would not be importable.
-      raise RuntimeError(
-          "Editable installs are not supported. Either run `pip install .`, or"
-          " run `bazel build //python:heir_pkg` and add"
-          " `bazel-bin/python/heir_pkg` to PYTHONPATH."
-      )
-
-    for ext in self.extensions:
-      self.bazel_build(ext)
+      self.build_for_editable_install()
+    else:
+      for ext in self.extensions:
+        self.bazel_build(ext)
     # explicitly call `bazel shutdown` for graceful exit
     self.spawn(["bazel", "shutdown"])
 
@@ -129,13 +145,28 @@ class BuildBazelExtension(build_ext.build_ext):
     do again in the `build_ext` base class.
     """
 
+  def build_for_editable_install(self) -> None:
+    """Builds the package for an editable install (`pip install -e .`).
+
+    An editable install imports `heir` from the source tree (python/heir). Its
+    __init__.py finds the generated parts of the package (the upstream MLIR
+    python sources, the generated dialect bindings, and the native libraries)
+    in bazel-bin/python/heir_pkg, and the heir-opt/heir-translate entry points
+    find the binaries in bazel-bin/tools. Build them with the default bazel
+    configuration, so that a later `bazel build //python:heir_pkg` updates the
+    editable install.
+    """
+    self.spawn([
+        "bazel",
+        "build",
+        "//python:heir_pkg",
+        "//tools:heir-opt",
+        "//tools:heir-translate",
+    ])
+
   def bazel_build(self, ext: BazelExtension) -> None:  # noqa: C901
     """Runs the bazel build to create the package."""
     temp_path = Path(self.build_temp)
-
-    # We round to the minor version, which makes rules_python
-    # look up the latest available patch version internally.
-    python_version = "{}.{}".format(*sys.version_info[:2])
 
     bazel_argv = [
         "bazel",
@@ -148,7 +179,13 @@ class BuildBazelExtension(build_ext.build_ext):
         "--compilation_mode=opt",
         "--strip=always",
         f"--cxxopt={'/std:c++20' if IS_WINDOWS else '-std=c++20'}",
-        f"--@rules_python//python/config_settings:python_version={python_version}",
+        # Build the extensions against the oldest supported Python version's
+        # headers (whichever Python runs this script): the extensions use the
+        # stable ABI, so they work with all later versions.
+        f"--@rules_python//python/config_settings:python_version={MIN_PYTHON_STR}",
+        # The wheel doesn't ship Yosys's techmap files or the ABC binary, so
+        # build heir-opt without the passes that need them.
+        "--//:enable_yosys=0",
     ]
 
     if ext.aggressive_strip:
@@ -189,33 +226,18 @@ class BuildBazelExtension(build_ext.build_ext):
     # map from srcdir-relative paths to libdir-relative paths
     srcdir_path = srcdir / ext.generated_so_file
     if ext.is_tree:
+      # The tree is the complete package. Replace whatever an earlier build
+      # left in libdir (pip reuses the build directory), so that stale files
+      # can't end up in the wheel.
+      if libdir.exists():
+        shutil.rmtree(libdir)
       print(f"Copying {srcdir_path} to {libdir}")
-      shutil.copytree(
-          src=srcdir_path, dst=libdir, symlinks=False, dirs_exist_ok=True
-      )
+      _copy_tree(srcdir_path, libdir)
       return
 
     libdir_path = libdir / ext.target_file
     print(f"Copying {srcdir_path} to {libdir_path}")
-    shutil.copyfile(srcdir_path, libdir_path)
-
-    # run chmod +x on is_binary = True
-    if ext.is_binary:
-      # set executable bit on the target file
-      target_path = libdir / ext.target_file
-      print(f"Setting executable bit on {target_path}")
-      # chmod 775 the file
-      os.chmod(
-          target_path,
-          stat.S_IRUSR
-          | stat.S_IWUSR
-          | stat.S_IXUSR
-          | stat.S_IRGRP
-          | stat.S_IWGRP
-          | stat.S_IXGRP
-          | stat.S_IROTH
-          | stat.S_IXOTH,
-      )
+    _copy_file(srcdir_path, libdir_path, executable=ext.is_binary)
 
 
 setuptools.setup(
@@ -230,7 +252,8 @@ setuptools.setup(
     },
     ext_modules=[
         # The python package: MLIR python bindings, generated dialect bindings,
-        # the native extensions, and the hand-written python sources.
+        # the native extensions, and the hand-written python sources. Must come
+        # first, since building it replaces the package directory.
         BazelExtension(
             name="heir._mlir_libs._heir",
             bazel_target="//python:heir_pkg",

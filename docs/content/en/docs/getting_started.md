@@ -230,6 +230,9 @@ using the generated op builders in `heir.dialects` (e.g. `heir.dialects.secret`,
 `heir.dialects.arith`). See the
 [package README](https://github.com/google/heir/tree/main/python) for more.
 
+**Note:** The pip package does not include the Yosys-based boolean pipeline
+(`--mlir-to-cggi` and `--yosys-optimizer`). To use it, build HEIR from source.
+
 ### Building From Source
 
 #### Prerequisites
