@@ -27,6 +27,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/IR/GPUDialect.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"        // from @llvm-project
@@ -75,6 +76,7 @@ int main(int argc, char** argv) {
   registry.insert<arith::ArithDialect>();
   registry.insert<bufferization::BufferizationDialect>();
   registry.insert<func::FuncDialect>();
+  registry.insert<gpu::GPUDialect>();
   registry.insert<math::MathDialect>();
   registry.insert<memref::MemRefDialect>();
   registry.insert<polynomial::PolynomialDialect>();

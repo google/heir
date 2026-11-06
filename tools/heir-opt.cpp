@@ -184,7 +184,10 @@
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/IR/GPUDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
@@ -292,6 +295,13 @@ int main(int argc, char** argv) {
   registry.insert<mlir::arith::ArithDialect>();
   registry.insert<bufferization::BufferizationDialect>();
   registry.insert<func::FuncDialect>();
+  // Upstream GPU dialect for kernel outlining and device offloading.
+  // Note: We deliberately register only GPUDialect and its outlining passes in
+  // heir-opt (and exclude NVVMDialect / LLVMIRTransforms, see
+  // LLVMDummyInlinerInterface above) to keep heir-opt build times minimal and
+  // avoid backend target coupling. NVVM lowering is handled downstream by
+  // mlir-opt.
+  registry.insert<gpu::GPUDialect>();
   registry.insert<math::MathDialect>();
   registry.insert<memref::MemRefDialect>();
   registry.insert<polynomial::PolynomialDialect>();
@@ -329,6 +339,7 @@ int main(int argc, char** argv) {
   // Misc
   registerTransformsPasses();      // canonicalize, cse, etc.
   affine::registerAffinePasses();  // loop unrolling
+  registerGPUPasses();             // gpu-kernel-outlining, etc.
   registerLinalgPasses();          // linalg to loops
   memref::registerMemRefPasses();  // fold-memref-alias-ops, etc.
 
@@ -363,6 +374,7 @@ int main(int argc, char** argv) {
   bufferization::registerBufferizationPasses();
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::gpu::registerBufferDeallocationOpInterfaceExternalModels(registry);
   bufferization::registerBufferizableOpInterfaceExternalModels(registry);
   bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);

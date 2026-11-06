@@ -200,6 +200,8 @@ cc_binary(
         "@llvm-project//mlir:FuncExtensions",
         "@llvm-project//mlir:FuncToEmitC",
         "@llvm-project//mlir:FuncToLLVM",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:GPUTransforms",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:IndexToLLVM",
         "@llvm-project//mlir:InliningUtils",
@@ -289,6 +291,7 @@ cc_binary(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:BufferizationDialect",
         "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:GPUDialect",
         "@llvm-project//mlir:LLVMDialect",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:MathDialect",
@@ -363,5 +366,11 @@ bzl_library(
 bzl_library(
     name = "mlir_translate_bzl",
     srcs = ["mlir-translate.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "mlir_opt_gpu_bzl",
+    srcs = ["mlir-opt-gpu.bzl"],
     visibility = ["//visibility:public"],
 )
