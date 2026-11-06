@@ -914,6 +914,8 @@ presburger::IntegerRelation get2dConvInterchangedResultRelation(
     RankedTensorType outputType, ArrayRef<int64_t> strides,
     int64_t minSlotCount) {
   assert(llvm::all_equal(strides) && "strides must be equal");
+  assert(llvm::isPowerOf2_64(minSlotCount) &&
+         "expected power-of-two minSlotCount");
   int64_t n = outputType.getDimSize(0);
   assert(n == 1 && "expected unit batch size");
   int64_t c = outputType.getDimSize(1);
@@ -950,7 +952,11 @@ presburger::IntegerRelation get2dConvInterchangedResultRelation(
         "(ci // {5}) * {7} }",
         n, c, h, w, g, g2, wOut, hwOut, numCiphertexts, minSlotCount);
   }
-  return getIntegerRelationFromIslStr(islStr).value();
+  FailureOr<presburger::IntegerRelation> rel =
+      getIntegerRelationFromIslStr(islStr);
+  assert(succeeded(rel) &&
+         "failed to parse 2D conv interchanged result layout");
+  return *rel;
 }
 
 }  // namespace heir

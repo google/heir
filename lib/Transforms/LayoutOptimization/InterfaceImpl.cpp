@@ -364,6 +364,15 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
+    const IntegerRelation& fromRel = fromLayout.getIntegerRelation();
+    const IntegerRelation& toRel = toLayout.getIntegerRelation();
+    if (fromRel.getNumDomainVars() != 1 || toRel.getNumDomainVars() != 1 ||
+        fromRel.getConstantBoundOnDimSize64(
+            fromRel.getVarKindOffset(VarKind::Range)) != 1 ||
+        toRel.getConstantBoundOnDimSize64(
+            toRel.getVarKindOffset(VarKind::Range)) != 1) {
+      return failure();
+    }
 
     // Operand order for Matvec op is:
     //
@@ -406,6 +415,15 @@ Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
+    const IntegerRelation& fromRel = fromLayout.getIntegerRelation();
+    const IntegerRelation& toRel = toLayout.getIntegerRelation();
+    if (fromRel.getNumDomainVars() != 1 || toRel.getNumDomainVars() != 1 ||
+        fromRel.getConstantBoundOnDimSize64(
+            fromRel.getVarKindOffset(VarKind::Range)) != 1 ||
+        toRel.getConstantBoundOnDimSize64(
+            toRel.getVarKindOffset(VarKind::Range)) != 1) {
+      return failure();
+    }
 
     // Operand order for Conv_1d op is:
     //

@@ -62,12 +62,11 @@ LogicalResult LayoutIsFreeAnalysis::visitOperation(
     if (!resultLayoutIsFree.getValue()) break;
   }
 
-  // Structured ops that do not implement layout hoisting (or linalg.matmul,
-  // whose hoister only rotates the RHS operand rather than changing the output
-  // layout for free) fix the layout of their results.
-  if (isa<linalg::LinalgOp>(operation) &&
-      (!isa<LayoutConversionHoistableOpInterface>(operation) ||
-       isa<linalg::MatmulOp>(operation))) {
+  // Operations that cannot hoist a layout conversion through their results for
+  // free fix the layout of their results.
+  if (isa<linalg::LinalgOp>(operation) ||
+      !isa<tensor_ext::ConvertLayoutOp, LayoutConversionHoistableOpInterface>(
+          operation)) {
     LLVM_DEBUG(llvm::dbgs() << "Op is designated to make results not free\n");
     resultLayoutIsFree = LayoutIsFree(false);
   }

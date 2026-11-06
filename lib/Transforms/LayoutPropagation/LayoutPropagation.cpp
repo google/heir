@@ -1360,7 +1360,11 @@ LogicalResult LayoutPropagation::alignInitWithResultLayout(
   MLIRContext* ctx = &getContext();
   LayoutAttr targetLayout;
   if (auto arrayAttr = dyn_cast<ArrayAttr>(resultLayoutAttr)) {
-    targetLayout = LayoutAttr::composeLayouts(arrayAttr, ctx);
+    auto& cached = composedLayouts[arrayAttr];
+    if (!cached) {
+      cached = LayoutAttr::composeLayouts(arrayAttr, ctx);
+    }
+    targetLayout = cached;
   } else {
     targetLayout = dyn_cast<LayoutAttr>(resultLayoutAttr);
   }

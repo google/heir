@@ -30,7 +30,10 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -237,8 +240,29 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
   });
 
   // Now compute the cost of hoisting each conversion layout.
+  auto preservesDomain = [](ConvertLayoutOp convertLayoutOp) {
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+    if (!fromLayout || !toLayout) return true;
+    presburger::IntegerRelation fromDomain = fromLayout.getIntegerRelation();
+    presburger::IntegerRelation toDomain = toLayout.getIntegerRelation();
+    if (fromDomain.getNumDomainVars() != toDomain.getNumDomainVars())
+      return false;
+    fromDomain.convertVarKind(presburger::VarKind::Range, 0,
+                              fromDomain.getNumRangeVars(),
+                              presburger::VarKind::Local);
+    toDomain.convertVarKind(presburger::VarKind::Range, 0,
+                            toDomain.getNumRangeVars(),
+                            presburger::VarKind::Local);
+    return presburger::PresburgerRelation(fromDomain)
+        .isSubsetOf(presburger::PresburgerRelation(toDomain));
+  };
   SmallVector<HoistOption> hoistingOptions;
   for (auto resultLayoutConversion : resultLayoutConversions) {
+    if (resultLayoutConversions.size() > 1 &&
+        !preservesDomain(resultLayoutConversion)) {
+      continue;
+    }
     auto options = computeHoistingOptions(op, resultLayoutConversion, solver);
     for (auto& option : options) {
       LLVM_DEBUG(llvm::dbgs()
@@ -392,9 +416,13 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   // and all arithmetic trivial kernels) and will continue to hold as long as
   // trivial kernels are implemented with equivalent ciphertext-semantic
   // operations.
-  if ((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
-      (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
-       newKernel == KernelName::Trivial)) {
+  if (((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
+       (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
+        newKernel == KernelName::Trivial)) &&
+      llvm::all_of(kernel->getResult(0).getUsers(), [&](Operation* user) {
+        auto conv = dyn_cast<ConvertLayoutOp>(user);
+        return conv && conv.getToLayout() == newLayout;
+      })) {
     return 0;
   }
 

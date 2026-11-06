@@ -1190,7 +1190,8 @@ void tightenStripEqualities(presburger::IntegerRelation& rel) {
     normalizeAndAddEq(std::move(eq), /*addToRel=*/false);
   }
 
-  for (unsigned iter = 0; iter < 6; ++iter) {
+  constexpr unsigned kMaxTightenIterations = 6;
+  for (unsigned iter = 0; iter < kMaxTightenIterations; ++iter) {
     SmallVector<bool> usedPivot(constCol, false);
     for (size_t eIdx = 0; eIdx < eqs.size(); ++eIdx) {
       const auto& eq = eqs[eIdx];
@@ -1374,6 +1375,7 @@ std::vector<int64_t> anyRangePoint(
   isl_point* point = isl_basic_set_sample_point(bset);
 
   if (!point) {
+    isl_ctx_free(ctx);
     return {};
   }
 
@@ -1448,30 +1450,200 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
     SmallVector<int64_t> lb, ub;
     getDomainBox(tightenedRel, lb, ub);
 
-    // Mark which ct indices (range var 0) appear in the range, enumerating the
-    // domain box (see forEachDomainImagePoint). Once every ct is accounted for
-    // we can stop early instead of scanning the rest of a large domain.
-    forEachDomainImagePoint(
-        bmap, lb, ub,
-        [&](ArrayRef<int64_t> /*domainPoint*/,
-            __isl_keep isl_point* imagePoint) {
-          isl_val* coord =
-              isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
-          if (isl_val_is_int(coord)) {
-            int64_t ct = isl_val_get_num_si(coord);
-            if (ct >= 0 && ct < numCts && !seen[ct]) {
-              seen[ct] = true;
-              ++seenCount;
+    // When `bmap` contains an equality row expressing `ct` (`range var 0`) as a
+    // function of the domain coordinates, domain-only floor-divisions, and at
+    // most one modulus local variable with modulus `M >= numCts`, each domain
+    // point can map to at most one `ct` in `[0, numCts)`. Evaluating that
+    // candidate `ct` in integer arithmetic lets us skip domain points whose
+    // `ct` has already been seen without invoking ISL, and sample a single
+    // image point when `!seen[cand]`.
+    presburger::IntegerRelation bmapRel =
+        convertBasicMapToRelation(isl_basic_map_copy(bmap));
+    unsigned numDomain = bmapRel.getNumDomainVars();
+    unsigned numSymbols = bmapRel.getNumSymbolVars();
+    unsigned numLocals = bmapRel.getNumLocalVars();
+    unsigned localOffset = bmapRel.getVarKindOffset(presburger::VarKind::Local);
+    unsigned constCol = bmapRel.getNumCols() - 1;
+
+    struct DomainFloorDiv {
+      unsigned ineqRow;
+      int64_t divisor;
+    };
+    SmallVector<std::optional<DomainFloorDiv>> domainDivs(numLocals);
+    SmallVector<unsigned> divOrder;
+    if (numSymbols == 0) {
+      bool progress = true;
+      while (progress) {
+        progress = false;
+        for (unsigned k = 0; k < numLocals; ++k) {
+          if (domainDivs[k].has_value()) continue;
+          unsigned col = localOffset + k;
+          for (unsigned r1 = 0;
+               r1 < bmapRel.getNumInequalities() && !domainDivs[k]; ++r1) {
+            int64_t negD = bmapRel.atIneq64(r1, col);
+            if (negD >= -1 || negD == std::numeric_limits<int64_t>::min())
+              continue;
+            bool domainOnly = true;
+            for (unsigned j = numDomain; j < localOffset; ++j) {
+              if (bmapRel.atIneq64(r1, j) != 0) {
+                domainOnly = false;
+                break;
+              }
+            }
+            for (unsigned j = 0; j < numLocals && domainOnly; ++j) {
+              if (j != k && bmapRel.atIneq64(r1, localOffset + j) != 0 &&
+                  !domainDivs[j].has_value()) {
+                domainOnly = false;
+              }
+            }
+            if (!domainOnly) continue;
+            int64_t d = -negD;
+            for (unsigned r2 = 0; r2 < bmapRel.getNumInequalities(); ++r2) {
+              if (bmapRel.atIneq64(r2, col) != d) continue;
+              __int128 w =
+                  static_cast<__int128>(bmapRel.atIneq64(r1, constCol)) +
+                  static_cast<__int128>(bmapRel.atIneq64(r2, constCol));
+              if (w < 0 || w > d - 1) continue;
+              bool match = true;
+              for (unsigned j = 0; j < constCol; ++j) {
+                if (j != col &&
+                    static_cast<__int128>(bmapRel.atIneq64(r1, j)) +
+                            static_cast<__int128>(bmapRel.atIneq64(r2, j)) !=
+                        0) {
+                  match = false;
+                  break;
+                }
+              }
+              if (match) {
+                domainDivs[k] = DomainFloorDiv{r1, d};
+                divOrder.push_back(k);
+                progress = true;
+                break;
+              }
             }
           }
-          isl_val_free(coord);
-        },
-        /*shouldStop=*/[&]() { return seenCount == numCts; },
-        // Only the ct matters; enumerating slots too multiplies the points by
-        // the slot count.
-        /*numRangeDims=*/1);
+        }
+      }
+    }
 
-    isl_basic_map_free(bmap);
+    int ctEqRow = -1;
+    int64_t ctModulus = 0;
+    for (unsigned r = 0; r < bmapRel.getNumEqualities() && numSymbols == 0;
+         ++r) {
+      int64_t cCt = bmapRel.atEq64(r, numDomain);
+      if ((cCt != 1 && cCt != -1) || bmapRel.atEq64(r, numDomain + 1) != 0)
+        continue;
+      int64_t modM = 0;
+      bool validLocals = true;
+      for (unsigned k = 0; k < numLocals; ++k) {
+        int64_t cLoc = bmapRel.atEq64(r, localOffset + k);
+        if (cLoc == 0 || domainDivs[k].has_value()) continue;
+        if (cLoc == std::numeric_limits<int64_t>::min()) {
+          validLocals = false;
+          break;
+        }
+        int64_t absC = std::abs(cLoc);
+        if (modM == 0 && absC >= numCts) {
+          modM = absC;
+        } else {
+          validLocals = false;
+          break;
+        }
+      }
+      if (validLocals) {
+        ctEqRow = static_cast<int>(r);
+        ctModulus = modM;
+        break;
+      }
+    }
+
+    if (ctEqRow >= 0 && !lb.empty()) {
+      int64_t cCt = bmapRel.atEq64(ctEqRow, numDomain);
+      SmallVector<__int128> divVals(numLocals, 0);
+      SmallVector<int64_t> point = lb;
+      while (seenCount < numCts) {
+        for (unsigned k : divOrder) {
+          unsigned r1 = domainDivs[k]->ineqRow;
+          __int128 num = bmapRel.atIneq64(r1, constCol);
+          for (unsigned i = 0; i < numDomain; ++i) {
+            num += static_cast<__int128>(bmapRel.atIneq64(r1, i)) * point[i];
+          }
+          for (unsigned j = 0; j < numLocals; ++j) {
+            if (j != k && bmapRel.atIneq64(r1, localOffset + j) != 0) {
+              num +=
+                  static_cast<__int128>(bmapRel.atIneq64(r1, localOffset + j)) *
+                  divVals[j];
+            }
+          }
+          divVals[k] = floorDivI128(num, domainDivs[k]->divisor);
+        }
+        __int128 sum = bmapRel.atEq64(ctEqRow, constCol);
+        for (unsigned i = 0; i < numDomain; ++i) {
+          sum += static_cast<__int128>(bmapRel.atEq64(ctEqRow, i)) * point[i];
+        }
+        for (unsigned k : divOrder) {
+          sum +=
+              static_cast<__int128>(bmapRel.atEq64(ctEqRow, localOffset + k)) *
+              divVals[k];
+        }
+        __int128 rhs = -static_cast<__int128>(cCt) * sum;
+        __int128 cand = rhs;
+        if (ctModulus > 0) {
+          __int128 m = ctModulus;
+          cand = ((rhs % m) + m) % m;
+        }
+        if (cand >= 0 && cand < numCts && !seen[static_cast<int64_t>(cand)]) {
+          int64_t candCt = static_cast<int64_t>(cand);
+          isl_basic_map* fixed = isl_basic_map_copy(bmap);
+          for (size_t i = 0; i < point.size(); ++i) {
+            fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
+          }
+          fixed = isl_basic_map_fix_si(fixed, isl_dim_out, 0, candCt);
+          isl_basic_set* image = isl_basic_set_flatten(
+              isl_basic_set_lift(isl_basic_map_range(fixed)));
+          isl_point* sample = isl_basic_set_sample_point(image);
+          if (sample) {
+            isl_point_free(sample);
+            seen[candCt] = true;
+            ++seenCount;
+          }
+        }
+        int dim = static_cast<int>(point.size()) - 1;
+        while (dim >= 0 && point[dim] == ub[dim]) {
+          point[dim] = lb[dim];
+          --dim;
+        }
+        if (dim < 0) break;
+        ++point[dim];
+      }
+      isl_basic_map_free(bmap);
+    } else {
+      // Mark which ct indices (range var 0) appear in the range, enumerating
+      // the domain box (see forEachDomainImagePoint). Once every ct is
+      // accounted for we can stop early instead of scanning the rest of a large
+      // domain.
+      forEachDomainImagePoint(
+          bmap, lb, ub,
+          [&](ArrayRef<int64_t> /*domainPoint*/,
+              __isl_keep isl_point* imagePoint) {
+            isl_val* coord =
+                isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
+            if (isl_val_is_int(coord)) {
+              int64_t ct = isl_val_get_num_si(coord);
+              if (ct >= 0 && ct < numCts && !seen[ct]) {
+                seen[ct] = true;
+                ++seenCount;
+              }
+            }
+            isl_val_free(coord);
+          },
+          /*shouldStop=*/[&]() { return seenCount == numCts; },
+          // Only the ct matters; enumerating slots too multiplies the points by
+          // the slot count.
+          /*numRangeDims=*/1);
+
+      isl_basic_map_free(bmap);
+    }
   }
 
   // The complement is every ct index in [0, numCts) that never appeared,
