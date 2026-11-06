@@ -27,6 +27,11 @@ def RNS : RNS_Type<"RNS", "rns", [
   let genVerifyDecl = 1;
 
   let extraClassDeclaration = [{
+    // Returns true if this type's basis is a (not necessarily proper) prefix of
+    // `other`'s basis, i.e., `other` extends this type with zero or more
+    // additional limbs.
+    bool isPrefixOf(RNSType other) const;
+
     // Helper method for other Type/Attribute containing this Type.
     void getAliasSuffix(::llvm::raw_ostream& os) const {
       auto level = getBasisTypes().size() - 1; // start from 0

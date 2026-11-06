@@ -121,12 +121,8 @@ LogicalResult ModDownOp::verify() {
   rns::RNSType targetBasisTy = dyn_cast<rns::RNSType>(getTargetBasis());
   if (!targetBasisTy) return emitOpError("Expected targetBasis to be RNSType");
 
-  ArrayRef<Type> inputBasisTypes = eltTy.getBasisTypes();
-  ArrayRef<Type> targetBasisTypes = targetBasisTy.getBasisTypes();
-  bool isPrefix =
-      (targetBasisTypes.size() < inputBasisTypes.size()) &&
-      (inputBasisTypes.take_front(targetBasisTypes.size()) == targetBasisTypes);
-  if (!isPrefix) {
+  // The target basis must be a proper prefix of the input basis.
+  if (targetBasisTy == eltTy || !targetBasisTy.isPrefixOf(eltTy)) {
     return emitOpError("Target basis is not a prefix of the input basis");
   }
   return success();

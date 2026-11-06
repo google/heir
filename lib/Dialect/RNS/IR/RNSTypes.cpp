@@ -56,6 +56,13 @@ LogicalResult RNSType::verify(
   return success();
 }
 
+bool RNSType::isPrefixOf(RNSType other) const {
+  ArrayRef<Type> basis = getBasisTypes();
+  ArrayRef<Type> otherBasis = other.getBasisTypes();
+  return basis.size() <= otherBasis.size() &&
+         otherBasis.take_front(basis.size()) == basis;
+}
+
 Type RNSType::getLoweringType() const {
   auto firstLimb =
       mlir::dyn_cast<mod_arith::ModQTypeInterface>(getBasisTypes()[0]);

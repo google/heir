@@ -184,11 +184,9 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
                 "input ring basis size";
     }
 
-    for (size_t i = 0; i < outBasis.size(); ++i) {
-      if (xBasis[i] != outBasis[i]) {
-        return op->emitOpError() << "output ring basis should be a prefix of "
-                                    "the input ring basis";
-      }
+    if (!outRNSRingCoeffType.isPrefixOf(xRNSRingCoeffType)) {
+      return op->emitOpError() << "output ring basis should be a prefix of "
+                                  "the input ring basis";
     }
 
     APInt dividedModulus = APInt(64, 1);
