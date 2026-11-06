@@ -29,6 +29,13 @@ func.func @test_add_plain(%ctx: !jaxiteword.crypto_context<>, %ct : !ct_L2, %pt 
   return %out : !ct_L2
 }
 
+// CHECK: def test_encode_level(
+// CHECK: encode_at_level({{.*}}, {{.*}}.max_level, scale=_rescale_divisor({{.*}}, {{.*}}.max_level))
+func.func @test_encode_level(%ctx: !jaxiteword.crypto_context<>, %input: tensor<8xf64>) -> !pt {
+  %pt = jaxiteword.encode %ctx, %input {rescaleLevel = 1 : i64} : (!jaxiteword.crypto_context<>, tensor<8xf64>) -> !pt
+  return %pt : !pt
+}
+
 // CHECK: def test_sub(
 // CHECK: .he_sub[
 // CHECK-SAME: ].sub(
@@ -153,7 +160,9 @@ func.func @test_gen_params() -> !jaxiteword.crypto_context<> {
 // CHECK: {{.*}}.parameters["public_key"] = {{.*}}
 // CHECK: {{.*}}.parameters["secret_key"] = {{.*}}
 // CHECK: {{.*}}.parameters["evaluation_key"] = {{.*}}
-// CHECK: {{.*}}.program_initialization(total_rotation_indices=[1, 2], dnum=3, r=4, c=4, batch=1)
+// CHECK: [[CTX:v[0-9]+]].program_initialization(total_rotation_indices=[1, 2], dnum=3, r=4, c=4, batch=1, cache_rotation_keys=False)
+// CHECK-NEXT: [[CTX]].he_rot{{\[}}[[CTX]].max_level, 1]
+// CHECK-NEXT: [[CTX]].he_rot{{\[}}[[CTX]].max_level - 2, 2]
 func.func @test_program_initialization(
     %ctx: !jaxiteword.crypto_context<>,
     %pk: !jaxiteword.public_key<>,
@@ -161,6 +170,8 @@ func.func @test_program_initialization(
     %ek: !jaxiteword.eval_key<>) {
   jaxiteword.program_initialization %ctx, %pk, %sk, %ek <
     totalRotationIndices = [1, 2],
+    rotationRequirementIndices = [1, 2],
+    rotationLevelOffsets = [0, 2],
     dnum = 3,
     r = 4,
     c = 4,

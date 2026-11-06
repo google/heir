@@ -3,7 +3,9 @@
 
 // IWYU pragma: begin_keep
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
+#include "lib/Dialect/JaxiteWord/Transforms/AnnotateEncodeRescaleLevels.h"
 #include "lib/Dialect/JaxiteWord/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/JaxiteWord/Transforms/OutlineCompiledRegions.h"
 // IWYU pragma: end_keep
 
 namespace mlir {
