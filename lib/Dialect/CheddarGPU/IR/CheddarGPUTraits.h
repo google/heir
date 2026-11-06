@@ -55,6 +55,28 @@ class InOutCountsMatch
   }
 };
 
+LogicalResult verifyNTTPrimeCounts(Operation* op);
+
+// Requires operand 0 to be the destination buffer and operand 1 to be the
+// source buffer 'in'. Verifies that prime_range count and prime_indices size
+// match the active limb count of the operation.
+template <typename ConcreteType>
+class NTTPrimeCounts : public OpTrait::TraitBase<ConcreteType, NTTPrimeCounts> {
+ public:
+  static LogicalResult verifyTrait(Operation* op) {
+    return verifyNTTPrimeCounts(op);
+  }
+};
+LogicalResult verifyPadRangeWithinDest(Operation* op);
+
+template <typename ConcreteType>
+class PadRangeWithinDest
+    : public OpTrait::TraitBase<ConcreteType, PadRangeWithinDest> {
+ public:
+  static LogicalResult verifyTrait(Operation* op) {
+    return verifyPadRangeWithinDest(op);
+  }
+};
 }  // namespace mlir::heir::cheddar_gpu
 
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPUTRAITS_H_

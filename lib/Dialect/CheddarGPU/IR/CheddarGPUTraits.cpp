@@ -116,4 +116,55 @@ LogicalResult verifyInOutCountsMatch(Operation* op) {
   return success();
 }
 
+LogicalResult verifyNTTPrimeCounts(Operation* op) {
+  if (op->getNumOperands() < 2) return success();
+  auto inType = ::llvm::dyn_cast<MemRefType>(op->getOperand(1).getType());
+  if (!inType || inType.getRank() < 1) return success();
+  int64_t numLimbs = inType.getDimSize(0);
+
+  auto outRange = op->getAttrOfType<DenseI64ArrayAttr>("out_limb_range");
+  auto inRange = op->getAttrOfType<DenseI64ArrayAttr>("in_limb_range");
+  if (outRange && inRange &&
+      outRange.asArrayRef()[1] != inRange.asArrayRef()[1]) {
+    return op->emitOpError(
+        "limb count mismatch between in_limb_range and out_limb_range");
+  }
+
+  int64_t limbCount = inRange ? inRange.asArrayRef()[1] : numLimbs;
+
+  if (auto primeRange = op->getAttrOfType<DenseI64ArrayAttr>("prime_range")) {
+    int64_t count = primeRange.asArrayRef()[1];
+    if (count != limbCount) {
+      return op->emitOpError(
+          "prime_range count mismatch with limb range count");
+    }
+  }
+
+  if (auto primeIndices =
+          op->getAttrOfType<DenseI64ArrayAttr>("prime_indices")) {
+    if (static_cast<int64_t>(primeIndices.asArrayRef().size()) != limbCount) {
+      return op->emitOpError(
+          "prime_indices count mismatch with limb range count");
+    }
+  }
+
+  return success();
+}
+LogicalResult verifyPadRangeWithinDest(Operation* op) {
+  if (op->getNumOperands() == 0) return success();
+  auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
+  if (!outType || outType.getRank() < 1) return success();
+  auto padStartAttr = op->getAttrOfType<IntegerAttr>("pad_start");
+  auto padEndAttr = op->getAttrOfType<IntegerAttr>("pad_end");
+  if (!padStartAttr || !padEndAttr) return success();
+  int64_t padStart = padStartAttr.getInt();
+  int64_t padEnd = padEndAttr.getInt();
+  int64_t numLimbs = outType.getDimSize(0);
+  if (padStart < 0 || padEnd < padStart || padEnd > numLimbs) {
+    return op->emitOpError("pad range [")
+           << padStart << ", " << padEnd << "] out of bounds for output with "
+           << numLimbs << " limbs";
+  }
+  return success();
+}
 }  // namespace mlir::heir::cheddar_gpu
