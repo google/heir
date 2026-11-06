@@ -14,10 +14,25 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 # Both extensions link libHEIRPythonCAPI.so dynamically, so that there is only
 # one copy of MLIR's global state (TypeIDs, pass registry, ...) in the process.
 # Never link MLIR statically into an extension module.
+#
+# libHEIRPythonCAPI.so only exports the MLIR and HEIR C APIs, and the extensions
+# only export their module init functions (see the *.lds and *.exp files).
 
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "opt_linux",
+    constraint_values = ["@platforms//os:linux"],
+    values = {"compilation_mode": "opt"},
+)
+
+config_setting(
+    name = "opt_macos",
+    constraint_values = ["@platforms//os:macos"],
+    values = {"compilation_mode": "opt"},
 )
 
 # Every extension module (and the recompiled upstream core sources) must agree
@@ -45,6 +60,25 @@ PY_LINKOPTS = select({
     "//conditions:default": ["-Wl,-rpath,$$ORIGIN"],
 })
 
+# Optimized builds (like the wheel's) also drop the static symbol tables, which
+# only debuggers and profilers use. (`--strip=always` only drops debug info.)
+STRIP_LINKOPTS = select({
+    ":opt_linux": ["-Wl,--strip-all"],
+    ":opt_macos": ["-Wl,-x"],
+    "//conditions:default": [],
+})
+
+# Only export the module init functions from the extension modules.
+EXTENSION_LINKER_INPUTS = [
+    "python_extension.exp",
+    "python_extension.lds",
+]
+
+EXTENSION_LINKOPTS = PY_LINKOPTS + STRIP_LINKOPTS + select({
+    "@platforms//os:macos": ["-Wl,-exported_symbols_list,$(execpath python_extension.exp)"],
+    "//conditions:default": ["-Wl,--version-script=$(execpath python_extension.lds)"],
+})
+
 ##---------------------------------------------------------------------------##
 # C API (the only interface the python extensions use to talk to the compiler)
 ##---------------------------------------------------------------------------##
@@ -67,10 +101,20 @@ mlir_c_api_cc_library(
 
 cc_binary(
     name = "libHEIRPythonCAPI.so",
+    additional_linker_inputs = [
+        "libHEIRPythonCAPI.exp",
+        "libHEIRPythonCAPI.lds",
+    ],
     linkopts = select({
-        "@platforms//os:macos": ["-Wl,-install_name,@rpath/libHEIRPythonCAPI.so"],
-        "//conditions:default": ["-Wl,-soname,libHEIRPythonCAPI.so"],
-    }) + PY_LINKOPTS,
+        "@platforms//os:macos": [
+            "-Wl,-install_name,@rpath/libHEIRPythonCAPI.so",
+            "-Wl,-exported_symbols_list,$(execpath libHEIRPythonCAPI.exp)",
+        ],
+        "//conditions:default": [
+            "-Wl,-soname,libHEIRPythonCAPI.so",
+            "-Wl,--version-script=$(execpath libHEIRPythonCAPI.lds)",
+        ],
+    }) + PY_LINKOPTS + STRIP_LINKOPTS,
     linkshared = 1,
     linkstatic = 1,
     deps = [
@@ -117,9 +161,10 @@ cc_library(
 cc_binary(
     name = "_mlir.so",
     srcs = ["@llvm-project//mlir:lib/Bindings/Python/MainModule.cpp"],
+    additional_linker_inputs = EXTENSION_LINKER_INPUTS,
     copts = PY_COPTS,
     features = PY_FEATURES,
-    linkopts = PY_LINKOPTS,
+    linkopts = EXTENSION_LINKOPTS,
     linkshared = 1,
     linkstatic = 1,
     deps = [
@@ -133,9 +178,10 @@ cc_binary(
 cc_binary(
     name = "_heir.so",
     srcs = ["HeirModule.cpp"],
+    additional_linker_inputs = EXTENSION_LINKER_INPUTS,
     copts = PY_COPTS,
     features = PY_FEATURES,
-    linkopts = PY_LINKOPTS,
+    linkopts = EXTENSION_LINKOPTS,
     linkshared = 1,
     linkstatic = 1,
     deps = [
