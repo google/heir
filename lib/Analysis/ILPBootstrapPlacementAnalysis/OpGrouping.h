@@ -41,6 +41,10 @@ struct OpGroup {
   // Longest-path depth of the deepest member; group order in OpGrouping is
   // topological by this depth.
   int depth = 0;
+  // Multiplicative depth of the deepest member: the number of multiplications
+  // on the longest path from a block argument to this group. Used by bypass
+  // detection to tell the deep "main" path from the shallow bypass path.
+  int mulDepth = 0;
 };
 
 struct OpGrouping {
@@ -60,8 +64,14 @@ struct OpGrouping {
 
 // Group the tracked operations of a secret.generic body. With compress false,
 // every op is its own group.
-OpGrouping computeOpGrouping(Block* body, DataFlowSolver* solver,
-                             bool compress);
+//
+// bypassDepthThreshold (> 0) keeps a residual-join addition — one whose two
+// secret operands come from producers differing in multiplicative depth by at
+// least the threshold — out of any squashed addition tree, so it stays a
+// distinct two-predecessor group that bypass detection can find. 0 disables
+// this carve-out.
+OpGrouping computeOpGrouping(Block* body, DataFlowSolver* solver, bool compress,
+                             int bypassDepthThreshold = 0);
 
 }  // namespace heir
 }  // namespace mlir

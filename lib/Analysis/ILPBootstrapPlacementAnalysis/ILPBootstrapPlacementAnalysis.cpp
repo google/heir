@@ -75,7 +75,10 @@
 // boundaries (Orbit's partitioning): each partition is solved independently
 // under enumerated boundary (level, scale) states, producing a transfer table
 // of boundary-in -> boundary-out costs, and a dynamic program stitches the
-// per-partition solutions into a global placement.
+// per-partition solutions into a global placement. A region with no SISO cut
+// because of a residual/skip connection (Orbit's bypass) is split into its
+// deep main path and shallow bypass path and solved separately; see
+// solveRegion / solveBypass below.
 
 namespace math_opt = ::operations_research::math_opt;
 
@@ -160,7 +163,7 @@ struct GroupEdge {
 
 struct ILPModelState {
   ILPModelState(Block* body, DataFlowSolver* solver, const Options& options,
-                const OpGrouping& grouping, int groupBegin, int groupEnd,
+                const OpGrouping& grouping, ArrayRef<int> groupIds,
                 const PartitionBoundary& boundary)
       : model("ILPBootstrapPlacementAnalysis"),
         body(body),
@@ -173,8 +176,7 @@ struct ILPModelState {
         bigM(bootstrapWaterline + 1),
         scaleBigM(4 * scaleMax + sf * (bootstrapWaterline + 1)),
         grouping(grouping),
-        groupBegin(groupBegin),
-        groupEnd(groupEnd),
+        groupIds(groupIds),
         boundary(boundary) {}
 
   math_opt::Variable addLevelVar(int lower, int upper,
@@ -214,8 +216,10 @@ struct ILPModelState {
   int bigM;
   int scaleBigM;
   const OpGrouping& grouping;
-  int groupBegin;
-  int groupEnd;
+  // Group indices this solve covers. A contiguous range for a SISO partition,
+  // or an arbitrary subset for a bypass region. Iterate in the given order,
+  // which the callers keep ascending so producers precede consumers.
+  ArrayRef<int> groupIds;
   const PartitionBoundary& boundary;
   int nextOpaqueId = 0;
   llvm::DenseMap<Operation*, int> opaqueIds;
@@ -252,8 +256,9 @@ struct PartitionSolution {
 };
 
 struct Partition {
-  int groupBegin;
-  int groupEnd;
+  // Group indices in this partition, ascending. A contiguous range for a SISO
+  // partition; bypass regions (M4) supply arbitrary subsets.
+  SmallVector<int> groupIds;
   // Canonical value live across the cut after this partition; null on the
   // last partition.
   Value cutValue;
@@ -320,7 +325,7 @@ static void addPinnedInputVariables(ILPModelState& state) {
 }
 
 static void addTrackedGroupVariables(ILPModelState& state) {
-  for (int gi = state.groupBegin; gi < state.groupEnd; ++gi) {
+  for (int gi : state.groupIds) {
     const OpGroup& group = state.grouping.groups[gi];
     Operation* rep = group.representative;
     std::string opName = state.uniqueName(rep);
@@ -373,7 +378,7 @@ static void addTrackedGroupVariables(ILPModelState& state) {
 // scale across all operands; CKKS multiplications use per-edge scales so
 // their combined scale can be modeled separately below.
 static void addGroupEdgeConstraints(ILPModelState& state) {
-  for (int gi = state.groupBegin; gi < state.groupEnd; ++gi) {
+  for (int gi : state.groupIds) {
     const OpGroup& group = state.grouping.groups[gi];
     Operation* rep = group.representative;
     std::string opName = state.uniqueName(rep);
@@ -526,7 +531,7 @@ static void addOutputPinConstraints(ILPModelState& state) {
 // through either a direct transition or a bootstrap transition.
 static void addNodeTransitionConstraints(ILPModelState& state,
                                          int bootstrapLevelLowerBound) {
-  for (int gi = state.groupBegin; gi < state.groupEnd; ++gi) {
+  for (int gi : state.groupIds) {
     const OpGroup& group = state.grouping.groups[gi];
     Operation* rep = group.representative;
     std::string opName = state.uniqueName(rep);
@@ -579,7 +584,7 @@ static void addNodeTransitionConstraints(ILPModelState& state,
 static void addObjective(ILPModelState& state, const OpCostModel& costModel) {
   math_opt::LinearExpression objective;
   // Management decisions are charged once per merged management site.
-  for (int gi = state.groupBegin; gi < state.groupEnd; ++gi) {
+  for (int gi : state.groupIds) {
     const OpGroup& group = state.grouping.groups[gi];
     Operation* rep = group.representative;
     objective +=
@@ -644,7 +649,7 @@ static void populatePartitionSolution(const math_opt::SolveResult& result,
                                       PartitionSolution& soln) {
   auto varMap = result.variable_values();
   double cost = 0;
-  for (int gi = state.groupBegin; gi < state.groupEnd; ++gi) {
+  for (int gi : state.groupIds) {
     const OpGroup& group = state.grouping.groups[gi];
     Operation* rep = group.representative;
     bool useBootstrap = varMap.at(state.bootstrapVars.at(rep)) > 0.5;
@@ -728,12 +733,11 @@ static void populatePartitionSolution(const math_opt::SolveResult& result,
 // solutionOut empty.
 static LogicalResult solvePartition(
     Block* body, DataFlowSolver* solver, const Options& options,
-    const OpGrouping& grouping, int groupBegin, int groupEnd,
+    const OpGrouping& grouping, ArrayRef<int> groupIds,
     const PartitionBoundary& boundary,
     std::optional<PartitionSolution>& solutionOut) {
   solutionOut.reset();
-  ILPModelState state(body, solver, options, grouping, groupBegin, groupEnd,
-                      boundary);
+  ILPModelState state(body, solver, options, grouping, groupIds, boundary);
 
   addPinnedInputVariables(state);
   addTrackedGroupVariables(state);
@@ -796,9 +800,14 @@ static SmallVector<Partition> computePartitions(const OpGrouping& grouping,
                                                 DataFlowSolver* solver,
                                                 int partitionMinSize) {
   int numGroups = grouping.groups.size();
+  auto rangeIds = [](int lo, int hi) {
+    SmallVector<int> ids;
+    for (int i = lo; i < hi; ++i) ids.push_back(i);
+    return ids;
+  };
   SmallVector<Partition> partitions;
   if (numGroups == 0) {
-    partitions.push_back({0, 0, Value(), 0});
+    partitions.push_back({rangeIds(0, 0), Value(), 0});
     return partitions;
   }
 
@@ -885,13 +894,307 @@ static SmallVector<Partition> computePartitions(const OpGrouping& grouping,
 
   begin = 0;
   for (int p : kept) {
-    partitions.push_back(
-        {begin, p + 1, cutValueAt(p), prefixOps[p + 1] - prefixOps[begin]});
+    partitions.push_back({rangeIds(begin, p + 1), cutValueAt(p),
+                          prefixOps[p + 1] - prefixOps[begin]});
     begin = p + 1;
   }
-  partitions.push_back(
-      {begin, numGroups, Value(), prefixOps[numGroups] - prefixOps[begin]});
+  partitions.push_back({rangeIds(begin, numGroups), Value(),
+                        prefixOps[numGroups] - prefixOps[begin]});
   return partitions;
+}
+
+// A residual/bypass structure inside one region (Orbit's handle_bypass): a
+// fork value feeds a deep "main" path and a shallow bypass path that rejoin at
+// an addition. Such a region has no interior SISO cut, so it is solved by
+// splitting main and bypass rather than as one monolithic ILP.
+struct BypassStructure {
+  bool found = false;
+  Value forkValue;                  // boundary value both paths descend from
+  Value mainOutputValue;            // deep predecessor of the join
+  Value bypassOutputValue;          // the region output (join result)
+  SmallVector<int> mainGroupIds;    // groups on the deep path, ascending
+  SmallVector<int> bypassGroupIds;  // shallow path + join group, ascending
+};
+
+// Producer group of a value within the grouping, or -1 for a block argument
+// or untracked value.
+static int producerGroup(const OpGrouping& grouping, Value value) {
+  Operation* def = value.getDefiningOp();
+  if (!def) return -1;
+  auto it = grouping.groupIdOf.find(def);
+  return it == grouping.groupIdOf.end() ? -1 : it->second;
+}
+
+// Region groups that can reach startGroup (its ancestors within regionSet),
+// including startGroup itself.
+static DenseSet<int> ancestorsWithin(const OpGrouping& grouping,
+                                     DataFlowSolver* solver,
+                                     const DenseSet<int>& regionSet,
+                                     int startGroup) {
+  DenseSet<int> visited;
+  SmallVector<int> worklist;
+  visited.insert(startGroup);
+  worklist.push_back(startGroup);
+  while (!worklist.empty()) {
+    int g = worklist.pop_back_val();
+    for (Operation* member : grouping.groups[g].members) {
+      for (Value operand : member->getOperands()) {
+        if (!isSecret(operand, solver)) continue;
+        int pg = producerGroup(grouping, operand);
+        if (pg < 0 || pg == g || !regionSet.contains(pg)) continue;
+        if (visited.insert(pg).second) worklist.push_back(pg);
+      }
+    }
+  }
+  return visited;
+}
+
+// Canonical secret values a group set consumes from outside itself.
+static DenseSet<Value> boundaryInputs(const OpGrouping& grouping,
+                                      DataFlowSolver* solver,
+                                      const DenseSet<int>& groupSet) {
+  DenseSet<Value> inputs;
+  for (int g : groupSet) {
+    for (Operation* member : grouping.groups[g].members) {
+      for (Value operand : member->getOperands()) {
+        if (!isSecret(operand, solver)) continue;
+        int pg = producerGroup(grouping, operand);
+        if (pg >= 0 && groupSet.contains(pg)) continue;
+        inputs.insert(grouping.canonicalValue(operand));
+      }
+    }
+  }
+  return inputs;
+}
+
+// Detect a bypass in a region whose single secret output is regionOutput. The
+// region must reduce to one fork feeding a deep and a shallow path that rejoin
+// at an addition whose operand multiplicative depths differ by at least the
+// threshold; otherwise the returned structure has found=false and the caller
+// solves the region normally.
+static BypassStructure detectBypass(const OpGrouping& grouping,
+                                    DataFlowSolver* solver,
+                                    ArrayRef<int> regionGroupIds,
+                                    Value regionOutput, int threshold) {
+  BypassStructure result;
+  if (threshold <= 0 || !regionOutput) return result;
+  DenseSet<int> regionSet(regionGroupIds.begin(), regionGroupIds.end());
+
+  // The join is the group producing the region output; it must be an addition
+  // with exactly two secret operands from distinct producers.
+  int joinGroup = producerGroup(grouping, regionOutput);
+  if (joinGroup < 0 || !regionSet.contains(joinGroup)) return result;
+  Operation* joinOp = grouping.groups[joinGroup].representative;
+  if (!isAdditionLike(joinOp)) return result;
+
+  SmallVector<std::pair<Value, int>, 2> preds;  // (value, producer group)
+  for (Value operand : joinOp->getOperands()) {
+    if (!isSecret(operand, solver)) continue;
+    preds.push_back({operand, producerGroup(grouping, operand)});
+  }
+  if (preds.size() != 2 || preds[0].second == preds[1].second) return result;
+
+  auto mulDepthOfGroup = [&](int g) {
+    return g < 0 ? 0 : grouping.groups[g].mulDepth;
+  };
+  // Deeper operand is the main path.
+  auto& deep =
+      mulDepthOfGroup(preds[0].second) >= mulDepthOfGroup(preds[1].second)
+          ? preds[0]
+          : preds[1];
+  auto& shallow = (&deep == &preds[0]) ? preds[1] : preds[0];
+  if (mulDepthOfGroup(deep.second) - mulDepthOfGroup(shallow.second) <
+      threshold)
+    return result;
+  // Main must be a computed path inside this region; the shallow side may be a
+  // region input (block arg or a value produced by an earlier partition, i.e.
+  // the fork itself), in which case its bypass path is empty.
+  if (deep.second < 0 || !regionSet.contains(deep.second)) return result;
+  bool shallowInRegion =
+      shallow.second >= 0 && regionSet.contains(shallow.second);
+
+  DenseSet<int> mainAnc =
+      ancestorsWithin(grouping, solver, regionSet, deep.second);
+  DenseSet<int> bypassAnc;
+  if (shallowInRegion)
+    bypassAnc = ancestorsWithin(grouping, solver, regionSet, shallow.second);
+
+  // Clean single fork: the two paths share no in-region ancestor, and together
+  // with the join they cover the whole region.
+  for (int g : mainAnc)
+    if (bypassAnc.contains(g)) return result;
+  for (int g : regionGroupIds) {
+    if (g == joinGroup || mainAnc.contains(g) || bypassAnc.contains(g))
+      continue;
+    return result;  // stray group not on either path
+  }
+
+  DenseSet<Value> mainInputs = boundaryInputs(grouping, solver, mainAnc);
+  DenseSet<Value> bypassInputs =
+      shallowInRegion ? boundaryInputs(grouping, solver, bypassAnc)
+                      : DenseSet<Value>{grouping.canonicalValue(shallow.first)};
+  SmallVector<Value> forks;
+  for (Value v : mainInputs)
+    if (bypassInputs.contains(v)) forks.push_back(v);
+  if (forks.size() != 1) return result;
+
+  result.found = true;
+  result.forkValue = forks.front();
+  result.mainOutputValue = deep.first;
+  result.bypassOutputValue = regionOutput;
+  result.mainGroupIds.assign(mainAnc.begin(), mainAnc.end());
+  result.bypassGroupIds.assign(bypassAnc.begin(), bypassAnc.end());
+  result.bypassGroupIds.push_back(joinGroup);
+  llvm::sort(result.mainGroupIds);
+  llvm::sort(result.bypassGroupIds);
+  return result;
+}
+
+// The single secret value yielded from the body, or null if there is not
+// exactly one (bypass detection assumes a single-output region).
+static Value singleYieldedValue(Block* body, DataFlowSolver* solver) {
+  Value found;
+  for (Operation& op : body->getOperations()) {
+    auto yieldOp = dyn_cast<secret::YieldOp>(op);
+    if (!yieldOp) continue;
+    for (Value operand : yieldOp->getOperands()) {
+      if (!isSecret(operand, solver)) continue;
+      if (found) return Value();  // more than one secret output
+      found = operand;
+    }
+  }
+  return found;
+}
+
+static int regionSizeInOps(const OpGrouping& grouping, ArrayRef<int> groupIds) {
+  int size = 0;
+  for (int gi : groupIds) size += grouping.groups[gi].members.size();
+  return size;
+}
+
+// Append one solved region's management decisions into another. Main and
+// bypass op sets are disjoint, so this is a plain merge; the contested fork
+// value is refined separately.
+static void mergeSolutionInto(PartitionSolution& dst, PartitionSolution&& src) {
+  for (auto& management : src.nodeManagement)
+    dst.nodeManagement.push_back(management);
+  for (auto& management : src.edgeManagement)
+    dst.edgeManagement.push_back(management);
+  for (auto& [op, useBootstrap] : src.bootstrapDecisions)
+    dst.bootstrapDecisions[op] = useBootstrap;
+  for (auto& [value, level] : src.levelBefore) dst.levelBefore[value] = level;
+  for (auto& [value, level] : src.levelAfter) dst.levelAfter[value] = level;
+}
+
+// Solve a bypass region (Orbit's solve_ilp_core_bypass): the deep main path is
+// solved for every enumerated main-output level, producing a transfer table;
+// the shallow path plus the join is then solved once per main-output state and
+// the cheapest main+bypass combination is kept. The region's own boundary
+// (pinned inputs, and whether the output is yielded or an enumerated cut) is
+// applied to the bypass sub-solve, so this composes inside the partition DP.
+//
+// Contested fork: the fork is one of regionBoundary.pinnedInputs, at a single
+// fixed state that both paths start from and rescale independently per edge. A
+// rescale common to both paths is not charged twice here — it is absorbed into
+// the previous partition's enumerated output state (a lower fork level), which
+// the DP already explores and prefers when cheaper.
+static LogicalResult solveBypass(
+    Block* body, DataFlowSolver* solver, const Options& options,
+    const OpGrouping& grouping, const BypassStructure& bypass,
+    const PartitionBoundary& regionBoundary,
+    std::optional<PartitionSolution>& solutionOut) {
+  solutionOut.reset();
+  int mainSize = regionSizeInOps(grouping, bypass.mainGroupIds);
+  int bypassSize = regionSizeInOps(grouping, bypass.bypassGroupIds);
+
+  // Transfer table: solve the deep main path for each enumerated output level.
+  std::vector<PartitionSolution> mainCells;
+  for (int level = 0; level <= options.bootstrapWaterline; ++level) {
+    PartitionBoundary boundary;
+    boundary.pinnedInputs = regionBoundary.pinnedInputs;
+    boundary.applyYieldConstraints = false;
+    boundary.outputValue = bypass.mainOutputValue;
+    boundary.outputLevel = level;
+    boundary.sizeInOps = mainSize;
+    std::optional<PartitionSolution> soln;
+    if (failed(solvePartition(body, solver, options, grouping,
+                              bypass.mainGroupIds, boundary, soln)))
+      return failure();
+    if (soln.has_value()) mainCells.push_back(std::move(*soln));
+  }
+  if (mainCells.empty()) return success();  // main infeasible at every level
+
+  // For each realized main-output state, solve the shallow path plus the join
+  // with that state pinned and the region's own output boundary, and keep the
+  // cheapest main + bypass pair.
+  double bestCost = std::numeric_limits<double>::infinity();
+  int bestMain = -1;
+  PartitionSolution bestBypass;
+  for (auto [mainIdx, mainCell] : llvm::enumerate(mainCells)) {
+    PartitionBoundary boundary;
+    boundary.pinnedInputs = regionBoundary.pinnedInputs;
+    boundary.pinnedInputs.push_back(
+        {bypass.mainOutputValue, mainCell.outState});
+    boundary.applyYieldConstraints = regionBoundary.applyYieldConstraints;
+    boundary.outputValue = regionBoundary.outputValue;
+    boundary.outputLevel = regionBoundary.outputLevel;
+    boundary.sizeInOps = bypassSize;
+    std::optional<PartitionSolution> soln;
+    if (failed(solvePartition(body, solver, options, grouping,
+                              bypass.bypassGroupIds, boundary, soln)))
+      return failure();
+    if (!soln.has_value()) continue;
+    double jointCost = mainCell.cost + soln->cost;
+    if (jointCost < bestCost) {
+      bestCost = jointCost;
+      bestMain = mainIdx;
+      bestBypass = std::move(*soln);
+    }
+  }
+  if (bestMain < 0) return success();  // no feasible main/bypass combination
+
+  // Combine: keep main's decisions, merge the bypass decisions on top, and
+  // carry the bypass side's output state (the region output) for the DP.
+  PartitionSolution combined = std::move(mainCells[bestMain]);
+  combined.cost = bestCost;
+  combined.outState = bestBypass.outState;
+  mergeSolutionInto(combined, std::move(bestBypass));
+  solutionOut = std::move(combined);
+  return success();
+}
+
+// Solve one region, transparently using a bypass split when the region is a
+// residual with no SISO cut, otherwise a single ILP. Both the single-partition
+// path and each partition of the DP go through here, so a residual sitting
+// mid-circuit is bypassed just like one spanning the whole body.
+static LogicalResult solveRegion(
+    Block* body, DataFlowSolver* solver, const Options& options,
+    const OpGrouping& grouping, ArrayRef<int> groupIds,
+    const PartitionBoundary& boundary,
+    std::optional<PartitionSolution>& solutionOut) {
+  if (options.bypassDepthThreshold > 0) {
+    Value regionOutput = boundary.outputValue ? boundary.outputValue
+                         : boundary.applyYieldConstraints
+                             ? singleYieldedValue(body, solver)
+                             : Value();
+    BypassStructure bypass = detectBypass(
+        grouping, solver, groupIds, regionOutput, options.bypassDepthThreshold);
+    if (bypass.found) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "ilp-bootstrap-placement: solving bypass (main "
+                 << bypass.mainGroupIds.size() << " groups, bypass "
+                 << bypass.bypassGroupIds.size() << " groups)\n");
+      if (failed(solveBypass(body, solver, options, grouping, bypass, boundary,
+                             solutionOut)))
+        return failure();
+      if (solutionOut.has_value()) return success();
+      // Bypass infeasible; fall through to the monolithic solve.
+      LLVM_DEBUG(llvm::dbgs() << "ilp-bootstrap-placement: bypass infeasible, "
+                                 "falling back to single ILP\n");
+    }
+  }
+  return solvePartition(body, solver, options, grouping, groupIds, boundary,
+                        solutionOut);
 }
 
 LogicalResult ILPBootstrapPlacementAnalysis::solve() {
@@ -899,7 +1202,8 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
   if (!genericOp) return failure();
   Block* body = genericOp.getBody();
 
-  OpGrouping grouping = computeOpGrouping(body, solver, options.compress);
+  OpGrouping grouping = computeOpGrouping(body, solver, options.compress,
+                                          options.bypassDepthThreshold);
   SmallVector<std::pair<Value, ValueState>, 4> argStates;
   if (failed(computeArgInitStates(body, solver, options, argStates)))
     return failure();
@@ -933,8 +1237,8 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
     boundary.applyYieldConstraints = true;
     boundary.sizeInOps = partitions[0].sizeInOps;
     std::optional<PartitionSolution> soln;
-    if (failed(solvePartition(body, solver, options, grouping, 0,
-                              grouping.groups.size(), boundary, soln)))
+    if (failed(solveRegion(body, solver, options, grouping,
+                           partitions[0].groupIds, boundary, soln)))
       return failure();
     if (!soln.has_value()) {
       llvm::errs() << "No feasible solution found (the problem may be "
@@ -991,9 +1295,8 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
       for (int outLevel : outLevels) {
         boundary.outputLevel = outLevel;
         std::optional<PartitionSolution> soln;
-        if (failed(solvePartition(body, solver, options, grouping,
-                                  partition.groupBegin, partition.groupEnd,
-                                  boundary, soln)))
+        if (failed(solveRegion(body, solver, options, grouping,
+                               partition.groupIds, boundary, soln)))
           return failure();
         LLVM_DEBUG(llvm::dbgs()
                    << "partition " << k << " in(" << inState.first << ","
