@@ -32,7 +32,6 @@
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
@@ -410,27 +409,21 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
                           << newLayout << "\n");
 
   // Note: this assumes that trivial kernels have no result layout cost
-  // change. This is true of all current trivial kernels (tensor.collapse_shape
-  // and all arithmetic trivial kernels) and will continue to hold as long as
+  // change for the hoisted layout conversion itself. This is true of all
+  // current trivial kernels (tensor.collapse_shape, tensor.expand_shape, and
+  // all arithmetic trivial kernels) and will continue to hold as long as
   // trivial kernels are implemented with equivalent ciphertext-semantic
-  // operations. Returning 0 here prevents gratuitously hoisting a layout
-  // conversion above a metadata reshape (e.g. tensor.collapse_shape) when its
-  // operand is a non-free computed value (see
-  // hoist_collapse_computed_operand.mlir).
-  if (((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
-       (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
-        newKernel == KernelName::Trivial)) &&
-      llvm::all_of(kernel->getResult(0).getUsers(), [&](Operation* user) {
-        auto conv = dyn_cast<ConvertLayoutOp>(user);
-        return conv && conv.getToLayout() == newLayout;
-      })) {
-    return 0;
-  }
+  // operations.
+  bool isTrivial =
+      (oldKernel == nullptr && newKernel == KernelName::Trivial) ||
+      (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
+       newKernel == KernelName::Trivial);
 
   Cost totalCost = 0;
   for (auto* user : kernel->getResult(0).getUsers()) {
     LLVM_DEBUG(llvm::dbgs() << "\tConvert layout use: " << *user << "\n");
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
+      if (isTrivial && convertLayoutOp.getToLayout() == newLayout) continue;
       Cost originalConversion = costOfLayoutConversion(
           convertLayoutOp.getFromLayout(), convertLayoutOp.getToLayout());
       Cost foldedConversion =

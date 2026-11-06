@@ -54,10 +54,10 @@ enum class GenericReductionKind { None, Add, Mul, Idempotent };
 // The instances of a structured op, (iteration, output slot) pairs, grouped by
 // key [ct_o, (ct_i, shift_i) per secret input]: the output ciphertext and, per
 // secret input, the ciphertext holding the element the instance reads and the
-// rotation that moves it to the output slot. A replicated element takes the
-// replica with the lexicographically smallest (shift_i, ct_i), which keeps
-// periodic replicas in one group; ct_i = -1 marks an element the layout does
-// not place (read as zero).
+// rotation that moves it to the output slot. A replicated element takes its
+// lexicographically smallest (ct_i, shift_i), which keeps periodic replicas in
+// one group; ct_i = -1 marks an element the layout does not place (read as
+// zero).
 struct InstanceGroups {
   // The distinct cleartext reads (row-major indices, one per cleartext input)
   // of a key's instances at one output slot, with their multiplicities.
@@ -78,19 +78,19 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
                                          GenericReductionKind kind,
                                          std::string& reason);
 
-// The number of keys of the instances of a structured op (see InstanceGroups),
-// which bounds the number of groups from below since a key yields one group
-// per distinct cleartext read of a slot, and the number of distinct nonzero
-// rotations of the secret inputs.
+// The number of keys of the instances of a structured op (see
+// InstanceGroups), a lower bound on the number of groups (a key yields one
+// group per distinct cleartext read of a slot), and the number of distinct
+// nonzero rotations of the secret inputs.
 struct GroupCount {
   int64_t numKeys = 0;
   int64_t numRotations = 0;
 };
 
 // Counts the keys of groupInstances without walking the loop nest: per input,
-// a lexmin of (shift_i, ct_i) over the instances picks the replica each
-// instance reads. The keys are enumerated per piece of the resulting function
-// and deduplicated.
+// a lexmin over the layout gives each element's first ciphertext and a lexmin
+// over the instances the rotation among its replicas there. The keys are
+// enumerated per piece of the resulting function and deduplicated.
 FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                                           std::string& reason);
 

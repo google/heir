@@ -425,17 +425,12 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
       return layoutAttr;
     }
     if (auto arrayAttr = dyn_cast<ArrayAttr>(attr)) {
-      auto& cached = composedLayouts[arrayAttr];
-      if (!cached) {
-        cached = LayoutAttr::composeLayouts(arrayAttr, &getContext());
-      }
-      return cached;
+      return LayoutAttr::composeLayouts(arrayAttr, &getContext());
     }
     llvm_unreachable("unexpected attribute type in assignedLayouts");
   }
 
   DenseMap<Value, Attribute> assignedLayouts;
-  DenseMap<Attribute, LayoutAttr> composedLayouts;
   DataFlowSolver* solver;
   // Set when generalizeAndVisit erased the visited op, so the walk skips
   // it.
@@ -841,6 +836,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     IntegerRelation layout;
     int64_t conversionCost;
   };
+  std::vector<Candidate> candidates;
   for (OpOperand* input : op.getDpsInputOperands()) {
     Value value = input->get();
     StructuredOperand& operand = spec.inputs.emplace_back();
@@ -852,17 +848,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
       continue;
     }
     operand.layout = getComposedLayoutAttr(value).getIntegerRelation();
-  }
-  std::optional<int64_t> current;
-  bool currentComputed = false;
-  std::vector<Candidate> candidates;
-  for (OpOperand* input : op.getDpsInputOperands()) {
-    Value value = input->get();
-    const StructuredOperand& operand = spec.inputs[input->getOperandNumber()];
-    auto type = dyn_cast<RankedTensorType>(value.getType());
-    if (!assignedLayouts.contains(value) || !isSecret(value, solver) || !type) {
-      continue;
-    }
+    if (!type) continue;
     std::string reason;
     FailureOr<IntegerRelation> pulled =
         pullBackInputLayout(loopRanges, isReduction, operand.indexingMap,
@@ -879,16 +865,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     if (!pulledCts || !currentCts) continue;
     int64_t addedCts = *pulledCts - *currentCts;
     int64_t conversionCost = std::max<int64_t>(addedCts, 0);
-    bool needsCopy = !isLayoutFree(value, solver) || !value.hasOneUse();
-    if (!currentComputed) {
-      current = groupsAndRotations(spec);
-      currentComputed = true;
-    }
-    // Every non-empty kernel requires at least 1 instance group, and a copy
-    // kernel requires at least 1 instance group.
-    if (current && 1 + conversionCost + (needsCopy ? 1 : 0) >= *current)
-      continue;
-    if (needsCopy) {
+    if (!isLayoutFree(value, solver) || !value.hasOneUse()) {
       GenericKernelSpec copy;
       copy.loopRanges = llvm::to_vector(type.getShape());
       copy.numSlots = minSlotCount;
@@ -899,7 +876,6 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
       std::optional<int64_t> cost = groupsAndRotations(copy);
       if (!cost) continue;
       conversionCost += *cost;
-      if (current && 1 + conversionCost >= *current) continue;
     }
     candidates.push_back({input, *pulled, conversionCost});
   }
@@ -940,9 +916,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     best = bestReturn;
     chosen[returned] = false;
   }
-  if (!currentComputed) {
-    current = groupsAndRotations(spec);
-  }
+  std::optional<int64_t> current = groupsAndRotations(spec);
   if (!best || (current && *best >= *current)) return;
 
   IRRewriter builder(&getContext());
