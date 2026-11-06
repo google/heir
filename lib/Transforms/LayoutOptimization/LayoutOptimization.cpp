@@ -247,12 +247,11 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
     if (!fromLayout || !toLayout) return true;
-    presburger::IntegerRelation fromDomain =
+    presburger::IntegerPolyhedron fromDomain =
         fromLayout.getIntegerRelation().getDomainSet();
-    presburger::IntegerRelation toDomain =
+    presburger::IntegerPolyhedron toDomain =
         toLayout.getIntegerRelation().getDomainSet();
-    if (fromDomain.getNumDomainVars() != toDomain.getNumDomainVars())
-      return false;
+    if (fromDomain.getNumDimVars() != toDomain.getNumDimVars()) return false;
     return presburger::PresburgerSet(fromDomain)
         .isSubsetOf(presburger::PresburgerSet(toDomain));
   };
