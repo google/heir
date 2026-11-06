@@ -94,5 +94,12 @@ repos:
       types: [markdown]
       pass_filenames: false # Run on all relevant files
       always_run: true # Run the hook even if no files changed
+    - id: ensure-file-check
+      name: Ensure .mlir files with CHECK lines invoke FileCheck
+      entry: python3 scripts/ensure_file_check.py
+      language: system
+      files: \.mlir$
+      pass_filenames: false # Run on all relevant files
+      always_run: true # Run the hook even if no files changed
 
 exclude: patches/.*\.patch$
