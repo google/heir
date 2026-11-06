@@ -81,3 +81,19 @@ py_test(
         "@abseil-py//absl/testing:absltest",
     ],
 )
+
+py_library(
+    name = "prepare_fhe_benchmark_lib",
+    srcs = ["prepare_fhe_benchmark.py"],
+)
+
+py_binary(
+    name = "prepare_fhe_benchmark",
+    srcs = ["prepare_fhe_benchmark.py"],
+)
+
+py_test(
+    name = "test_prepare_fhe_benchmark",
+    srcs = ["test_prepare_fhe_benchmark.py"],
+    deps = [":prepare_fhe_benchmark_lib"],
+)
