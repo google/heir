@@ -239,23 +239,22 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     llvm::dbgs() << "\n";
   });
 
-  // Now compute the cost of hoisting each conversion layout.
+  // Now compute the cost of hoisting each conversion layout. When the op has
+  // multiple convert_layout users, hoisting one rewrites the others'
+  // from_layout to the hoisted layout, so the hoisted layout must cover all
+  // elements placed by the original output layout.
   auto preservesDomain = [](ConvertLayoutOp convertLayoutOp) {
     auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
     if (!fromLayout || !toLayout) return true;
-    presburger::IntegerRelation fromDomain = fromLayout.getIntegerRelation();
-    presburger::IntegerRelation toDomain = toLayout.getIntegerRelation();
+    presburger::IntegerRelation fromDomain =
+        fromLayout.getIntegerRelation().getDomainSet();
+    presburger::IntegerRelation toDomain =
+        toLayout.getIntegerRelation().getDomainSet();
     if (fromDomain.getNumDomainVars() != toDomain.getNumDomainVars())
       return false;
-    fromDomain.convertVarKind(presburger::VarKind::Range, 0,
-                              fromDomain.getNumRangeVars(),
-                              presburger::VarKind::Local);
-    toDomain.convertVarKind(presburger::VarKind::Range, 0,
-                            toDomain.getNumRangeVars(),
-                            presburger::VarKind::Local);
-    return presburger::PresburgerRelation(fromDomain)
-        .isSubsetOf(presburger::PresburgerRelation(toDomain));
+    return presburger::PresburgerSet(fromDomain)
+        .isSubsetOf(presburger::PresburgerSet(toDomain));
   };
   SmallVector<HoistOption> hoistingOptions;
   for (auto resultLayoutConversion : resultLayoutConversions) {

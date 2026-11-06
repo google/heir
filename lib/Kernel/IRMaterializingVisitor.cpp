@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -470,49 +469,8 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     return op;
   };
 
-  const int64_t numElements = resultType.getNumElements();
   Attribute constant;
   if (!source || matchPattern(source, m_Constant(&constant))) {
-    if (auto dense = dyn_cast_if_present<DenseElementsAttr>(constant)) {
-      int64_t numSourceElements = dense.getNumElements();
-      assert(dense.getElementType() == resultType.getElementType());
-      assert(static_cast<int64_t>(node.indices.size()) == numElements);
-      assert(llvm::all_of(
-                 node.indices,
-                 [&](int64_t index) { return index < numSourceElements; }) &&
-             "gather index out of bounds");
-      if (dense.isSplat() && llvm::all_of(node.indices, [](int64_t index) {
-            return index >= 0;
-          })) {
-        return {create(arith::ConstantOp::create(
-            builder, resultType,
-            DenseElementsAttr::get(resultType,
-                                   dense.getSplatValue<Attribute>())))};
-      }
-      if (dense.getElementType().isIntOrFloat()) {
-        ArrayRef<char> rawData = dense.getRawData();
-        int64_t bitWidth = dense.getElementType().getIntOrFloatBitWidth();
-        if (bitWidth >= 8 && bitWidth % 8 == 0) {
-          // resultType has the source's element type, so bytes copy as is;
-          // zero-initialized bytes represent 0 / +0.0 for unplaced (idx < 0)
-          // slots.
-          int64_t byteWidth = bitWidth / 8;
-          bool isSplat = dense.isSplat();
-          std::vector<char> rawResult(numElements * byteWidth, 0);
-          for (int64_t i = 0; i < numElements; ++i) {
-            int64_t idx = node.indices[i];
-            if (idx >= 0) {
-              std::memcpy(rawResult.data() + i * byteWidth,
-                          rawData.data() + (isSplat ? 0 : idx * byteWidth),
-                          byteWidth);
-            }
-          }
-          return {create(arith::ConstantOp::create(
-              builder, resultType,
-              DenseElementsAttr::getFromRawBuffer(resultType, rawResult)))};
-        }
-      }
-    }
     auto elements = dyn_cast_if_present<ElementsAttr>(constant);
     std::function<Attribute(int64_t)> read;
     if (elements) read = constantElementReader(elements);

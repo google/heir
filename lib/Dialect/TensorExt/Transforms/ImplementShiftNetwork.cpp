@@ -8,7 +8,6 @@
 #include <limits>
 #include <map>
 #include <memory>
-#include <optional>
 #include <random>
 #include <tuple>
 #include <unordered_map>
@@ -25,12 +24,9 @@
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/Layout/Utils.h"
-#include "llvm/include/llvm/ADT/DenseSet.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"       // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"       // from @llvm-project
-#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -213,11 +209,8 @@ void populateMappingFromDenseElementsAttr(
   }
 }
 
-using MappingCacheKey = std::tuple<Attribute, int64_t, int64_t>;
-
-LogicalResult convertRemapOp(
-    RemapOp op, VosVosErkinShiftNetworks& shiftNetworks,
-    llvm::DenseMap<MappingCacheKey, Mapping>& mappingCache) {
+LogicalResult convertRemapOp(RemapOp op,
+                             VosVosErkinShiftNetworks& shiftNetworks) {
   LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   ImplicitLocOpBuilder b(op.getLoc(), op.getContext());
   RankedTensorType tensorTy = op.getInput().getType();
@@ -241,24 +234,17 @@ LogicalResult convertRemapOp(
 
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
-  MappingCacheKey mappingKey{op.getPermutation(), minSlotCount, numCiphertexts};
-  auto mappingIt = mappingCache.find(mappingKey);
-  if (mappingIt == mappingCache.end()) {
-    Mapping newMapping(minSlotCount, numCiphertexts);
-    if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
-      populateMappingFromLayoutAttr(layoutAttr, newMapping);
-    } else if (auto denseElementsAttr =
-                   dyn_cast<DenseIntElementsAttr>(op.getPermutation())) {
-      populateMappingFromDenseElementsAttr(denseElementsAttr, newMapping);
-    } else {
-      return op.emitOpError()
-             << "requires permutation attribute to be either LayoutAttr or "
-                "DenseIntElementsAttr";
-    }
-    mappingIt =
-        mappingCache.try_emplace(mappingKey, std::move(newMapping)).first;
+  Mapping mapping(minSlotCount, numCiphertexts);
+  if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
+    populateMappingFromLayoutAttr(layoutAttr, mapping);
+  } else if (auto denseElementsAttr =
+                 dyn_cast<DenseIntElementsAttr>(op.getPermutation())) {
+    populateMappingFromDenseElementsAttr(denseElementsAttr, mapping);
+  } else {
+    return op.emitOpError()
+           << "requires permutation attribute to be either LayoutAttr or "
+              "DenseIntElementsAttr";
   }
-  const Mapping& mapping = mappingIt->second;
 
   b.setInsertionPointAfter(op);
 
@@ -349,9 +335,8 @@ struct ImplementShiftNetwork
 
   void runOnOperation() override {
     VosVosErkinShiftNetworks shiftNetworks;
-    llvm::DenseMap<MappingCacheKey, Mapping> mappingCache;
     getOperation()->walk([&](RemapOp op) {
-      if (failed(convertRemapOp(op, shiftNetworks, mappingCache))) {
+      if (failed(convertRemapOp(op, shiftNetworks))) {
         signalPassFailure();
       }
     });

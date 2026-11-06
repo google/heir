@@ -33,7 +33,6 @@
 #include "include/isl/local_space.h"  // from @isl
 #include "include/isl/map.h"          // from @isl
 #include "include/isl/map_type.h"     // from @isl
-#include "include/isl/mat.h"          // from @isl
 #include "include/isl/point.h"        // from @isl
 #include "include/isl/set.h"          // from @isl
 #include "include/isl/space.h"        // from @isl
@@ -203,99 +202,21 @@ FailureOr<IntegerRelation> toLayoutRelation(
   return convertBasicMapToRelation(bmap);
 }
 
-// An affine map whose linear results are evaluated without walking the
-// AffineExpr tree, for use inside the groupInstances loop nest.
-struct CompiledAffineExpr {
-  int64_t constant = 0;
-  SmallVector<std::pair<unsigned, int64_t>, 4> terms;
-  AffineExpr fallback;
-
-  int64_t eval(ArrayRef<int64_t> dims) const {
-    if (fallback) return evaluate(fallback, dims);
-    int64_t res = constant;
-    for (auto [d, c] : terms) res += c * dims[d];
-    return res;
-  }
-};
-
-struct CompiledAffineMap {
-  SmallVector<CompiledAffineExpr, 4> exprs;
-
-  static CompiledAffineMap get(AffineMap map, unsigned numDims) {
-    CompiledAffineMap result;
-    result.exprs.reserve(map.getNumResults());
-    for (AffineExpr expr : map.getResults()) {
-      CompiledAffineExpr compiled;
-      SmallVector<int64_t, 8> coeffs(numDims, 0);
-      int64_t cst = 0;
-      auto extractLinear = [&](auto& self, AffineExpr e,
-                               int64_t scale) -> bool {
-        if (auto dim = dyn_cast<AffineDimExpr>(e)) {
-          if (dim.getPosition() >= numDims) return false;
-          coeffs[dim.getPosition()] += scale;
-          return true;
-        }
-        if (auto c = dyn_cast<AffineConstantExpr>(e)) {
-          cst += scale * c.getValue();
-          return true;
-        }
-        auto bin = dyn_cast<AffineBinaryOpExpr>(e);
-        if (!bin) return false;
-        if (bin.getKind() == AffineExprKind::Add) {
-          return self(self, bin.getLHS(), scale) &&
-                 self(self, bin.getRHS(), scale);
-        }
-        if (bin.getKind() == AffineExprKind::Mul) {
-          if (auto rc = dyn_cast<AffineConstantExpr>(bin.getRHS())) {
-            return self(self, bin.getLHS(), scale * rc.getValue());
-          }
-          if (auto lc = dyn_cast<AffineConstantExpr>(bin.getLHS())) {
-            return self(self, bin.getRHS(), scale * lc.getValue());
-          }
-        }
-        return false;
-      };
-      if (extractLinear(extractLinear, expr, 1)) {
-        compiled.constant = cst;
-        for (unsigned j = 0; j < numDims; ++j) {
-          if (coeffs[j] != 0) compiled.terms.emplace_back(j, coeffs[j]);
-        }
-      } else {
-        compiled.fallback = expr;
-      }
-      result.exprs.push_back(std::move(compiled));
-    }
-    return result;
-  }
-
-  int64_t evalLinearized(ArrayRef<int64_t> strides,
-                         ArrayRef<int64_t> dims) const {
-    int64_t flat = 0;
-    for (size_t k = 0; k < exprs.size(); ++k) {
-      flat += exprs[k].eval(dims) * strides[k];
-    }
-    return flat;
-  }
-};
-
 // The (ct, slot) positions a layout places each data element at.
 class SlotTable {
  public:
   static SlotTable get(const presburger::IntegerRelation& layout);
 
-  // The positions of the element at `map(dims)`, sorted by (slot, ct); none
-  // for elements the layout does not place.
-  ArrayRef<std::pair<int64_t, int64_t>> lookup(const CompiledAffineMap& map,
-                                               ArrayRef<int64_t> dims) const {
-    int64_t flat = 0;
-    for (size_t k = 0; k < shape.size(); ++k) {
-      int64_t idx = map.exprs[k].eval(dims);
-      int64_t dim = shape[k];
-      if (idx < 0 || idx >= dim) return {};
-      flat = flat * dim + idx;
-    }
-    return slots[flat];
-  }
+  // The positions of the element at `index`, sorted by (slot, ct); none for
+  // elements the layout does not place.
+  ArrayRef<std::pair<int64_t, int64_t>> lookup(ArrayRef<int64_t> index) const;
+
+  // The (ct, shift) of the replica of `index` with the smallest non-negative
+  // shift from `outputSlot` mod `numSlots`, and the smallest `ct` on ties;
+  // (-1, 0) if the layout does not place `index`.
+  std::pair<int64_t, int64_t> nearest(ArrayRef<int64_t> index,
+                                      int64_t outputSlot,
+                                      int64_t numSlots) const;
 
   // The positions of every element.
   ArrayRef<SmallVector<std::pair<int64_t, int64_t>, 1>> positions() const {
@@ -339,6 +260,33 @@ SlotTable SlotTable::get(const IntegerRelation& layout) {
     positions.erase(llvm::unique(positions), positions.end());
   }
   return table;
+}
+
+ArrayRef<std::pair<int64_t, int64_t>> SlotTable::lookup(
+    ArrayRef<int64_t> index) const {
+  assert(index.size() == shape.size());
+  for (auto [i, dim] : llvm::zip(index, shape)) {
+    if (i < 0 || i >= dim) return {};
+  }
+  return slots[flatten(index)];
+}
+
+std::pair<int64_t, int64_t> SlotTable::nearest(ArrayRef<int64_t> index,
+                                               int64_t outputSlot,
+                                               int64_t numSlots) const {
+  ArrayRef<std::pair<int64_t, int64_t>> positions = lookup(index);
+  if (positions.empty()) return {-1, 0};
+  // `positions` is sorted by (slot, ct), so the first entry with
+  // slot >= outputSlot has the smallest non-wrapped shift; if there is none,
+  // the first entry overall has the smallest wrapped shift.
+  auto it = llvm::lower_bound(
+      positions, std::pair<int64_t, int64_t>{-1, outputSlot},
+      [](const auto& a, const auto& b) {
+        return std::tie(a.second, a.first) < std::tie(b.second, b.first);
+      });
+  if (it != positions.end()) return {it->first, it->second - outputSlot};
+  return {positions.front().first,
+          positions.front().second + numSlots - outputSlot};
 }
 
 bool SlotTable::fitsIn(int64_t numSlots) const {
@@ -394,54 +342,22 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
   auto& readsByKey = groups.readsByKey;
   auto& coverage = groups.coverage;
   const unsigned numLoops = spec.loopRanges.size();
-  CompiledAffineMap outputMap =
-      CompiledAffineMap::get(spec.output.indexingMap, numLoops);
-  std::vector<CompiledAffineMap> inputMaps(spec.inputs.size());
-  for (auto [i, input] : llvm::enumerate(spec.inputs)) {
-    inputMaps[i] = CompiledAffineMap::get(input.indexingMap, numLoops);
-  }
   SmallVector<int64_t> d(numLoops, 0);
   SmallVector<int64_t> cleartextReads;
-  std::vector<ArrayRef<std::pair<int64_t, int64_t>>> inPositions(
-      spec.inputs.size());
-  SmallVector<size_t> inCursors(spec.inputs.size(), 0);
+  std::vector<SmallVector<int64_t>> inIndices(spec.inputs.size());
   std::vector<int64_t> key(1 + 2 * numSecretInputs, 0);
-  // Sparse keys stay in readsByKey directly; keys that touch at least
-  // kDenseSlotPromotionThreshold slots promote to a flat numSlots-sized vector
-  // for O(1) slot indexing during the loop nest and flush back into readsByKey
-  // afterwards.
-  constexpr size_t kDenseSlotPromotionThreshold = 64;
-  struct KeySlots {
-    std::map<int64_t, InstanceGroups::Reads>* sparse = nullptr;
-    std::vector<InstanceGroups::Reads> dense;
-
-    InstanceGroups::Reads& get(int64_t slot, int64_t numSlots) {
-      if (!dense.empty()) return dense[slot];
-      auto& res = (*sparse)[slot];
-      if (sparse->size() >= kDenseSlotPromotionThreshold) {
-        dense.resize(numSlots);
-        for (auto& [s, r] : *sparse) dense[s] = std::move(r);
-        sparse->clear();
-        return dense[slot];
-      }
-      return res;
-    }
-  };
-  std::map<std::vector<int64_t>, KeySlots> keySlots;
-  std::vector<int64_t> lastKey;
-  KeySlots* currentSlots = nullptr;
 
   for (bool done = llvm::is_contained(spec.loopRanges, 0); !done;) {
+    SmallVector<int64_t> outIndex =
+        evaluateAffineMap(spec.output.indexingMap, d);
     ArrayRef<std::pair<int64_t, int64_t>> outPositions =
-        outputSlots.lookup(outputMap, d);
+        outputSlots.lookup(outIndex);
     if (!outPositions.empty()) {
       cleartextReads.clear();
       for (auto [i, input] : llvm::enumerate(spec.inputs)) {
+        inIndices[i] = evaluateAffineMap(input.indexingMap, d);
         if (input.isCleartext()) {
-          cleartextReads.push_back(inputMaps[i].evalLinearized(strides[i], d));
-        } else {
-          inPositions[i] = inputSlots[i]->lookup(inputMaps[i], d);
-          inCursors[i] = 0;
+          cleartextReads.push_back(linearize(inIndices[i], strides[i]));
         }
       }
       for (auto [outputCt, outputSlot] : outPositions) {
@@ -449,29 +365,12 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
         size_t keyPos = 1;
         for (auto [i, input] : llvm::enumerate(spec.inputs)) {
           if (input.isCleartext()) continue;
-          ArrayRef<std::pair<int64_t, int64_t>> pos = inPositions[i];
-          if (pos.empty()) {
-            key[keyPos++] = -1;
-            key[keyPos++] = 0;
-            continue;
-          }
-          // outPositions is sorted by slot, so the cursor only moves forward.
-          size_t& cur = inCursors[i];
-          while (cur < pos.size() && pos[cur].second < outputSlot) ++cur;
-          if (cur < pos.size()) {
-            key[keyPos++] = pos[cur].first;
-            key[keyPos++] = pos[cur].second - outputSlot;
-          } else {
-            key[keyPos++] = pos[0].first;
-            key[keyPos++] = pos[0].second + numSlots - outputSlot;
-          }
+          auto [ct, shift] =
+              inputSlots[i]->nearest(inIndices[i], outputSlot, numSlots);
+          key[keyPos++] = ct;
+          key[keyPos++] = shift;
         }
-        if (!currentSlots || key != lastKey) {
-          lastKey = key;
-          currentSlots = &keySlots[key];
-          if (!currentSlots->sparse) currentSlots->sparse = &readsByKey[key];
-        }
-        InstanceGroups::Reads& reads = currentSlots->get(outputSlot, numSlots);
+        InstanceGroups::Reads& reads = readsByKey[key][outputSlot];
         auto it = llvm::find_if(reads, [&](const auto& read) {
           return read.first == cleartextReads;
         });
@@ -486,14 +385,6 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
     int64_t j = static_cast<int64_t>(numLoops) - 1;
     while (j >= 0 && ++d[j] == spec.loopRanges[j]) d[j--] = 0;
     done = j < 0;
-  }
-  for (auto& [k, ks] : keySlots) {
-    if (ks.dense.empty()) continue;
-    for (int64_t s = 0; s < numSlots; ++s) {
-      if (!ks.dense[s].empty()) {
-        ks.sparse->emplace_hint(ks.sparse->end(), s, std::move(ks.dense[s]));
-      }
-    }
   }
 
   coverage.assign(numCts, std::vector<int64_t>(numSlots, 0));
@@ -816,10 +707,15 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                 }
               }
 
+              SmallVector<isl_aff*, 4> affs(collector->numCoords);
+              for (unsigned i = 0; i < collector->numCoords; ++i) {
+                affs[i] = isl_multi_aff_get_aff(bMaff, i);
+              }
+              isl_multi_aff_free(bMaff);
               struct ScanCtx {
                 Collector* collector;
-                isl_multi_aff* bMaff;
-              } sctx{collector, bMaff};
+                ArrayRef<isl_aff*> affs;
+              } sctx{collector, affs};
               isl_set* scanSet = isl_set_from_basic_set(bset);
               isl_stat scanStat = isl_set_foreach_point(
                   scanSet,
@@ -828,8 +724,8 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                     auto* collector = sctx->collector;
                     SmallVector<int64_t, 4> coords(collector->numCoords);
                     for (unsigned i = 0; i < collector->numCoords; ++i) {
-                      isl_aff* aff = isl_multi_aff_get_aff(sctx->bMaff, i);
-                      isl_val* v = isl_aff_eval(aff, isl_point_copy(point));
+                      isl_val* v = isl_aff_eval(isl_aff_copy(sctx->affs[i]),
+                                                isl_point_copy(point));
                       coords[i] = isl_val_get_num_si(v);
                       isl_val_free(v);
                     }
@@ -839,7 +735,7 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                   },
                   &sctx);
               isl_set_free(scanSet);
-              isl_multi_aff_free(bMaff);
+              for (isl_aff* aff : affs) isl_aff_free(aff);
               return scanStat;
             },
             &pctx);

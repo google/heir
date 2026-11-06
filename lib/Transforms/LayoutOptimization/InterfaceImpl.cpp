@@ -240,39 +240,10 @@ static bool isTrivialRankReduction(tensor::CollapseShapeOp op) {
 
 static LayoutAttr hoistLayoutThroughCollapseShape(LayoutAttr attr,
                                                   tensor::CollapseShapeOp op) {
-  auto rel = attr.getIntegerRelation();
-  auto srcType = op.getSrcType();
-  auto reassociationIndices = op.getReassociationIndices();
-
-  IntegerRelation mapRel(PresburgerSpace::getRelationSpace(
-      srcType.getRank(), op.getResultType().getRank(), 0, 0));
-
-  for (auto [j, reassociation] : llvm::enumerate(reassociationIndices)) {
-    int64_t nonUnitIdx = -1;
-    for (auto i : reassociation) {
-      if (srcType.getDimSize(i) != 1) {
-        nonUnitIdx = i;
-        break;
-      }
-    }
-    if (nonUnitIdx == -1) nonUnitIdx = reassociation[0];
-
-    for (auto i : reassociation) {
-      SmallVector<int64_t> eq(mapRel.getNumCols(), 0);
-      if (i == (int64_t)nonUnitIdx) {
-        // i_i - j_j = 0
-        eq[mapRel.getVarKindOffset(VarKind::Domain) + i] = 1;
-        eq[mapRel.getVarKindOffset(VarKind::Range) + j] = -1;
-      } else {
-        // i_i = 0
-        eq[mapRel.getVarKindOffset(VarKind::Domain) + i] = 1;
-      }
-      mapRel.addEquality(eq);
-    }
-  }
-
-  mapRel.compose(rel);
-  return LayoutAttr::getFromIntegerRelation(op.getContext(), mapRel);
+  return LayoutAttr::getFromIntegerRelation(
+      op.getContext(),
+      expandDimensions(attr.getIntegerRelation(), op.getSrcType(),
+                       op.getReassociationIndices()));
 }
 
 Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
@@ -357,6 +328,12 @@ Hoister createPadHoister(tensor::PadOp op) {
   };
 }
 
+static bool isSingleCiphertext1DVector(const IntegerRelation& rel) {
+  return rel.getNumDomainVars() == 1 &&
+         rel.getConstantBoundOnDimSize64(
+             rel.getVarKindOffset(VarKind::Range)) == 1;
+}
+
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
     HoistResult result;
@@ -364,13 +341,8 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
-    const IntegerRelation& fromRel = fromLayout.getIntegerRelation();
-    const IntegerRelation& toRel = toLayout.getIntegerRelation();
-    if (fromRel.getNumDomainVars() != 1 || toRel.getNumDomainVars() != 1 ||
-        fromRel.getConstantBoundOnDimSize64(
-            fromRel.getVarKindOffset(VarKind::Range)) != 1 ||
-        toRel.getConstantBoundOnDimSize64(
-            toRel.getVarKindOffset(VarKind::Range)) != 1) {
+    if (!isSingleCiphertext1DVector(fromLayout.getIntegerRelation()) ||
+        !isSingleCiphertext1DVector(toLayout.getIntegerRelation())) {
       return failure();
     }
 
@@ -415,13 +387,8 @@ Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
-    const IntegerRelation& fromRel = fromLayout.getIntegerRelation();
-    const IntegerRelation& toRel = toLayout.getIntegerRelation();
-    if (fromRel.getNumDomainVars() != 1 || toRel.getNumDomainVars() != 1 ||
-        fromRel.getConstantBoundOnDimSize64(
-            fromRel.getVarKindOffset(VarKind::Range)) != 1 ||
-        toRel.getConstantBoundOnDimSize64(
-            toRel.getVarKindOffset(VarKind::Range)) != 1) {
+    if (!isSingleCiphertext1DVector(fromLayout.getIntegerRelation()) ||
+        !isSingleCiphertext1DVector(toLayout.getIntegerRelation())) {
       return failure();
     }
 
