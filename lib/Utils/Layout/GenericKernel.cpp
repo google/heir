@@ -312,79 +312,6 @@ class SlotTable {
   std::vector<SmallVector<std::pair<int64_t, int64_t>, 1>> slots;
 };
 
-struct PmaPieces {
-  struct Piece {
-    isl_set* dom;
-    isl_multi_aff* maff;
-  };
-  std::vector<Piece> pieces;
-
-  explicit PmaPieces(__isl_take isl_pw_multi_aff* pma) {
-    isl_pw_multi_aff_foreach_piece(
-        pma,
-        [](__isl_take isl_set* dom, __isl_take isl_multi_aff* maff,
-           void* u) -> isl_stat {
-          static_cast<std::vector<Piece>*>(u)->push_back({dom, maff});
-          return isl_stat_ok;
-        },
-        &pieces);
-    isl_pw_multi_aff_free(pma);
-  }
-  ~PmaPieces() {
-    for (Piece& p : pieces) {
-      isl_set_free(p.dom);
-      isl_multi_aff_free(p.maff);
-    }
-  }
-  PmaPieces(const PmaPieces&) = delete;
-  PmaPieces& operator=(const PmaPieces&) = delete;
-};
-
-// Concatenates the range of `a` and `b` on each pair of pieces without calling
-// isl_multi_aff_gist.
-__isl_give isl_pw_multi_aff* flatRangeProductNoGist(
-    __isl_take isl_pw_multi_aff* a, __isl_take isl_pw_multi_aff* b) {
-  isl_space* space = isl_space_range_product(isl_pw_multi_aff_get_space(a),
-                                             isl_pw_multi_aff_get_space(b));
-  space = isl_space_flatten_range(space);
-  isl_pw_multi_aff* res = isl_pw_multi_aff_empty(space);
-  PmaPieces piecesA(a);
-  PmaPieces piecesB(b);
-  for (const auto& pa : piecesA.pieces) {
-    for (const auto& pb : piecesB.pieces) {
-      isl_set* dom =
-          isl_set_intersect(isl_set_copy(pa.dom), isl_set_copy(pb.dom));
-      isl_multi_aff* maff = isl_multi_aff_flat_range_product(
-          isl_multi_aff_copy(pa.maff), isl_multi_aff_copy(pb.maff));
-      res = isl_pw_multi_aff_union_add(res, isl_pw_multi_aff_alloc(dom, maff));
-    }
-  }
-  return res;
-}
-
-// Pulls back `pma` by `inner` on each pair of pieces without calling
-// isl_multi_aff_gist.
-__isl_give isl_pw_multi_aff* pullbackNoGist(
-    __isl_take isl_pw_multi_aff* pma, __isl_take isl_pw_multi_aff* inner) {
-  isl_space* space = isl_space_map_from_domain_and_range(
-      isl_space_domain(isl_pw_multi_aff_get_space(inner)),
-      isl_space_range(isl_pw_multi_aff_get_space(pma)));
-  isl_pw_multi_aff* res = isl_pw_multi_aff_empty(space);
-  PmaPieces outerPieces(pma);
-  PmaPieces innerPieces(inner);
-  for (const auto& po : outerPieces.pieces) {
-    for (const auto& pi : innerPieces.pieces) {
-      isl_set* pre = isl_set_preimage_multi_aff(isl_set_copy(po.dom),
-                                                isl_multi_aff_copy(pi.maff));
-      isl_set* dom = isl_set_intersect(isl_set_copy(pi.dom), pre);
-      isl_multi_aff* maff = isl_multi_aff_pullback_multi_aff(
-          isl_multi_aff_copy(po.maff), isl_multi_aff_copy(pi.maff));
-      res = isl_pw_multi_aff_union_add(res, isl_pw_multi_aff_alloc(dom, maff));
-    }
-  }
-  return res;
-}
-
 }  // namespace
 
 SlotTable SlotTable::get(const IntegerRelation& layout) {
@@ -683,11 +610,11 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
 
     // The instance (d, div_out..., ct_o, slot_o) reads element index(d) into
     // slot_o.
-    isl_pw_multi_aff* element =
-        pullbackNoGist(isl_pw_multi_aff_from_map(toIslMap(*index, ctx)),
-                       isl_pw_multi_aff_project_out_map(
-                           isl_space_copy(instanceSpace), isl_dim_set, numLoops,
-                           numOutDivs + 2));
+    isl_pw_multi_aff* element = isl_pw_multi_aff_pullback_pw_multi_aff(
+        isl_pw_multi_aff_from_map(toIslMap(*index, ctx)),
+        isl_pw_multi_aff_project_out_map(isl_space_copy(instanceSpace),
+                                         isl_dim_set, numLoops,
+                                         numOutDivs + 2));
 
     // Express the input layout in instance space with output coordinates
     // [shift, c], where shift = s - slot_o - shiftOffset. Working in the lifted
@@ -807,7 +734,7 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
     } else {
       isl_set_free(rem);
     }
-    key = flatRangeProductNoGist(key, inputKey);
+    key = isl_pw_multi_aff_flat_range_product(key, inputKey);
     ++numSecretInputs;
   }
   isl_space_free(instanceSpace);
@@ -840,77 +767,10 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                 isl_basic_set_free(bset);
                 return isl_stat_ok;
               }
-              isl_ctx* ctx = isl_basic_set_get_ctx(bset);
               unsigned inDim = isl_basic_set_dim(bset, isl_dim_set);
-              unsigned nDiv = isl_basic_set_dim(bset, isl_dim_div);
-              isl_multi_aff* bMaff = isl_multi_aff_copy(pctx->maff);
-
-              // Substitute div-free equalities with a unit-coefficient pivot
-              // into `bMaff`.
-              assert(isl_basic_set_dim(bset, isl_dim_param) == 0 &&
-                     "expected parameter-free instance basic set");
-              isl_mat* eqMat = isl_basic_set_equalities_matrix(
-                  bset, isl_dim_set, isl_dim_div, isl_dim_param, isl_dim_cst);
-              unsigned nEq = isl_mat_rows(eqMat);
-              unsigned cstCol = inDim + nDiv;
-              SmallVector<bool, 12> usedPivot(inDim, false);
-              for (int r = static_cast<int>(nEq) - 1; r >= 0; --r) {
-                bool hasDiv = false;
-                for (unsigned k = 0; k < nDiv; ++k) {
-                  isl_val* v = isl_mat_get_element_val(eqMat, r, inDim + k);
-                  bool nz = !isl_val_is_zero(v);
-                  isl_val_free(v);
-                  if (nz) {
-                    hasDiv = true;
-                    break;
-                  }
-                }
-                if (hasDiv) continue;
-                int pivotCol = -1;
-                int64_t pivotSign = 0;
-                for (int j = static_cast<int>(inDim) - 1; j >= 0; --j) {
-                  isl_val* v = isl_mat_get_element_val(eqMat, r, j);
-                  int64_t c = isl_val_get_num_si(v);
-                  isl_val_free(v);
-                  if (c != 0 && usedPivot[j]) {
-                    pivotCol = -1;
-                    break;
-                  }
-                  if (pivotCol < 0 && (c == 1 || c == -1)) {
-                    pivotCol = j;
-                    pivotSign = c;
-                  }
-                }
-                if (pivotCol < 0) continue;
-                usedPivot[pivotCol] = true;
-                isl_local_space* ls = isl_local_space_from_space(
-                    isl_space_set_alloc(ctx, 0, inDim));
-                isl_val* cstV = isl_mat_get_element_val(eqMat, r, cstCol);
-                int64_t negSign = -pivotSign;
-                isl_aff* rhs = isl_aff_val_on_domain(
-                    isl_local_space_copy(ls),
-                    isl_val_int_from_si(ctx,
-                                        negSign * isl_val_get_num_si(cstV)));
-                isl_val_free(cstV);
-                for (unsigned j = 0; j < inDim; ++j) {
-                  if (static_cast<int>(j) == pivotCol) continue;
-                  isl_val* v = isl_mat_get_element_val(eqMat, r, j);
-                  int64_t c = isl_val_get_num_si(v);
-                  isl_val_free(v);
-                  if (c != 0) {
-                    rhs = isl_aff_add_coefficient_si(rhs, isl_dim_in, j,
-                                                     negSign * c);
-                  }
-                }
-                isl_local_space_free(ls);
-                isl_multi_aff* rowSubst = isl_multi_aff_identity(
-                    isl_space_alloc(ctx, 0, inDim, inDim));
-                rowSubst = isl_multi_aff_set_aff(rowSubst, pivotCol, rhs);
-                bMaff = isl_multi_aff_pullback_multi_aff(bMaff, rowSubst);
-              }
-              isl_mat_free(eqMat);
-              bMaff = isl_multi_aff_gist(
-                  bMaff, isl_set_from_basic_set(isl_basic_set_copy(bset)));
+              isl_multi_aff* bMaff = isl_multi_aff_gist(
+                  isl_multi_aff_copy(pctx->maff),
+                  isl_set_from_basic_set(isl_basic_set_copy(bset)));
 
               if (isl_multi_aff_involves_dims(bMaff, isl_dim_in, 0, inDim) ==
                   isl_bool_false) {
@@ -956,114 +816,30 @@ FailureOr<GroupCount> countInstanceGroups(const GenericKernelSpec& spec,
                 }
               }
 
-              struct LinearFloor {
-                int64_t constant = 0;
-                int64_t denom = 1;
-                SmallVector<std::pair<unsigned, int64_t>, 4> terms;
-                int64_t eval(ArrayRef<int64_t> vals) const {
-                  __int128 num = constant;
-                  for (auto [idx, coeff] : terms)
-                    num += __int128(coeff) * vals[idx];
-                  return denom == 1 ? int64_t(num)
-                                    : int64_t(num / denom - (num % denom < 0));
-                }
-              };
-              unsigned remDim = isl_basic_set_dim(bset, isl_dim_set);
-              auto parseOne = [remDim](__isl_keep isl_aff* a,
-                                       std::optional<unsigned> maxDivIdx =
-                                           std::nullopt) {
-                LinearFloor lf;
-                isl_val* dVal = isl_aff_get_denominator_val(a);
-                lf.denom = isl_val_get_num_si(dVal);
-                isl_aff* scaled = isl_aff_scale_val(isl_aff_copy(a), dVal);
-                isl_val* cVal = isl_aff_get_constant_val(scaled);
-                lf.constant = isl_val_get_num_si(cVal);
-                isl_val_free(cVal);
-                for (auto [type, offset] :
-                     {std::pair{isl_dim_in, 0u}, {isl_dim_div, remDim}}) {
-                  unsigned n = isl_aff_dim(scaled, type);
-                  for (unsigned j = 0; j < n; ++j) {
-                    isl_val* v = isl_aff_get_coefficient_val(scaled, type, j);
-                    int64_t c = isl_val_get_num_si(v);
-                    isl_val_free(v);
-                    if (c != 0) {
-                      assert((type != isl_dim_div || !maxDivIdx ||
-                              j < *maxDivIdx) &&
-                             "expected topological div ordering");
-                      lf.terms.push_back({offset + j, c});
-                    }
-                  }
-                }
-                isl_aff_free(scaled);
-                return lf;
-              };
-              SmallVector<unsigned, 8> activeDims;
-              for (unsigned j = 0; j < remDim; ++j) {
-                if (isl_multi_aff_involves_dims(bMaff, isl_dim_in, j, 1) ==
-                    isl_bool_true) {
-                  activeDims.push_back(j);
-                }
-              }
-              unsigned maxDivs = 0;
-              SmallVector<SmallVector<LinearFloor, 4>, 4> compiled;
-              compiled.reserve(collector->numCoords);
-              for (unsigned i = 0; i < collector->numCoords; ++i) {
-                isl_aff* aff = isl_multi_aff_get_aff(bMaff, i);
-                unsigned aDiv = isl_aff_dim(aff, isl_dim_div);
-                maxDivs = std::max(maxDivs, aDiv);
-                SmallVector<LinearFloor, 4> chain;
-                chain.reserve(aDiv + 1);
-                // ISL stores local divs in `aff`'s shared local space in
-                // topological order, so `isl_aff_get_div(aff, k)` only
-                // references divs `< k`, which have already been evaluated
-                // into `sctx->pt[remDim + j]`.
-                for (unsigned k = 0; k < aDiv; ++k) {
-                  isl_aff* d = isl_aff_get_div(aff, k);
-                  chain.push_back(parseOne(d, k));
-                  isl_aff_free(d);
-                }
-                chain.push_back(parseOne(aff));
-                compiled.push_back(std::move(chain));
-                isl_aff_free(aff);
-              }
-              isl_multi_aff_free(bMaff);
-              if (isl_basic_set_dim(bset, isl_dim_div) > 0) {
-                bset = isl_basic_set_flatten(isl_basic_set_lift(bset));
-              }
-
               struct ScanCtx {
                 Collector* collector;
-                unsigned remDim;
-                const SmallVector<unsigned, 8>* activeDims;
-                const SmallVector<SmallVector<LinearFloor, 4>, 4>* compiled;
-                SmallVector<int64_t, 16> pt;
-              } sctx{collector, remDim, &activeDims, &compiled,
-                     SmallVector<int64_t, 16>(remDim + maxDivs, 0)};
+                isl_multi_aff* bMaff;
+              } sctx{collector, bMaff};
               isl_set* scanSet = isl_set_from_basic_set(bset);
               isl_stat scanStat = isl_set_foreach_point(
                   scanSet,
                   [](__isl_take isl_point* point, void* su) -> isl_stat {
                     auto* sctx = static_cast<ScanCtx*>(su);
                     auto* collector = sctx->collector;
-                    for (unsigned j : *sctx->activeDims) {
-                      isl_val* v =
-                          isl_point_get_coordinate_val(point, isl_dim_set, j);
-                      sctx->pt[j] = isl_val_get_num_si(v);
+                    SmallVector<int64_t, 4> coords(collector->numCoords);
+                    for (unsigned i = 0; i < collector->numCoords; ++i) {
+                      isl_aff* aff = isl_multi_aff_get_aff(sctx->bMaff, i);
+                      isl_val* v = isl_aff_eval(aff, isl_point_copy(point));
+                      coords[i] = isl_val_get_num_si(v);
                       isl_val_free(v);
                     }
                     isl_point_free(point);
-                    SmallVector<int64_t, 4> coords(collector->numCoords);
-                    for (unsigned i = 0; i < collector->numCoords; ++i) {
-                      const auto& chain = (*sctx->compiled)[i];
-                      for (unsigned k = 0; k + 1 < chain.size(); ++k)
-                        sctx->pt[sctx->remDim + k] = chain[k].eval(sctx->pt);
-                      coords[i] = chain.back().eval(sctx->pt);
-                    }
                     collector->keys.push_back(std::move(coords));
                     return isl_stat_ok;
                   },
                   &sctx);
               isl_set_free(scanSet);
+              isl_multi_aff_free(bMaff);
               return scanStat;
             },
             &pctx);

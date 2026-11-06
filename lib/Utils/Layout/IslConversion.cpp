@@ -1,24 +1,16 @@
-#include "lib/Utils/Layout/IslConversion.h"
-
 #include <cassert>
 #include <cstdint>
-#include <optional>
 #include <string>
 
-#include "include/isl/aff.h"                    // from @isl
-#include "include/isl/ctx.h"                    // from @isl
-#include "include/isl/local_space.h"            // from @isl
-#include "include/isl/map.h"                    // from @isl
-#include "include/isl/map_type.h"               // from @isl
-#include "include/isl/mat.h"                    // from @isl
-#include "include/isl/set.h"                    // from @isl
-#include "include/isl/space.h"                  // from @isl
-#include "include/isl/space_type.h"             // from @isl
-#include "include/isl/val.h"                    // from @isl
-#include "include/isl/val_type.h"               // from @isl
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
+#include "include/isl/ctx.h"                  // from @isl
+#include "include/isl/map.h"                  // from @isl
+#include "include/isl/map_type.h"             // from @isl
+#include "include/isl/mat.h"                  // from @isl
+#include "include/isl/space.h"                // from @isl
+#include "include/isl/space_type.h"           // from @isl
+#include "include/isl/val.h"                  // from @isl
+#include "include/isl/val_type.h"             // from @isl
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
@@ -109,153 +101,6 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
     isl_mat_dump(ineqMat);
     llvm::dbgs() << "\n";
   });
-
-  unsigned numDomain = rel.getNumDomainVars();
-  unsigned numSymbols = rel.getNumSymbolVars();
-  unsigned numLocals = rel.getNumLocalVars();
-  unsigned numDimVars = rel.getNumDimVars();
-  unsigned localOffset = rel.getVarKindOffset(presburger::VarKind::Local);
-  unsigned constCol = rel.getNumCols() - 1;
-
-  // Detect local variables defined by floor-division inequality pairs
-  // 0 <= expr + c - d * q <= w (with 0 <= w <= d - 1) in topological order so
-  // they can be bound as known ISL floor-divs before Gaussian/Bezout div
-  // elimination runs on the equalities.
-  struct FloorDivInfo {
-    unsigned ineqRow;
-    int64_t divisor;
-  };
-  SmallVector<std::optional<FloorDivInfo>> floorDivs(numLocals);
-  SmallVector<unsigned> order;
-  SmallVector<bool> scheduled(numLocals, false);
-  bool progress = true;
-  while (progress) {
-    progress = false;
-    for (unsigned k = 0; k < numLocals; ++k) {
-      if (scheduled[k]) continue;
-      unsigned col = localOffset + k;
-      for (unsigned r1 = 0; r1 < rel.getNumInequalities() && !floorDivs[k];
-           ++r1) {
-        int64_t negD = rel.atIneq64(r1, col);
-        if (negD >= -1 || negD == std::numeric_limits<int64_t>::min()) continue;
-        bool ready = true;
-        for (unsigned j = 0; j < numLocals; ++j) {
-          if (j != k && rel.atIneq64(r1, localOffset + j) != 0 &&
-              !scheduled[j]) {
-            ready = false;
-            break;
-          }
-        }
-        if (!ready) continue;
-        int64_t d = -negD;
-        for (unsigned r2 = 0; r2 < rel.getNumInequalities(); ++r2) {
-          if (rel.atIneq64(r2, col) != d) continue;
-          __int128 w = static_cast<__int128>(rel.atIneq64(r1, constCol)) +
-                       static_cast<__int128>(rel.atIneq64(r2, constCol));
-          if (w < 0 || w > d - 1) continue;
-          bool match = true;
-          for (unsigned j = 0; j < constCol; ++j) {
-            if (j != col &&
-                static_cast<__int128>(rel.atIneq64(r1, j)) +
-                        static_cast<__int128>(rel.atIneq64(r2, j)) !=
-                    0) {
-              match = false;
-              break;
-            }
-          }
-          if (match) {
-            floorDivs[k] = FloorDivInfo{r1, d};
-            break;
-          }
-        }
-      }
-      if (floorDivs[k].has_value()) {
-        scheduled[k] = true;
-        order.push_back(k);
-        progress = true;
-      }
-    }
-  }
-
-  // When every local variable is a floor-division and at least two floor-divs
-  // are coupled (either in a defining inequality or in an equality row),
-  // pulling back the lifted basic set by the explicit floor-div `isl_multi_aff`
-  // avoids ISL's Hermite/Bezout div elimination on the coupled equalities.
-  // When every floor-div and equality involves at most one local variable, or
-  // when non-floor-div existential local variables are present,
-  // `isl_basic_map_from_constraint_matrices` eliminates them directly.
-  bool hasCoupledLocals = false;
-  if (order.size() == numLocals) {
-    for (unsigned k : order) {
-      unsigned r1 = floorDivs[k]->ineqRow;
-      for (unsigned j = 0; j < numLocals; ++j) {
-        if (j != k && rel.atIneq64(r1, localOffset + j) != 0) {
-          hasCoupledLocals = true;
-          break;
-        }
-      }
-    }
-    for (unsigned r = 0; r < rel.getNumEqualities() && !hasCoupledLocals; ++r) {
-      unsigned floorDivsInRow = 0;
-      for (unsigned k : order) {
-        if (rel.atEq64(r, localOffset + k) != 0) ++floorDivsInRow;
-      }
-      if (floorDivsInRow >= 2) hasCoupledLocals = true;
-    }
-  }
-
-  if (!order.empty() && hasCoupledLocals) {
-    unsigned fullSetDim = numDimVars + numLocals;
-    isl_local_space* ls = isl_local_space_from_space(
-        isl_space_set_alloc(ctx, numSymbols, numDimVars));
-    SmallVector<isl_aff*> localAffs(numLocals, nullptr);
-    for (unsigned k : order) {
-      unsigned r1 = floorDivs[k]->ineqRow;
-      int64_t d = floorDivs[k]->divisor;
-      isl_aff* num = isl_aff_val_on_domain(
-          isl_local_space_copy(ls),
-          isl_val_int_from_si(ctx, rel.atIneq64(r1, constCol)));
-      for (unsigned j = 0; j < numDimVars; ++j) {
-        int64_t c = rel.atIneq64(r1, j);
-        if (c != 0) num = isl_aff_add_coefficient_si(num, isl_dim_in, j, c);
-      }
-      for (unsigned s = 0; s < numSymbols; ++s) {
-        int64_t c = rel.atIneq64(r1, numDimVars + s);
-        if (c != 0) num = isl_aff_add_coefficient_si(num, isl_dim_param, s, c);
-      }
-      for (unsigned j = 0; j < numLocals; ++j) {
-        if (j == k) continue;
-        int64_t c = rel.atIneq64(r1, localOffset + j);
-        if (c != 0) {
-          num =
-              isl_aff_add(num, isl_aff_scale_val(isl_aff_copy(localAffs[j]),
-                                                 isl_val_int_from_si(ctx, c)));
-        }
-      }
-      localAffs[k] = isl_aff_floor(
-          isl_aff_scale_down_val(num, isl_val_int_from_si(ctx, d)));
-    }
-    isl_multi_aff* maff = isl_multi_aff_zero(
-        isl_space_alloc(ctx, numSymbols, numDimVars, fullSetDim));
-    for (unsigned j = 0; j < numDimVars; ++j) {
-      maff = isl_multi_aff_set_aff(
-          maff, j,
-          isl_aff_var_on_domain(isl_local_space_copy(ls), isl_dim_set, j));
-    }
-    for (unsigned k = 0; k < numLocals; ++k) {
-      maff = isl_multi_aff_set_aff(maff, numDimVars + k, localAffs[k]);
-    }
-    isl_local_space_free(ls);
-
-    isl_space* fullSetSpace = isl_space_set_alloc(ctx, numSymbols, fullSetDim);
-    isl_basic_set* bset = isl_basic_set_from_constraint_matrices(
-        fullSetSpace, eqMat, ineqMat, isl_dim_set, isl_dim_div, isl_dim_param,
-        isl_dim_cst);
-    bset = isl_basic_set_preimage_multi_aff(bset, maff);
-    isl_basic_map* res = isl_basic_map_from_range(bset);
-    return isl_basic_map_move_dims(res, isl_dim_in, 0, isl_dim_out, 0,
-                                   numDomain);
-  }
 
   isl_space* space =
       isl_space_alloc(ctx, rel.getNumSymbolVars(), rel.getNumDomainVars(),

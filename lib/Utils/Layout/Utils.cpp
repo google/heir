@@ -29,17 +29,15 @@
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 // ISL
-#include "include/isl/aff.h"          // from @isl
-#include "include/isl/ctx.h"          // from @isl
-#include "include/isl/local_space.h"  // from @isl
-#include "include/isl/map.h"          // from @isl
-#include "include/isl/map_type.h"     // from @isl
-#include "include/isl/point.h"        // from @isl
-#include "include/isl/set.h"          // from @isl
-#include "include/isl/space.h"        // from @isl
-#include "include/isl/space_type.h"   // from @isl
-#include "include/isl/val.h"          // from @isl
-#include "include/isl/val_type.h"     // from @isl
+#include "include/isl/ctx.h"         // from @isl
+#include "include/isl/map.h"         // from @isl
+#include "include/isl/map_type.h"    // from @isl
+#include "include/isl/point.h"       // from @isl
+#include "include/isl/set.h"         // from @isl
+#include "include/isl/space.h"       // from @isl
+#include "include/isl/space_type.h"  // from @isl
+#include "include/isl/val.h"         // from @isl
+#include "include/isl/val_type.h"    // from @isl
 
 namespace mlir {
 namespace heir {
@@ -683,58 +681,13 @@ presburger::IntegerRelation collapseDimensions(
   // Adding or dropping unit dimensions is done on the relation directly, which
   // keeps it free of the local variables the general composition introduces.
   if (!onlyUnitDimsChange(sourceType, reassociation)) {
-    // A collapsed index is the row-major index of its group, so each source
-    // dimension in the group is recovered by floor division and remainder of
-    // the collapsed index. Pulling back the layout by that quasi-affine map in
-    // ISL keeps all floor-division locals explicit.
-    RankedTensorType destType = getCollapsedType(sourceType, reassociation);
-    isl_ctx* ctx = isl_ctx_alloc();
-    unsigned numSymbols = relation.getNumSymbolVars();
-    unsigned numCollapsed = reassociation.size();
-    unsigned numSource = sourceType.getRank();
-    isl_local_space* ls = isl_local_space_from_space(
-        isl_space_set_alloc(ctx, numSymbols, numCollapsed));
-    isl_multi_aff* unflatten = isl_multi_aff_zero(
-        isl_space_alloc(ctx, numSymbols, numCollapsed, numSource));
-    for (auto [idx, group] : llvm::enumerate(reassociation)) {
-      SmallVector<int64_t> nonUnitDims;
-      for (int64_t dim : group) {
-        if (sourceType.getDimSize(dim) > 1) nonUnitDims.push_back(dim);
-      }
-      if (nonUnitDims.empty()) continue;
-      isl_aff* c =
-          isl_aff_var_on_domain(isl_local_space_copy(ls), isl_dim_set, idx);
-      if (nonUnitDims.size() == 1) {
-        unflatten = isl_multi_aff_set_aff(unflatten, nonUnitDims[0], c);
-        continue;
-      }
-      isl_aff* q = isl_aff_copy(c);
-      int64_t stride = 1;
-      for (int64_t j = static_cast<int64_t>(nonUnitDims.size()) - 1; j > 0;
-           --j) {
-        int64_t extent = sourceType.getDimSize(nonUnitDims[j]);
-        stride *= extent;
-        isl_aff* nextQ = isl_aff_floor(isl_aff_scale_down_val(
-            isl_aff_copy(c), isl_val_int_from_si(ctx, stride)));
-        isl_aff* dj =
-            isl_aff_sub(q, isl_aff_scale_val(isl_aff_copy(nextQ),
-                                             isl_val_int_from_si(ctx, extent)));
-        unflatten = isl_multi_aff_set_aff(unflatten, nonUnitDims[j], dj);
-        q = nextQ;
-      }
-      unflatten = isl_multi_aff_set_aff(unflatten, nonUnitDims[0], q);
-      isl_aff_free(c);
-    }
-    isl_local_space_free(ls);
-    isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
-    bmap = isl_basic_map_preimage_domain_multi_aff(bmap, unflatten);
-    for (unsigned idx = 0; idx < numCollapsed; ++idx) {
-      bmap = isl_basic_map_lower_bound_si(bmap, isl_dim_in, idx, 0);
-      bmap = isl_basic_map_upper_bound_si(bmap, isl_dim_in, idx,
-                                          destType.getDimSize(idx) - 1);
-    }
-    bmap = isl_basic_map_remove_redundancies(bmap);
-    return convertBasicMapToRelation(bmap);
+    // Each collapsed index is the row-major index of its source group, so the
+    // collapsed tensor keeps every element in the same slot.
+    IntegerRelation sourceToCollapsed = getCollapsedRelation(
+        sourceType, getCollapsedType(sourceType, reassociation), reassociation);
+    IntegerRelation result = relation;
+    result.applyDomain(sourceToCollapsed);
+    return result;
   }
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
   if (reassociation.empty()) {
@@ -1000,12 +953,26 @@ bool nextGridPoint(SmallVectorImpl<int64_t>& point, ArrayRef<int64_t> lbs,
   return false;
 }
 
+// Repeatedly detects equalities implied by opposite-facing inequalities. Each
+// pass of `isl_basic_map_detect_equalities` eliminates newly discovered
+// equalities and normalizes the remaining inequalities by dividing by their
+// variable-coefficient GCD (rounding the constant via floor division), which
+// can expose further opposite-facing inequality pairs in cascading floor-div
+// and modulo constraints.
+__isl_give isl_basic_map* detectAllEqualities(__isl_take isl_basic_map* bmap) {
+  while (bmap) {
+    unsigned prevIneq = isl_basic_map_n_inequality(bmap);
+    bmap = isl_basic_map_detect_equalities(bmap);
+    if (!bmap || isl_basic_map_n_inequality(bmap) >= prevIneq) break;
+  }
+  return bmap;
+}
+
 // Enumerates the domain box [lb, ub] explicitly and, for each concrete domain
 // point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
 // that domain point's image. `imagePoint` is borrowed (freed by this function).
 // Between domain points `shouldStop` is polled (when non-null); returning true
-// halts enumeration early. With `numRangeDims`, only the first that many range
-// dimensions of each image are enumerated.
+// halts enumeration early.
 //
 // Fixing the domain to concrete integers collapses the relation's mod/floordiv
 // existentials into a non-parametric feasibility problem that isl resolves
@@ -1017,57 +984,20 @@ void forEachDomainImagePoint(
     __isl_keep isl_basic_map* bmap, ArrayRef<int64_t> lb, ArrayRef<int64_t> ub,
     llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
         onImagePoint,
-    llvm::function_ref<bool()> shouldStop = nullptr,
-    std::optional<unsigned> numRangeDims = std::nullopt) {
-  isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
+    llvm::function_ref<bool()> shouldStop = nullptr) {
   unsigned numDomain = lb.size();
-  unsigned numRange = isl_basic_map_dim(bmap, isl_dim_out);
-  unsigned outDims = numRangeDims ? *numRangeDims : numRange;
-  assert(!numRangeDims || *numRangeDims <= numRange);
 
   // Fix the domain to `point`, then invoke onImagePoint for every point of the
   // resulting (now fully concrete) range.
   auto processImageOfPoint = [&](ArrayRef<int64_t> point) {
     isl_basic_map* fixed = isl_basic_map_copy(bmap);
     for (unsigned i = 0; i < numDomain; ++i) {
-      fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i,
-                                    isl_val_int_from_si(ctx, point[i]));
+      fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
     }
-    isl_basic_set* imageBset = isl_basic_map_range(fixed);
-    bool liftedDivs = isl_basic_set_dim(imageBset, isl_dim_div) > 0;
-    if (liftedDivs) {
-      // Lift existential local variables into set dimensions before projecting
-      // out unused range dimensions so `isl_set_project_out` and
-      // `isl_set_foreach_point` do not invoke ISL's parametric-ILP div
-      // elimination (`isl_map_compute_divs`), and without promoting projected
-      // range dimensions back into set dimensions.
-      imageBset = isl_basic_set_flatten(isl_basic_set_lift(imageBset));
-    }
-    isl_set* image = isl_set_from_basic_set(imageBset);
-    if (numRangeDims && *numRangeDims < numRange)
-      image = isl_set_project_out(image, isl_dim_set, *numRangeDims,
-                                  numRange - *numRangeDims);
-    if (liftedDivs) {
-      SmallVector<SmallVector<int64_t, 2>, 8> seenRangePoints;
-      auto dedupOnImagePoint = [&](ArrayRef<int64_t> domainPoint,
-                                   __isl_keep isl_point* imagePoint) {
-        SmallVector<int64_t, 2> rangePoint(outDims);
-        for (unsigned i = 0; i < outDims; ++i) {
-          isl_val* coord =
-              isl_point_get_coordinate_val(imagePoint, isl_dim_set, i);
-          if (isl_val_is_int(coord)) rangePoint[i] = isl_val_get_num_si(coord);
-          isl_val_free(coord);
-        }
-        if (llvm::is_contained(seenRangePoints, rangePoint)) return;
-        seenRangePoints.push_back(std::move(rangePoint));
-        onImagePoint(domainPoint, imagePoint);
-      };
-      ImageCtx imageCtx{dedupOnImagePoint, point};
-      isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
-    } else {
-      ImageCtx imageCtx{onImagePoint, point};
-      isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
-    }
+    fixed = detectAllEqualities(fixed);
+    isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+    ImageCtx imageCtx{onImagePoint, point};
+    isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
     isl_set_free(image);
   };
 
@@ -1081,206 +1011,6 @@ void forEachDomainImagePoint(
     if (shouldStop && shouldStop()) break;
   } while (nextGridPoint(point, lb, ub));
 }
-
-__int128 floorDivI128(__int128 a, __int128 b) {
-  __int128 q = a / b;
-  __int128 r = a % b;
-  if (r < 0) --q;
-  return q;
-}
-
-__int128 ceilDivI128(__int128 a, __int128 b) { return -floorDivI128(-a, b); }
-
-unsigned __int128 absI128(__int128 x) {
-  return x < 0 ? -static_cast<unsigned __int128>(x)
-               : static_cast<unsigned __int128>(x);
-}
-
-unsigned __int128 gcdI128(unsigned __int128 a, unsigned __int128 b) {
-  while (b != 0) {
-    unsigned __int128 r = a % b;
-    a = b;
-    b = r;
-  }
-  return a;
-}
-
-// Recovers exact integer equalities implied by pairs of opposite-facing strip
-// inequalities `0 <= L(x) + c <= w` when a strip or sum/difference of strips
-// has variable-coefficient GCD `g > 1` with a unique multiple of `g` in the
-// strip interval (`ceil(-c / g) == floor((w - c) / g)`).
-void tightenStripEqualities(presburger::IntegerRelation& rel) {
-  if (rel.getNumLocalVars() == 0 || rel.getNumInequalities() < 2) return;
-  unsigned numCols = rel.getNumCols();
-  unsigned constCol = numCols - 1;
-  unsigned localOffset = rel.getVarKindOffset(VarKind::Local);
-
-  struct Strip {
-    SmallVector<__int128, 12> coeffs;
-    __int128 cst;
-    __int128 width;
-  };
-
-  SmallVector<Strip, 16> strips;
-  unsigned numIneq = rel.getNumInequalities();
-  for (unsigned r1 = 0; r1 < numIneq; ++r1) {
-    for (unsigned r2 = r1 + 1; r2 < numIneq; ++r2) {
-      bool opposite = true;
-      bool nonZero = false;
-      for (unsigned j = 0; j < constCol; ++j) {
-        int64_t c1 = rel.atIneq64(r1, j);
-        int64_t c2 = rel.atIneq64(r2, j);
-        if (c1 + c2 != 0) {
-          opposite = false;
-          break;
-        }
-        if (c1 != 0) nonZero = true;
-      }
-      if (!opposite || !nonZero) continue;
-      __int128 w = static_cast<__int128>(rel.atIneq64(r1, constCol)) +
-                   static_cast<__int128>(rel.atIneq64(r2, constCol));
-      if (w < 0) continue;
-      SmallVector<__int128, 12> c1(constCol);
-      for (unsigned j = 0; j < constCol; ++j) {
-        c1[j] = rel.atIneq64(r1, j);
-      }
-      strips.push_back(Strip{std::move(c1), rel.atIneq64(r1, constCol), w});
-    }
-  }
-  if (strips.empty()) return;
-
-  SmallVector<SmallVector<__int128, 12>, 8> eqs;
-  SmallVector<SmallVector<__int128, 12>, 8> seenEqs;
-  auto normalizeEqInPlace = [&](SmallVector<__int128, 12>& eq) -> bool {
-    unsigned __int128 g = 0;
-    int firstSign = 0;
-    for (unsigned j = 0; j < numCols; ++j) {
-      if (j < constCol && eq[j] != 0 && firstSign == 0) {
-        firstSign = eq[j] > 0 ? 1 : -1;
-      }
-      g = gcdI128(g, absI128(eq[j]));
-    }
-    if (firstSign == 0 || g == 0) return false;
-    for (unsigned j = 0; j < numCols; ++j) {
-      eq[j] = (eq[j] / static_cast<__int128>(g)) * firstSign;
-    }
-    return true;
-  };
-  auto normalizeAndAddEq = [&](SmallVector<__int128, 12> eq,
-                               bool addToRel) -> bool {
-    if (!normalizeEqInPlace(eq)) return false;
-    SmallVector<int64_t, 12> eq64(numCols);
-    for (unsigned j = 0; j < numCols; ++j) {
-      if (eq[j] < std::numeric_limits<int64_t>::min() ||
-          eq[j] > std::numeric_limits<int64_t>::max()) {
-        return false;
-      }
-      eq64[j] = static_cast<int64_t>(eq[j]);
-    }
-    if (llvm::is_contained(seenEqs, eq)) return false;
-    seenEqs.push_back(eq);
-    eqs.push_back(std::move(eq));
-    if (addToRel) rel.addEquality(eq64);
-    return true;
-  };
-
-  for (unsigned r = 0; r < rel.getNumEqualities(); ++r) {
-    SmallVector<__int128, 12> eq(numCols);
-    for (unsigned j = 0; j < numCols; ++j) eq[j] = rel.atEq64(r, j);
-    normalizeAndAddEq(std::move(eq), /*addToRel=*/false);
-  }
-
-  constexpr unsigned kMaxTightenIterations = 6;
-  for (unsigned iter = 0; iter < kMaxTightenIterations; ++iter) {
-    SmallVector<bool> usedPivot(constCol, false);
-    for (size_t eIdx = 0; eIdx < eqs.size(); ++eIdx) {
-      const auto& eq = eqs[eIdx];
-      int pivotCol = -1;
-      for (unsigned j = localOffset; j < constCol; ++j) {
-        if (!usedPivot[j] && absI128(eq[j]) == 1) {
-          pivotCol = static_cast<int>(j);
-          break;
-        }
-      }
-      if (pivotCol < 0) continue;
-      usedPivot[pivotCol] = true;
-      __int128 pSign = eq[pivotCol];
-      for (size_t otherIdx = eIdx + 1; otherIdx < eqs.size(); ++otherIdx) {
-        __int128 coeff = eqs[otherIdx][pivotCol];
-        if (coeff == 0) continue;
-        __int128 mult = coeff * pSign;
-        for (unsigned j = 0; j < numCols; ++j) {
-          eqs[otherIdx][j] -= mult * eq[j];
-        }
-        normalizeEqInPlace(eqs[otherIdx]);
-      }
-      for (auto& s : strips) {
-        __int128 coeff = s.coeffs[pivotCol];
-        if (coeff == 0) continue;
-        __int128 mult = coeff * pSign;
-        for (unsigned j = 0; j < constCol; ++j) {
-          s.coeffs[j] -= mult * eq[j];
-        }
-        s.cst -= mult * eq[constCol];
-      }
-    }
-
-    bool changed = false;
-    for (auto& s : strips) {
-      unsigned __int128 g = 0;
-      for (unsigned j = 0; j < constCol; ++j) {
-        g = gcdI128(g, absI128(s.coeffs[j]));
-      }
-      if (g <= 1) continue;
-      __int128 g128 = static_cast<__int128>(g);
-      __int128 kMin = ceilDivI128(-s.cst, g128);
-      __int128 kMax = floorDivI128(s.width - s.cst, g128);
-      if (kMin == kMax) {
-        SmallVector<__int128, 12> eq(numCols);
-        for (unsigned j = 0; j < constCol; ++j) eq[j] = s.coeffs[j] / g128;
-        eq[constCol] = -kMin;
-        changed |= normalizeAndAddEq(std::move(eq), /*addToRel=*/true);
-      } else if (kMin < kMax && (kMax - kMin) < s.width) {
-        for (unsigned j = 0; j < constCol; ++j) s.coeffs[j] /= g128;
-        s.cst = -kMin;
-        s.width = kMax - kMin;
-      }
-    }
-
-    size_t numStrips = strips.size();
-    for (size_t a = 0; a < numStrips; ++a) {
-      for (size_t b = a + 1; b < numStrips; ++b) {
-        for (int signB : {1, -1}) {
-          unsigned __int128 g = 0;
-          for (unsigned j = 0; j < constCol; ++j) {
-            g = gcdI128(
-                g, absI128(strips[a].coeffs[j] +
-                           static_cast<__int128>(signB) * strips[b].coeffs[j]));
-          }
-          if (g <= 1) continue;
-          __int128 g128 = static_cast<__int128>(g);
-          __int128 cstB =
-              (signB == 1) ? strips[b].cst : (strips[b].width - strips[b].cst);
-          __int128 cst = strips[a].cst + cstB;
-          __int128 width = strips[a].width + strips[b].width;
-          __int128 kMin = ceilDivI128(-cst, g128);
-          __int128 kMax = floorDivI128(width - cst, g128);
-          if (kMin == kMax) {
-            SmallVector<__int128, 12> eq(numCols);
-            for (unsigned j = 0; j < constCol; ++j) {
-              eq[j] = (strips[a].coeffs[j] +
-                       static_cast<__int128>(signB) * strips[b].coeffs[j]) /
-                      g128;
-            }
-            eq[constCol] = -kMin;
-            changed |= normalizeAndAddEq(std::move(eq), /*addToRel=*/true);
-          }
-        }
-      }
-    }
-    if (!changed) break;
-  }
-}
 }  // namespace
 
 void enumeratePoints(const presburger::IntegerRelation& relation,
@@ -1291,12 +1021,10 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
   assert(relation.getNumRangeVars() ==
              static_cast<unsigned>(collector.rangeDims) &&
          "collector rangeDims must match the relation's range rank");
-  presburger::IntegerRelation tightenedRel = relation;
-  tightenStripEqualities(tightenedRel);
-  isl_basic_map* bmap = convertRelationToBasicMap(tightenedRel, collector.ctx);
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
 
   SmallVector<int64_t> lb, ub;
-  getDomainBox(tightenedRel, lb, ub);
+  getDomainBox(relation, lb, ub);
 
   // When the domain box exceeds `kMaxDomainBoxVolume` points and the relation
   // has no unresolved existential local variables, scanning the wrapped basic
@@ -1408,9 +1136,7 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   int64_t numCts = outputType.getDimSize(0);
   if (numCts <= 0) return;
 
-  presburger::IntegerRelation tightenedRel = relation;
-  tightenStripEqualities(tightenedRel);
-  isl_basic_map* bmap = convertRelationToBasicMap(tightenedRel, collector.ctx);
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
   std::vector<bool> seen(numCts, false);
   int64_t seenCount = 0;
 
@@ -1449,269 +1175,57 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   } else {
     isl_basic_set_free(ctRange);
     SmallVector<int64_t> lb, ub;
-    getDomainBox(tightenedRel, lb, ub);
-
-    // When `tightenedRel` contains an equality row expressing `ct` (`range var
-    // 0`) as a function of the domain coordinates, domain-only floor-divisions
-    // (after unimodularly shifting out any non-floor-div local variable whose
-    // coefficient in a floor-division strip is a multiple of the divisor), and
-    // at most one modulus local variable with modulus `M >= numCts`, each
-    // domain point can map to at most one `ct` in `[0, numCts)`. Evaluating
-    // that candidate `ct` in integer arithmetic lets us skip domain points
-    // whose `ct` has already been seen without invoking ISL, and sample a
-    // single image point when `!seen[cand]`.
-    presburger::IntegerRelation evalRel = tightenedRel;
-    unsigned numDomain = evalRel.getNumDomainVars();
-    unsigned numSymbols = evalRel.getNumSymbolVars();
-    unsigned numLocals = evalRel.getNumLocalVars();
-    unsigned localOffset = evalRel.getVarKindOffset(presburger::VarKind::Local);
-    unsigned constCol = evalRel.getNumCols() - 1;
-
-    auto isDomainFloorStripPair = [&](unsigned k, unsigned r1,
-                                      unsigned r2) -> bool {
-      unsigned col = localOffset + k;
-      int64_t negD = evalRel.atIneq64(r1, col);
-      if (negD >= -1 || negD == std::numeric_limits<int64_t>::min())
-        return false;
-      int64_t d = -negD;
-      if (evalRel.atIneq64(r2, col) != d) return false;
-      for (unsigned j = numDomain; j < localOffset; ++j) {
-        if (evalRel.atIneq64(r1, j) != 0 || evalRel.atIneq64(r2, j) != 0)
-          return false;
-      }
-      __int128 w = static_cast<__int128>(evalRel.atIneq64(r1, constCol)) +
-                   static_cast<__int128>(evalRel.atIneq64(r2, constCol));
-      if (w < 0 || w > d - 1) return false;
-      for (unsigned j = 0; j < constCol; ++j) {
-        if (j != col &&
-            static_cast<__int128>(evalRel.atIneq64(r1, j)) +
-                    static_cast<__int128>(evalRel.atIneq64(r2, j)) !=
-                0) {
-          return false;
-        }
-      }
-      return true;
-    };
-
-    SmallVector<bool> hasFloorStrip(numLocals, false);
-    for (unsigned k = 0; k < numLocals && numSymbols == 0; ++k) {
-      for (unsigned r1 = 0;
-           r1 < evalRel.getNumInequalities() && !hasFloorStrip[k]; ++r1) {
-        if (evalRel.atIneq64(r1, localOffset + k) >= -1) continue;
-        for (unsigned r2 = 0; r2 < evalRel.getNumInequalities(); ++r2) {
-          if (isDomainFloorStripPair(k, r1, r2)) {
-            hasFloorStrip[k] = true;
-            break;
-          }
-        }
-      }
-    }
-
-    struct DomainFloorDiv {
-      unsigned ineqRow;
-      int64_t divisor;
-    };
-    SmallVector<std::optional<DomainFloorDiv>> domainDivs(numLocals);
-    SmallVector<unsigned> divOrder;
-    if (numSymbols == 0) {
-      bool progress = true;
-      while (progress) {
-        progress = false;
-        for (unsigned k = 0; k < numLocals; ++k) {
-          if (domainDivs[k].has_value() || !hasFloorStrip[k]) continue;
-          unsigned col = localOffset + k;
-          for (unsigned r1 = 0;
-               r1 < evalRel.getNumInequalities() && !domainDivs[k]; ++r1) {
-            int64_t negD = evalRel.atIneq64(r1, col);
-            if (negD >= -1 || negD == std::numeric_limits<int64_t>::min())
-              continue;
-            int64_t d = -negD;
-            bool ready = true;
-            for (unsigned j = 0; j < numLocals; ++j) {
-              if (j == k) continue;
-              int64_t cJ = evalRel.atIneq64(r1, localOffset + j);
-              if (cJ == 0 || domainDivs[j].has_value()) continue;
-              if (!hasFloorStrip[j] && cJ % d == 0) continue;
-              ready = false;
-              break;
-            }
-            if (!ready) continue;
-            for (unsigned r2 = 0; r2 < evalRel.getNumInequalities(); ++r2) {
-              if (!isDomainFloorStripPair(k, r1, r2)) continue;
-              bool overflow = false;
-              for (unsigned j = 0; j < numLocals && !overflow; ++j) {
-                if (j == k || domainDivs[j].has_value()) continue;
-                int64_t cJ = evalRel.atIneq64(r1, localOffset + j);
-                if (cJ == 0) continue;
-                int64_t m = cJ / d;
-                for (unsigned r = 0; r < evalRel.getNumEqualities(); ++r) {
-                  __int128 v = static_cast<__int128>(
-                                   evalRel.atEq64(r, localOffset + j)) +
-                               static_cast<__int128>(m) *
-                                   evalRel.atEq64(r, localOffset + k);
-                  if (v < std::numeric_limits<int64_t>::min() ||
-                      v > std::numeric_limits<int64_t>::max())
-                    overflow = true;
-                }
-                for (unsigned r = 0; r < evalRel.getNumInequalities(); ++r) {
-                  __int128 v = static_cast<__int128>(
-                                   evalRel.atIneq64(r, localOffset + j)) +
-                               static_cast<__int128>(m) *
-                                   evalRel.atIneq64(r, localOffset + k);
-                  if (v < std::numeric_limits<int64_t>::min() ||
-                      v > std::numeric_limits<int64_t>::max())
-                    overflow = true;
-                }
-              }
-              if (overflow) continue;
-              for (unsigned j = 0; j < numLocals; ++j) {
-                if (j == k || domainDivs[j].has_value()) continue;
-                int64_t cJ = evalRel.atIneq64(r1, localOffset + j);
-                if (cJ == 0) continue;
-                int64_t m = cJ / d;
-                for (unsigned r = 0; r < evalRel.getNumEqualities(); ++r) {
-                  evalRel.atEq(r, localOffset + j) = static_cast<int64_t>(
-                      static_cast<__int128>(
-                          evalRel.atEq64(r, localOffset + j)) +
-                      static_cast<__int128>(m) *
-                          evalRel.atEq64(r, localOffset + k));
-                }
-                for (unsigned r = 0; r < evalRel.getNumInequalities(); ++r) {
-                  evalRel.atIneq(r, localOffset + j) = static_cast<int64_t>(
-                      static_cast<__int128>(
-                          evalRel.atIneq64(r, localOffset + j)) +
-                      static_cast<__int128>(m) *
-                          evalRel.atIneq64(r, localOffset + k));
-                }
-              }
-              domainDivs[k] = DomainFloorDiv{r1, d};
-              divOrder.push_back(k);
-              progress = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    int ctEqRow = -1;
-    int64_t ctModulus = 0;
-    for (unsigned r = 0; r < evalRel.getNumEqualities() && numSymbols == 0;
-         ++r) {
-      int64_t cCt = evalRel.atEq64(r, numDomain);
-      if ((cCt != 1 && cCt != -1) || evalRel.atEq64(r, numDomain + 1) != 0)
-        continue;
-      int64_t modM = 0;
-      bool validLocals = true;
-      for (unsigned k = 0; k < numLocals; ++k) {
-        int64_t cLoc = evalRel.atEq64(r, localOffset + k);
-        if (cLoc == 0 || domainDivs[k].has_value()) continue;
-        if (cLoc == std::numeric_limits<int64_t>::min()) {
-          validLocals = false;
-          break;
-        }
-        int64_t absC = std::abs(cLoc);
-        if (modM == 0 && absC >= numCts) {
-          modM = absC;
-        } else {
-          validLocals = false;
-          break;
-        }
-      }
-      if (validLocals) {
-        ctEqRow = static_cast<int>(r);
-        ctModulus = modM;
+    getDomainBox(relation, lb, ub);
+    unsigned numDomain = lb.size();
+    bool nonEmptyBox = true;
+    for (unsigned i = 0; i < numDomain; ++i) {
+      if (lb[i] > ub[i]) {
+        nonEmptyBox = false;
         break;
       }
     }
-
-    bool nonEmptyBox = !lb.empty();
-    for (size_t i = 0; i < lb.size() && nonEmptyBox; ++i) {
-      if (lb[i] > ub[i]) nonEmptyBox = false;
-    }
-
-    if (ctEqRow >= 0 && nonEmptyBox) {
-      int64_t cCt = evalRel.atEq64(ctEqRow, numDomain);
-      SmallVector<__int128> divVals(numLocals, 0);
-      SmallVector<int64_t> point = lb;
+    if (nonEmptyBox) {
+      auto markImagePoint = [&](ArrayRef<int64_t> /*domainPoint*/,
+                                __isl_keep isl_point* imagePoint) {
+        isl_val* coord =
+            isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
+        if (isl_val_is_int(coord)) {
+          int64_t ct = isl_val_get_num_si(coord);
+          if (ct >= 0 && ct < numCts && !seen[ct]) {
+            seen[ct] = true;
+            ++seenCount;
+          }
+        }
+        isl_val_free(coord);
+      };
+      SmallVector<int64_t> point(lb.begin(), lb.end());
       do {
-        for (unsigned k : divOrder) {
-          unsigned r1 = domainDivs[k]->ineqRow;
-          __int128 num = evalRel.atIneq64(r1, constCol);
-          for (unsigned i = 0; i < numDomain; ++i) {
-            num += static_cast<__int128>(evalRel.atIneq64(r1, i)) * point[i];
-          }
-          for (unsigned j = 0; j < numLocals; ++j) {
-            if (j != k && evalRel.atIneq64(r1, localOffset + j) != 0) {
-              num +=
-                  static_cast<__int128>(evalRel.atIneq64(r1, localOffset + j)) *
-                  divVals[j];
-            }
-          }
-          divVals[k] = floorDivI128(num, domainDivs[k]->divisor);
-        }
-        __int128 sum = evalRel.atEq64(ctEqRow, constCol);
+        isl_basic_map* fixed = isl_basic_map_copy(bmap);
         for (unsigned i = 0; i < numDomain; ++i) {
-          sum += static_cast<__int128>(evalRel.atEq64(ctEqRow, i)) * point[i];
+          fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
         }
-        for (unsigned k : divOrder) {
-          sum +=
-              static_cast<__int128>(evalRel.atEq64(ctEqRow, localOffset + k)) *
-              divVals[k];
-        }
-        __int128 rhs = -static_cast<__int128>(cCt) * sum;
-        __int128 cand = rhs;
-        if (ctModulus > 0) {
-          __int128 m = ctModulus;
-          cand = ((rhs % m) + m) % m;
-        }
-        if (cand >= 0 && cand < numCts && !seen[static_cast<int64_t>(cand)]) {
-          int64_t candCt = static_cast<int64_t>(cand);
-          isl_basic_map* fixed = isl_basic_map_copy(bmap);
-          for (size_t i = 0; i < point.size(); ++i) {
-            fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
+        fixed = detectAllEqualities(fixed);
+        isl_val* ctVal =
+            isl_basic_map_plain_get_val_if_fixed(fixed, isl_dim_out, 0);
+        if (ctVal && isl_val_is_int(ctVal)) {
+          int64_t ct = isl_val_get_num_si(ctVal);
+          isl_val_free(ctVal);
+          if (ct >= 0 && ct < numCts && !seen[ct] &&
+              isl_basic_map_is_empty(fixed) == isl_bool_false) {
+            seen[ct] = true;
+            ++seenCount;
           }
-          fixed = isl_basic_map_fix_si(fixed, isl_dim_out, 0, candCt);
-          isl_basic_set* image = isl_basic_set_flatten(
-              isl_basic_set_lift(isl_basic_map_range(fixed)));
-          isl_point* sample = isl_basic_set_sample_point(image);
-          if (sample) {
-            if (isl_point_is_void(sample) == isl_bool_false) {
-              seen[candCt] = true;
-              ++seenCount;
-            }
-            isl_point_free(sample);
-          }
+          isl_basic_map_free(fixed);
+        } else {
+          isl_val_free(ctVal);
+          isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+          ImageCtx imageCtx{markImagePoint, point};
+          isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
+          isl_set_free(image);
         }
       } while (seenCount < numCts && nextGridPoint(point, lb, ub));
-      isl_basic_map_free(bmap);
-    } else {
-      // Mark which ct indices (range var 0) appear in the range, enumerating
-      // the domain box (see forEachDomainImagePoint). Once every ct is
-      // accounted for we can stop early instead of scanning the rest of a large
-      // domain.
-      forEachDomainImagePoint(
-          bmap, lb, ub,
-          [&](ArrayRef<int64_t> /*domainPoint*/,
-              __isl_keep isl_point* imagePoint) {
-            isl_val* coord =
-                isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
-            if (isl_val_is_int(coord)) {
-              int64_t ct = isl_val_get_num_si(coord);
-              if (ct >= 0 && ct < numCts && !seen[ct]) {
-                seen[ct] = true;
-                ++seenCount;
-              }
-            }
-            isl_val_free(coord);
-          },
-          /*shouldStop=*/[&]() { return seenCount == numCts; },
-          // Only the ct matters; enumerating slots too multiplies the points by
-          // the slot count.
-          /*numRangeDims=*/1);
-
-      isl_basic_map_free(bmap);
     }
+    isl_basic_map_free(bmap);
   }
 
   // The complement is every ct index in [0, numCts) that never appeared,

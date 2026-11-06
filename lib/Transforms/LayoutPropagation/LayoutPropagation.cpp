@@ -1812,10 +1812,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
     LayoutAttr layout1 = LayoutAttr::getFromIntegerRelation(ctx, rel1);
     LayoutAttr layout2 = LayoutAttr::getFromIntegerRelation(ctx, rel2);
     resultLayoutAttr = ArrayAttr::get(ctx, {layout1, layout2});
-    composedLayouts.try_emplace(
-        resultLayoutAttr, LayoutAttr::getFromIntegerRelation(
-                              ctx, get2dConvInterchangedResultRelation(
-                                       outputType, strides, minSlotCount)));
   } else {
     resultLayoutAttr = LayoutAttr::getFromIntegerRelation(ctx, rel1);
   }
