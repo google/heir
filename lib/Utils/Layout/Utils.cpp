@@ -953,26 +953,12 @@ bool nextGridPoint(SmallVectorImpl<int64_t>& point, ArrayRef<int64_t> lbs,
   return false;
 }
 
-// Repeatedly detects equalities implied by opposite-facing inequalities. Each
-// pass of `isl_basic_map_detect_equalities` eliminates newly discovered
-// equalities and normalizes the remaining inequalities by dividing by their
-// variable-coefficient GCD (rounding the constant via floor division), which
-// can expose further opposite-facing inequality pairs in cascading floor-div
-// and modulo constraints.
-__isl_give isl_basic_map* detectAllEqualities(__isl_take isl_basic_map* bmap) {
-  while (bmap) {
-    unsigned prevIneq = isl_basic_map_n_inequality(bmap);
-    bmap = isl_basic_map_detect_equalities(bmap);
-    if (!bmap || isl_basic_map_n_inequality(bmap) >= prevIneq) break;
-  }
-  return bmap;
-}
-
 // Enumerates the domain box [lb, ub] explicitly and, for each concrete domain
 // point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
 // that domain point's image. `imagePoint` is borrowed (freed by this function).
 // Between domain points `shouldStop` is polled (when non-null); returning true
-// halts enumeration early.
+// halts enumeration early. With `numRangeDims`, only the first that many range
+// dimensions of each image are enumerated.
 //
 // Fixing the domain to concrete integers collapses the relation's mod/floordiv
 // existentials into a non-parametric feasibility problem that isl resolves
@@ -984,18 +970,25 @@ void forEachDomainImagePoint(
     __isl_keep isl_basic_map* bmap, ArrayRef<int64_t> lb, ArrayRef<int64_t> ub,
     llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
         onImagePoint,
-    llvm::function_ref<bool()> shouldStop = nullptr) {
+    llvm::function_ref<bool()> shouldStop = nullptr,
+    std::optional<unsigned> numRangeDims = std::nullopt) {
+  isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
   unsigned numDomain = lb.size();
+  unsigned numRange = isl_basic_map_dim(bmap, isl_dim_out);
+  assert(!numRangeDims || *numRangeDims <= numRange);
 
   // Fix the domain to `point`, then invoke onImagePoint for every point of the
   // resulting (now fully concrete) range.
   auto processImageOfPoint = [&](ArrayRef<int64_t> point) {
     isl_basic_map* fixed = isl_basic_map_copy(bmap);
     for (unsigned i = 0; i < numDomain; ++i) {
-      fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
+      fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i,
+                                    isl_val_int_from_si(ctx, point[i]));
     }
-    fixed = detectAllEqualities(fixed);
     isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+    if (numRangeDims)
+      image = isl_set_project_out(image, isl_dim_set, *numRangeDims,
+                                  numRange - *numRangeDims);
     ImageCtx imageCtx{onImagePoint, point};
     isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
     isl_set_free(image);
@@ -1013,6 +1006,37 @@ void forEachDomainImagePoint(
 }
 }  // namespace
 
+struct WrapCallbackCtx {
+  PointPairCollector* collector;
+  int numDomain;
+  int numRange;
+};
+
+static isl_stat enumeratePointsCallback(__isl_take isl_point* pnt, void* user) {
+  auto* ctx = static_cast<WrapCallbackCtx*>(user);
+  std::vector<int64_t> domainPoint(ctx->numDomain);
+  std::vector<int64_t> rangePoint(ctx->numRange);
+  for (int i = 0; i < ctx->numDomain; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
+    if (isl_val_is_int(coord)) {
+      domainPoint[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+  for (int i = 0; i < ctx->numRange; i++) {
+    isl_val* coord =
+        isl_point_get_coordinate_val(pnt, isl_dim_set, ctx->numDomain + i);
+    if (isl_val_is_int(coord)) {
+      rangePoint[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+  ctx->collector->points.emplace_back(std::move(domainPoint),
+                                      std::move(rangePoint));
+  isl_point_free(pnt);
+  return isl_stat_ok;
+}
+
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
   assert(relation.getNumDomainVars() ==
@@ -1025,74 +1049,47 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
 
   SmallVector<int64_t> lb, ub;
   getDomainBox(relation, lb, ub);
-
-  // When the domain box exceeds `kMaxDomainBoxVolume` points and the relation
-  // has no unresolved existential local variables, scanning the wrapped basic
-  // set directly avoids copying `bmap` and calling `isl_basic_map_fix_val` on
-  // millions of empty domain-box coordinates (e.g. expanded Toeplitz matrices),
-  // while preserving lexicographic `(domain, range)` order for smaller boxes.
-  constexpr int64_t kMaxDomainBoxVolume = 200000;
   int64_t volume = 1;
-  bool largeBox = false;
+  bool overflow = false;
   for (size_t i = 0; i < lb.size(); ++i) {
     int64_t diff = ub[i] - lb[i] + 1;
     if (diff <= 0) {
       volume = 0;
       break;
     }
-    if (volume > kMaxDomainBoxVolume / diff) {
-      largeBox = true;
+    if (volume > INT64_MAX / diff) {
+      overflow = true;
       break;
     }
     volume *= diff;
   }
-  if (largeBox && isl_basic_map_dim(bmap, isl_dim_div) == 0) {
-    struct WrapCtx {
-      PointPairCollector* collector;
-      int numDomain;
-      int numRange;
-    } wctx{&collector, collector.domainDims, collector.rangeDims};
-    isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
-    isl_set_foreach_point(
-        set,
-        [](__isl_take isl_point* pnt, void* user) -> isl_stat {
-          auto* c = static_cast<WrapCtx*>(user);
-          std::vector<int64_t> domainPoint(c->numDomain);
-          std::vector<int64_t> rangePoint(c->numRange);
-          for (int i = 0; i < c->numDomain; i++) {
-            isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
-            if (isl_val_is_int(coord))
-              domainPoint[i] = isl_val_get_num_si(coord);
-            isl_val_free(coord);
-          }
-          for (int i = 0; i < c->numRange; i++) {
-            isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set,
-                                                          c->numDomain + i);
-            if (isl_val_is_int(coord))
-              rangePoint[i] = isl_val_get_num_si(coord);
-            isl_val_free(coord);
-          }
-          c->collector->points.emplace_back(std::move(domainPoint),
-                                            std::move(rangePoint));
-          isl_point_free(pnt);
-          return isl_stat_ok;
-        },
-        &wctx);
-    isl_set_free(set);
-    return;
+
+  // If the domain box is small enough, use the box-looping method.
+  bool useBoxLoop = false;
+  if (!overflow) {
+    if (volume <= 200000) {
+      useBoxLoop = true;
+    }
   }
 
-  forEachDomainImagePoint(
-      bmap, lb, ub,
-      [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
-        std::vector<int64_t> rangePoint(collector.rangeDims);
-        extractCoords(imagePoint, collector.rangeDims, rangePoint);
-        collector.points.emplace_back(
-            std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
-            std::move(rangePoint));
-      });
-
-  isl_basic_map_free(bmap);
+  if (useBoxLoop) {
+    forEachDomainImagePoint(
+        bmap, lb, ub,
+        [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
+          std::vector<int64_t> rangePoint(collector.rangeDims);
+          extractCoords(imagePoint, collector.rangeDims, rangePoint);
+          collector.points.emplace_back(
+              std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+              std::move(rangePoint));
+        });
+    isl_basic_map_free(bmap);
+  } else {
+    isl_basic_set* bset = isl_basic_map_wrap(bmap);
+    isl_set* set = isl_set_from_basic_set(bset);
+    WrapCallbackCtx ctx{&collector, collector.domainDims, collector.rangeDims};
+    isl_set_foreach_point(set, enumeratePointsCallback, &ctx);
+    isl_set_free(set);
+  }
 }
 
 std::vector<int64_t> anyRangePoint(
@@ -1134,59 +1131,20 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   assert(outputType.getRank() == 2 && "Expected 2D output type.");
 
   int64_t numCts = outputType.getDimSize(0);
-  if (numCts <= 0) return;
+
+  SmallVector<int64_t> lb, ub;
+  getDomainBox(relation, lb, ub);
 
   isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+
+  // Mark which ct indices (range var 0) appear in the range, enumerating the
+  // domain box (see forEachDomainImagePoint). Once every ct is accounted for
+  // we can stop early instead of scanning the rest of a large domain.
   std::vector<bool> seen(numCts, false);
   int64_t seenCount = 0;
-
-  // When projecting onto the ct coordinate (range var 0) leaves no existential
-  // floor-division variables, enumerate the 1-D ct range directly instead of
-  // scanning every domain point.
-  isl_basic_set* ctRange = isl_basic_map_range(
-      isl_basic_map_project_out(isl_basic_map_copy(bmap), isl_dim_out, 1, 1));
-  if (isl_basic_set_dim(ctRange, isl_dim_div) == 0 &&
-      isl_basic_set_is_bounded(ctRange) == isl_bool_true) {
-    isl_basic_map_free(bmap);
-    struct CtSetCtx {
-      std::vector<bool>* seen;
-      int64_t* seenCount;
-      int64_t numCts;
-    } ctCtx{&seen, &seenCount, numCts};
-    isl_set* ctSet = isl_set_from_basic_set(ctRange);
-    isl_set_foreach_point(
-        ctSet,
-        [](__isl_take isl_point* pnt, void* user) -> isl_stat {
-          auto* c = static_cast<CtSetCtx*>(user);
-          isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, 0);
-          if (isl_val_is_int(coord)) {
-            int64_t ct = isl_val_get_num_si(coord);
-            if (ct >= 0 && ct < c->numCts && !(*c->seen)[ct]) {
-              (*c->seen)[ct] = true;
-              ++(*c->seenCount);
-            }
-          }
-          isl_val_free(coord);
-          isl_point_free(pnt);
-          return isl_stat_ok;
-        },
-        &ctCtx);
-    isl_set_free(ctSet);
-  } else {
-    isl_basic_set_free(ctRange);
-    SmallVector<int64_t> lb, ub;
-    getDomainBox(relation, lb, ub);
-    unsigned numDomain = lb.size();
-    bool nonEmptyBox = true;
-    for (unsigned i = 0; i < numDomain; ++i) {
-      if (lb[i] > ub[i]) {
-        nonEmptyBox = false;
-        break;
-      }
-    }
-    if (nonEmptyBox) {
-      auto markImagePoint = [&](ArrayRef<int64_t> /*domainPoint*/,
-                                __isl_keep isl_point* imagePoint) {
+  forEachDomainImagePoint(
+      bmap, lb, ub,
+      [&](ArrayRef<int64_t> /*domainPoint*/, __isl_keep isl_point* imagePoint) {
         isl_val* coord =
             isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
         if (isl_val_is_int(coord)) {
@@ -1197,36 +1155,13 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
           }
         }
         isl_val_free(coord);
-      };
-      SmallVector<int64_t> point(lb.begin(), lb.end());
-      do {
-        isl_basic_map* fixed = isl_basic_map_copy(bmap);
-        for (unsigned i = 0; i < numDomain; ++i) {
-          fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
-        }
-        fixed = detectAllEqualities(fixed);
-        isl_val* ctVal =
-            isl_basic_map_plain_get_val_if_fixed(fixed, isl_dim_out, 0);
-        if (ctVal && isl_val_is_int(ctVal)) {
-          int64_t ct = isl_val_get_num_si(ctVal);
-          isl_val_free(ctVal);
-          if (ct >= 0 && ct < numCts && !seen[ct] &&
-              isl_basic_map_is_empty(fixed) == isl_bool_false) {
-            seen[ct] = true;
-            ++seenCount;
-          }
-          isl_basic_map_free(fixed);
-        } else {
-          isl_val_free(ctVal);
-          isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
-          ImageCtx imageCtx{markImagePoint, point};
-          isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
-          isl_set_free(image);
-        }
-      } while (seenCount < numCts && nextGridPoint(point, lb, ub));
-    }
-    isl_basic_map_free(bmap);
-  }
+      },
+      /*shouldStop=*/[&]() { return seenCount == numCts; },
+      // Only the ct matters; enumerating slots too multiplies the points by
+      // the slot count.
+      /*numRangeDims=*/1);
+
+  isl_basic_map_free(bmap);
 
   // The complement is every ct index in [0, numCts) that never appeared,
   // emitted in ascending order.
