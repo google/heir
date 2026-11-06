@@ -6,10 +6,13 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 # package itself is assembled in //python. The layout follows upstream MLIR's
 # CMake build (and JAX's bazel build):
 #
-#   heir/_mlir_libs/
-#     libHEIRPythonCAPI.so   ALL compiler code (MLIR + HEIR), exactly one copy
-#     _mlir.so               upstream's core extension (ir, passmanager, ...)
-#     _heir.so               HEIR registration + heir-translate access
+#   heir/
+#     heir-opt, heir-translate   thin launchers that run the tools from
+#                                libHEIRPythonCAPI.so
+#     _mlir_libs/
+#       libHEIRPythonCAPI.so     ALL compiler code (MLIR + HEIR), exactly one copy
+#       _mlir.so                 upstream's core extension (ir, passmanager, ...)
+#       _heir.so                 HEIR registration + heir-translate access
 #
 # Both extensions link libHEIRPythonCAPI.so dynamically, so that there is only
 # one copy of MLIR's global state (TypeIDs, pass registry, ...) in the process.
@@ -94,6 +97,7 @@ mlir_c_api_cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:BytecodeWriter",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MlirOptLib",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TranslateLib",
     ],
@@ -190,4 +194,31 @@ cc_binary(
         "@llvm-project//mlir:MLIRBindingsPythonNanobindHeaders",
         "@nanobind",
     ],
+)
+
+##---------------------------------------------------------------------------##
+# heir-opt and heir-translate for the wheel
+##---------------------------------------------------------------------------##
+
+# Thin launchers that run the tools from libHEIRPythonCAPI.so, which they
+# expect in _mlir_libs/ next to them (see //python:heir_pkg), instead of linking
+# another copy of the compiler. The standalone tools are //tools:heir-opt and
+# //tools:heir-translate.
+LAUNCHER_LINKOPTS = select({
+    "@platforms//os:macos": ["-Wl,-rpath,@loader_path/_mlir_libs"],
+    "//conditions:default": ["-Wl,-rpath,$$ORIGIN/_mlir_libs"],
+}) + STRIP_LINKOPTS
+
+cc_binary(
+    name = "heir-opt-launcher",
+    srcs = ["HeirOptLauncher.cpp"],
+    linkopts = LAUNCHER_LINKOPTS,
+    deps = [":HEIRPythonCAPIShared"],
+)
+
+cc_binary(
+    name = "heir-translate-launcher",
+    srcs = ["HeirTranslateLauncher.cpp"],
+    linkopts = LAUNCHER_LINKOPTS,
+    deps = [":HEIRPythonCAPIShared"],
 )

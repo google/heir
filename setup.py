@@ -29,6 +29,14 @@ py_limited_api = True
 options = {"bdist_wheel": {"py_limited_api": "cp{}{}".format(*MIN_PYTHON)}}
 
 
+# The release workflows publish standalone heir-opt and heir-translate binaries
+# for each platform; the wheel only bundles thin launchers, which run the tools
+# from the shared library holding all compiler code. If this environment
+# variable is set, also build the standalone binaries into the directory it
+# names, with the wheel's configuration (so that most of the build is shared).
+STANDALONE_BINARIES_DIR_ENV = "HEIR_STANDALONE_BINARIES_DIR"
+
+
 def is_cibuildwheel() -> bool:
   return os.getenv("CIBUILDWHEEL") is not None
 
@@ -83,51 +91,45 @@ def _copy_file(src: Path, dst: Path, executable: bool) -> None:
   os.chmod(dst, 0o755 if executable else 0o644)
 
 
+_NATIVE_MAGIC_NUMBERS = (
+    b"\x7fELF",
+    b"\xcf\xfa\xed\xfe",  # Mach-O (64 bit)
+    b"\xca\xfe\xba\xbe",  # Mach-O (universal)
+)
+
+
+def _is_native(path: Path) -> bool:
+  """Whether `path` is an executable or a shared library."""
+  with path.open("rb") as f:
+    return f.read(4) in _NATIVE_MAGIC_NUMBERS
+
+
 def _copy_tree(src: Path, dst: Path) -> None:
   """Copies the files in the directory `src` into `dst` (see _copy_file)."""
   for path in sorted(src.rglob("*")):
     if path.is_dir():
       continue
-    _copy_file(
-        path, dst / path.relative_to(src), executable=path.suffix == ".so"
-    )
+    _copy_file(path, dst / path.relative_to(src), executable=_is_native(path))
 
 
 class BazelExtension(setuptools.Extension):
-  """A C/C++ extension that is defined as a Bazel BUILD target."""
+  """The python package, as a directory tree built by Bazel."""
 
   def __init__(
       self,
       name: str,
       bazel_target: str,
-      generated_so_file: Path,
-      target_file: str,
-      is_binary: bool = False,
-      is_tree: bool = False,
-      aggressive_strip: bool = False,
+      generated_tree: Path,
       **kwargs: Any,
   ):
     super().__init__(name=name, sources=[], **kwargs)
-
     self.bazel_target = bazel_target
-    # A tuple of strings representing path components
-    # like ("path", "to", "file.so")
-    self.generated_so_file = generated_so_file
-    self.target_file = target_file
-    self.is_binary = is_binary
-
-    # Whether generated_so_file is a directory whose contents should be merged
-    # into the package directory (target_file is then ignored).
-    self.is_tree = is_tree
-
-    # Determines whether to `strip-all` when building a target for PyPI.
-    # Critically, this should only be used for cc_binary targets that are run as
-    # a subprocess, not cc_library targets that are loaded into Python.
-    self.aggressive_strip = aggressive_strip
+    # The directory under bazel-bin that holds the package.
+    self.generated_tree = generated_tree
 
 
 class BuildBazelExtension(build_ext.build_ext):
-  """A command that runs Bazel to build a C/C++ extension."""
+  """A command that runs Bazel to build the python package."""
 
   def run(self):
     if self.inplace:
@@ -135,6 +137,9 @@ class BuildBazelExtension(build_ext.build_ext):
     else:
       for ext in self.extensions:
         self.bazel_build(ext)
+      standalone_binaries_dir = os.environ.get(STANDALONE_BINARIES_DIR_ENV)
+      if standalone_binaries_dir:
+        self.build_standalone_binaries(Path(standalone_binaries_dir))
     # explicitly call `bazel shutdown` for graceful exit
     self.spawn(["bazel", "shutdown"])
 
@@ -150,28 +155,23 @@ class BuildBazelExtension(build_ext.build_ext):
 
     An editable install imports `heir` from the source tree (python/heir). Its
     __init__.py finds the generated parts of the package (the upstream MLIR
-    python sources, the generated dialect bindings, and the native libraries)
-    in bazel-bin/python/heir_pkg, and the heir-opt/heir-translate entry points
-    find the binaries in bazel-bin/tools. Build them with the default bazel
-    configuration, so that a later `bazel build //python:heir_pkg` updates the
-    editable install.
+    python sources, the generated dialect bindings, the native libraries, and
+    the heir-opt and heir-translate launchers) in bazel-bin/python/heir_pkg.
+    Build them with the default bazel configuration, so that a later
+    `bazel build //python:heir_pkg` updates the editable install.
     """
-    self.spawn([
-        "bazel",
-        "build",
-        "//python:heir_pkg",
-        "//tools:heir-opt",
-        "//tools:heir-translate",
-    ])
+    self.spawn(["bazel", "build", "//python:heir_pkg"])
 
-  def bazel_build(self, ext: BazelExtension) -> None:  # noqa: C901
-    """Runs the bazel build to create the package."""
+  def bazel_argv(
+      self, *targets: str, strip_binaries: bool = False
+  ) -> list[str]:
+    """Returns the command line that builds `targets` for the wheel."""
     temp_path = Path(self.build_temp)
 
     bazel_argv = [
         "bazel",
         "build",
-        ext.bazel_target,
+        *targets,
         # make output suitable for CI
         "--curses=no",
         "--ui_event_filters=ERROR",
@@ -188,7 +188,9 @@ class BuildBazelExtension(build_ext.build_ext):
         "--//:enable_yosys=0",
     ]
 
-    if ext.aggressive_strip:
+    # Fully strip the *.stripped outputs of cc_binary targets. Only use this
+    # for executables, not for shared libraries loaded into Python.
+    if strip_binaries:
       if IS_LINUX:
         bazel_argv.append("--stripopt=--strip-all")
       elif IS_MAC:
@@ -213,31 +215,41 @@ class BuildBazelExtension(build_ext.build_ext):
       bazel_argv.append(
           f"--platforms=@apple_support//platforms:darwin_{target_arch}"
       )
+    return bazel_argv
 
+  def bazel_build(self, ext: BazelExtension) -> None:
+    """Builds the package, and copies it into setuptools' libdir.
+
+    The wheel is built from the libdir.
+    """
     with _maybe_patch_toolchains():
-      self.spawn(bazel_argv)
+      self.spawn(self.bazel_argv(ext.bazel_target))
 
-    # copy the Bazel build artifacts into setuptools' libdir,
-    # from where the wheel is built.
-    print("\n\nCopying Bazel build artifacts to setuptools libdir\n\n")
-    srcdir = temp_path / "bazel-bin"
+    srcdir = Path(self.build_temp) / "bazel-bin" / ext.generated_tree
     libdir = Path(self.build_lib) / "heir"
+    # The tree is the complete package. Replace whatever an earlier build left
+    # in libdir (pip reuses the build directory), so that stale files can't end
+    # up in the wheel.
+    if libdir.exists():
+      shutil.rmtree(libdir)
+    print(f"Copying {srcdir} to {libdir}")
+    _copy_tree(srcdir, libdir)
 
-    # map from srcdir-relative paths to libdir-relative paths
-    srcdir_path = srcdir / ext.generated_so_file
-    if ext.is_tree:
-      # The tree is the complete package. Replace whatever an earlier build
-      # left in libdir (pip reuses the build directory), so that stale files
-      # can't end up in the wheel.
-      if libdir.exists():
-        shutil.rmtree(libdir)
-      print(f"Copying {srcdir_path} to {libdir}")
-      _copy_tree(srcdir_path, libdir)
-      return
+  def build_standalone_binaries(self, outdir: Path) -> None:
+    """Builds the standalone heir-opt and heir-translate into `outdir`."""
+    names = ["heir-opt", "heir-translate"]
+    with _maybe_patch_toolchains():
+      self.spawn(
+          self.bazel_argv(
+              *[f"//tools:{name}.stripped" for name in names],
+              strip_binaries=True,
+          )
+      )
 
-    libdir_path = libdir / ext.target_file
-    print(f"Copying {srcdir_path} to {libdir_path}")
-    _copy_file(srcdir_path, libdir_path, executable=ext.is_binary)
+    srcdir = Path(self.build_temp) / "bazel-bin" / "tools"
+    for name in names:
+      print(f"Copying {srcdir / name}.stripped to {outdir / name}")
+      _copy_file(srcdir / f"{name}.stripped", outdir / name, executable=True)
 
 
 setuptools.setup(
@@ -251,34 +263,14 @@ setuptools.setup(
         ]
     },
     ext_modules=[
-        # The python package: MLIR python bindings, generated dialect bindings,
-        # the native extensions, and the hand-written python sources. Must come
-        # first, since building it replaces the package directory.
+        # The python package: the MLIR python bindings, the generated dialect
+        # bindings, the native extensions and libraries, the heir-opt and
+        # heir-translate launchers, and the hand-written python sources.
         BazelExtension(
             name="heir._mlir_libs._heir",
             bazel_target="//python:heir_pkg",
-            generated_so_file=Path("python") / "heir_pkg" / "heir",
-            target_file="",
+            generated_tree=Path("python") / "heir_pkg" / "heir",
             py_limited_api=py_limited_api,
-            is_tree=True,
-        ),
-        BazelExtension(
-            name="heir._heir_opt",
-            bazel_target="//tools:heir-opt.stripped",
-            generated_so_file=Path("tools") / "heir-opt.stripped",
-            target_file="heir-opt",
-            py_limited_api=py_limited_api,
-            is_binary=True,
-            aggressive_strip=is_cibuildwheel(),
-        ),
-        BazelExtension(
-            name="heir._heir_translate",
-            bazel_target="//tools:heir-translate.stripped",
-            generated_so_file=Path("tools") / "heir-translate.stripped",
-            target_file="heir-translate",
-            py_limited_api=py_limited_api,
-            is_binary=True,
-            aggressive_strip=is_cibuildwheel(),
         ),
     ],
     options=options,

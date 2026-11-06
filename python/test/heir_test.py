@@ -1,9 +1,11 @@
 """Tests for the heir python package."""
 
 import importlib
+import subprocess
 import unittest
 
 import heir
+from heir import entrypoints
 from heir import ir
 from heir import types
 from heir.dialects import arith
@@ -281,6 +283,40 @@ class TranslateTest(unittest.TestCase):
       with self.assertRaises(heir.TranslationError) as cm:
         heir.translate(module, "emit-openfhe-pke")
       self.assertTrue(str(cm.exception))
+
+
+class CommandLineToolsTest(unittest.TestCase):
+
+  def run_tool(self, name, *args, stdin=""):
+    return subprocess.run(
+        [entrypoints._find_binary(name), *args],
+        input=stdin,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+  def test_heir_opt(self):
+    result = self.run_tool(
+        "heir-opt", "--canonicalize", stdin="func.func @f() { return }"
+    )
+    self.assertIn("func.func @f()", result.stdout)
+
+  def test_heir_opt_has_no_yosys_pipelines(self):
+    result = self.run_tool("heir-opt", "--help")
+    self.assertIn("HEIR Pass Driver", result.stdout)
+    self.assertIn("--mlir-to-bgv", result.stdout)
+    self.assertNotIn("--mlir-to-cggi", result.stdout)
+
+  def test_heir_translate(self):
+    result = self.run_tool(
+        "heir-translate",
+        "--emit-function-info",
+        stdin="func.func @f(%x: i32) { return }",
+    )
+    self.assertIn("f", result.stdout)
+    result = self.run_tool("heir-translate", "--help")
+    self.assertIn("HEIR Translation Tool", result.stdout)
 
 
 class TypesTest(unittest.TestCase):

@@ -175,7 +175,7 @@ replace `bazel run //tools:heir-opt --` with `./heir-opt`. HEIR also publishes
 
 We publish a python package [heir_py](https://pypi.org/project/heir-py/)
 (requires Python 3.12+) that includes HEIR's Python bindings as well as the
-`heir-opt` and `heir-translate` binaries.
+`heir-opt` and `heir-translate` command line tools.
 
 ```
 python -m venv venv

@@ -121,6 +121,10 @@ mlir_python_package(
         ":%s_py" % dialect
         for dialect in HEIR_DIALECTS
     ],
+    binaries = {
+        "@heir//lib/Bindings/Python:heir-opt-launcher": "heir-opt",
+        "@heir//lib/Bindings/Python:heir-translate-launcher": "heir-translate",
+    },
     native_libs = [
         "@heir//lib/Bindings/Python:_heir.so",
         "@heir//lib/Bindings/Python:_mlir.so",

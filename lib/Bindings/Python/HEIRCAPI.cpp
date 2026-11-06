@@ -8,23 +8,25 @@
 
 #include "lib/Tools/HeirOptRegistration.h"
 #include "lib/Tools/HeirTranslateRegistration.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/ScopeExit.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/Twine.h"                // from @llvm-project
-#include "llvm/include/llvm/Support/CommandLine.h"      // from @llvm-project
-#include "llvm/include/llvm/Support/MemoryBuffer.h"     // from @llvm-project
-#include "llvm/include/llvm/Support/SourceMgr.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Bytecode/BytecodeWriter.h"  // from @llvm-project
-#include "mlir/include/mlir/CAPI/IR.h"                  // from @llvm-project
-#include "mlir/include/mlir/CAPI/Support.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/DialectRegistry.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Verifier.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/ScopeExit.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/Twine.h"                   // from @llvm-project
+#include "llvm/include/llvm/Support/CommandLine.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/MemoryBuffer.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/SourceMgr.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
+#include "mlir/include/mlir/Bytecode/BytecodeWriter.h"     // from @llvm-project
+#include "mlir/include/mlir/CAPI/IR.h"                     // from @llvm-project
+#include "mlir/include/mlir/CAPI/Support.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/DialectRegistry.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Verifier.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
+#include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace {
@@ -84,6 +86,20 @@ void heirRegisterAllDialects(MlirDialectRegistry registry) {
 void heirRegisterAllPasses(void) {
   static std::once_flag flag;
   std::call_once(flag, [] { mlir::heir::registerAllHEIRPasses(); });
+}
+
+int heirOptMain(int argc, char** argv) {
+  mlir::DialectRegistry registry;
+  mlir::heir::registerAllHEIRDialects(registry);
+  heirRegisterAllPasses();
+  return mlir::asMainReturnCode(
+      mlir::MlirOptMain(argc, argv, "HEIR Pass Driver", registry));
+}
+
+int heirTranslateMain(int argc, char** argv) {
+  ensureTranslationsRegistered();
+  return mlir::failed(
+      mlir::mlirTranslateMain(argc, argv, "HEIR Translation Tool"));
 }
 
 void heirForEachTranslation(HeirTranslationCallback callback, void* userData) {

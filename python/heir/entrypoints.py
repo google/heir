@@ -1,5 +1,10 @@
-"""Console entrypoints for the heir-opt and heir-translate binaries bundled with
-the wheel."""
+"""Console entrypoints for the heir-opt and heir-translate executables bundled
+with the package.
+
+The bundled executables are thin launchers that run the tools from the shared
+library holding all compiler code (`_mlir_libs/libHEIRPythonCAPI.so`). The
+standalone tools are published as part of HEIR's GitHub releases.
+"""
 
 import os
 from pathlib import Path
@@ -7,14 +12,20 @@ import sys
 
 
 def _find_binary(binary_name: str) -> Path:
-  """Locates a bundled binary."""
+  """Locates a bundled executable."""
   here = Path(__file__).resolve().parent
   candidates = [
-      # A wheel bundles the binaries in the package.
+      # A wheel (or the bazel-built package) bundles the executables in the
+      # package.
       here / binary_name,
       # An editable install (`pip install -e .`) imports the package from the
-      # source tree, and uses the binaries built by bazel.
-      here.parents[1] / "bazel-bin" / "tools" / binary_name,
+      # source tree, and uses the bazel-built package (see __init__.py).
+      here.parents[1]
+      / "bazel-bin"
+      / "python"
+      / "heir_pkg"
+      / "heir"
+      / binary_name,
   ]
   for candidate in candidates:
     if candidate.is_file():
@@ -28,7 +39,7 @@ def _find_binary(binary_name: str) -> Path:
 
 
 def _run_binary(binary_name: str) -> None:
-  """Executes a bundled binary, replacing the current process."""
+  """Executes a bundled executable, replacing the current process."""
   binary_path = _find_binary(binary_name)
   os.execv(binary_path, [str(binary_path)] + sys.argv[1:])
 

@@ -46,6 +46,18 @@ heirTranslate(MlirOperation op, MlirStringRef translation, intptr_t numOptions,
               void* outputUserData, MlirStringCallback errorCallback,
               void* errorUserData);
 
+/// Runs heir-opt with the given command line (`argv[0]` is the program name),
+/// and returns its exit code. This is the entry point of the heir-opt
+/// executable in the python wheel, which uses this library instead of linking
+/// another copy of the compiler. Like heir-opt, it parses (and keeps) the
+/// process-global command line options, so call it at most once per process,
+/// and not in a process that uses the other functions here.
+MLIR_CAPI_EXPORTED int heirOptMain(int argc, char** argv);
+
+/// Runs heir-translate with the given command line, and returns its exit code.
+/// See heirOptMain.
+MLIR_CAPI_EXPORTED int heirTranslateMain(int argc, char** argv);
+
 #ifdef __cplusplus
 }
 #endif

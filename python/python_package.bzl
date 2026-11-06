@@ -114,6 +114,10 @@ def _mlir_python_package_impl(ctx):
     for f in ctx.files.native_libs:
         _emit(f, "_mlir_libs/" + f.basename)
 
+    # Executables go into the package root, under the given names.
+    for target, name in ctx.attr.binaries.items():
+        _emit(target[DefaultInfo].files_to_run.executable, name)
+
     return [DefaultInfo(
         files = depset(outs),
         runfiles = ctx.runfiles(files = outs),
@@ -130,5 +134,9 @@ mlir_python_package = rule(
         "upstream_srcs": attr.label_list(allow_files = True),
         "srcs": attr.label_list(allow_files = True),
         "native_libs": attr.label_list(allow_files = True),
+        "binaries": attr.label_keyed_string_dict(
+            doc = "Executables to put into the package root, with their names.",
+            cfg = "target",
+        ),
     },
 )
