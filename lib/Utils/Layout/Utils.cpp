@@ -1557,11 +1557,16 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
       }
     }
 
-    if (ctEqRow >= 0 && !lb.empty()) {
+    bool nonEmptyBox = !lb.empty();
+    for (size_t i = 0; i < lb.size() && nonEmptyBox; ++i) {
+      if (lb[i] > ub[i]) nonEmptyBox = false;
+    }
+
+    if (ctEqRow >= 0 && nonEmptyBox) {
       int64_t cCt = bmapRel.atEq64(ctEqRow, numDomain);
       SmallVector<__int128> divVals(numLocals, 0);
       SmallVector<int64_t> point = lb;
-      while (seenCount < numCts) {
+      do {
         for (unsigned k : divOrder) {
           unsigned r1 = domainDivs[k]->ineqRow;
           __int128 num = bmapRel.atIneq64(r1, constCol);
@@ -1608,14 +1613,7 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
             ++seenCount;
           }
         }
-        int dim = static_cast<int>(point.size()) - 1;
-        while (dim >= 0 && point[dim] == ub[dim]) {
-          point[dim] = lb[dim];
-          --dim;
-        }
-        if (dim < 0) break;
-        ++point[dim];
-      }
+      } while (seenCount < numCts && nextGridPoint(point, lb, ub));
       isl_basic_map_free(bmap);
     } else {
       // Mark which ct indices (range var 0) appear in the range, enumerating
