@@ -15,7 +15,7 @@ py_binary(
 genrule(
     name = "relinearize_test_data",
     outs = ["relinearize_test_data.h"],
-    cmd = "$(location :generate_relinearize_test_data) $@",
+    cmd = "$(execpath :generate_relinearize_test_data) $@",
     tools = [":generate_relinearize_test_data"],
 )
 
