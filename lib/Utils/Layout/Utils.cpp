@@ -1450,20 +1450,61 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
     SmallVector<int64_t> lb, ub;
     getDomainBox(tightenedRel, lb, ub);
 
-    // When `bmap` contains an equality row expressing `ct` (`range var 0`) as a
-    // function of the domain coordinates, domain-only floor-divisions, and at
-    // most one modulus local variable with modulus `M >= numCts`, each domain
-    // point can map to at most one `ct` in `[0, numCts)`. Evaluating that
-    // candidate `ct` in integer arithmetic lets us skip domain points whose
-    // `ct` has already been seen without invoking ISL, and sample a single
-    // image point when `!seen[cand]`.
-    presburger::IntegerRelation bmapRel =
-        convertBasicMapToRelation(isl_basic_map_copy(bmap));
-    unsigned numDomain = bmapRel.getNumDomainVars();
-    unsigned numSymbols = bmapRel.getNumSymbolVars();
-    unsigned numLocals = bmapRel.getNumLocalVars();
-    unsigned localOffset = bmapRel.getVarKindOffset(presburger::VarKind::Local);
-    unsigned constCol = bmapRel.getNumCols() - 1;
+    // When `tightenedRel` contains an equality row expressing `ct` (`range var
+    // 0`) as a function of the domain coordinates, domain-only floor-divisions
+    // (after unimodularly shifting out any non-floor-div local variable whose
+    // coefficient in a floor-division strip is a multiple of the divisor), and
+    // at most one modulus local variable with modulus `M >= numCts`, each
+    // domain point can map to at most one `ct` in `[0, numCts)`. Evaluating
+    // that candidate `ct` in integer arithmetic lets us skip domain points
+    // whose `ct` has already been seen without invoking ISL, and sample a
+    // single image point when `!seen[cand]`.
+    presburger::IntegerRelation evalRel = tightenedRel;
+    unsigned numDomain = evalRel.getNumDomainVars();
+    unsigned numSymbols = evalRel.getNumSymbolVars();
+    unsigned numLocals = evalRel.getNumLocalVars();
+    unsigned localOffset = evalRel.getVarKindOffset(presburger::VarKind::Local);
+    unsigned constCol = evalRel.getNumCols() - 1;
+
+    auto isDomainFloorStripPair = [&](unsigned k, unsigned r1,
+                                      unsigned r2) -> bool {
+      unsigned col = localOffset + k;
+      int64_t negD = evalRel.atIneq64(r1, col);
+      if (negD >= -1 || negD == std::numeric_limits<int64_t>::min())
+        return false;
+      int64_t d = -negD;
+      if (evalRel.atIneq64(r2, col) != d) return false;
+      for (unsigned j = numDomain; j < localOffset; ++j) {
+        if (evalRel.atIneq64(r1, j) != 0 || evalRel.atIneq64(r2, j) != 0)
+          return false;
+      }
+      __int128 w = static_cast<__int128>(evalRel.atIneq64(r1, constCol)) +
+                   static_cast<__int128>(evalRel.atIneq64(r2, constCol));
+      if (w < 0 || w > d - 1) return false;
+      for (unsigned j = 0; j < constCol; ++j) {
+        if (j != col &&
+            static_cast<__int128>(evalRel.atIneq64(r1, j)) +
+                    static_cast<__int128>(evalRel.atIneq64(r2, j)) !=
+                0) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    SmallVector<bool> hasFloorStrip(numLocals, false);
+    for (unsigned k = 0; k < numLocals && numSymbols == 0; ++k) {
+      for (unsigned r1 = 0;
+           r1 < evalRel.getNumInequalities() && !hasFloorStrip[k]; ++r1) {
+        if (evalRel.atIneq64(r1, localOffset + k) >= -1) continue;
+        for (unsigned r2 = 0; r2 < evalRel.getNumInequalities(); ++r2) {
+          if (isDomainFloorStripPair(k, r1, r2)) {
+            hasFloorStrip[k] = true;
+            break;
+          }
+        }
+      }
+    }
 
     struct DomainFloorDiv {
       unsigned ineqRow;
@@ -1476,50 +1517,76 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
       while (progress) {
         progress = false;
         for (unsigned k = 0; k < numLocals; ++k) {
-          if (domainDivs[k].has_value()) continue;
+          if (domainDivs[k].has_value() || !hasFloorStrip[k]) continue;
           unsigned col = localOffset + k;
           for (unsigned r1 = 0;
-               r1 < bmapRel.getNumInequalities() && !domainDivs[k]; ++r1) {
-            int64_t negD = bmapRel.atIneq64(r1, col);
+               r1 < evalRel.getNumInequalities() && !domainDivs[k]; ++r1) {
+            int64_t negD = evalRel.atIneq64(r1, col);
             if (negD >= -1 || negD == std::numeric_limits<int64_t>::min())
               continue;
-            bool domainOnly = true;
-            for (unsigned j = numDomain; j < localOffset; ++j) {
-              if (bmapRel.atIneq64(r1, j) != 0) {
-                domainOnly = false;
-                break;
-              }
-            }
-            for (unsigned j = 0; j < numLocals && domainOnly; ++j) {
-              if (j != k && bmapRel.atIneq64(r1, localOffset + j) != 0 &&
-                  !domainDivs[j].has_value()) {
-                domainOnly = false;
-              }
-            }
-            if (!domainOnly) continue;
             int64_t d = -negD;
-            for (unsigned r2 = 0; r2 < bmapRel.getNumInequalities(); ++r2) {
-              if (bmapRel.atIneq64(r2, col) != d) continue;
-              __int128 w =
-                  static_cast<__int128>(bmapRel.atIneq64(r1, constCol)) +
-                  static_cast<__int128>(bmapRel.atIneq64(r2, constCol));
-              if (w < 0 || w > d - 1) continue;
-              bool match = true;
-              for (unsigned j = 0; j < constCol; ++j) {
-                if (j != col &&
-                    static_cast<__int128>(bmapRel.atIneq64(r1, j)) +
-                            static_cast<__int128>(bmapRel.atIneq64(r2, j)) !=
-                        0) {
-                  match = false;
-                  break;
+            bool ready = true;
+            for (unsigned j = 0; j < numLocals; ++j) {
+              if (j == k) continue;
+              int64_t cJ = evalRel.atIneq64(r1, localOffset + j);
+              if (cJ == 0 || domainDivs[j].has_value()) continue;
+              if (!hasFloorStrip[j] && cJ % d == 0) continue;
+              ready = false;
+              break;
+            }
+            if (!ready) continue;
+            for (unsigned r2 = 0; r2 < evalRel.getNumInequalities(); ++r2) {
+              if (!isDomainFloorStripPair(k, r1, r2)) continue;
+              bool overflow = false;
+              for (unsigned j = 0; j < numLocals && !overflow; ++j) {
+                if (j == k || domainDivs[j].has_value()) continue;
+                int64_t cJ = evalRel.atIneq64(r1, localOffset + j);
+                if (cJ == 0) continue;
+                int64_t m = cJ / d;
+                for (unsigned r = 0; r < evalRel.getNumEqualities(); ++r) {
+                  __int128 v = static_cast<__int128>(
+                                   evalRel.atEq64(r, localOffset + j)) +
+                               static_cast<__int128>(m) *
+                                   evalRel.atEq64(r, localOffset + k);
+                  if (v < std::numeric_limits<int64_t>::min() ||
+                      v > std::numeric_limits<int64_t>::max())
+                    overflow = true;
+                }
+                for (unsigned r = 0; r < evalRel.getNumInequalities(); ++r) {
+                  __int128 v = static_cast<__int128>(
+                                   evalRel.atIneq64(r, localOffset + j)) +
+                               static_cast<__int128>(m) *
+                                   evalRel.atIneq64(r, localOffset + k);
+                  if (v < std::numeric_limits<int64_t>::min() ||
+                      v > std::numeric_limits<int64_t>::max())
+                    overflow = true;
                 }
               }
-              if (match) {
-                domainDivs[k] = DomainFloorDiv{r1, d};
-                divOrder.push_back(k);
-                progress = true;
-                break;
+              if (overflow) continue;
+              for (unsigned j = 0; j < numLocals; ++j) {
+                if (j == k || domainDivs[j].has_value()) continue;
+                int64_t cJ = evalRel.atIneq64(r1, localOffset + j);
+                if (cJ == 0) continue;
+                int64_t m = cJ / d;
+                for (unsigned r = 0; r < evalRel.getNumEqualities(); ++r) {
+                  evalRel.atEq(r, localOffset + j) = static_cast<int64_t>(
+                      static_cast<__int128>(
+                          evalRel.atEq64(r, localOffset + j)) +
+                      static_cast<__int128>(m) *
+                          evalRel.atEq64(r, localOffset + k));
+                }
+                for (unsigned r = 0; r < evalRel.getNumInequalities(); ++r) {
+                  evalRel.atIneq(r, localOffset + j) = static_cast<int64_t>(
+                      static_cast<__int128>(
+                          evalRel.atIneq64(r, localOffset + j)) +
+                      static_cast<__int128>(m) *
+                          evalRel.atIneq64(r, localOffset + k));
+                }
               }
+              domainDivs[k] = DomainFloorDiv{r1, d};
+              divOrder.push_back(k);
+              progress = true;
+              break;
             }
           }
         }
@@ -1528,15 +1595,15 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
 
     int ctEqRow = -1;
     int64_t ctModulus = 0;
-    for (unsigned r = 0; r < bmapRel.getNumEqualities() && numSymbols == 0;
+    for (unsigned r = 0; r < evalRel.getNumEqualities() && numSymbols == 0;
          ++r) {
-      int64_t cCt = bmapRel.atEq64(r, numDomain);
-      if ((cCt != 1 && cCt != -1) || bmapRel.atEq64(r, numDomain + 1) != 0)
+      int64_t cCt = evalRel.atEq64(r, numDomain);
+      if ((cCt != 1 && cCt != -1) || evalRel.atEq64(r, numDomain + 1) != 0)
         continue;
       int64_t modM = 0;
       bool validLocals = true;
       for (unsigned k = 0; k < numLocals; ++k) {
-        int64_t cLoc = bmapRel.atEq64(r, localOffset + k);
+        int64_t cLoc = evalRel.atEq64(r, localOffset + k);
         if (cLoc == 0 || domainDivs[k].has_value()) continue;
         if (cLoc == std::numeric_limits<int64_t>::min()) {
           validLocals = false;
@@ -1563,32 +1630,32 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
     }
 
     if (ctEqRow >= 0 && nonEmptyBox) {
-      int64_t cCt = bmapRel.atEq64(ctEqRow, numDomain);
+      int64_t cCt = evalRel.atEq64(ctEqRow, numDomain);
       SmallVector<__int128> divVals(numLocals, 0);
       SmallVector<int64_t> point = lb;
       do {
         for (unsigned k : divOrder) {
           unsigned r1 = domainDivs[k]->ineqRow;
-          __int128 num = bmapRel.atIneq64(r1, constCol);
+          __int128 num = evalRel.atIneq64(r1, constCol);
           for (unsigned i = 0; i < numDomain; ++i) {
-            num += static_cast<__int128>(bmapRel.atIneq64(r1, i)) * point[i];
+            num += static_cast<__int128>(evalRel.atIneq64(r1, i)) * point[i];
           }
           for (unsigned j = 0; j < numLocals; ++j) {
-            if (j != k && bmapRel.atIneq64(r1, localOffset + j) != 0) {
+            if (j != k && evalRel.atIneq64(r1, localOffset + j) != 0) {
               num +=
-                  static_cast<__int128>(bmapRel.atIneq64(r1, localOffset + j)) *
+                  static_cast<__int128>(evalRel.atIneq64(r1, localOffset + j)) *
                   divVals[j];
             }
           }
           divVals[k] = floorDivI128(num, domainDivs[k]->divisor);
         }
-        __int128 sum = bmapRel.atEq64(ctEqRow, constCol);
+        __int128 sum = evalRel.atEq64(ctEqRow, constCol);
         for (unsigned i = 0; i < numDomain; ++i) {
-          sum += static_cast<__int128>(bmapRel.atEq64(ctEqRow, i)) * point[i];
+          sum += static_cast<__int128>(evalRel.atEq64(ctEqRow, i)) * point[i];
         }
         for (unsigned k : divOrder) {
           sum +=
-              static_cast<__int128>(bmapRel.atEq64(ctEqRow, localOffset + k)) *
+              static_cast<__int128>(evalRel.atEq64(ctEqRow, localOffset + k)) *
               divVals[k];
         }
         __int128 rhs = -static_cast<__int128>(cCt) * sum;

@@ -120,53 +120,14 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
   // Detect local variables defined by floor-division inequality pairs
   // 0 <= expr + c - d * q <= w (with 0 <= w <= d - 1) in topological order so
   // they can be bound as known ISL floor-divs before Gaussian/Bezout div
-  // elimination runs on the equalities. Local variables without any floor-div
-  // inequality strip are treated as base existential variables and projected
-  // out after pulling back the floor-divisions.
+  // elimination runs on the equalities.
   struct FloorDivInfo {
     unsigned ineqRow;
     int64_t divisor;
   };
-  auto isFloorDivPair = [&](unsigned k, unsigned r1, unsigned r2) -> bool {
-    unsigned col = localOffset + k;
-    int64_t negD = rel.atIneq64(r1, col);
-    if (negD >= -1 || negD == std::numeric_limits<int64_t>::min()) return false;
-    int64_t d = -negD;
-    if (rel.atIneq64(r2, col) != d) return false;
-    __int128 w = static_cast<__int128>(rel.atIneq64(r1, constCol)) +
-                 static_cast<__int128>(rel.atIneq64(r2, constCol));
-    if (w < 0 || w > d - 1) return false;
-    for (unsigned j = 0; j < constCol; ++j) {
-      if (j != col && static_cast<__int128>(rel.atIneq64(r1, j)) +
-                              static_cast<__int128>(rel.atIneq64(r2, j)) !=
-                          0) {
-        return false;
-      }
-    }
-    return true;
-  };
-
   SmallVector<std::optional<FloorDivInfo>> floorDivs(numLocals);
-  SmallVector<unsigned> baseLocals;
   SmallVector<unsigned> order;
   SmallVector<bool> scheduled(numLocals, false);
-  for (unsigned k = 0; k < numLocals; ++k) {
-    bool hasStrip = false;
-    for (unsigned r1 = 0; r1 < rel.getNumInequalities() && !hasStrip; ++r1) {
-      if (rel.atIneq64(r1, localOffset + k) >= -1) continue;
-      for (unsigned r2 = 0; r2 < rel.getNumInequalities(); ++r2) {
-        if (isFloorDivPair(k, r1, r2)) {
-          hasStrip = true;
-          break;
-        }
-      }
-    }
-    if (!hasStrip) {
-      scheduled[k] = true;
-      baseLocals.push_back(k);
-    }
-  }
-
   bool progress = true;
   while (progress) {
     progress = false;
@@ -188,7 +149,21 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
         if (!ready) continue;
         int64_t d = -negD;
         for (unsigned r2 = 0; r2 < rel.getNumInequalities(); ++r2) {
-          if (isFloorDivPair(k, r1, r2)) {
+          if (rel.atIneq64(r2, col) != d) continue;
+          __int128 w = static_cast<__int128>(rel.atIneq64(r1, constCol)) +
+                       static_cast<__int128>(rel.atIneq64(r2, constCol));
+          if (w < 0 || w > d - 1) continue;
+          bool match = true;
+          for (unsigned j = 0; j < constCol; ++j) {
+            if (j != col &&
+                static_cast<__int128>(rel.atIneq64(r1, j)) +
+                        static_cast<__int128>(rel.atIneq64(r2, j)) !=
+                    0) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
             floorDivs[k] = FloorDivInfo{r1, d};
             break;
           }
@@ -202,8 +177,15 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
     }
   }
 
+  // When every local variable is a floor-division and at least two floor-divs
+  // are coupled (either in a defining inequality or in an equality row),
+  // pulling back the lifted basic set by the explicit floor-div `isl_multi_aff`
+  // avoids ISL's Hermite/Bezout div elimination on the coupled equalities.
+  // When every floor-div and equality involves at most one local variable, or
+  // when non-floor-div existential local variables are present,
+  // `isl_basic_map_from_constraint_matrices` eliminates them directly.
   bool hasCoupledLocals = false;
-  if (!order.empty() && order.size() + baseLocals.size() == numLocals) {
+  if (order.size() == numLocals) {
     for (unsigned k : order) {
       unsigned r1 = floorDivs[k]->ineqRow;
       for (unsigned j = 0; j < numLocals; ++j) {
@@ -214,29 +196,19 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
       }
     }
     for (unsigned r = 0; r < rel.getNumEqualities() && !hasCoupledLocals; ++r) {
-      bool hasFloorDiv = false;
-      unsigned localsInRow = 0;
-      for (unsigned j = 0; j < numLocals; ++j) {
-        if (rel.atEq64(r, localOffset + j) != 0) {
-          ++localsInRow;
-          if (floorDivs[j].has_value()) hasFloorDiv = true;
-        }
+      unsigned floorDivsInRow = 0;
+      for (unsigned k : order) {
+        if (rel.atEq64(r, localOffset + k) != 0) ++floorDivsInRow;
       }
-      if (hasFloorDiv && localsInRow >= 2) hasCoupledLocals = true;
+      if (floorDivsInRow >= 2) hasCoupledLocals = true;
     }
   }
 
   if (!order.empty() && hasCoupledLocals) {
-    unsigned domainSetDim = numDimVars + baseLocals.size();
     unsigned fullSetDim = numDimVars + numLocals;
     isl_local_space* ls = isl_local_space_from_space(
-        isl_space_set_alloc(ctx, numSymbols, domainSetDim));
+        isl_space_set_alloc(ctx, numSymbols, numDimVars));
     SmallVector<isl_aff*> localAffs(numLocals, nullptr);
-    for (auto [idx, b] : llvm::enumerate(baseLocals)) {
-      localAffs[b] = isl_aff_var_on_domain(isl_local_space_copy(ls),
-                                           isl_dim_set, numDimVars + idx);
-    }
-    bool canPullBack = true;
     for (unsigned k : order) {
       unsigned r1 = floorDivs[k]->ineqRow;
       int64_t d = floorDivs[k]->divisor;
@@ -260,55 +232,29 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
                                                  isl_val_int_from_si(ctx, c)));
         }
       }
-      isl_aff* scaled =
-          isl_aff_scale_down_val(num, isl_val_int_from_si(ctx, d));
-      for (size_t idx = 0; idx < baseLocals.size(); ++idx) {
-        isl_val* coeff =
-            isl_aff_get_coefficient_val(scaled, isl_dim_in, numDimVars + idx);
-        bool isInt = isl_val_is_int(coeff) == isl_bool_true;
-        isl_val_free(coeff);
-        if (!isInt) {
-          canPullBack = false;
-          break;
-        }
-      }
-      if (!canPullBack) {
-        isl_aff_free(scaled);
-        break;
-      }
-      localAffs[k] = isl_aff_floor(scaled);
+      localAffs[k] = isl_aff_floor(
+          isl_aff_scale_down_val(num, isl_val_int_from_si(ctx, d)));
     }
-    if (canPullBack) {
-      isl_multi_aff* maff = isl_multi_aff_zero(
-          isl_space_alloc(ctx, numSymbols, domainSetDim, fullSetDim));
-      for (unsigned j = 0; j < numDimVars; ++j) {
-        maff = isl_multi_aff_set_aff(
-            maff, j,
-            isl_aff_var_on_domain(isl_local_space_copy(ls), isl_dim_set, j));
-      }
-      for (unsigned k = 0; k < numLocals; ++k) {
-        maff = isl_multi_aff_set_aff(maff, numDimVars + k, localAffs[k]);
-      }
-      isl_local_space_free(ls);
-
-      isl_space* fullSetSpace =
-          isl_space_set_alloc(ctx, numSymbols, fullSetDim);
-      isl_basic_set* bset = isl_basic_set_from_constraint_matrices(
-          fullSetSpace, eqMat, ineqMat, isl_dim_set, isl_dim_div, isl_dim_param,
-          isl_dim_cst);
-      bset = isl_basic_set_preimage_multi_aff(bset, maff);
-      if (!baseLocals.empty()) {
-        bset = isl_basic_set_project_out(bset, isl_dim_set, numDimVars,
-                                         baseLocals.size());
-      }
-      isl_basic_map* res = isl_basic_map_from_range(bset);
-      return isl_basic_map_move_dims(res, isl_dim_in, 0, isl_dim_out, 0,
-                                     numDomain);
+    isl_multi_aff* maff = isl_multi_aff_zero(
+        isl_space_alloc(ctx, numSymbols, numDimVars, fullSetDim));
+    for (unsigned j = 0; j < numDimVars; ++j) {
+      maff = isl_multi_aff_set_aff(
+          maff, j,
+          isl_aff_var_on_domain(isl_local_space_copy(ls), isl_dim_set, j));
     }
-    for (isl_aff* aff : localAffs) {
-      if (aff) isl_aff_free(aff);
+    for (unsigned k = 0; k < numLocals; ++k) {
+      maff = isl_multi_aff_set_aff(maff, numDimVars + k, localAffs[k]);
     }
     isl_local_space_free(ls);
+
+    isl_space* fullSetSpace = isl_space_set_alloc(ctx, numSymbols, fullSetDim);
+    isl_basic_set* bset = isl_basic_set_from_constraint_matrices(
+        fullSetSpace, eqMat, ineqMat, isl_dim_set, isl_dim_div, isl_dim_param,
+        isl_dim_cst);
+    bset = isl_basic_set_preimage_multi_aff(bset, maff);
+    isl_basic_map* res = isl_basic_map_from_range(bset);
+    return isl_basic_map_move_dims(res, isl_dim_in, 0, isl_dim_out, 0,
+                                   numDomain);
   }
 
   isl_space* space =
