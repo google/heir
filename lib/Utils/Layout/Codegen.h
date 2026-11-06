@@ -69,22 +69,26 @@ class MLIRLoopNestGenerator {
 
  private:
   FailureOr<scf::ValueVector> visitAstNode(isl_ast_node* node,
-                                           BodyBuilderFn bodyBuilder);
+                                           BodyBuilderFn bodyBuilder,
+                                           ValueRange iterArgs);
   FailureOr<scf::ValueVector> visitAstNodeFor(isl_ast_node* node,
-                                              BodyBuilderFn bodyBuilder);
+                                              BodyBuilderFn bodyBuilder,
+                                              ValueRange iterArgs);
   FailureOr<scf::ValueVector> visitAstNodeIf(isl_ast_node* node,
-                                             BodyBuilderFn bodyBuilder);
+                                             BodyBuilderFn bodyBuilder,
+                                             ValueRange iterArgs);
   FailureOr<scf::ValueVector> visitAstNodeBlock(isl_ast_node* node,
-                                                BodyBuilderFn bodyBuilder);
+                                                BodyBuilderFn bodyBuilder,
+                                                ValueRange iterArgs);
   FailureOr<scf::ValueVector> visitAstNodeUser(isl_ast_node* node,
-                                               BodyBuilderFn bodyBuilder);
+                                               BodyBuilderFn bodyBuilder,
+                                               ValueRange iterArgs);
 
   LogicalResult visitAstExpr(isl_ast_expr* expr);
 
   ImplicitLocOpBuilder& builder_;
   isl_ctx* ctx_;
 
-  ValueRange currentIterArgs_;
   Location currentLoc_;
   std::map<std::string, Value> ivToValue_;
   SmallVector<scf::ForOp> loops_;
