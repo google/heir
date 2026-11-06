@@ -103,7 +103,8 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
 
   // Computes cost of changed result.
   Cost costOfChangedResult(Operation* kernel, Attribute newLayout,
-                           KernelAttr oldKernel, KernelName newKernel);
+                           KernelAttr oldKernel, KernelName newKernel,
+                           Cost totalOperandChangeCost);
 
   void runOnOperation() override;
 };
@@ -407,7 +408,8 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
 Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
                                              Attribute newLayout,
                                              KernelAttr oldKernel,
-                                             KernelName newKernel) {
+                                             KernelName newKernel,
+                                             Cost totalOperandChangeCost) {
   LLVM_DEBUG(llvm::dbgs() << "Computing cost of changed result to new layout "
                           << newLayout << "\n");
 
@@ -416,7 +418,8 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   // and all arithmetic trivial kernels) and will continue to hold as long as
   // trivial kernels are implemented with equivalent ciphertext-semantic
   // operations.
-  if (((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
+  if (totalOperandChangeCost <= 0 &&
+      ((oldKernel == nullptr && newKernel == KernelName::Trivial) ||
        (oldKernel != nullptr && oldKernel.getName() == KernelName::Trivial &&
         newKernel == KernelName::Trivial)) &&
       llvm::all_of(kernel->getResult(0).getUsers(), [&](Operation* user) {
@@ -621,8 +624,8 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
                             << totalOperandChangeCost << "\n");
     option.cost += totalOperandChangeCost;
 
-    Cost resultChangeCost =
-        costOfChangedResult(op, outputLayout, oldKernel, result.newKernel);
+    Cost resultChangeCost = costOfChangedResult(
+        op, outputLayout, oldKernel, result.newKernel, totalOperandChangeCost);
     LLVM_DEBUG(llvm::dbgs()
                << "\tresult change cost: " << resultChangeCost << "\n");
     option.cost += resultChangeCost;

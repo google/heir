@@ -330,6 +330,43 @@ bool tryPopulateFactoredMapping(const presburger::IntegerRelation& rel,
     }
   }
 
+  for (unsigned i = 0; i < numShared; ++i) {
+    auto srcLb = srcRel.getConstantBound64(presburger::BoundType::LB, i);
+    auto srcUb = srcRel.getConstantBound64(presburger::BoundType::UB, i);
+    auto dstLb = dstRel.getConstantBound64(presburger::BoundType::LB, i);
+    auto dstUb = dstRel.getConstantBound64(presburger::BoundType::UB, i);
+    if ((!srcLb && !dstLb) || (!srcUb && !dstUb)) return false;
+    int64_t lb =
+        (srcLb && dstLb) ? std::max(*srcLb, *dstLb) : (srcLb ? *srcLb : *dstLb);
+    int64_t ub =
+        (srcUb && dstUb) ? std::min(*srcUb, *dstUb) : (srcUb ? *srcUb : *dstUb);
+    if (lb > ub) return false;
+    if (!srcLb || *srcLb < lb) {
+      SmallVector<int64_t> row(srcRel.getNumCols(), 0);
+      row[i] = 1;
+      row.back() = -lb;
+      srcRel.addInequality(row);
+    }
+    if (!srcUb || *srcUb > ub) {
+      SmallVector<int64_t> row(srcRel.getNumCols(), 0);
+      row[i] = -1;
+      row.back() = ub;
+      srcRel.addInequality(row);
+    }
+    if (!dstLb || *dstLb < lb) {
+      SmallVector<int64_t> row(dstRel.getNumCols(), 0);
+      row[i] = 1;
+      row.back() = -lb;
+      dstRel.addInequality(row);
+    }
+    if (!dstUb || *dstUb > ub) {
+      SmallVector<int64_t> row(dstRel.getNumCols(), 0);
+      row[i] = -1;
+      row.back() = ub;
+      dstRel.addInequality(row);
+    }
+  }
+
   PointPairCollector srcCollector(numShared, 2);
   PointPairCollector dstCollector(numShared, 2);
   enumeratePoints(srcRel, srcCollector);

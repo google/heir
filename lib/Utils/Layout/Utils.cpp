@@ -1675,9 +1675,14 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
               isl_basic_set_lift(isl_basic_map_range(fixed)));
           isl_point* sample = isl_basic_set_sample_point(image);
           if (sample) {
+            isl_val* coord =
+                isl_point_get_coordinate_val(sample, isl_dim_set, 0);
+            if (isl_val_is_int(coord)) {
+              seen[candCt] = true;
+              ++seenCount;
+            }
+            isl_val_free(coord);
             isl_point_free(sample);
-            seen[candCt] = true;
-            ++seenCount;
           }
         }
       } while (seenCount < numCts && nextGridPoint(point, lb, ub));
