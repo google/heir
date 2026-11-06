@@ -184,8 +184,7 @@ pip install -r requirements.txt
 
 You will also need to install ruby and go (e.g., `apt-get install ruby golang`)
 which are used by some of the pre-commits. Note that the pre-commit environment
-expects Python 3.11
-([Installing python3.11 on ubuntu](https://askubuntu.com/a/1512163)).
+expects Python 3.12 (the default `python3` on Ubuntu 24.04).
 
 Then install the hooks to run automatically on `git commit`:
 

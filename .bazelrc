@@ -56,7 +56,7 @@ common:ci --build_metadata=VISIBILITY=PUBLIC
 
 # Only show warnings for targets defined in HEIR code.
 # Warnings for external repos and generated code is (mostly) hidden; see #2616
-build --output_filter="^//(benchmark|frontend|lib|tests|tools)/"
+build --output_filter="^//(benchmark|lib|python|tests|tools)/"
 
 # use lld for faster linking
 build:linux --linkopt="-fuse-ld=lld"

@@ -1,0 +1,641 @@
+#include "lib/Tools/HeirOptRegistration.h"
+
+#include <memory>
+#include <string>
+
+#include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
+#include "lib/Dialect/Arith/Conversions/ArithToCGGIQuart/ArithToCGGIQuart.h"
+#include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
+#include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
+// This comment includes internal conversions
+#include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
+#include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
+#include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
+#include "lib/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CGGI/Transforms/Passes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/Transforms/Passes.h"
+#include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
+#include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Cheddar/Transforms/CheddarBufferize.h"
+#include "lib/Dialect/Cheddar/Transforms/FuseOps.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/Debug/IR/DebugDialect.h"
+#include "lib/Dialect/Debug/Transforms/Passes.h"
+#include "lib/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
+#include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
+#include "lib/Dialect/JaxiteWord/Transforms/Passes.h"
+#include "lib/Dialect/Kernel/IR/KernelDialect.h"
+#include "lib/Dialect/Kernel/Transforms/Passes.h"
+#include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
+#include "lib/Dialect/LWE/Conversions/LWEToJaxiteWord/LWEToJaxiteWord.h"
+#include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
+#include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
+#include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/Transforms/Passes.h"
+#include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Dialect/Lattigo/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Lattigo/Transforms/Passes.h"
+#include "lib/Dialect/MathExt/IR/MathExtDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/Transforms/Passes.h"
+#include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
+#include "lib/Dialect/ModArith/Transforms/Passes.h"
+#include "lib/Dialect/Openfhe/Conversions/OpenFHEToEmitC/OpenfheToEmitCDialectInterface.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/Openfhe/Transforms/Passes.h"
+// This comment includes internal dialects
+#include "lib/Dialect/Orion/IR/OrionDialect.h"
+#include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Polynomial/Transforms/Passes.h"
+#include "lib/Dialect/Poulpy/IR/PoulpyDialect.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToCheddar/PreprocessingToCheddar.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Preprocessing/Transforms/Passes.h"
+#include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/RNS/Transforms/Passes.h"
+#include "lib/Dialect/Random/IR/RandomDialect.h"
+#include "lib/Dialect/ReducesLevelOpInterfaceRegistration.h"
+#include "lib/Dialect/Rotom/IR/RotomDialect.h"
+#include "lib/Dialect/Rotom/Transforms/Passes.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
+#include "lib/Dialect/SCIFRBool/Transforms/Passes.h"
+#include "lib/Dialect/SCIFRBool/Transforms/ReplaceOpWithSection.h"
+#include "lib/Dialect/SCIFRCkks/Transforms/Passes.h"
+#include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
+#include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
+#include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
+#include "lib/Dialect/Secret/Transforms/Passes.h"
+#include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/Transforms/Passes.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "lib/Pipelines/ArithmeticPipelineRegistration.h"
+#include "lib/Pipelines/BooleanPipelineRegistration.h"
+// This comment includes internal pipelines
+#include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Target/CompilationTarget/RegisterAllBackends.h"
+#include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
+#include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
+#include "lib/Transforms/AddClientInterface/AddClientInterface.h"
+#include "lib/Transforms/AnnotateLevel/AnnotateLevel.h"
+#include "lib/Transforms/AnnotateModule/AnnotateModule.h"
+#include "lib/Transforms/AnnotateMulDepth/AnnotateMulDepth.h"
+#include "lib/Transforms/AnnotatePreprocessing/AnnotatePreprocessing.h"
+#include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
+#include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
+#include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
+#include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
+#include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
+#include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
+#include "lib/Transforms/ConvertSecretInsertToStaticInsert/ConvertSecretInsertToStaticInsert.h"
+#include "lib/Transforms/ConvertSecretWhileToStaticFor/ConvertSecretWhileToStaticFor.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
+#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
+#include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/EmitCInterface/EmitCInterface.h"
+#include "lib/Transforms/ExternalizeConstants/ExternalizeConstants.h"
+#include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
+#include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
+#include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
+#include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
+#include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
+#include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/GatherZeroEncryptions/GatherZeroEncryptions.h"
+#include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/Halo/Passes.h"
+#include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
+#include "lib/Transforms/InlineActivations/InlineActivations.h"
+#include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
+#include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
+#include "lib/Transforms/LayoutPropagation/InterfaceImpl.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
+#include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/LinalgFuseLinearOps/LinalgFuseLinearOps.h"
+#include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
+#include "lib/Transforms/LowerUnpack/LowerUnpack.h"
+#include "lib/Transforms/OperationBalancer/OperationBalancer.h"
+#include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
+#include "lib/Transforms/PopulateScale/PopulateScale.h"
+#include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/ReductionCanonicalizations/ReductionCanonicalizations.h"
+#include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
+#include "lib/Transforms/RotationAnalysis/Passes.h"
+#include "lib/Transforms/SecretInsertMgmt/Passes.h"
+#include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/ShapeInference/ShapeInference.h"
+#include "lib/Transforms/SoftmaxCanonicalizations/SoftmaxCanonicalizations.h"
+#include "lib/Transforms/SoftmaxToCgfSoftmax/SoftmaxToCgfSoftmax.h"
+#include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
+#include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
+#include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
+#include "lib/Transforms/TensorToScalars/TensorToScalars.h"
+#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
+#include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#include "lib/Transforms/ValidateScale/ValidateScale.h"
+#include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ComplexToLLVM/ComplexToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToEmitC/ConvertToEmitCPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToEmitC/FuncToEmitC.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/MathToLLVM/MathToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/MemRefToEmitC/MemRefToEmitC.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/SCFToEmitC/SCFToEmitC.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/UBToLLVM/UBToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/IR/GPUDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/GPU/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/AllocationOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Extensions/AllExtensions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
+#include "mlir/include/mlir/Pass/PassRegistry.h"         // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Transforms/InliningUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"         // from @llvm-project
+
+using namespace mlir;
+using namespace heir;
+
+namespace {
+// LLVMDummyInlinerInterface is a dummy implementation of the inliner interface
+// for the LLVM dialect.
+//
+// Why it is needed:
+// LLVMDialect declares that it promises DialectInlinerInterface. If we register
+// LLVMDialect in the context and run the Inliner pass, MLIR will check if the
+// interface is implemented. If it is promised but not registered, it crashes.
+//
+// Why we don't use the official implementation:
+// The official implementation is in LLVMIRTransforms. However, that library
+// also contains the NVVM inliner interface registration in the same upstream
+// source file, which transitively pulls in NVVMDialect. This adds significant
+// overhead to the build time (~2 minutes).
+//
+// Why a dummy (deny-all) interface is safe:
+// HEIR does not perform MLIR-level inlining on LLVM dialect operations. All
+// such optimizations are delegated downstream to the native LLVM compiler.
+// Therefore, we can safely deny all inlining requests for LLVM ops in heir-opt.
+struct LLVMDummyInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  bool isLegalToInline(Operation* call, Operation* callable,
+                       bool wouldBeCloned) const final {
+    return false;
+  }
+
+  bool isLegalToInline(Region* dest, Region* src, bool wouldBeCloned,
+                       IRMapping& valueMapping) const final {
+    return false;
+  }
+
+  bool isLegalToInline(Operation* op, Region* dest, bool wouldBeCloned,
+                       IRMapping& valueMapping) const final {
+    return false;
+  }
+};
+}  // namespace
+
+namespace mlir {
+namespace heir {
+
+void registerAllHEIRDialects(DialectRegistry& registry) {
+  // This comment inserts internal dialects
+
+  registry.insert<mod_arith::ModArithDialect>();
+  registry.insert<bgv::BGVDialect>();
+  registry.insert<ckks::CKKSDialect>();
+  registry.insert<cggi::CGGIDialect>();
+  registry.insert<cheddar::CheddarDialect>();
+  registry.insert<comb::CombDialect>();
+  registry.insert<debug::DebugDialect>();
+  registry.insert<jaxite::JaxiteDialect>();
+  registry.insert<jaxiteword::JaxiteWordDialect>();
+  registry.insert<kernel::KernelDialect>();
+  registry.insert<key_mgmt::KeyMgmtDialect>();
+  registry.insert<lattigo::LattigoDialect>();
+  registry.insert<lwe::LWEDialect>();
+  registry.insert<mgmt::MgmtDialect>();
+  registry.insert<random::RandomDialect>();
+  registry.insert<orion::OrionDialect>();
+  registry.insert<openfhe::OpenfheDialect>();
+  registry.insert<poulpy::PoulpyDialect>();
+  registry.insert<preprocessing::PreprocessingDialect>();
+  registry.insert<rns::RNSDialect>();
+  registry.insert<rotom::RotomDialect>();
+  registry.insert<secret::SecretDialect>();
+  registry.insert<tensor_ext::TensorExtDialect>();
+  registry.insert<tfhe_rust::TfheRustDialect>();
+  registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
+  registry.insert<math_ext::MathExtDialect>();
+
+  // Add expected MLIR dialects to the registry.
+  registry.insert<LLVM::LLVMDialect>();
+  registry.insert<::mlir::emitc::EmitCDialect>();
+  registry.insert<::mlir::linalg::LinalgDialect>();
+  registry.insert<affine::AffineDialect>();
+  registry.insert<mlir::arith::ArithDialect>();
+  registry.insert<bufferization::BufferizationDialect>();
+  registry.insert<func::FuncDialect>();
+  // Upstream GPU dialect for kernel outlining and device offloading.
+  // Note: We deliberately register only GPUDialect and its outlining passes in
+  // heir-opt (and exclude NVVMDialect / LLVMIRTransforms, see
+  // LLVMDummyInlinerInterface above) to keep heir-opt build times minimal and
+  // avoid backend target coupling. NVVM lowering is handled downstream by
+  // mlir-opt.
+  registry.insert<gpu::GPUDialect>();
+  registry.insert<math::MathDialect>();
+  registry.insert<memref::MemRefDialect>();
+  registry.insert<polynomial::PolynomialDialect>();
+  registry.insert<scf::SCFDialect>();
+  registry.insert<tensor::TensorDialect>();
+  openfhe::registerOpenfheToEmitCInterface(registry);
+
+  // Uncomment if you want everything bound to CLI flags.
+  // registerAllDialects(registry);
+  // registerAllExtensions(registry);
+  // registerAllPasses();
+
+  // Upstream passes used by HEIR
+  // Converting to LLVM
+  mlir::arith::registerConvertArithToLLVMInterface(registry);
+  cf::registerConvertControlFlowToLLVMInterface(registry);
+  func::registerAllExtensions(registry);
+  tensor::registerAllExtensions(registry);
+  tensor::registerInferTypeOpInterfaceExternalModels(registry);
+  index::registerConvertIndexToLLVMInterface(registry);
+  registerConvertComplexToLLVMInterface(registry);
+  registerConvertFuncToLLVMInterface(registry);
+  registerConvertMathToLLVMInterface(registry);
+  registerConvertMemRefToLLVMInterface(registry);
+  ub::registerConvertUBToLLVMInterface(registry);
+  vector::registerConvertVectorToLLVMInterface(registry);
+
+  // Converting to EmitC
+  mlir::registerConvertArithToEmitCInterface(registry);
+  mlir::registerConvertFuncToEmitCInterface(registry);
+  mlir::registerConvertMemRefToEmitCInterface(registry);
+  mlir::registerConvertSCFToEmitCInterface(registry);
+
+  mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::gpu::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  bufferization::registerBufferizableOpInterfaceExternalModels(registry);
+  bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
+      registry);
+  cf::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
+  scf::registerBufferizableOpInterfaceExternalModels(registry);
+  tensor::registerBufferizableOpInterfaceExternalModels(registry);
+  registry.addExtension(+[](MLIRContext* ctx, LLVM::LLVMDialect* dialect) {
+    dialect->addInterfaces<LLVMDummyInlinerInterface>();
+  });
+
+  // ValueBoundsOpInterface
+  mlir::affine::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::arith::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::memref::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::scf::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::tensor::registerValueBoundsOpInterfaceExternalModels(registry);
+
+  registry.insert<mlir::cornami::scifrbool::SCIFRBoolDialect>();
+
+  // Interfaces in HEIR
+  secret::registerBufferizableOpInterfaceExternalModels(registry);
+  lattigo::registerBufferizableOpInterfaceExternalModels(registry);
+  cheddar::registerBufferizableOpInterfaceExternalModels(registry);
+  preprocessing::registerBufferizableOpInterfaceExternalModels(registry);
+  registerIncreasesMulDepthOpInterface(registry);
+  registerLayoutConversionHoistableInterface(registry);
+  registerOperandAndResultAttrInterface(registry);
+  registerOperandLayoutRequirementOpInterface(registry);
+  registerPlaintextOperandInterface(registry);
+  registerReducesLevelOpInterfaceExternalModels(registry);
+}
+
+void registerAllHEIRPasses() {
+  registerAllBackends();
+
+  // Misc
+  registerTransformsPasses();      // canonicalize, cse, etc.
+  affine::registerAffinePasses();  // loop unrolling
+  registerGPUPasses();             // gpu-kernel-outlining, etc.
+  registerLinalgPasses();          // linalg to loops
+  memref::registerMemRefPasses();  // fold-memref-alias-ops, etc.
+
+  // These are only needed by two tests that build a pass pipeline
+  // from the CLI. Those tests can probably eventually be removed.
+  //   - `tests/memref_global.mlir`
+  //   - `tests/memref_global_raw.mlir`
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createArithToLLVMConversionPass();
+  });
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createConvertControlFlowToLLVMPass();
+  });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createConvertFuncToLLVMPass(); });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createSCFToControlFlowPass(); });
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createFinalizeMemRefToLLVMConversionPass();
+  });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createLowerAffinePass(); });
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createReconcileUnrealizedCastsPass();
+  });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createConvertToLLVMPass(); });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createConvertToEmitC(); });
+
+  bufferization::registerBufferizationPasses();
+
+  // Custom passes in HEIR
+  registerEmitCInterfacePass();
+  cggi::registerCGGIPasses();
+  debug::registerDebugPasses();
+  ckks::registerCKKSPasses();
+  PassPipelineRegistration<>(
+      "cheddar-bufferize",
+      "Bufferize cheddar programs into out-params with One-Shot Bufferize",
+      cheddar::buildCheddarBufferizationPipeline);
+  cheddar::registerCheddarFuseOpsPasses();
+  kernel::registerKernelPasses();
+  lattigo::registerLattigoPasses();
+  lwe::registerLWEPasses();
+  mgmt::registerMgmtPasses();
+  openfhe::registerOpenfhePasses();
+  polynomial::registerPolynomialPasses();
+  preprocessing::registerPreprocessingPasses();
+  rns::registerRNSPasses();
+  rotom::registerRotomMaterializePasses();
+  rotom::registerRotomSeedPasses();
+  secret::registerSecretPasses();
+  tensor_ext::registerTensorExtPasses();
+  jaxiteword::registerJaxiteWordPasses();
+  registerAddClientInterfacePass();
+  registerElementwiseToAffinePasses();
+  registerSecretizePasses();
+  registerSecretInsertMgmtPasses();
+  registerFullLoopUnrollPasses();
+  registerExternalizeConstantsPasses();
+  registerConvertIfToSelectPasses();
+  registerCompareToSignRewritePasses();
+  registerActivationCanonicalizationsPasses();
+  registerSelectRewritePasses();
+  registerConvertSecretForToStaticForPasses();
+  registerConvertSecretWhileToStaticForPasses();
+  registerConvertSecretExtractToStaticExtractPasses();
+  registerConvertSecretInsertToStaticInsertPasses();
+  registerConvertToCiphertextSemanticsPasses();
+  registerDropUnitDims();
+  registerAnnotateModulePasses();
+  registerAnnotatePreprocessingPasses();
+  registerAnnotateSecretnessPasses();
+  registerAnnotateLevelPasses();
+  registerAnnotateMulDepthPasses();
+  registerApplyFoldersPasses();
+  registerBooleanVectorizerPasses();
+  registerFoldPlaintextMasksPasses();
+  registerForwardInsertSliceToExtractSlicePasses();
+  registerForwardInsertToExtractPasses();
+  registerForwardStoreToLoadPasses();
+  registerGatherZeroEncryptionsPasses();
+  registerGenerateParamPasses();
+  registerHaloPasses();
+  registerOperationBalancerPasses();
+  registerPopulateScalePasses();
+  registerStraightLineVectorizerPasses();
+  registerUnusedMemRefPasses();
+  registerValidateNoisePasses();
+  registerValidateScalePasses();
+  registerILPBootstrapPlacementPasses();
+  registerOptimizeRelinearizationPasses();
+  registerRemoveUnusedPureCallPasses();
+  registerRotationAnalysisPasses();
+  registerPolynomialApproximationPasses();
+  registerPropagateAnnotationPasses();
+  registerLayoutPropagationPasses();
+  registerLayoutOptimizationPasses();
+  registerLinalgCanonicalizationsPasses();
+  registerLinalgFuseLinearOpsPasses();
+  registerReductionCanonicalizationsPasses();
+  registerSoftmaxCanonicalizationsPass();
+  registerFoldConstantTensorsPasses();
+  registerLowerPolynomialEvalPasses();
+  registerLowerUnpackPasses();
+  registerTensorToScalarsPasses();
+  registerTensorLinalgToAffineLoops();
+  registerShapeInferencePasses();
+  registerSoftmaxToCgfSoftmaxPasses();
+  registerInlineActivationsPass();
+  registerSplitPreprocessingPass();
+
+  // Dialect conversion passes in HEIR
+  bgv::registerBGVToLWEPasses();
+  lwe::registerLWEToJaxiteWordPasses();
+  lwe::registerLWEToLattigoPasses();
+  lwe::registerLWEToOpenfhePasses();
+  lwe::registerLWEToPolynomialPasses();
+  mlir::heir::arith::registerArithToCGGIPasses();
+  mlir::heir::arith::registerArithToCGGIQuartPasses();
+  mlir::heir::arith::registerArithToModArithPasses();
+  mod_arith::registerConvertToMacPass();
+  mod_arith::registerModArithToArithPasses();
+  mod_arith::registerSecretToModArithPasses();
+  polynomial::registerPolynomialToModArithPasses();
+  registerCGGIToJaxitePasses();
+  registerCGGIToTfheRustBoolPasses();
+  registerCGGIToTfheRustPasses();
+  preprocessing::registerPreprocessingToCheddarPasses();
+  preprocessing::registerPreprocessingToLattigoPasses();
+  preprocessing::registerPreprocessingToMemrefPasses();
+  preprocessing::registerPreprocessingToOpenfhePasses();
+  registerSecretToBGVPasses();
+  registerSecretToCGGIPasses();
+  registerSecretToCKKSPasses();
+  tensor_ext::registerTensorExtToTensorPasses();
+
+  // Register the custom pass to estimate CGGI ops for Cornami MX2
+  mlir::cornami::scifrbool::registerTranslateOptions();
+  mlir::cornami::scifrbool::registerCGGIEstimatorPass();
+  mlir::cornami::registerCKKSEstimatorPass();
+  mlir::cornami::registerOpenfheEstimatorPass();
+  mlir::cornami::scifrbool::registerCGGIToSCIFRBoolPass();
+  mlir::cornami::scifrbool::registerReplaceOpWithSectionPass();
+
+  // This comement registers internal passes
+
+  PassPipelineRegistration<>(
+      "ckks-to-polynomial",
+      "Lower CKKS ops, including relinearization, to the polynomial dialect",
+      ::mlir::heir::ckksToPolynomialPipelineBuilder);
+
+  PassPipelineRegistration<>(
+      "heir-polynomial-to-llvm",
+      "Run passes to lower the polynomial dialect to LLVM",
+      polynomialToLLVMPipelineBuilder);
+
+  PassPipelineRegistration<>("heir-basic-mlir-to-llvm",
+                             "Lower basic MLIR to LLVM",
+                             ::mlir::heir::basicMLIRToLLVMPipelineBuilder);
+
+  PassPipelineRegistration<LoopOptions>(
+      "heco-simd-vectorizer",
+      "Run HECO-style passes to convert FHE programs that operate on "
+      "scalar types to equivalent programs that operate on vectors and use "
+      "tensor_ext.rotate",
+      [](OpPassManager& pm, const LoopOptions& options) {
+        ::mlir::heir::hecoSIMDVectorizerPipelineBuilder(
+            pm, !options.unrollFheKernelLoops);
+      });
+
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+      "mlir-to-secret-arithmetic",
+      "Convert a func using standard MLIR dialects to secret dialect with "
+      "arithmetic ops",
+      [](OpPassManager& pm,
+         const mlir::heir::MlirToRLWEPipelineOptions& options) {
+        mlirToSecretArithmeticPipelineBuilder(pm, options);
+      });
+
+  PassPipelineRegistration<mlir::heir::PlaintextBackendOptions>(
+      "mlir-to-plaintext-backend",
+      "Convert a func using standard MLIR dialects to plaintext backend "
+      "executed in secret arithmetic",
+      [](OpPassManager& pm,
+         const mlir::heir::PlaintextBackendOptions& options) {
+        mlirToPlaintextPipelineBuilder(pm, options);
+      });
+
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+      "mlir-to-bgv",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "BGV.",
+      mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
+
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+      "mlir-to-bfv",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "BFV.",
+      mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::bfvScheme));
+
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+      "mlir-to-ckks",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "CKKS.",
+      mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme));
+
+  PassPipelineRegistration<mlir::heir::BackendOptions>(
+      "scheme-to-openfhe",
+      "Convert code expressed at FHE scheme level to OpenFHE C++ code.",
+      toOpenFhePipelineBuilder());
+
+  PassPipelineRegistration<mlir::heir::BackendOptions>(
+      "scheme-to-lattigo",
+      "Convert code expressed at FHE scheme level to Lattigo Go code.",
+      toLattigoPipelineBuilder());
+
+  // TODO(#1645): Add backend options for tfhe-rs, fpt, jaxite.
+  PassPipelineRegistration<>(
+      "scheme-to-tfhe-rs",
+      "Convert code expressed at FHE scheme level to tfhe-rs code.",
+      toTfheRsPipelineBuilder());
+
+  PassPipelineRegistration<>(
+      "scheme-to-fpt",
+      "Convert code expressed at FHE scheme level to Lattigo Go code.",
+      toFptPipelineBuilder());
+
+  PassPipelineRegistration<mlir::heir::CGGIBackendOptions>(
+      "scheme-to-jaxite",
+      "Convert code expressed at FHE scheme level to jaxite code.",
+      toJaxitePipelineBuilder());
+
+  PassPipelineRegistration<mlir::heir::CGGIBackendOptions>(
+      "cggi-to-cornami",
+      "Convert code expressed at CGGI FHE scheme level to SCIFRBool dialect "
+      "for Cornami MX2 machine.",
+      [](OpPassManager& pm, const mlir::heir::CGGIBackendOptions& options) {
+        toCGGICornamiPipelineBuilder();
+      });
+
+  // Register internal pipeline
+
+  PassPipelineRegistration<>(
+      "convert-to-data-oblivious",
+      "Transforms a native program to data-oblivious program",
+      convertToDataObliviousPipelineBuilder);
+
+  PassPipelineRegistration<>(
+      "math-to-polynomial-approximation",
+      "Approximate math operations that cannot be expressed in FHE using "
+      "polynomial approximations.",
+      [](OpPassManager& pm) { mathToPolynomialApproximationBuilder(pm); });
+
+  PassPipelineRegistration<MlirToRLWEPipelineOptions>(
+      "torch-linalg-to-ckks", "Convert linalg MLIR exported from torch to CKKS",
+      torchLinalgToCkksBuilder);
+}
+
+}  // namespace heir
+}  // namespace mlir

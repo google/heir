@@ -39,8 +39,7 @@ enum class OpenfheImportType {
 
   // Import paths are relative to the openfhe installation process, i.e., paths
   // like #include "openfhe/pke/openfhe.h". This is useful for user-facing code
-  // generation, where the openfhe backend is installed by the user or shipped
-  // as a shared library dependency of a heir frontend.
+  // generation, where the openfhe backend is installed by the user.
   INSTALL_RELATIVE,
 
   // Import paths are embedded directly in the generated code, i.e., paths like

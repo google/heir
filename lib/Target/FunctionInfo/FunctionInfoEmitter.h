@@ -17,11 +17,10 @@ void registerToFunctionInfoTranslation();
 
 LogicalResult translateToFunctionInfo(Operation* op, llvm::raw_ostream& os);
 
-/// FunctionInfoEmitter is a simple helper (created for use with the python
-/// frontend) that reads the first func.func in the module and emits the
-/// following information: function_name x, y, z, ... (argument names - though
-/// currently, these will just be arg_0, etc) 2, 3, ... (indices of arguments
-/// which are "secret" in the HEIR sense)
+/// FunctionInfoEmitter is a simple helper that reads the first func.func in the
+/// module and emits the following information: function_name x, y, z, ...
+/// (argument names - though currently, these will just be arg_0, etc) 2, 3,
+/// ... (indices of arguments which are "secret" in the HEIR sense)
 //
 // TODO (#1162): Investigate how we can preserve the custom ssa names from the
 // mlir str

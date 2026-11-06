@@ -1,0 +1,17 @@
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -47,7 +47,13 @@
+             "-frtti",
+         ],
+     }),
+-    defines = ["NB_SHARED"],
++    # HEIR: build against CPython's stable ABI (Python 3.12+), so that a single
++    # abi3 wheel works for all supported Python versions. Must be a public
++    # define so every extension module built on nanobind agrees with it.
++    defines = [
++        "NB_SHARED",
++        "Py_LIMITED_API=0x030C0000",
++    ],
+     includes = ["include"],
+     linkopts = select({
+         "@platforms//os:macos": [

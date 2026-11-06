@@ -173,61 +173,65 @@ replace `bazel run //tools:heir-opt --` with `./heir-opt`. HEIR also publishes
 
 ### Via pip
 
-We publish a python package [heir_py](https://pypi.org/project/heir-py/) that
-includes the `heir-opt` and `heir-translate` binaries and, optionally, front-
-and backends.
+We publish a python package [heir_py](https://pypi.org/project/heir-py/)
+(requires Python 3.12+) that includes HEIR's Python bindings as well as the
+`heir-opt` and `heir-translate` command line tools.
 
 ```
 python -m venv venv
 source venv/bin/activate
 
-pip install "heir_py[python,openfhe]"
+pip install heir_py
 
 heir-opt --help
 heir-translate --help
 ```
 
-While this gives access to the underlying binaries, if you install a supported
-backend (e.g., [OpenFHE](https://openfhe.org/)) on your system, you can also run
-an example through the Python package:
+The `heir` Python package exposes HEIR's dialects, passes, pipelines, and code
+emitters in-process, via the
+[MLIR Python bindings](https://mlir.llvm.org/docs/Bindings/Python/) plus a few
+conveniences. For example, the following compiles a dot product to C++ code
+against the [OpenFHE](https://openfhe.org/) API:
 
 ```python
-from heir import compile
-from heir.mlir import I64, Secret
+import heir
 
-@compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
-def func(x: Secret[I64], y: Secret[I64]):
-    sum = x + y
-    diff = x - y
-    mul = x * y
-    expression = sum * diff + mul
-    deadcode = expression * mul
-    return expression
+with heir.context():
+  module = heir.parse("""
+    func.func @dot_product(%arg0: tensor<8xi16> {secret.secret},
+                           %arg1: tensor<8xi16> {secret.secret}) -> i16 {
+      %cst = arith.constant dense<0> : tensor<i16>
+      %0 = linalg.dot ins(%arg0, %arg1 : tensor<8xi16>, tensor<8xi16>)
+                      outs(%cst : tensor<i16>) -> tensor<i16>
+      %1 = tensor.extract %0[] : tensor<i16>
+      return %1 : i16
+    }
+  """)
 
-func.setup()
-enc_x = func.encrypt_x(7)
-enc_y = func.encrypt_y(8)
-result_enc = func.eval(enc_x, enc_y)
-result = func.decrypt_result(result_enc)
+  # Equivalent to heir-opt --annotate-module="backend=openfhe scheme=bgv"
+  #   --mlir-to-bgv=min-slot-count=8192 --scheme-to-openfhe
+  heir.run(
+      module,
+      heir.Pass("annotate-module", backend="openfhe", scheme="bgv"),
+      heir.Pass("mlir-to-bgv", min_slot_count=8192),
+      "scheme-to-openfhe",
+  )
 
-print(
-  f"Expected result for `func`: {func.original(7,8)}, FHE result:"
-  f" {result}"
-)
+  # Equivalent to heir-translate --emit-openfhe-pke-header / --emit-openfhe-pke
+  header = heir.translate(module, "emit-openfhe-pke-header")
+  source = heir.translate(
+      module, "emit-openfhe-pke", openfhe_include_type="install-relative"
+  )
 ```
 
-This will compile the function above using the BGV scheme to machine code via
-the [OpenFHE](https://openfhe-development.readthedocs.io/en/latest/) backend.
-Then calling the function will encrypt the inputs, run the function, and return
-the decrypted result. The function call `foo(7, 8)` runs the entire
-encrypt-run-decrypt flow for ease of testing.
+The generated code can then be compiled against an OpenFHE installation with the
+build system of your choice. You can also construct IR directly from Python
+using the generated op builders in `heir.dialects` (e.g. `heir.dialects.secret`,
+`heir.dialects.arith`). See the
+[package README](https://github.com/google/heir/tree/main/python) for more.
 
-**Note:** we require the user install OpenFHE directly, because the Python
-frontend invokes a C++ compiler on the HEIR-generated code, and links against
-OpenFHE. The OpenFHE installation is specific to each system (e.g., for
-OpenFHE-specific configurations like OpenMP).
-
-**Note:** Support for backends besides OpenFHE is in progress.
+**Note:** The pip package does not include the Yosys-based boolean pipeline
+(`--mlir-to-cggi` and `--yosys-optimizer`). To use it, build HEIR from source.
 
 ### Building From Source
 
@@ -566,10 +570,7 @@ Actual: 240
 ```
 
 If you fetched a pre-built binary instead of building from source, then you will
-have to use your build system of choice to compile the generated files. If you
-use `heir_py`'s `heir.compile` decorator with `debug=True`, then the compilation
-commands will be printed to stdout so you can see how to compile the generated
-code manually.
+have to use your build system of choice to compile the generated files.
 
 ### Optional: Run a custom `heir-opt` pipeline
 

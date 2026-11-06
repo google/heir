@@ -104,7 +104,12 @@ jobs:
         uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
-          CIBW_ENVIRONMENT_PASS: SETUPTOOLS_SCM_PRETEND_VERSION
+          # Also build the standalone heir-opt and heir-translate (which aren't
+          # part of the wheel) for the GitHub release into binaries/ (see
+          # setup.py). cibuildwheel mounts the host filesystem at /host in the
+          # Linux build container.
+          HEIR_STANDALONE_BINARIES_DIR: ${{ runner.os == 'Linux' && format('/host{0}/binaries', github.workspace) || format('{0}/binaries', github.workspace) }}
+          CIBW_ENVIRONMENT_PASS: SETUPTOOLS_SCM_PRETEND_VERSION HEIR_STANDALONE_BINARIES_DIR
 
       - name: Upload HEIR ${{ matrix.name }} wheels
         if: always()
@@ -112,3 +117,20 @@ jobs:
         with:
           name: dist-${{ matrix.name }}
           path: wheelhouse/*.whl
+
+      - name: Name the standalone binaries after the wheel's platform tag
+        shell: bash
+        run: |
+          # Wheels are named distribution-version-python_tag-abi_tag-platform_tag.whl
+          wheels=(wheelhouse/*.whl)
+          platform=$(basename "${wheels[0]}" | rev | cut -d- -f1 | rev | cut -d. -f1)
+          mkdir -p release-binaries
+          cp binaries/heir-opt "release-binaries/heir-opt-$platform"
+          cp binaries/heir-translate "release-binaries/heir-translate-$platform"
+          ls -alh release-binaries/
+
+      - name: Upload HEIR ${{ matrix.name }} standalone binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: binaries-${{ matrix.name }}
+          path: release-binaries/*

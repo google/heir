@@ -24,7 +24,9 @@ namespace functioninfo {
 
 void registerToFunctionInfoTranslation() {
   TranslateFromMLIRRegistration reg(
-      "emit-function-info", "Emit function info (helper for python frontend)",
+      "emit-function-info",
+      "Emit the name, argument names, and secret argument indices of the "
+      "first function",
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToFunctionInfo(op, output);
       },
