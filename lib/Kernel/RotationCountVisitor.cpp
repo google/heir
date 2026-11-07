@@ -280,6 +280,28 @@ int64_t RotationCountVisitor::operator()(const EmptyNode& node) {
   return 0;
 }
 
+int64_t RotationCountVisitor::operator()(
+    const ElementwiseOpNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  int64_t count = 0;
+  bool isSecret = false;
+  for (const auto& operand : node.operands) {
+    count += processInternal(operand);
+    isSecret = isSecret || nodeSecretStatus[operand.get()];
+  }
+  nodeSecretStatus[thisNode] = isSecret;
+  return count;
+}
+
+int64_t RotationCountVisitor::operator()(
+    const GatherNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  int64_t count = node.source ? processInternal(node.source) : 0;
+  nodeSecretStatus[thisNode] =
+      node.source && nodeSecretStatus[node.source.get()];
+  return count;
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir
