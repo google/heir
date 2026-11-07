@@ -15,12 +15,14 @@
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"       // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/Simplex.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
@@ -790,8 +792,8 @@ void extractCoords(__isl_keep isl_point* pnt, int n,
 // adds for the data-tensor index space. This avoids
 // IntegerRelation::getConstantBound64, which derives bounds via Fourier-Motzkin
 // elimination over every other variable and blows up on the relation's
-// mod/floordiv existentials. For any bound the quick scan cannot determine, it
-// falls back to getConstantBound64 for that single bound.
+// mod/floordiv existentials. Bounds the quick scan cannot determine come from
+// the simplex.
 void getDomainBox(const presburger::IntegerRelation& rel,
                   SmallVector<int64_t>& lb, SmallVector<int64_t>& ub) {
   unsigned numDomain = rel.getNumDomainVars();
@@ -835,22 +837,27 @@ void getDomainBox(const presburger::IntegerRelation& rel,
     }
   }
 
-  // Fall back to the general (but expensive) constant-bound computation for any
-  // domain variable the quick single-variable scan left undetermined. This uses
-  // Fourier-Motzkin elimination over the other variables, so we only reach it
-  // when the cheap method is insufficient.
-  auto resolve = [&](BoundType type, int64_t sentinel, int64_t& slot,
-                     unsigned i, const char* err) {
-    if (slot != sentinel) return;
-    std::optional<int64_t> b = rel.getConstantBound64(type, i);
-    if (!b) llvm::report_fatal_error(err);
-    slot = *b;
-  };
+  std::optional<presburger::Simplex> simplex;
   for (unsigned i = 0; i < numDomain; ++i) {
-    resolve(BoundType::LB, std::numeric_limits<int64_t>::min(), lb[i], i,
-            "getDomainBox: domain variable has no constant lower bound");
-    resolve(BoundType::UB, std::numeric_limits<int64_t>::max(), ub[i], i,
-            "getDomainBox: domain variable has no constant upper bound");
+    if (lb[i] != std::numeric_limits<int64_t>::min() &&
+        ub[i] != std::numeric_limits<int64_t>::max())
+      continue;
+    if (!simplex) simplex.emplace(rel);
+    SmallVector<llvm::DynamicAPInt> coeffs(numVars + 1);
+    coeffs[i] = 1;
+    auto [min, max] = simplex->computeIntegerBounds(coeffs);
+    if (lb[i] == std::numeric_limits<int64_t>::min()) {
+      if (!min.isBounded())
+        llvm::report_fatal_error(
+            "getDomainBox: domain variable is unbounded below or empty");
+      lb[i] = int64_t(*min);
+    }
+    if (ub[i] == std::numeric_limits<int64_t>::max()) {
+      if (!max.isBounded())
+        llvm::report_fatal_error(
+            "getDomainBox: domain variable is unbounded above or empty");
+      ub[i] = int64_t(*max);
+    }
   }
 }
 
@@ -885,7 +892,8 @@ bool nextGridPoint(SmallVectorImpl<int64_t>& point, ArrayRef<int64_t> lbs,
 // point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
 // that domain point's image. `imagePoint` is borrowed (freed by this function).
 // Between domain points `shouldStop` is polled (when non-null); returning true
-// halts enumeration early.
+// halts enumeration early. With `numRangeDims`, only the first that many range
+// dimensions of each image are enumerated.
 //
 // Fixing the domain to concrete integers collapses the relation's mod/floordiv
 // existentials into a non-parametric feasibility problem that isl resolves
@@ -897,9 +905,12 @@ void forEachDomainImagePoint(
     __isl_keep isl_basic_map* bmap, ArrayRef<int64_t> lb, ArrayRef<int64_t> ub,
     llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
         onImagePoint,
-    llvm::function_ref<bool()> shouldStop = nullptr) {
+    llvm::function_ref<bool()> shouldStop = nullptr,
+    std::optional<unsigned> numRangeDims = std::nullopt) {
   isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
   unsigned numDomain = lb.size();
+  unsigned numRange = isl_basic_map_dim(bmap, isl_dim_out);
+  assert(!numRangeDims || *numRangeDims <= numRange);
 
   // Fix the domain to `point`, then invoke onImagePoint for every point of the
   // resulting (now fully concrete) range.
@@ -910,6 +921,9 @@ void forEachDomainImagePoint(
                                     isl_val_int_from_si(ctx, point[i]));
     }
     isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+    if (numRangeDims)
+      image = isl_set_project_out(image, isl_dim_set, *numRangeDims,
+                                  numRange - *numRangeDims);
     ImageCtx imageCtx{onImagePoint, point};
     isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
     isl_set_free(image);
@@ -1056,10 +1070,9 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
 
   isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
 
-  // Mark which ct indices (range var 0) actually appear in the range. See
-  // forEachDomainImagePoint for why we enumerate the domain rather than probe
-  // each ct with isl_basic_map_is_empty. Once every ct is accounted for we can
-  // stop early instead of scanning the rest of a large domain.
+  // Mark which ct indices (range var 0) appear in the range, enumerating the
+  // domain box (see forEachDomainImagePoint). Once every ct is accounted for
+  // we can stop early instead of scanning the rest of a large domain.
   std::vector<bool> seen(numCts, false);
   int64_t seenCount = 0;
   forEachDomainImagePoint(
@@ -1076,7 +1089,10 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
         }
         isl_val_free(coord);
       },
-      /*shouldStop=*/[&]() { return seenCount == numCts; });
+      /*shouldStop=*/[&]() { return seenCount == numCts; },
+      // Only the ct matters; enumerating slots too multiplies the points by
+      // the slot count.
+      /*numRangeDims=*/1);
 
   isl_basic_map_free(bmap);
 
@@ -1150,12 +1166,14 @@ FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
   }
 
   // Source tensor's dimensions (d0, d1, ...) are mapped sequentially to the
-  // destination tensor's dimensions (r0, r1, ...) for which the slice size is
-  // greater than 1.
+  // destination tensor's dimensions (r0, r1, ...) that the slice keeps.
   auto constOffset = result.getNumCols() - 1;
+  std::optional<llvm::SmallDenseSet<unsigned>> dropped =
+      computeRankReductionMask(sizes, sliceType.getShape());
+  if (!dropped) return failure();
   unsigned int sourceDim = 0;
   for (auto destDim = 0; destDim < resultType.getRank(); ++destDim) {
-    if (sizes[destDim] > 1) {
+    if (!dropped->contains(destDim)) {
       // Map from the i-th source dimension
       // r_j = offsets[j] + d_i * strides[j]
       addConstraint(result,
@@ -1254,12 +1272,14 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
   }
 
   // Destination tensor's dimensions (d0, d1, ...) are mapped sequentially
-  // from the source tensor's dimensions (r0, r1, ...) for which the slice
-  // size is greater than 1.
+  // from the source tensor's dimensions (r0, r1, ...) that the slice keeps.
   auto constOffset = result.getNumCols() - 1;
+  std::optional<llvm::SmallDenseSet<unsigned>> dropped =
+      computeRankReductionMask(sizes, resultType.getShape());
+  if (!dropped) return failure();
   unsigned int resultDim = 0;
   for (auto sourceDim = 0; sourceDim < sourceType.getRank(); ++sourceDim) {
-    if (sizes[sourceDim] > 1) {
+    if (!dropped->contains(sourceDim)) {
       // Map to the i-th result dimension
       // d_j = offsets[j] + r_i * strides[j]
       addConstraint(result,
