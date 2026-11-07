@@ -13,9 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/DynamicAPInt.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
@@ -679,7 +681,7 @@ static RankedTensorType getCollapsedType(
 static int64_t getKeptDim(RankedTensorType type,
                           const ReassociationIndices& group) {
   for (int64_t dim : group) {
-    if (type.getDimSize(dim) > 1) return dim;
+    if (type.getDimSize(dim) != 1) return dim;
   }
   return group.front();
 }
@@ -952,7 +954,8 @@ bool nextGridPoint(SmallVectorImpl<int64_t>& point, ArrayRef<int64_t> lbs,
 // point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
 // that domain point's image. `imagePoint` is borrowed (freed by this function).
 // Between domain points `shouldStop` is polled (when non-null); returning true
-// halts enumeration early.
+// halts enumeration early. With `numRangeDims`, only the first that many range
+// dimensions of each image are enumerated.
 //
 // Fixing the domain to concrete integers collapses the relation's mod/floordiv
 // existentials into a non-parametric feasibility problem that isl resolves
@@ -965,35 +968,32 @@ void forEachDomainImagePoint(
     llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
         onImagePoint,
     llvm::function_ref<bool()> shouldStop = nullptr,
-    unsigned numRangeDims = UINT_MAX) {
+    std::optional<unsigned> numRangeDims = std::nullopt) {
+  isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
   unsigned numDomain = lb.size();
-  unsigned totalRange = isl_basic_map_dim(bmap, isl_dim_out);
-  numRangeDims = std::min(numRangeDims, totalRange);
-
-  // An empty box (some lb > ub) contains no points.
-  for (unsigned i = 0; i < numDomain; ++i)
-    if (lb[i] > ub[i]) return;
+  unsigned numRange = isl_basic_map_dim(bmap, isl_dim_out);
+  assert(!numRangeDims || *numRangeDims <= numRange);
 
   // Fix the domain to `point`, then invoke onImagePoint for every point of the
-  // resulting (now fully concrete) range. Projecting out unused range
-  // dimensions after fixing the domain (and before projecting out the domain in
-  // isl_basic_map_range) lets isl simplify domain-dependent local variables
-  // first and then drop range-only local variables without unimodular basis
-  // changes on coupled equalities.
+  // resulting (now fully concrete) range.
   auto processImageOfPoint = [&](ArrayRef<int64_t> point) {
     isl_basic_map* fixed = isl_basic_map_copy(bmap);
     for (unsigned i = 0; i < numDomain; ++i) {
-      fixed = isl_basic_map_fix_si(fixed, isl_dim_in, i, point[i]);
-    }
-    if (numRangeDims < totalRange) {
-      fixed = isl_basic_map_project_out(fixed, isl_dim_out, numRangeDims,
-                                        totalRange - numRangeDims);
+      fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i,
+                                    isl_val_int_from_si(ctx, point[i]));
     }
     isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+    if (numRangeDims)
+      image = isl_set_project_out(image, isl_dim_set, *numRangeDims,
+                                  numRange - *numRangeDims);
     ImageCtx imageCtx{onImagePoint, point};
     isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
     isl_set_free(image);
   };
+
+  // An empty box (some lb > ub) contains no points.
+  for (unsigned i = 0; i < numDomain; ++i)
+    if (lb[i] > ub[i]) return;
 
   SmallVector<int64_t> point(lb.begin(), lb.end());
   do {
@@ -1042,6 +1042,23 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
   assert(relation.getNumRangeVars() ==
              static_cast<unsigned>(collector.rangeDims) &&
          "collector rangeDims must match the relation's range rank");
+
+  // When FPL finds a floor-division definition for every local, one isl AST
+  // scans the relation, reaching each point once, and the isl work does not
+  // depend on the number of points. Any other local becomes an extra
+  // coordinate of the scan, which then reaches each point once per value of
+  // that local; on the relations measured, fixing each domain point (below)
+  // was faster for those.
+  if (relation.getLocalReprs().hasAllReprs()) {
+    forEachPoint(relation, [&](ArrayRef<int64_t> domainPoint,
+                               ArrayRef<int64_t> rangePoint) {
+      collector.points.emplace_back(
+          std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+          std::vector<int64_t>(rangePoint.begin(), rangePoint.end()));
+    });
+    return;
+  }
+
   isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
 
   SmallVector<int64_t> lb, ub;
@@ -1133,7 +1150,30 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   SmallVector<int64_t> lb, ub;
   getDomainBox(relation, lb, ub);
 
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+  // Enumerating an image whose locals include one without a floor-division
+  // definition makes isl eliminate that local first (isl_map_compute_divs),
+  // which did not finish within 30 minutes on a CryptoNets filter layout. Each
+  // such local that is bounded becomes an extra range coordinate instead, which
+  // the scan enumerates like the slot; only the ct is read below. Locals for
+  // which FPL finds a floor-division definition, and unbounded ones, stay
+  // locals.
+  IntegerRelation existentialsInRange = relation;
+  presburger::Simplex simplex(relation);
+  if (!simplex.isEmpty()) {
+    presburger::DivisionRepr reprs = relation.getLocalReprs();
+    unsigned localOffset = relation.getVarKindOffset(VarKind::Local);
+    for (int i = relation.getNumLocalVars() - 1; i >= 0; --i) {
+      if (reprs.hasRepr(i)) continue;
+      SmallVector<DynamicAPInt> coeffs(relation.getNumCols(), DynamicAPInt(0));
+      coeffs[localOffset + i] = DynamicAPInt(1);
+      auto [min, max] = simplex.computeIntegerBounds(coeffs);
+      if (min.isBounded() && max.isBounded())
+        existentialsInRange.convertVarKind(VarKind::Local, i, i + 1,
+                                           VarKind::Range);
+    }
+  }
+  isl_basic_map* bmap =
+      convertRelationToBasicMap(existentialsInRange, collector.ctx);
 
   // Mark which ct indices (range var 0) appear in the range, enumerating the
   // domain box (see forEachDomainImagePoint). Once every ct is accounted for
@@ -1156,8 +1196,11 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
       },
       /*shouldStop=*/[&]() { return seenCount == numCts; },
       // Only the ct matters; enumerating slots too multiplies the points by
-      // the slot count.
-      /*numRangeDims=*/1);
+      // the slot count when no existentials were promoted to range coordinates.
+      /*numRangeDims=*/
+      existentialsInRange.getNumRangeVars() == relation.getNumRangeVars()
+          ? std::optional<unsigned>(1)
+          : std::nullopt);
 
   isl_basic_map_free(bmap);
 

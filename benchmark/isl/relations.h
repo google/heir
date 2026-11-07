@@ -237,6 +237,42 @@ inline constexpr char kCriteoLayout24[] =
     "512 = 0 and 0 <= i0 <= 511 and 0 <= i1 <= 431 and 0 <= ct <= 511 and 0 <= "
     "slot <= 32767 }";
 
+// --- CryptoNets layouts ---
+
+// Filter layout of a CryptoNets convolution, packed into 1024 ciphertexts.
+// Some of its locals are not floor divisions of the other variables, and
+// isl_set_foreach_point on the image of a single filter element did not finish
+// within 30 minutes.
+inline constexpr char kCryptoNetsFilterRelation[] =
+    "{ [i0, i1, i2, i3] -> [o0, o1] : exists (e1, e2, e3, e4, e5, e6: i1 "
+    "= 0 and (1 + i0 + i3 + o0) mod 2 = 0 and (i0 + o1) mod 2 = 0 and 0 "
+    "<= i0 <= 7 and 0 <= i2 <= 4 and 0 <= i3 <= 4 and 0 <= o0 <= 1023 and "
+    "0 <= o1 <= 8191 and 0 <= e1 <= 12 and 2e1 > -i2 and 4e2 > -i3 + o0 + "
+    "o1 and 2 - 2i3 + o0 + o1 <= 4e2 <= 29 - 2i3 + o0 + o1 and 2e5 >= -1 "
+    "+ i0 + i3 - o0 - o1 + 4e2 and 2e5 >= -50 - i0 - o1 + 4e3 and -2i0 - "
+    "o1 + 4*floor((i0)/4) - 4e1 + 4e3 <= 2e5 <= 1 - 2i0 - o1 + "
+    "4*floor((i0)/4) - 4e1 + 4e3 and 2e5 <= -i0 - o1 + 4e3 and 2e5 <= 25 "
+    "+ i0 and 2e5 <= i0 + i3 - o0 - o1 + 4e2 and 18 - 419i0 + 188i2 - "
+    "206i3 + 206o0 - 212o1 + 376e1 - 412e2 + 236e3 + 1024e4 <= 424e5 <= "
+    "21 - 419i0 + 188i2 - 206i3 + 206o0 - 212o1 + 376e1 - 412e2 + 236e3 + "
+    "1024e4 and -419i0 - 418o1 - 788e3 - 424e5 <= 2048e6 <= 3 - 419i0 - "
+    "418o1 - 788e3 - 424e5) }";
+
+// --- LeNet constant packing ---
+
+// Relations that tensor_ext.assign_layout enumerates to fold a constant weight
+// of tests/Examples/openfhe/ckks/lenet into its packed form (min-slot-count
+// 1024). They have 14.5 and 12.8 million points.
+inline constexpr char kLenetConvFilterExpansion[] =
+    "{ [i0, i1, i2, i3, i4] -> [o0, o1, o2] : o0 = 576i0 + 24i2 + i3 and o1 = "
+    "i1 and o2 = i4 and 0 <= i0 <= 15 and 0 <= i1 <= 1 and 0 <= i2 <= 23 and "
+    "0 <= i3 <= 23 and 0 <= i4 <= 783 }";
+
+inline constexpr char kLenetConvFilterDiagonals[] =
+    "{ [i0, i1] -> [o0, o1] : (i0 - i1 + o0) mod 2048 = 0 and (-i0 + o1) mod "
+    "16384 = 0 and 0 <= i0 <= 9215 and 0 <= i1 <= 1567 and 0 <= o0 <= 2047 "
+    "and 0 <= o1 <= 8191 }";
+
 // --- Lola layouts ---
 
 inline constexpr char kLolaLayout2[] =

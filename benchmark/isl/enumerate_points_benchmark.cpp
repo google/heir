@@ -54,6 +54,20 @@ static void BM_EnumeratePoints_LolaLayout12(benchmark::State& state) {
 }
 BENCHMARK(BM_EnumeratePoints_LolaLayout12)->Unit(benchmark::kSecond);
 
+static void BM_EnumeratePoints_LenetConvFilterExpansion(
+    benchmark::State& state) {
+  BM_EnumeratePoints_helper(state, kLenetConvFilterExpansion);
+}
+BENCHMARK(BM_EnumeratePoints_LenetConvFilterExpansion)
+    ->Unit(benchmark::kSecond);
+
+static void BM_EnumeratePoints_LenetConvFilterDiagonals(
+    benchmark::State& state) {
+  BM_EnumeratePoints_helper(state, kLenetConvFilterDiagonals);
+}
+BENCHMARK(BM_EnumeratePoints_LenetConvFilterDiagonals)
+    ->Unit(benchmark::kSecond);
+
 }  // namespace heir
 }  // namespace mlir
 

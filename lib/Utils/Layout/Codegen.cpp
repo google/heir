@@ -1,15 +1,23 @@
 #include "lib/Utils/Layout/Codegen.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <limits>
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/DynamicAPInt.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"      // from @llvm-project
@@ -143,24 +151,9 @@ static __isl_give isl_union_map* createSchedule(
   return isl_union_map_from_map(scheduleMap);
 }
 
-__isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
-                                      isl_ctx* ctx,
-                                      ArrayRef<int> domainIndicesToSchedule) {
-  isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
-
-  // Simplify the underlying map to speed up AST generation.
-  isl_map* map = isl_map_from_basic_map(bmap);
-  map = isl_map_compute_divs(map);
-  map = isl_map_detect_equalities(map);
-  map = isl_map_remove_redundancies(map);
-  map = isl_map_coalesce(map);
-
-  isl_union_map* schedule = createSchedule(map, ctx, domainIndicesToSchedule);
-  isl_map_free(map);
-
-  schedule = isl_union_map_detect_equalities(schedule);
-  schedule = isl_union_map_coalesce(schedule);
-
+// Builds the AST that executes `schedule`.
+static __isl_give isl_ast_node* buildAst(__isl_take isl_union_map* schedule,
+                                         isl_ctx* ctx) {
   // Context and options are intentionally empty. We don't need any of these
   // features, though I admit I have not looked into what they can provide.
   isl_set* context = isl_set_universe(isl_space_params_alloc(ctx, 0));
@@ -182,6 +175,304 @@ __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
   isl_ast_build_free(build);
 
   return tree;
+}
+
+__isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
+                                      isl_ctx* ctx,
+                                      ArrayRef<int> domainIndicesToSchedule) {
+  isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
+
+  // Simplify the underlying map to speed up AST generation.
+  isl_map* map = isl_map_from_basic_map(bmap);
+  map = isl_map_compute_divs(map);
+  map = isl_map_detect_equalities(map);
+  map = isl_map_remove_redundancies(map);
+  map = isl_map_coalesce(map);
+
+  isl_union_map* schedule = createSchedule(map, ctx, domainIndicesToSchedule);
+  isl_map_free(map);
+
+  schedule = isl_union_map_detect_equalities(schedule);
+  schedule = isl_union_map_coalesce(schedule);
+
+  return buildAst(schedule, ctx);
+}
+
+namespace {
+
+using llvm::DynamicAPInt;
+
+// An isl AST expression, with each loop iterator replaced by its index into
+// the vector of iterator values, so it can be evaluated without isl.
+struct ScanExpr {
+  enum Kind { kInt, kIterator, kOp } kind = kInt;
+  DynamicAPInt value;
+  unsigned iterator = 0;
+  isl_ast_expr_op_type op = isl_ast_expr_op_error;
+  std::vector<ScanExpr> args;
+};
+
+// An isl AST node in the same form. A for node's body and an if node's
+// branches are its children.
+struct ScanNode {
+  enum Kind { kFor, kIf, kBlock, kUser } kind = kBlock;
+  unsigned iterator = 0;
+  ScanExpr init, cond, inc;
+  std::vector<ScanNode> children;
+  std::vector<ScanExpr> args;
+};
+
+// Converts an isl integer exactly. isl's AST can contain constants outside
+// the int64_t range even when the relation's coefficients and points fit in
+// it.
+DynamicAPInt toDynamicAPInt(__isl_keep isl_val* val) {
+  if (isl_val_cmp_si(val, std::numeric_limits<int64_t>::max()) <= 0 &&
+      isl_val_cmp_si(val, std::numeric_limits<int64_t>::min()) >= 0)
+    return DynamicAPInt(isl_val_get_num_si(val));
+  char* str = isl_val_to_str(val);
+  StringRef digits(str);
+  bool negative = digits.consume_front("-");
+  // One bit more than the magnitude needs keeps the value positive.
+  unsigned bits = llvm::APInt::getBitsNeeded(digits, 10) + 1;
+  llvm::APInt magnitude(bits, digits, 10);
+  free(str);
+  return DynamicAPInt(negative ? -magnitude : magnitude);
+}
+
+class AstScanner {
+ public:
+  ScanNode buildNode(__isl_keep isl_ast_node* node) {
+    ScanNode result;
+    switch (isl_ast_node_get_type(node)) {
+      case isl_ast_node_for: {
+        result.kind = ScanNode::kFor;
+        isl_ast_expr* iter = isl_ast_node_for_get_iterator(node);
+        isl_id* id = isl_ast_expr_get_id(iter);
+        result.iterator = getIterator(isl_id_get_name(id));
+        isl_id_free(id);
+        isl_ast_expr_free(iter);
+        result.init = takeExpr(isl_ast_node_for_get_init(node));
+        result.cond = takeExpr(isl_ast_node_for_get_cond(node));
+        result.inc = takeExpr(isl_ast_node_for_get_inc(node));
+        isl_ast_node* body = isl_ast_node_for_get_body(node);
+        result.children.push_back(buildNode(body));
+        isl_ast_node_free(body);
+        return result;
+      }
+      case isl_ast_node_if: {
+        result.kind = ScanNode::kIf;
+        result.cond = takeExpr(isl_ast_node_if_get_cond(node));
+        isl_ast_node* thenNode = isl_ast_node_if_get_then(node);
+        result.children.push_back(buildNode(thenNode));
+        isl_ast_node_free(thenNode);
+        if (isl_ast_node_if_has_else(node) == isl_bool_true) {
+          isl_ast_node* elseNode = isl_ast_node_if_get_else(node);
+          result.children.push_back(buildNode(elseNode));
+          isl_ast_node_free(elseNode);
+        }
+        return result;
+      }
+      case isl_ast_node_block: {
+        result.kind = ScanNode::kBlock;
+        isl_ast_node_list* list = isl_ast_node_block_get_children(node);
+        for (int i = 0; i < isl_ast_node_list_n_ast_node(list); ++i) {
+          isl_ast_node* child = isl_ast_node_list_get_ast_node(list, i);
+          result.children.push_back(buildNode(child));
+          isl_ast_node_free(child);
+        }
+        isl_ast_node_list_free(list);
+        return result;
+      }
+      case isl_ast_node_mark: {
+        isl_ast_node* child = isl_ast_node_mark_get_node(node);
+        result = buildNode(child);
+        isl_ast_node_free(child);
+        return result;
+      }
+      case isl_ast_node_user: {
+        // The statement is a call S(coordinates...); argument 0 is S.
+        result.kind = ScanNode::kUser;
+        isl_ast_expr* call = isl_ast_node_user_get_expr(node);
+        for (int i = 1; i < isl_ast_expr_get_op_n_arg(call); ++i)
+          result.args.push_back(takeExpr(isl_ast_expr_get_op_arg(call, i)));
+        isl_ast_expr_free(call);
+        return result;
+      }
+      default:
+        llvm::report_fatal_error("forEachPoint: unexpected isl AST node");
+    }
+  }
+
+  unsigned numIterators() const { return iterators.size(); }
+
+ private:
+  unsigned getIterator(const std::string& name) {
+    auto [it, inserted] = iterators.try_emplace(name, iterators.size());
+    return it->second;
+  }
+
+  ScanExpr takeExpr(__isl_take isl_ast_expr* expr) {
+    ScanExpr result;
+    switch (isl_ast_expr_get_type(expr)) {
+      case isl_ast_expr_int: {
+        isl_val* val = isl_ast_expr_get_val(expr);
+        result.kind = ScanExpr::kInt;
+        result.value = toDynamicAPInt(val);
+        isl_val_free(val);
+        break;
+      }
+      case isl_ast_expr_id: {
+        isl_id* id = isl_ast_expr_get_id(expr);
+        result.kind = ScanExpr::kIterator;
+        result.iterator = getIterator(isl_id_get_name(id));
+        isl_id_free(id);
+        break;
+      }
+      case isl_ast_expr_op: {
+        result.kind = ScanExpr::kOp;
+        result.op = isl_ast_expr_get_op_type(expr);
+        for (int i = 0; i < isl_ast_expr_get_op_n_arg(expr); ++i)
+          result.args.push_back(takeExpr(isl_ast_expr_get_op_arg(expr, i)));
+        break;
+      }
+      default:
+        llvm::report_fatal_error("forEachPoint: unexpected isl AST expression");
+    }
+    isl_ast_expr_free(expr);
+    return result;
+  }
+
+  std::map<std::string, unsigned> iterators;
+};
+
+// Evaluates `expr` exactly: intermediate values of an isl AST may leave the
+// int64_t range even when every coordinate fits in it.
+DynamicAPInt evaluate(const ScanExpr& expr, ArrayRef<DynamicAPInt> iterators) {
+  switch (expr.kind) {
+    case ScanExpr::kInt:
+      return expr.value;
+    case ScanExpr::kIterator:
+      return iterators[expr.iterator];
+    case ScanExpr::kOp:
+      break;
+  }
+  auto arg = [&](unsigned i) { return evaluate(expr.args[i], iterators); };
+  auto boolean = [](bool b) { return DynamicAPInt(b); };
+  switch (expr.op) {
+    case isl_ast_expr_op_and:
+    case isl_ast_expr_op_and_then:
+      return boolean(arg(0) != 0 && arg(1) != 0);
+    case isl_ast_expr_op_or:
+    case isl_ast_expr_op_or_else:
+      return boolean(arg(0) != 0 || arg(1) != 0);
+    case isl_ast_expr_op_max:
+    case isl_ast_expr_op_min: {
+      DynamicAPInt result = arg(0);
+      for (unsigned i = 1; i < expr.args.size(); ++i)
+        result = expr.op == isl_ast_expr_op_max ? std::max(result, arg(i))
+                                                : std::min(result, arg(i));
+      return result;
+    }
+    case isl_ast_expr_op_minus:
+      return -arg(0);
+    case isl_ast_expr_op_add:
+      return arg(0) + arg(1);
+    case isl_ast_expr_op_sub:
+      return arg(0) - arg(1);
+    case isl_ast_expr_op_mul:
+      return arg(0) * arg(1);
+    // div is exact, and pdiv_q/pdiv_r have a non-negative dividend, so floor
+    // division is correct for all three.
+    case isl_ast_expr_op_div:
+    case isl_ast_expr_op_fdiv_q:
+    case isl_ast_expr_op_pdiv_q:
+      return floorDiv(arg(0), arg(1));
+    case isl_ast_expr_op_pdiv_r:
+      return mod(arg(0), arg(1));
+    case isl_ast_expr_op_zdiv_r:
+      return arg(0) % arg(1);
+    case isl_ast_expr_op_cond:
+    case isl_ast_expr_op_select:
+      return arg(0) != 0 ? arg(1) : arg(2);
+    case isl_ast_expr_op_eq:
+      return boolean(arg(0) == arg(1));
+    case isl_ast_expr_op_le:
+      return boolean(arg(0) <= arg(1));
+    case isl_ast_expr_op_lt:
+      return boolean(arg(0) < arg(1));
+    case isl_ast_expr_op_ge:
+      return boolean(arg(0) >= arg(1));
+    case isl_ast_expr_op_gt:
+      return boolean(arg(0) > arg(1));
+    default:
+      llvm::report_fatal_error("forEachPoint: unexpected isl AST operation");
+  }
+}
+
+void run(const ScanNode& node, SmallVectorImpl<DynamicAPInt>& iterators,
+         function_ref<void(ArrayRef<DynamicAPInt>)> visit) {
+  switch (node.kind) {
+    case ScanNode::kFor:
+      for (iterators[node.iterator] = evaluate(node.init, iterators);
+           evaluate(node.cond, iterators) != 0;
+           iterators[node.iterator] += evaluate(node.inc, iterators))
+        run(node.children[0], iterators, visit);
+      return;
+    case ScanNode::kIf:
+      if (evaluate(node.cond, iterators) != 0)
+        run(node.children[0], iterators, visit);
+      else if (node.children.size() > 1)
+        run(node.children[1], iterators, visit);
+      return;
+    case ScanNode::kBlock:
+      for (const ScanNode& child : node.children) run(child, iterators, visit);
+      return;
+    case ScanNode::kUser: {
+      SmallVector<DynamicAPInt, 16> args;
+      for (const ScanExpr& expr : node.args)
+        args.push_back(evaluate(expr, iterators));
+      visit(args);
+      return;
+    }
+  }
+}
+
+}  // namespace
+
+void forEachPoint(const presburger::IntegerRelation& rel,
+                  function_ref<void(ArrayRef<int64_t>, ArrayRef<int64_t>)> fn) {
+  unsigned numDomain = rel.getNumDomainVars();
+  unsigned numVars = numDomain + rel.getNumRangeVars();
+
+  // Lifting turns every local of the relation into an ordinary set coordinate,
+  // placed after the domain and range ones, so isl builds the scan without
+  // first eliminating the locals (isl_map_compute_divs). The schedule is the
+  // identity, so the AST visits the lifted points in lexicographic order and
+  // the witnesses of one point of `rel` arrive consecutively.
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_set* lifted = isl_basic_set_flatten(isl_basic_set_lift(
+      isl_basic_map_wrap(convertRelationToBasicMap(rel, ctx))));
+  lifted = isl_basic_set_set_tuple_name(lifted, "S");
+  isl_map* identity = isl_set_identity(isl_set_from_basic_set(lifted));
+  identity = isl_map_reset_tuple_id(identity, isl_dim_out);
+  isl_ast_node* tree = buildAst(isl_union_map_from_map(identity), ctx);
+  if (!tree) llvm::report_fatal_error("forEachPoint: isl codegen failed");
+  AstScanner scanner;
+  ScanNode root = scanner.buildNode(tree);
+  isl_ast_node_free(tree);
+  isl_ctx_free(ctx);
+
+  SmallVector<DynamicAPInt> iterators(scanner.numIterators());
+  SmallVector<int64_t> point(numVars), previous;
+  run(root, iterators, [&](ArrayRef<DynamicAPInt> witness) {
+    // The relation's constraints have int64_t coefficients and bound every
+    // variable, so its points fit in int64_t.
+    for (unsigned i = 0; i < numVars; ++i) point[i] = int64_t(witness[i]);
+    if (!previous.empty() && previous == point) return;
+    previous = point;
+    fn(ArrayRef<int64_t>(point).take_front(numDomain),
+       ArrayRef<int64_t>(point).drop_front(numDomain));
+  });
 }
 
 FailureOr<isl_ast_node*> generateLoopNest(

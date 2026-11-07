@@ -104,6 +104,11 @@ static void BM_GetCtComplementPoints_LayoutPooling1(benchmark::State& state) {
 }
 BENCHMARK(BM_GetCtComplementPoints_LayoutPooling1)->Unit(benchmark::kSecond);
 
+static void BM_GetCtComplementPoints_CryptoNetsFilter(benchmark::State& state) {
+  BM_GetCtComplementPoints_helper(state, kCryptoNetsFilterRelation, 1024);
+}
+BENCHMARK(BM_GetCtComplementPoints_CryptoNetsFilter)->Unit(benchmark::kSecond);
+
 // Earlier ways of finding which cts a layout uses, kept for the isl calls they
 // make.
 
