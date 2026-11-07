@@ -410,22 +410,29 @@ DynamicAPInt evaluate(const ScanExpr& expr, ArrayRef<DynamicAPInt> iterators) {
 }
 
 void run(const ScanNode& node, SmallVectorImpl<DynamicAPInt>& iterators,
-         function_ref<void(ArrayRef<DynamicAPInt>)> visit) {
+         function_ref<void(ArrayRef<DynamicAPInt>)> visit,
+         function_ref<bool()> shouldStop) {
+  if (shouldStop && shouldStop()) return;
   switch (node.kind) {
     case ScanNode::kFor:
       for (iterators[node.iterator] = evaluate(node.init, iterators);
            evaluate(node.cond, iterators) != 0;
-           iterators[node.iterator] += evaluate(node.inc, iterators))
-        run(node.children[0], iterators, visit);
+           iterators[node.iterator] += evaluate(node.inc, iterators)) {
+        run(node.children[0], iterators, visit, shouldStop);
+        if (shouldStop && shouldStop()) return;
+      }
       return;
     case ScanNode::kIf:
       if (evaluate(node.cond, iterators) != 0)
-        run(node.children[0], iterators, visit);
+        run(node.children[0], iterators, visit, shouldStop);
       else if (node.children.size() > 1)
-        run(node.children[1], iterators, visit);
+        run(node.children[1], iterators, visit, shouldStop);
       return;
     case ScanNode::kBlock:
-      for (const ScanNode& child : node.children) run(child, iterators, visit);
+      for (const ScanNode& child : node.children) {
+        run(child, iterators, visit, shouldStop);
+        if (shouldStop && shouldStop()) return;
+      }
       return;
     case ScanNode::kUser: {
       SmallVector<DynamicAPInt, 16> args;
@@ -440,7 +447,8 @@ void run(const ScanNode& node, SmallVectorImpl<DynamicAPInt>& iterators,
 }  // namespace
 
 void forEachPoint(const presburger::IntegerRelation& rel,
-                  function_ref<void(ArrayRef<int64_t>, ArrayRef<int64_t>)> fn) {
+                  function_ref<void(ArrayRef<int64_t>, ArrayRef<int64_t>)> fn,
+                  function_ref<bool()> shouldStop) {
   unsigned numDomain = rel.getNumDomainVars();
   unsigned numVars = numDomain + rel.getNumRangeVars();
 
@@ -464,15 +472,18 @@ void forEachPoint(const presburger::IntegerRelation& rel,
 
   SmallVector<DynamicAPInt> iterators(scanner.numIterators());
   SmallVector<int64_t> point(numVars), previous;
-  run(root, iterators, [&](ArrayRef<DynamicAPInt> witness) {
-    // The relation's constraints have int64_t coefficients and bound every
-    // variable, so its points fit in int64_t.
-    for (unsigned i = 0; i < numVars; ++i) point[i] = int64_t(witness[i]);
-    if (!previous.empty() && previous == point) return;
-    previous = point;
-    fn(ArrayRef<int64_t>(point).take_front(numDomain),
-       ArrayRef<int64_t>(point).drop_front(numDomain));
-  });
+  run(
+      root, iterators,
+      [&](ArrayRef<DynamicAPInt> witness) {
+        // The relation's constraints have int64_t coefficients and bound every
+        // variable, so its points fit in int64_t.
+        for (unsigned i = 0; i < numVars; ++i) point[i] = int64_t(witness[i]);
+        if (!previous.empty() && previous == point) return;
+        previous = point;
+        fn(ArrayRef<int64_t>(point).take_front(numDomain),
+           ArrayRef<int64_t>(point).drop_front(numDomain));
+      },
+      shouldStop);
 }
 
 FailureOr<isl_ast_node*> generateLoopNest(

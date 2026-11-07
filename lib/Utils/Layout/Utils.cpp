@@ -1003,37 +1003,6 @@ void forEachDomainImagePoint(
 }
 }  // namespace
 
-struct WrapCallbackCtx {
-  PointPairCollector* collector;
-  int numDomain;
-  int numRange;
-};
-
-static isl_stat enumeratePointsCallback(__isl_take isl_point* pnt, void* user) {
-  auto* ctx = static_cast<WrapCallbackCtx*>(user);
-  std::vector<int64_t> domainPoint(ctx->numDomain);
-  std::vector<int64_t> rangePoint(ctx->numRange);
-  for (int i = 0; i < ctx->numDomain; i++) {
-    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
-    if (isl_val_is_int(coord)) {
-      domainPoint[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-  for (int i = 0; i < ctx->numRange; i++) {
-    isl_val* coord =
-        isl_point_get_coordinate_val(pnt, isl_dim_set, ctx->numDomain + i);
-    if (isl_val_is_int(coord)) {
-      rangePoint[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-  ctx->collector->points.emplace_back(std::move(domainPoint),
-                                      std::move(rangePoint));
-  isl_point_free(pnt);
-  return isl_stat_ok;
-}
-
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
   assert(relation.getNumDomainVars() ==
@@ -1063,47 +1032,16 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
 
   SmallVector<int64_t> lb, ub;
   getDomainBox(relation, lb, ub);
-  int64_t volume = 1;
-  bool overflow = false;
-  for (size_t i = 0; i < lb.size(); ++i) {
-    int64_t diff = ub[i] - lb[i] + 1;
-    if (diff <= 0) {
-      volume = 0;
-      break;
-    }
-    if (volume > INT64_MAX / diff) {
-      overflow = true;
-      break;
-    }
-    volume *= diff;
-  }
-
-  // If the domain box is small enough, use the box-looping method.
-  bool useBoxLoop = false;
-  if (!overflow) {
-    if (volume <= 200000) {
-      useBoxLoop = true;
-    }
-  }
-
-  if (useBoxLoop) {
-    forEachDomainImagePoint(
-        bmap, lb, ub,
-        [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
-          std::vector<int64_t> rangePoint(collector.rangeDims);
-          extractCoords(imagePoint, collector.rangeDims, rangePoint);
-          collector.points.emplace_back(
-              std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
-              std::move(rangePoint));
-        });
-    isl_basic_map_free(bmap);
-  } else {
-    isl_basic_set* bset = isl_basic_map_wrap(bmap);
-    isl_set* set = isl_set_from_basic_set(bset);
-    WrapCallbackCtx ctx{&collector, collector.domainDims, collector.rangeDims};
-    isl_set_foreach_point(set, enumeratePointsCallback, &ctx);
-    isl_set_free(set);
-  }
+  forEachDomainImagePoint(
+      bmap, lb, ub,
+      [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
+        std::vector<int64_t> rangePoint(collector.rangeDims);
+        extractCoords(imagePoint, collector.rangeDims, rangePoint);
+        collector.points.emplace_back(
+            std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+            std::move(rangePoint));
+      });
+  isl_basic_map_free(bmap);
 }
 
 std::vector<int64_t> anyRangePoint(
@@ -1147,6 +1085,31 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   int64_t numCts = outputType.getDimSize(0);
   if (numCts <= 0) return;
 
+  std::vector<bool> seen(numCts, false);
+  int64_t seenCount = 0;
+
+  // When FPL finds a floor-division definition for every local, one isl AST
+  // scans the relation without per-domain-point isl calls (see
+  // enumeratePoints).
+  if (relation.getLocalReprs().hasAllReprs()) {
+    forEachPoint(
+        relation,
+        [&](ArrayRef<int64_t> /*domainPoint*/, ArrayRef<int64_t> rangePoint) {
+          int64_t ct = rangePoint[0];
+          if (ct >= 0 && ct < numCts && !seen[ct]) {
+            seen[ct] = true;
+            ++seenCount;
+          }
+        },
+        /*shouldStop=*/[&]() { return seenCount == numCts; });
+    for (int64_t ct = 0; ct < numCts; ++ct) {
+      if (!seen[ct]) {
+        collector.points.push_back({ct});
+      }
+    }
+    return;
+  }
+
   SmallVector<int64_t> lb, ub;
   getDomainBox(relation, lb, ub);
 
@@ -1178,8 +1141,6 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   // Mark which ct indices (range var 0) appear in the range, enumerating the
   // domain box (see forEachDomainImagePoint). Once every ct is accounted for
   // we can stop early instead of scanning the rest of a large domain.
-  std::vector<bool> seen(numCts, false);
-  int64_t seenCount = 0;
   forEachDomainImagePoint(
       bmap, lb, ub,
       [&](ArrayRef<int64_t> /*domainPoint*/, __isl_keep isl_point* imagePoint) {

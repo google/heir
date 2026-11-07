@@ -64,8 +64,7 @@ struct CollapseShapeHoistingImpl
     std::vector<Hoister> hoisters;
     tensor::CollapseShapeOp collapseShapeOp = cast<tensor::CollapseShapeOp>(op);
 
-    // Hoist layout conversion through trivial rank-reducing collapse_shape
-    // operations.
+    // Hoist layout conversion through collapse_shape operations.
 
     if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
       LLVM_DEBUG(llvm::dbgs()
@@ -234,10 +233,6 @@ Hoister createTrivialHoister(Operation* op) {
   };
 }
 
-static bool isTrivialRankReduction(tensor::CollapseShapeOp op) {
-  return onlyUnitDimsChange(op.getSrcType(), op.getReassociationIndices());
-}
-
 static LayoutAttr hoistLayoutThroughCollapseShape(LayoutAttr attr,
                                                   tensor::CollapseShapeOp op) {
   return LayoutAttr::getFromIntegerRelation(
@@ -248,8 +243,6 @@ static LayoutAttr hoistLayoutThroughCollapseShape(LayoutAttr attr,
 
 Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
-    if (!isTrivialRankReduction(op)) return failure();
-
     auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
     if (!fromLayout || !toLayout) return failure();
@@ -266,10 +259,6 @@ Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
   };
 }
 
-static bool isTrivialRankExpansion(tensor::ExpandShapeOp op) {
-  return onlyUnitDimsChange(op.getResultType(), op.getReassociationIndices());
-}
-
 static LayoutAttr hoistLayoutThroughExpandShape(LayoutAttr attr,
                                                 tensor::ExpandShapeOp op) {
   return LayoutAttr::getFromIntegerRelation(
@@ -280,8 +269,6 @@ static LayoutAttr hoistLayoutThroughExpandShape(LayoutAttr attr,
 
 Hoister createExpandShapeHoister(tensor::ExpandShapeOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
-    if (!isTrivialRankExpansion(op)) return failure();
-
     auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
     if (!fromLayout || !toLayout) return failure();

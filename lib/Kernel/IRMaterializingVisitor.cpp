@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -471,6 +472,40 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 
   Attribute constant;
   if (!source || matchPattern(source, m_Constant(&constant))) {
+    if (source && elementType.isIntOrFloat() &&
+        elementType.getIntOrFloatBitWidth() % 8 == 0) {
+      ArrayRef<char> srcRaw;
+      bool isSplat = false;
+      if (auto dense = dyn_cast_if_present<DenseElementsAttr>(constant)) {
+        srcRaw = dense.getRawData();
+        isSplat = dense.isSplat();
+      } else if (auto resource =
+                     dyn_cast_if_present<DenseResourceElementsAttr>(constant)) {
+        srcRaw = resource.getData();
+      }
+      if (!srcRaw.empty()) {
+        unsigned byteWidth = elementType.getIntOrFloatBitWidth() / 8;
+        bool inBounds = llvm::all_of(node.indices, [&](int64_t index) {
+          if (index < 0) return true;
+          size_t srcOffset =
+              isSplat ? 0 : static_cast<size_t>(index) * byteWidth;
+          return srcOffset + byteWidth <= srcRaw.size();
+        });
+        if (inBounds) {
+          std::vector<char> rawBuffer(node.indices.size() * byteWidth, 0);
+          for (auto [i, index] : llvm::enumerate(node.indices)) {
+            if (index < 0) continue;
+            size_t srcOffset =
+                isSplat ? 0 : static_cast<size_t>(index) * byteWidth;
+            std::memcpy(rawBuffer.data() + i * byteWidth,
+                        srcRaw.data() + srcOffset, byteWidth);
+          }
+          return {create(arith::ConstantOp::create(
+              builder, resultType,
+              DenseElementsAttr::getFromRawBuffer(resultType, rawBuffer)))};
+        }
+      }
+    }
     auto elements = dyn_cast_if_present<ElementsAttr>(constant);
     std::function<Attribute(int64_t)> read;
     if (elements) read = constantElementReader(elements);

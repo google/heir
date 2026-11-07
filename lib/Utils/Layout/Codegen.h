@@ -44,11 +44,13 @@ FailureOr<isl_ast_node*> generateLoopNest(
 // points. Every local of `rel` becomes a coordinate of that AST (a loop or an
 // expression). A local that is not a floor division of the variables can take
 // several values for one point; the walk then reaches the point once per
-// value and reports it once.
+// value and reports it once. When `shouldStop` is provided and returns true,
+// the scan stops early.
 void forEachPoint(const presburger::IntegerRelation& rel,
                   function_ref<void(ArrayRef<int64_t> domainPoint,
                                     ArrayRef<int64_t> rangePoint)>
-                      fn);
+                      fn,
+                  function_ref<bool()> shouldStop = {});
 
 // A debugging helper to generate a C string representation of the loop nest.
 FailureOr<std::string> generateLoopNestAsCStr(

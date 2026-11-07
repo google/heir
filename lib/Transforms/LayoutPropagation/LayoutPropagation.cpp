@@ -736,6 +736,7 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   // Otherwise keep each result element in the slots of a secret input element
   // read in the same iteration, so that input needs no rotation.
   for (OpOperand* input : op.getDpsInputOperands()) {
+    if (op.getMatchingBlockArgument(input).use_empty()) continue;
     Value value = input->get();
     if (resultLayout || !assignedLayouts.contains(value) ||
         !isSecret(value, solver)) {
@@ -833,12 +834,15 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
   // value is encrypted in whatever layout we pick and has no other use.
   struct Candidate {
     OpOperand* input;
+    size_t specInputIndex;
     IntegerRelation layout;
     int64_t conversionCost;
   };
   std::vector<Candidate> candidates;
   for (OpOperand* input : op.getDpsInputOperands()) {
+    if (op.getMatchingBlockArgument(input).use_empty()) continue;
     Value value = input->get();
+    size_t specInputIndex = spec.inputs.size();
     StructuredOperand& operand = spec.inputs.emplace_back();
     operand.indexingMap = op.getMatchingIndexingMap(input);
     auto type = dyn_cast<RankedTensorType>(value.getType());
@@ -877,7 +881,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
       if (!cost) continue;
       conversionCost += *cost;
     }
-    candidates.push_back({input, *pulled, conversionCost});
+    candidates.push_back({input, specInputIndex, *pulled, conversionCost});
   }
   if (candidates.empty()) return;
 
@@ -889,8 +893,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     int64_t conversions = 0;
     for (auto [i, candidate] : llvm::enumerate(candidates)) {
       if (!moved[i]) continue;
-      trial.inputs[candidate.input->getOperandNumber()].layout =
-          candidate.layout;
+      trial.inputs[candidate.specInputIndex].layout = candidate.layout;
       conversions += candidate.conversionCost;
     }
     std::optional<int64_t> cost = groupsAndRotations(trial);

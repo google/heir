@@ -61,8 +61,9 @@ enum class GenericReductionKind { None, Add, Mul, Idempotent };
 struct InstanceGroups {
   // The distinct cleartext reads (row-major indices, one per cleartext input)
   // of a key's instances at one output slot, with their multiplicities.
-  using Reads = std::vector<std::pair<SmallVector<int64_t>, int64_t>>;
-  std::map<std::vector<int64_t>, std::map<int64_t, Reads>> readsByKey;
+  using Reads = SmallVector<std::pair<SmallVector<int64_t, 2>, int64_t>, 1>;
+  std::map<std::vector<int64_t>, std::vector<std::pair<int64_t, Reads>>>
+      readsByKey;
   // Per output ciphertext and slot: the number of instances writing it.
   std::vector<std::vector<int64_t>> coverage;
   // Per output ciphertext: whether it holds an output element no instance
@@ -72,11 +73,13 @@ struct InstanceGroups {
 
 // Groups the instances of `spec` by walking its loop nest. Fails if the output
 // needs more than `numCts` ciphertexts or a slot is written more often than
-// `kind` allows.
-FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
-                                         int64_t numCts,
-                                         GenericReductionKind kind,
-                                         std::string& reason);
+// `kind` allows. When `keyVanishes` is provided and returns true for a key,
+// that key's instances evaluate to zero regardless of their cleartext reads
+// and are coalesced per output slot.
+FailureOr<InstanceGroups> groupInstances(
+    const GenericKernelSpec& spec, int64_t numCts, GenericReductionKind kind,
+    std::string& reason,
+    llvm::function_ref<bool(ArrayRef<int64_t>)> keyVanishes = {});
 
 // The number of keys of the instances of a structured op (see
 // InstanceGroups), a lower bound on the number of groups (a key yields one

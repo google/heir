@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -20,6 +21,7 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Utils/Layout/GenericKernel.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
 
@@ -159,8 +161,55 @@ implementGenericKernel(const GenericKernelSpec& spec,
   const bool isMul = config.kind == GenericReductionKind::Mul;
   const bool isIdempotent = config.kind == GenericReductionKind::Idempotent;
 
+  const DagType ctType = tensorOfElementType(config.elementType, {1, numSlots});
+  auto constant = [&](const std::vector<int64_t>& values, const DagType& type) {
+    return NodeTy::constantTensor(
+        std::vector<double>(values.begin(), values.end()), type);
+  };
+  // Masks in the result type, shared between groups that write the same slots.
+  std::deque<std::vector<int64_t>> ownedMasks;
+  llvm::DenseMap<ArrayRef<int64_t>, NodePtr> masks;
+  auto getMask = [&](const std::vector<int64_t>& values) {
+    auto it = masks.find(values);
+    if (it != masks.end()) return it->second;
+    const auto& owned = ownedMasks.emplace_back(values);
+    NodePtr result = constant(owned, ctType);
+    masks.try_emplace(owned, result);
+    return result;
+  };
+  auto zero = [&](const DagType& elementType) {
+    return constant(std::vector<int64_t>(numSlots, 0),
+                    tensorOfElementType(elementType, {1, numSlots}));
+  };
+
+  size_t numCleartextInputs = 0;
+  for (const StructuredOperand& input : spec.inputs) {
+    if (input.isCleartext()) ++numCleartextInputs;
+  }
+
+  // Whether a key's body term vanishes regardless of its gathered cleartext
+  // values (e.g. a product with unplaced secret zero padding).
+  NodePtr dummyNode = NodeTy::empty({1, numSlots}, ctType);
+  NodePtr symbolicZero = NodeTy::empty({1, numSlots}, ctType);
+  std::set<const NodeTy*> symbolicZeroSet = {symbolicZero.get()};
+  auto keyVanishes = [&](ArrayRef<int64_t> key) {
+    if (isMul || isIdempotent) return false;
+    std::vector<NodePtr> args;
+    args.reserve(inputs.size());
+    for (size_t i = 0, secret = 1; i < inputs.size(); ++i) {
+      if (spec.inputs[i].isCleartext()) {
+        args.push_back(dummyNode);
+        continue;
+      }
+      args.push_back(key[secret] < 0 ? symbolicZero : dummyNode);
+      secret += 2;
+    }
+    NodePtr term = body(args, config.bodyReadsInit ? dummyNode : nullptr);
+    return vanishesWith<T>(term, symbolicZeroSet);
+  };
+
   FailureOr<InstanceGroups> groups =
-      groupInstances(spec, numCts, config.kind, reason);
+      groupInstances(spec, numCts, config.kind, reason, keyVanishes);
   if (failed(groups)) return failure();
   if (isIdempotent && config.initKind == GenericInitKind::Neutral &&
       llvm::is_contained(groups->writesPartially, true)) {
@@ -172,22 +221,6 @@ implementGenericKernel(const GenericKernelSpec& spec,
   const auto& readsByKey = groups->readsByKey;
   const auto& coverage = groups->coverage;
 
-  const DagType ctType = tensorOfElementType(config.elementType, {1, numSlots});
-  auto constant = [&](const std::vector<int64_t>& values, const DagType& type) {
-    return NodeTy::constantTensor(
-        std::vector<double>(values.begin(), values.end()), type);
-  };
-  // Masks in the result type, shared between groups that write the same slots.
-  std::map<std::vector<int64_t>, NodePtr> masks;
-  auto getMask = [&](const std::vector<int64_t>& values) {
-    NodePtr& result = masks[values];
-    if (!result) result = constant(values, ctType);
-    return result;
-  };
-  auto zero = [&](const DagType& elementType) {
-    return constant(std::vector<int64_t>(numSlots, 0),
-                    tensorOfElementType(elementType, {1, numSlots}));
-  };
   // Shared nodes, so each extraction, rotation and gather is built once.
   std::map<std::pair<size_t, int64_t>, NodePtr> extracted;
   std::map<std::tuple<size_t, int64_t, int64_t>, NodePtr> rotated;
@@ -201,10 +234,15 @@ implementGenericKernel(const GenericKernelSpec& spec,
     result = shift == 0 ? ciphertext : NodeTy::leftRotate(ciphertext, shift);
     return result;
   };
-  std::map<std::pair<size_t, std::vector<int64_t>>, NodePtr> gathered;
-  auto getGathered = [&](size_t input, const std::vector<int64_t>& indices) {
-    NodePtr& result = gathered[{input, indices}];
-    if (!result) result = NodeTy::gather(inputs[input], indices, {1, numSlots});
+  llvm::DenseMap<std::pair<size_t, ArrayRef<int64_t>>, NodePtr> gathered;
+  auto getGathered = [&](size_t input, std::vector<int64_t>&& indices) {
+    auto it = gathered.find({input, ArrayRef<int64_t>(indices)});
+    if (it != gathered.end()) return it->second;
+    NodePtr result =
+        NodeTy::gather(inputs[input], std::move(indices), {1, numSlots});
+    ArrayRef<int64_t> ownedIndices =
+        std::get<GatherNode<T>>(result->node_variant).indices;
+    gathered.try_emplace({input, ownedIndices}, result);
     return result;
   };
   std::map<int64_t, NodePtr> initCiphertexts;
@@ -232,11 +270,11 @@ implementGenericKernel(const GenericKernelSpec& spec,
     }
     for (size_t r = 0; r < numGroups; ++r) {
       std::vector<int64_t> mask(numSlots, 0);
-      std::vector<std::vector<int64_t>> rows;
+      std::vector<std::vector<int64_t>> rows(
+          numCleartextInputs, std::vector<int64_t>(numSlots, -1));
       for (const auto& [slot, reads] : slots) {
         if (r >= reads.size()) continue;
         mask[slot] = reads[r].second;
-        rows.resize(reads[r].first.size(), std::vector<int64_t>(numSlots, -1));
         for (auto [row, read] : llvm::zip(rows, reads[r].first)) {
           row[slot] = read;
         }
@@ -246,7 +284,7 @@ implementGenericKernel(const GenericKernelSpec& spec,
       std::set<const NodeTy*> zeroOutsideGroup;
       for (size_t i = 0, secret = 1, cleartext = 0; i < inputs.size(); ++i) {
         if (spec.inputs[i].isCleartext()) {
-          args.push_back(getGathered(i, rows[cleartext++]));
+          args.push_back(getGathered(i, std::move(rows[cleartext++])));
           zeroOutsideGroup.insert(args.back().get());
           continue;
         }
@@ -257,10 +295,11 @@ implementGenericKernel(const GenericKernelSpec& spec,
       }
       NodePtr term =
           body(args, config.bodyReadsInit ? getInit(outputCt) : nullptr);
-      std::vector<int64_t> written;
-      for (int64_t m : mask) written.push_back(m > 0 ? 1 : 0);
-      const bool writesAll = !llvm::is_contained(written, 0);
       if (isIdempotent) {
+        std::vector<int64_t> written;
+        written.reserve(numSlots);
+        for (int64_t m : mask) written.push_back(m > 0 ? 1 : 0);
+        const bool writesAll = !llvm::is_contained(written, 0);
         // A group sets the slots it writes first and combines into the slots
         // written before: acc + first * (term - acc) + later * (combine(acc,
         // term) - acc). An infinite identity (as for max) is thus never read;
@@ -297,15 +336,20 @@ implementGenericKernel(const GenericKernelSpec& spec,
       }
       // Sums skip terms that are zero, e.g. products with zero padding.
       if (!isMul && vanishesWith<T>(term, {})) continue;
-      if (mask != std::vector<int64_t>(numSlots, 1)) {
+      const bool isAllOnes =
+          llvm::all_of(mask, [](int64_t m) { return m == 1; });
+      if (!isAllOnes) {
         // A gathered cleartext is zero exactly where the group writes nothing,
         // so a cleartext factor masks the term already.
-        bool masked = mask == written && vanishesWith(term, zeroOutsideGroup);
+        const bool isBinaryMask =
+            llvm::all_of(mask, [](int64_t m) { return m <= 1; });
+        bool masked = isBinaryMask && vanishesWith(term, zeroOutsideGroup);
         if (!masked) term = NodeTy::mul(term, getMask(mask));
         if (isMul) {
           // Slots outside the group must multiply by one.
           std::vector<int64_t> complement;
-          for (int64_t w : written) complement.push_back(1 - w);
+          complement.reserve(numSlots);
+          for (int64_t m : mask) complement.push_back(m > 0 ? 0 : 1);
           term = NodeTy::add(term, getMask(complement));
         }
       }

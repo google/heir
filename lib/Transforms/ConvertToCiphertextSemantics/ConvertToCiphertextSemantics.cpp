@@ -3801,21 +3801,22 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
   // argument's reciprocal, the input at the mapped index (see
   // reciprocalOrZero).
   static NodePtr buildBody(linalg::LinalgOp op, const BodyInfo& info,
-                           ArrayRef<int64_t> indexDims,
+                           const DenseMap<Value, size_t>& inputArgIndices,
+                           size_t indexArgOffset, ArrayRef<int64_t> indexDims,
                            const DenseMap<Value, NodePtr>& scalars,
                            const DenseMap<Value, size_t>& reciprocals,
                            const std::vector<NodePtr>& args,
                            const NodePtr& init) {
     Block& body = *op.getBlock();
     DenseMap<Value, NodePtr> nodes(scalars);
-    for (auto [arg, node] : llvm::zip(op.getRegionInputArgs(), args)) {
-      nodes[arg] = node;
+    for (auto [arg, idx] : inputArgIndices) {
+      nodes[arg] = args[idx];
     }
     for (auto index : body.getOps<linalg::IndexOp>()) {
       if (!info.live.contains(index)) continue;
       nodes[index] =
-          args[op.getNumDpsInputs() + llvm::find(indexDims, index.getDim()) -
-               indexDims.begin()];
+          args[indexArgOffset +
+               (llvm::find(indexDims, index.getDim()) - indexDims.begin())];
     }
     if (init) nodes[op.getRegionOutputArgs()[0]] = init;
     for (Operation& bodyOp : body.without_terminator()) {
@@ -3848,10 +3849,11 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
     return nodes.lookup(info.computed);
   }
 
-  // Whether some op of the body divides by `arg`.
-  static bool isDivisor(BlockArgument arg) {
-    return llvm::any_of(arg.getUses(), [](OpOperand& use) {
-      return isa<arith::DivFOp>(use.getOwner()) && use.getOperandNumber() == 1;
+  // Whether some live op of the body divides by `arg`.
+  static bool isDivisor(BlockArgument arg, const BodyInfo& info) {
+    return llvm::any_of(arg.getUses(), [&](OpOperand& use) {
+      return info.live.contains(use.getOwner()) &&
+             isa<arith::DivFOp>(use.getOwner()) && use.getOperandNumber() == 1;
     });
   }
 
@@ -3966,15 +3968,26 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
     spec.numSlots = numSlots;
     std::vector<NodePtr> inputs;
     kernel::GenericKernelConfig config;
-    // A cleartext input is read directly; a secret one in its layout.
-    SmallVector<std::pair<int64_t, Value>> divisors;
+    // A cleartext input is read directly; a secret one in its layout. Inputs
+    // unused by the body (e.g. the window tensor of a generalized pooling op)
+    // are omitted so they do not split groups or emit dead gathers.
+    DenseMap<Value, size_t> inputArgIndices;
+    SmallVector<std::tuple<size_t, BlockArgument, Value>> divisors;
     for (auto [i, adapted] : llvm::enumerate(inputOperands)) {
+      BlockArgument arg = op.getRegionInputArgs()[i];
+      if (arg != bodyInfo->computed &&
+          llvm::none_of(arg.getUses(), [&](OpOperand& use) {
+            return bodyInfo->live.contains(use.getOwner());
+          }))
+        continue;
+      size_t inputIdx = spec.inputs.size();
+      inputArgIndices[arg] = inputIdx;
       StructuredOperand& input = spec.inputs.emplace_back();
       input.indexingMap = op.getMatchingIndexingMap(op.getDpsInputOperand(i));
       Value cleartext = cleartextSource(op.getDpsInputs()[i], adapted);
       if (cleartext && isa<FloatType>(getElementTypeOrSelf(cleartext)) &&
-          isDivisor(op.getRegionInputArgs()[i]))
-        divisors.push_back({i, cleartext});
+          isDivisor(arg, *bodyInfo))
+        divisors.push_back({inputIdx, arg, cleartext});
       Value value = cleartext ? cleartext : adapted;
       inputs.push_back(NodeTy::leaf(SSAValue(value)));
       config.inputElementTypes.push_back(
@@ -3988,6 +4001,7 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
       }
     }
     // linalg.index reads an iota (a gather without a source).
+    size_t indexArgOffset = spec.inputs.size();
     SmallVector<int64_t> indexDims = getIndexDims(op, *bodyInfo);
     for (int64_t dim : indexDims) {
       StructuredOperand& input = spec.inputs.emplace_back();
@@ -4000,12 +4014,12 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
     // A cleartext divisor is also read as its reciprocal, an extra input with
     // the same indexing map.
     DenseMap<Value, size_t> reciprocals;
-    for (auto [i, cleartext] : divisors) {
-      reciprocals[op.getRegionInputArgs()[i]] = spec.inputs.size();
-      spec.inputs.push_back(StructuredOperand(spec.inputs[i]));
+    for (auto [inputIdx, arg, cleartext] : divisors) {
+      reciprocals[arg] = spec.inputs.size();
+      spec.inputs.push_back(StructuredOperand(spec.inputs[inputIdx]));
       inputs.push_back(
           NodeTy::leaf(SSAValue(reciprocalOrZero(cleartext, rewriter))));
-      config.inputElementTypes.push_back(config.inputElementTypes[i]);
+      config.inputElementTypes.push_back(config.inputElementTypes[inputIdx]);
     }
     // Any other divisor computed in the body divides by the zeros gathered
     // outside a group; a constant or a captured scalar is the same in every
@@ -4035,17 +4049,22 @@ class ConvertLinalgStructuredOp : public ContextAwareConversionPattern {
     config.numCts = numCts;
     config.elementType = kernel::mlirTypeToDagType(elementType);
 
-    FailureOr<NodePtr> initNode =
-        moveInitIntoResultLayout(op, operands[op.getNumDpsInputs()],
-                                 resultLayout, config, numSlots, rewriter);
-    if (failed(initNode)) return failure();
+    NodePtr initNode;
+    if (config.initKind != kernel::GenericInitKind::Empty ||
+        config.bodyReadsInit) {
+      FailureOr<NodePtr> moved =
+          moveInitIntoResultLayout(op, operands[op.getNumDpsInputs()],
+                                   resultLayout, config, numSlots, rewriter);
+      if (failed(moved)) return failure();
+      initNode = *moved;
+    }
 
     std::string reason;
     FailureOr<NodePtr> implemented = kernel::implementGenericKernel<SSAValue>(
-        spec, inputs, *initNode, config,
+        spec, inputs, initNode, config,
         [&](const std::vector<NodePtr>& args, const NodePtr& initCt) {
-          return buildBody(op, *bodyInfo, indexDims, *scalars, reciprocals,
-                           args, initCt);
+          return buildBody(op, *bodyInfo, inputArgIndices, indexArgOffset,
+                           indexDims, *scalars, reciprocals, args, initCt);
         },
         [&](const NodePtr& acc, const NodePtr& term) {
           return NodeTy::elementwise(bodyInfo->combineOp, {acc, term});

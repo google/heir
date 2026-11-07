@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <optional>
 #include <set>
@@ -13,6 +14,7 @@
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"           // from @llvm-project
@@ -209,12 +211,13 @@ class SlotTable {
   // layout does not place.
   ArrayRef<std::pair<int64_t, int64_t>> lookup(ArrayRef<int64_t> index) const;
 
-  // The lexicographically smallest (ct, (slot - target) mod numSlots) over the
-  // positions of the element at `index`: its first ciphertext, and the left
-  // rotation that brings a copy in it to slot `target`. (-1, 0) for elements
-  // the layout does not place.
-  std::pair<int64_t, int64_t> nearest(ArrayRef<int64_t> index, int64_t target,
-                                      int64_t numSlots) const;
+  // The lexicographically smallest (ct, (slot - target) mod numSlots) over
+  // `positions` (which must be sorted): its first ciphertext, and the left
+  // rotation that brings a copy in it to slot `target`. (-1, 0) when
+  // `positions` is empty.
+  static std::pair<int64_t, int64_t> nearest(
+      ArrayRef<std::pair<int64_t, int64_t>> positions, int64_t target,
+      int64_t numSlots);
 
   // The positions of every element.
   ArrayRef<SmallVector<std::pair<int64_t, int64_t>, 1>> positions() const {
@@ -261,11 +264,14 @@ ArrayRef<std::pair<int64_t, int64_t>> SlotTable::lookup(
   return slots[flatten(index)];
 }
 
-std::pair<int64_t, int64_t> SlotTable::nearest(ArrayRef<int64_t> index,
-                                               int64_t target,
-                                               int64_t numSlots) const {
-  ArrayRef<std::pair<int64_t, int64_t>> positions = lookup(index);
+std::pair<int64_t, int64_t> SlotTable::nearest(
+    ArrayRef<std::pair<int64_t, int64_t>> positions, int64_t target,
+    int64_t numSlots) {
   if (positions.empty()) return {-1, 0};
+  if (positions.size() == 1) {
+    auto [ct, slot] = positions.front();
+    return {ct, slot >= target ? slot - target : slot + numSlots - target};
+  }
   // The positions in the first ciphertext, sorted by slot.
   int64_t ct = positions.front().first;
   auto end = llvm::find_if(positions, [&](auto p) { return p.first != ct; });
@@ -281,22 +287,26 @@ int64_t SlotTable::flatten(ArrayRef<int64_t> index) const {
   return flat;
 }
 
-FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
-                                         int64_t numCts,
-                                         GenericReductionKind kind,
-                                         std::string& reason) {
+FailureOr<InstanceGroups> groupInstances(
+    const GenericKernelSpec& spec, int64_t numCts, GenericReductionKind kind,
+    std::string& reason,
+    llvm::function_ref<bool(ArrayRef<int64_t>)> keyVanishes) {
   if (failed(validateGenericKernelSpec(spec, reason))) return failure();
   const int64_t numSlots = spec.numSlots;
   // Where each operand element lives.
   SlotTable outputSlots = SlotTable::get(spec.output.layout);
   std::vector<std::optional<SlotTable>> inputSlots(spec.inputs.size());
   std::vector<SmallVector<int64_t>> strides(spec.inputs.size());
+  size_t numCleartextInputs = 0;
+  size_t numSecretInputs = 0;
   for (auto [i, input] : llvm::enumerate(spec.inputs)) {
     if (input.isCleartext()) {
       strides[i] = computeStrides(*input.cleartextShape);
+      ++numCleartextInputs;
       continue;
     }
     inputSlots[i] = SlotTable::get(input.layout);
+    ++numSecretInputs;
   }
 
   // Walk the loop nest. Each (iteration, output slot) instance has a key
@@ -305,68 +315,235 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
   // one the layout does not place (read as zero). Per key and output slot,
   // collect the distinct cleartext reads (row-major indices) with their
   // multiplicities.
+  struct KeyAccumulator {
+    bool vanishes = false;
+    std::vector<int32_t> writtenSlots;
+    std::vector<int64_t> flatCleartextReads;
+  };
+  std::deque<std::pair<std::vector<int64_t>, KeyAccumulator>> accumulators;
+  llvm::DenseMap<ArrayRef<int64_t>, KeyAccumulator*> accByKey;
+  ArrayRef<int64_t> lastKey;
+  KeyAccumulator* lastAcc = nullptr;
+
   InstanceGroups groups;
   auto& readsByKey = groups.readsByKey;
   auto& coverage = groups.coverage;
+  coverage.assign(numCts, std::vector<int64_t>(numSlots, 0));
+
+  // Order loop dimensions so non-output (reduction) dimensions vary outer and
+  // output dimensions vary inner. This keeps loop-invariant inputs (such as a
+  // convolution filter indexed only by output channel and reduction dims) and
+  // the active key constant across spatial runs of output elements.
   const unsigned numLoops = spec.loopRanges.size();
+  llvm::SmallVector<bool> inOutput(numLoops, false);
+  for (AffineExpr expr : spec.output.indexingMap.getResults()) {
+    expr.walk([&](AffineExpr sub) {
+      if (auto dim = dyn_cast<AffineDimExpr>(sub))
+        inOutput[dim.getPosition()] = true;
+    });
+  }
+  SmallVector<unsigned> loopOrder;
+  loopOrder.reserve(numLoops);
+  for (unsigned dim = 0; dim < numLoops; ++dim)
+    if (!inOutput[dim]) loopOrder.push_back(dim);
+  for (unsigned dim = 0; dim < numLoops; ++dim)
+    if (inOutput[dim]) loopOrder.push_back(dim);
+  SmallVector<int64_t> stepRankOfDim(numLoops, 0);
+  for (unsigned step = 0; step < numLoops; ++step)
+    stepRankOfDim[loopOrder[step]] = step;
+
+  auto maxStepRankOfExpr = [&](AffineExpr expr) {
+    int64_t maxRank = -1;
+    expr.walk([&](AffineExpr sub) {
+      if (auto dim = dyn_cast<AffineDimExpr>(sub))
+        maxRank = std::max(maxRank, stepRankOfDim[dim.getPosition()]);
+    });
+    return maxRank;
+  };
+  auto maxStepRankOfMap = [&](AffineMap map) {
+    int64_t maxRank = -1;
+    for (AffineExpr expr : map.getResults())
+      maxRank = std::max(maxRank, maxStepRankOfExpr(expr));
+    return maxRank;
+  };
+
   SmallVector<int64_t> d(numLoops, 0);
-  for (bool done = llvm::is_contained(spec.loopRanges, 0); !done;) {
-    SmallVector<int64_t> cleartextReads;
-    std::vector<SmallVector<int64_t>> inputIndices(spec.inputs.size());
-    for (auto [i, input] : llvm::enumerate(spec.inputs)) {
-      inputIndices[i] = evaluateAffineMap(input.indexingMap, d);
-      if (input.isCleartext())
-        cleartextReads.push_back(linearize(inputIndices[i], strides[i]));
+  SmallVector<int64_t, 2> cleartextReads(numCleartextInputs, 0);
+  SmallVector<size_t> cleartextOffset(spec.inputs.size(), 0);
+  SmallVector<int64_t> inputMaxStep(spec.inputs.size(), -1);
+  std::vector<SmallVector<int64_t>> inputResultMaxStep(spec.inputs.size());
+  std::vector<SmallVector<int64_t>> inputIndices(spec.inputs.size());
+  for (size_t i = 0, c = 0; i < spec.inputs.size(); ++i) {
+    AffineMap map = spec.inputs[i].indexingMap;
+    inputMaxStep[i] = maxStepRankOfMap(map);
+    inputIndices[i].assign(map.getNumResults(), 0);
+    for (AffineExpr expr : map.getResults())
+      inputResultMaxStep[i].push_back(maxStepRankOfExpr(expr));
+    if (spec.inputs[i].isCleartext()) cleartextOffset[i] = c++;
+  }
+  const int64_t outputMaxStep = maxStepRankOfMap(spec.output.indexingMap);
+  SmallVector<int64_t> outputResultMaxStep;
+  for (AffineExpr expr : spec.output.indexingMap.getResults())
+    outputResultMaxStep.push_back(maxStepRankOfExpr(expr));
+  SmallVector<int64_t> outputIndex(spec.output.indexingMap.getNumResults(), 0);
+  SmallVector<ArrayRef<std::pair<int64_t, int64_t>>> inputPositions(
+      spec.inputs.size());
+  ArrayRef<std::pair<int64_t, int64_t>> currentOutputPositions;
+  std::vector<int64_t> key(1 + 2 * numSecretInputs);
+  const bool canOmitVanishing =
+      kind == GenericReductionKind::Add || kind == GenericReductionKind::None;
+  auto evalChanged = [&](AffineMap map, ArrayRef<int64_t> resultMaxStep,
+                         int64_t changedFromStep,
+                         SmallVectorImpl<int64_t>& out) {
+    ArrayRef<AffineExpr> results = map.getResults();
+    for (size_t r = 0, e = results.size(); r < e; ++r) {
+      if (changedFromStep <= resultMaxStep[r]) out[r] = evaluate(results[r], d);
     }
-    for (auto [outputCt, outputSlot] :
-         outputSlots.lookup(evaluateAffineMap(spec.output.indexingMap, d))) {
-      std::vector<int64_t> key = {outputCt};
+  };
+
+  int64_t changedFromStep = -1;
+  for (bool done = llvm::is_contained(spec.loopRanges, 0); !done;) {
+    for (auto [i, input] : llvm::enumerate(spec.inputs)) {
+      if (changedFromStep > inputMaxStep[i]) continue;
+      evalChanged(input.indexingMap, inputResultMaxStep[i], changedFromStep,
+                  inputIndices[i]);
+      if (input.isCleartext()) {
+        cleartextReads[cleartextOffset[i]] =
+            linearize(inputIndices[i], strides[i]);
+      } else {
+        inputPositions[i] = inputSlots[i]->lookup(inputIndices[i]);
+      }
+    }
+    if (changedFromStep <= outputMaxStep) {
+      evalChanged(spec.output.indexingMap, outputResultMaxStep, changedFromStep,
+                  outputIndex);
+      currentOutputPositions = outputSlots.lookup(outputIndex);
+    }
+    for (auto [outputCt, outputSlot] : currentOutputPositions) {
+      if (outputCt >= numCts) {
+        reason =
+            "the output layout writes more ciphertexts than the result holds";
+        return failure();
+      }
+      key[0] = outputCt;
+      size_t secretOffset = 1;
       for (auto [i, input] : llvm::enumerate(spec.inputs)) {
         if (input.isCleartext()) continue;
         auto [ct, shift] =
-            inputSlots[i]->nearest(inputIndices[i], outputSlot, numSlots);
-        key.push_back(ct);
-        key.push_back(shift);
+            SlotTable::nearest(inputPositions[i], outputSlot, numSlots);
+        key[secretOffset++] = ct;
+        key[secretOffset++] = shift;
       }
-      InstanceGroups::Reads& reads = readsByKey[key][outputSlot];
-      auto it = llvm::find_if(reads, [&](const auto& read) {
-        return read.first == cleartextReads;
-      });
-      if (it == reads.end()) {
-        reads.push_back({cleartextReads, 1});
-      } else {
-        ++it->second;
+      if (!lastAcc || ArrayRef<int64_t>(key) != lastKey) {
+        auto it = accByKey.find(key);
+        if (it != accByKey.end()) {
+          lastAcc = it->second;
+          lastKey = it->first;
+        } else {
+          auto& [ownedKey, acc] =
+              accumulators.emplace_back(key, KeyAccumulator{});
+          accByKey.try_emplace(ownedKey, &acc);
+          lastAcc = &acc;
+          lastKey = ownedKey;
+          acc.vanishes =
+              canOmitVanishing && keyVanishes && keyVanishes(ownedKey);
+        }
       }
+      if (lastAcc->vanishes) {
+        if (++coverage[outputCt][outputSlot] > 1 &&
+            kind == GenericReductionKind::None) {
+          reason =
+              "an output slot is written by several iterations of an op "
+              "without reductions";
+          return failure();
+        }
+        continue;
+      }
+      lastAcc->writtenSlots.push_back(static_cast<int32_t>(outputSlot));
+      lastAcc->flatCleartextReads.insert(lastAcc->flatCleartextReads.end(),
+                                         cleartextReads.begin(),
+                                         cleartextReads.end());
     }
-    // Advance the iteration in row-major order.
-    int64_t j = static_cast<int64_t>(numLoops) - 1;
-    while (j >= 0 && ++d[j] == spec.loopRanges[j]) d[j--] = 0;
-    done = j < 0;
+    // Advance the iteration along loopOrder.
+    int64_t step = static_cast<int64_t>(numLoops) - 1;
+    while (step >= 0) {
+      unsigned dim = loopOrder[step];
+      if (++d[dim] < spec.loopRanges[dim]) break;
+      d[dim] = 0;
+      --step;
+    }
+    done = step < 0;
+    changedFromStep = step;
   }
 
-  coverage.assign(numCts, std::vector<int64_t>(numSlots, 0));
-  for (const auto& [key, slots] : readsByKey) {
-    if (key[0] >= numCts) {
-      reason =
-          "the output layout writes more ciphertexts than the result holds";
-      return failure();
+  std::vector<InstanceGroups::Reads> scratchSlotReads(numSlots);
+  std::vector<int32_t> activeSlots;
+  std::vector<size_t> order;
+  for (auto& [keyVec, acc] : accumulators) {
+    if (acc.vanishes) continue;
+    for (size_t w = 0, e = acc.writtenSlots.size(); w < e; ++w) {
+      int32_t slot = acc.writtenSlots[w];
+      ArrayRef<int64_t> read(
+          acc.flatCleartextReads.data() + w * numCleartextInputs,
+          numCleartextInputs);
+      InstanceGroups::Reads& rawReads = scratchSlotReads[slot];
+      if (rawReads.empty()) activeSlots.push_back(slot);
+      if (!rawReads.empty() &&
+          ArrayRef<int64_t>(rawReads.back().first) == read) {
+        ++rawReads.back().second;
+      } else {
+        rawReads.push_back(
+            {SmallVector<int64_t, 2>(read.begin(), read.end()), 1});
+      }
     }
-    for (const auto& [slot, reads] : slots) {
-      for (const auto& [read, count] : reads) {
-        coverage[key[0]][slot] += count;
+    std::vector<int32_t>().swap(acc.writtenSlots);
+    std::vector<int64_t>().swap(acc.flatCleartextReads);
+    llvm::sort(activeSlots);
+    auto& slots = readsByKey[keyVec];
+    slots.reserve(activeSlots.size());
+    for (int32_t slot : activeSlots) {
+      InstanceGroups::Reads& rawReads = scratchSlotReads[slot];
+      if (rawReads.size() > 1) {
+        order.resize(rawReads.size());
+        for (size_t k = 0; k < rawReads.size(); ++k) order[k] = k;
+        std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+          return rawReads[a].first < rawReads[b].first;
+        });
+        size_t lead = order[0];
+        bool hasDuplicates = false;
+        for (size_t k = 1; k < order.size(); ++k) {
+          size_t idx = order[k];
+          if (rawReads[idx].first == rawReads[lead].first) {
+            rawReads[lead].second += rawReads[idx].second;
+            rawReads[idx].second = 0;
+            hasDuplicates = true;
+          } else {
+            lead = idx;
+          }
+        }
+        if (hasDuplicates) {
+          llvm::erase_if(rawReads,
+                         [](const auto& entry) { return entry.second == 0; });
+        }
+      }
+      for (const auto& [read, count] : rawReads) {
+        coverage[keyVec[0]][slot] += count;
         if (kind == GenericReductionKind::Mul && count > 1) {
           reason =
               "a multiplicative reduction cannot repeat a factor in a slot";
           return failure();
         }
       }
-      if (kind == GenericReductionKind::None && coverage[key[0]][slot] > 1) {
+      if (kind == GenericReductionKind::None && coverage[keyVec[0]][slot] > 1) {
         reason =
             "an output slot is written by several iterations of an op "
             "without reductions";
         return failure();
       }
+      slots.emplace_back(slot, std::move(rawReads));
+      rawReads.clear();
     }
+    activeSlots.clear();
   }
   groups.writesPartially.assign(numCts, false);
   for (const auto& positions : outputSlots.positions()) {
