@@ -1,4 +1,5 @@
-// RUN: heir-opt --jaxiteword-configure-crypto-context=entry-function=simple_mul %s | FileCheck %s
+// RUN: heir-opt --jaxiteword-configure-crypto-context='entry-function=simple_mul scaling-factor=287650127344009217' %s | FileCheck %s
+// RUN: heir-opt --jaxiteword-configure-crypto-context='entry-function=simple_mul scaling-factor=287650127344009217 composite-degree=2' %s | FileCheck --check-prefix=CD2 %s
 
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>
 !Z36028797018652673_i64 = !mod_arith.int<36028797018652673 : i64>
@@ -21,8 +22,16 @@
 !ct_L1_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797018652673, 35184372121601], P = [1152921504606994433], logDefaultScale = 45>, scheme.ckks} {
+  func.func private @rotate_helper(%arg0: !jaxiteword.crypto_context<>, %arg1: !jaxiteword.eval_key<>, %arg2: !ct_L1) -> !ct_L1 {
+    %ct = jaxiteword.rot %arg0, %arg2, %arg1 {index = 16 : i64} : (!jaxiteword.crypto_context<>, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1
+    return %ct : !ct_L1
+  }
+
   func.func @simple_mul(%arg0: !jaxiteword.crypto_context<>, %arg1: !jaxiteword.eval_key<>, %arg2: !ct_L1, %arg3: !ct_L1) -> !ct_L0 {
-    %ct = jaxiteword.mul %arg0, %arg2, %arg3, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1_D3
+    %helper = func.call @rotate_helper(%arg0, %arg1, %arg2) : (!jaxiteword.crypto_context<>, !jaxiteword.eval_key<>, !ct_L1) -> !ct_L1
+    %same_level = jaxiteword.rot %arg0, %helper, %arg1 {index = 4 : i64} : (!jaxiteword.crypto_context<>, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1
+    %duplicate = jaxiteword.rot %arg0, %same_level, %arg1 {index = 4 : i64} : (!jaxiteword.crypto_context<>, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1
+    %ct = jaxiteword.mul %arg0, %duplicate, %arg3, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1, !ct_L1, !jaxiteword.eval_key<>) -> !ct_L1_D3
     %ct_1 = jaxiteword.relin %arg0, %ct, %arg1 : (!jaxiteword.crypto_context<>, !ct_L1_D3, !jaxiteword.eval_key<>) -> !ct_L1_1
     %ct_2 = jaxiteword.mod_reduce %arg0, %ct_1 : (!jaxiteword.crypto_context<>, !ct_L1_1) -> !ct_L0
     %ct_3 = jaxiteword.rot %arg0, %ct_2, %arg1 <index = 4> : (!jaxiteword.crypto_context<>, !ct_L0, !jaxiteword.eval_key<>) -> !ct_L0
@@ -37,6 +46,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 // CHECK: jaxiteword.gen_params
 // CHECK-SAME: degree = 8192
 // CHECK-SAME: numSlots = 4096
+// CHECK-SAME: scalingFactor = 2.8765012734400922E+17
 
 // CHECK: @simple_mul__configure_crypto_context
 // CHECK-SAME: !jaxiteword.crypto_context
@@ -44,4 +54,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 // CHECK-SAME: !jaxiteword.private_key
 // CHECK-SAME: !jaxiteword.eval_key
 // CHECK: jaxiteword.program_initialization
-// CHECK-SAME: totalRotationIndices = [4, 8]
+// CHECK-SAME: rotationLevelOffsets = array<i64: 0, 0, 1, 1>
+// CHECK-SAME: rotationRequirementIndices = array<i64: 4, 16, 4, 8>
+// CHECK-SAME: totalRotationIndices = array<i64: 4, 8, 16>
+
+// CD2: jaxiteword.gen_params
+// CD2-SAME: compositeDegree = 2
+// CD2: jaxiteword.program_initialization
+// CD2-SAME: rotationLevelOffsets = array<i64: 0, 0, 1, 1>
+// CD2-SAME: rotationRequirementIndices = array<i64: 4, 16, 4, 8>

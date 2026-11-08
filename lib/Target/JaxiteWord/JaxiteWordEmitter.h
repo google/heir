@@ -54,6 +54,7 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulNoRelinOp op);
   LogicalResult printOperation(ModReduceOp op);
+  LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(RotOp op);
   LogicalResult printOperation(RelinOp op);
 
@@ -71,6 +72,7 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(GenMulKeyOp op);
   LogicalResult printOperation(GenRotKeyOp op);
   LogicalResult printOperation(ProgramInitializationOp op);
+  LogicalResult printOperation(CompiledRegionOp op);
 
   // Tensor ops
   LogicalResult printOperation(tensor::ExtractOp op);
