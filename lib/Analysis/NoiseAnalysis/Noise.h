@@ -22,6 +22,11 @@ enum NoiseModelVariant {
   WORST_CASE,
 };
 
+enum class NoiseModelScheme {
+  BGV,
+  BFV,
+};
+
 // This class could be shared among all noise models that tracks the noise by a
 // single value. Noise model could have different interpretation of the value.
 // In BGV/BFV world, most noise model just use a single value, either as bound

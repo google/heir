@@ -20,6 +20,7 @@ class NoiseCanEmbModel {
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;
+  static constexpr NoiseModelScheme kScheme = NoiseModelScheme::BGV;
 
  private:
   double getVarianceErr(const LocalParamType& param) const;

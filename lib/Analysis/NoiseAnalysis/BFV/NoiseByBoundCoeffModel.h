@@ -19,6 +19,7 @@ class NoiseByBoundCoeffModel {
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;
+  static constexpr NoiseModelScheme kScheme = NoiseModelScheme::BFV;
 
  private:
   double getExpansionFactor(const LocalParamType& param) const;

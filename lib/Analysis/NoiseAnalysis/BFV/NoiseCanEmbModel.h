@@ -21,6 +21,7 @@ class NoiseCanEmbModel {
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;
+  static constexpr NoiseModelScheme kScheme = NoiseModelScheme::BFV;
 
  private:
   double getVarianceErr(const LocalParamType& param) const;
@@ -35,6 +36,8 @@ class NoiseCanEmbModel {
   StateType evalEncryptSk(const LocalParamType& param) const;
   StateType evalRelinearizeHYBRID(const LocalParamType& inputParam,
                                   const StateType& input) const;
+  StateType evalModReduce(const LocalParamType& inputParam,
+                          const StateType& input) const;
 
  public:
   StateType evalEncrypt(const LocalParamType& param) const;
@@ -44,8 +47,6 @@ class NoiseCanEmbModel {
                     const StateType& rhs) const;
   StateType evalRelinearize(const LocalParamType& inputParam,
                             const StateType& input) const;
-  StateType evalModReduce(const LocalParamType& inputParam,
-                          const StateType& input) const;
 
   // logTotal: log(Ql / 2)
   // logBound: bound on ||m + t * e|| predicted by the model
