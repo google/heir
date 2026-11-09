@@ -1,4 +1,4 @@
-// RUN: heir-opt --yosys-optimizer %s
+// RUN: heir-opt --yosys-optimizer %s | FileCheck %s
 
 module {
   func.func @submod(%arg0: i8) -> (i8) {
