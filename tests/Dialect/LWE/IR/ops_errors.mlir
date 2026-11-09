@@ -6,8 +6,6 @@
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
 !plaintext = !lwe.lwe_plaintext<plaintext_space = #pspace>
-
-// CHECK: test_invalid_plaintext_bits
 func.func @test_invalid_plaintext_bits() {
     %0 = arith.constant 0 : i1
     // expected-error@below {{LWE plaintext ring coefficient type width must match message bits parameter, expected 4 but got 3}}
