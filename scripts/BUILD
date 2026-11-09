@@ -81,3 +81,17 @@ py_test(
         "@abseil-py//absl/testing:absltest",
     ],
 )
+
+py_library(
+    name = "first_interaction",
+    srcs = ["first_interaction.py"],
+)
+
+py_test(
+    name = "test_first_interaction",
+    srcs = ["test_first_interaction.py"],
+    deps = [
+        ":first_interaction",
+        "@abseil-py//absl/testing:absltest",
+    ],
+)
