@@ -1,4 +1,4 @@
-// RUN: heir-opt --ckks-tigris-estimator %s
+// RUN: heir-opt --ckks-tigris-estimator --mlir-print-local-scope %s | FileCheck %s
 
 // This simply tests for syntax.
 
