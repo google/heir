@@ -1,6 +1,6 @@
 // RUN: heir-opt --layout-propagation='min-slot-count=1024' %s
 
-// No CHECK statements because we're just testing performance. This IR was
+// No FileCheck statements because we're just testing performance. This IR was
 // extracted from lowering tests/Examples/common/lenet.mlir down to just before
 // layout-propagation.
 module attributes {backend.openfhe, scheme.ckks} {

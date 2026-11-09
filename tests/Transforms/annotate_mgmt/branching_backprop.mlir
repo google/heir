@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-mgmt %s
+// RUN: heir-opt --annotate-mgmt %s | FileCheck %s
 
 // This test ensures `meet` is implemented on the level lattice, or else
 // backpropagation through region-branching ops will not work properly;
