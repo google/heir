@@ -16,14 +16,10 @@ module {
             // CHECK-NOT: arith.addi
 
             // LUT-COUNT-11: comb.truth_table
-            // LUT-FAST-COUNT-13: comb.truth_table
             // BOOL-COUNT-14: comb
-            // BOOL-FAST-COUNT-16: comb
 
             // LUT-NOT: comb.truth_table
-            // LUT-FAST-NOT: comb.truth_table
             // BOOL-NOT: comb
-            // BOOL-FAST-NOT: comb
             %2 = arith.addi %IN, %ONE : i8
             secret.yield %2 : i8
         } -> (!secret.secret<i8>)
