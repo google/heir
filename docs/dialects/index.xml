@@ -19,14 +19,7 @@ int64_t, # plaintextModulus
 BGVEncryptionType, # encryptionType
 BGVEncryptionTechnique # encryptionTechnique
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
-&lt;p>The attribute is a struct with the following fields:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>int&lt;/code> logN: The log of the degree of the polynomial modulus.&lt;/li>
-&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> Q: The array of primes in the ciphertext modulus.&lt;/li>
-&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> P: The array of primes in the special modulus, used for key switching.&lt;/li>
-&lt;li>&lt;code>int64_t&lt;/code> plaintextModulus: The plaintext modulus.&lt;/li>
-&lt;/ul>
+&lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for BGV.&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -40,32 +33,32 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;tr>
 &lt;td style="text-align:center">logN&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log of the degree of the polynomial modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">Q&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The array of primes in the ciphertext modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">P&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The array of primes in the special modulus, used for key switching.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">plaintextModulus&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The plaintext modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">encryptionType&lt;/td>
 &lt;td style="text-align:center">&lt;code>BGVEncryptionType&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The encryption type (defaults to &lt;code>pk&lt;/code>).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">encryptionTechnique&lt;/td>
 &lt;td style="text-align:center">&lt;code>BGVEncryptionTechnique&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The encryption technique (defaults to &lt;code>standard&lt;/code>).&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -675,7 +668,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">gates&lt;/td>
 &lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;::mlir::heir::cggi::CGGIBoolGateEnumAttr&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The list of Boolean gates.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2104,24 +2097,6 @@ std::optional&amp;lt;int&amp;gt; # numStcLevels
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Records the parameters needed to construct a &lt;code>cheddar::Parameter&amp;lt;word&amp;gt;&lt;/code> (and
 optionally bootstrapping level budgets when bootstrapping is enabled).&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>logN&lt;/code>: Log2 of the polynomial ring degree.&lt;/li>
-&lt;li>&lt;code>logScale&lt;/code>: Log2 of the base scaling factor at level 0.&lt;/li>
-&lt;li>&lt;code>mainPrimes&lt;/code>: Array of main RNS primes.&lt;/li>
-&lt;li>&lt;code>auxPrimes&lt;/code>: Array of auxiliary (special) RNS primes for key switching.&lt;/li>
-&lt;li>&lt;code>terminalPrimes&lt;/code>: Optional array of terminal RNS primes.&lt;/li>
-&lt;li>&lt;code>levelConfig&lt;/code>: Optional flattened array of &lt;code>[numMain_0, numTerminal_0, numMain_1, numTerminal_1, ...]&lt;/code> pairs for each level from level 0 up to maxLevel.&lt;/li>
-&lt;li>&lt;code>wordBits&lt;/code>: Optional word bit width (32 or 64, defaults to 32 if all primes &amp;lt; 2^31 else 64).&lt;/li>
-&lt;li>&lt;code>defaultEncryptionLevel&lt;/code>: Optional default encryption level. Must be a valid level index into &lt;code>levelConfig&lt;/code> when both are present; levels above it are reserved for bootstrapping.&lt;/li>
-&lt;li>&lt;code>additionalBase&lt;/code>: Optional 2-element array &lt;code>[numMain, numTerminal]&lt;/code> for additional base primes at level 0.&lt;/li>
-&lt;li>&lt;code>denseHammingWeight&lt;/code>: Optional dense secret key Hamming weight.&lt;/li>
-&lt;li>&lt;code>sparseHammingWeight&lt;/code>: Optional sparse secret key Hamming weight.&lt;/li>
-&lt;li>&lt;code>boot&lt;/code>: Whether bootstrapping is enabled (defaults to false). When true,
-a &lt;code>cheddar::BootContext&lt;/code> must be constructed and &lt;code>numCtsLevels&lt;/code> and
-&lt;code>numStcLevels&lt;/code> are required.&lt;/li>
-&lt;li>&lt;code>numCtsLevels&lt;/code>: Optional CoeffToSlot level budget for bootstrapping.&lt;/li>
-&lt;li>&lt;code>numStcLevels&lt;/code>: Optional SlotToCoeff level budget for bootstrapping.&lt;/li>
-&lt;/ul>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2135,72 +2110,72 @@ a &lt;code>cheddar::BootContext&lt;/code> must be constructed and &lt;code>numCt
 &lt;tr>
 &lt;td style="text-align:center">logN&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Log2 of the polynomial ring degree.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logScale&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Log2 of the base scaling factor at level 0.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">mainPrimes&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Array of main RNS primes.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">auxPrimes&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Array of auxiliary (special) RNS primes for key switching.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">terminalPrimes&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional array of terminal RNS primes.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">levelConfig&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional flattened array of &lt;code>[numMain_0, numTerminal_0, numMain_1, numTerminal_1, ...]&lt;/code> pairs for each level from level 0 up to maxLevel.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">wordBits&lt;/td>
 &lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional word bit width (32 or 64, defaults to 32 if all primes &amp;lt; 2^31 else 64).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">defaultEncryptionLevel&lt;/td>
 &lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional default encryption level. Must be a valid level index into &lt;code>levelConfig&lt;/code> when both are present; levels above it are reserved for bootstrapping.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">additionalBase&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional 2-element array &lt;code>[numMain, numTerminal]&lt;/code> for additional base primes at level 0.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">denseHammingWeight&lt;/td>
 &lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional dense secret key Hamming weight.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">sparseHammingWeight&lt;/td>
 &lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional sparse secret key Hamming weight.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">boot&lt;/td>
 &lt;td style="text-align:center">&lt;code>bool&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Whether bootstrapping is enabled (defaults to false). When true, a &lt;code>cheddar::BootContext&lt;/code> must be constructed and &lt;code>numCtsLevels&lt;/code> and &lt;code>numStcLevels&lt;/code> are required.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">numCtsLevels&lt;/td>
 &lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional CoeffToSlot level budget for bootstrapping.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">numStcLevels&lt;/td>
 &lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Optional SlotToCoeff level budget for bootstrapping.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4048,24 +4023,9 @@ CKKSEncryptionTechnique, # encryptionTechnique
 DenseI32ArrayAttr # moduliPerLevel
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
-&lt;p>The attribute is a struct with the following fields:&lt;/p>
-&lt;ul>
-&lt;li>`logN1: The log of the degree of the polynomial modulus.&lt;/li>
-&lt;li>&lt;code>Q&lt;/code>: The array of moduli whose product is the ciphertext modulus,
-ordered from level 0 (the base modulus remaining after all rescalings)
-up to the maximum level L (the fresh encryption level).&lt;/li>
-&lt;li>&lt;code>P&lt;/code>: The array of moduli in the special modulus, used for key switching.&lt;/li>
-&lt;li>&lt;code>logDefaultScale&lt;/code>: The log of the default scale.&lt;/li>
-&lt;li>&lt;code>encryptionType&lt;/code>: The encryption type (optional, defaults to &lt;code>pk&lt;/code>).&lt;/li>
-&lt;li>&lt;code>encryptionTechnique&lt;/code>: The encryption technique (optional, defaults to &lt;code>standard&lt;/code>).&lt;/li>
-&lt;li>&lt;code>moduliPerLevel&lt;/code>: Optional array specifying how many moduli in &lt;code>Q&lt;/code> belong to each
-level, ordered from level 0. I.e., if &lt;code>moduliPerLevel = {2, 3}&lt;/code>, then the first
-level uses moduli &lt;code>Q[0], Q[1]&lt;/code>, and the second level uses moduli &lt;code>Q[2], Q[3], Q[4]&lt;/code>.
-This is useful for variants of CKKS that require 32-bit word arithmetic, and employ
-techniques like composite rescaling to achieve intermediate widths of rescaling.
-When omitted, defaults to all 1s. When provided, all entries must be
-positive and their sum must equal &lt;code>Q.size()&lt;/code>.&lt;/li>
-&lt;/ul>
+&lt;p>The optional &lt;code>moduliPerLevel&lt;/code> parameter is useful for variants of CKKS
+that require 32-bit word arithmetic, and employ techniques like composite
+rescaling to achieve intermediate widths of rescaling.&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4079,37 +4039,37 @@ positive and their sum must equal &lt;code>Q.size()&lt;/code>.&lt;/li>
 &lt;tr>
 &lt;td style="text-align:center">logN&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log of the degree of the polynomial modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">Q&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The array of moduli whose product is the ciphertext modulus, ordered from level 0 (the base modulus remaining after all rescalings) up to the maximum level L (the fresh encryption level).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">P&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The array of moduli in the special modulus, used for key switching.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logDefaultScale&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log of the default scale.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">encryptionType&lt;/td>
 &lt;td style="text-align:center">&lt;code>CKKSEncryptionType&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The encryption type (defaults to &lt;code>pk&lt;/code>).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">encryptionTechnique&lt;/td>
 &lt;td style="text-align:center">&lt;code>CKKSEncryptionTechnique&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The encryption technique (defaults to &lt;code>standard&lt;/code>).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">moduliPerLevel&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>How many moduli in &lt;code>Q&lt;/code> belong to each level, ordered from level 0. E.g., if &lt;code>moduliPerLevel = {2, 3}&lt;/code>, then the first level uses moduli &lt;code>Q[0], Q[1]&lt;/code>, and the second level uses moduli &lt;code>Q[2], Q[3], Q[4]&lt;/code>. When omitted, defaults to all 1s. When provided, all entries must be positive and their sum must equal &lt;code>Q.size()&lt;/code>.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8085,32 +8045,32 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;tr>
 &lt;td style="text-align:center">logN&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log2 of the polynomial degree.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">Q&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The moduli chain of the ciphertext modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">P&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The moduli chain of the special (key-switching) modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logQ&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The bit sizes of the moduli in the ciphertext modulus chain.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logP&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The bit sizes of the moduli in the special modulus chain.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">plaintextModulus&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The coefficient modulus in plaintext-space (T).&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8137,7 +8097,7 @@ where some field are not present in the current implementation.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">logN&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log2 of the polynomial degree used during bootstrapping.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8175,32 +8135,32 @@ to consider the signedness issue.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">logN&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log2 of the polynomial degree.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">Q&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The moduli chain of the ciphertext modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">P&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The moduli chain of the special (key-switching) modulus.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logQ&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The bit sizes of the moduli in the ciphertext modulus chain.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logP&lt;/td>
 &lt;td style="text-align:center">&lt;code>DenseI32ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The bit sizes of the moduli in the special modulus chain.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">logDefaultScale&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The log2 of the default initial scale for plaintexts.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11050,14 +11010,7 @@ degree 1, $x$. CGGI ciphertexts will typically use a power of two modulus
 and may use a native integer type for its coefficient modulus.&lt;/p>
 &lt;pre tabindex="0">&lt;code>#ring = #polynomial.ring&amp;lt;coefficientType = i32, polynomialModulus = &amp;lt;1 + x**1024&amp;gt;&amp;gt;
 #ciphertext_space = #lwe.ciphertext_space&amp;lt;ring = #ring, encryption_type = lsb&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>The ciphertext encoding info is used to describe the way the plaintext data
-is encoded into the ciphertext (in the MSB, LSB, or mixed).&lt;/p>
-&lt;p>The &lt;code>size&lt;/code> parameter is used to describe the number of polynomials
-comprising the ciphertext. This is typically 2 for RLWE ciphertexts that
-are made up of an $(a, b)$ pair and greater than 2 for LWE instances. For
-example, after an RLWE multiplication of two size 2 ciphertexts,
-the ciphertext&amp;rsquo;s size will be 3.&lt;/p>
-&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -11070,17 +11023,17 @@ the ciphertext&amp;rsquo;s size will be 3.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">ring&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::RingAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The ring that the ciphertext elements belong to; its coefficient type describes the semantics of the ciphertext coefficients.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">encryption_type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::LweEncryptionType&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Describes how the plaintext data is encoded into the ciphertext (in the MSB, LSB, or mixed).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">size&lt;/td>
 &lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The number of polynomials comprising the ciphertext. This is typically 2 for RLWE ciphertexts that are made up of an $(a, b)$ pair and greater than 2 for LWE instances. For example, after an RLWE multiplication of two size 2 ciphertexts, the ciphertext&amp;rsquo;s size will be 3.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11093,8 +11046,6 @@ int64_t # scaling_factor
 &lt;/code>&lt;/pre>&lt;p>A coefficient encoding of a list of integers asserts that the coefficients
 of the polynomials contain the integers, with the same semantics as
 &lt;code>constant_coefficient_encoding&lt;/code> for per-coefficient encodings.&lt;/p>
-&lt;p>A &lt;code>scaling_factor&lt;/code> is optionally applied on the scalar when converting from
-a rounded floating point to an integer.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.coefficient_encoding&amp;lt;scaling_factor=10000&amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters-1">Parameters:&lt;/h4>
@@ -11110,7 +11061,7 @@ a rounded floating point to an integer.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">scaling_factor&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The factor by which each cleartext scalar is multiplied before being rounded to the nearest integer and encoded.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11124,8 +11075,6 @@ int64_t # scaling_factor
 &lt;p>All other coefficients of the plaintext are set to be zero. This encoding is
 used to encode scalar LWE ciphertexts where the plaintext space is viewed
 as a polynomial ring modulo &lt;code>x&lt;/code>.&lt;/p>
-&lt;p>The scalar is first multiplied by the &lt;code>scaling_factor&lt;/code> and then rounded to
-the nearest integer before encoding into the plaintext coefficient.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.constant_coefficient_encoding&amp;lt;scaling_factor=10000&amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
@@ -11141,7 +11090,7 @@ the nearest integer before encoding into the plaintext coefficient.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">scaling_factor&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The factor by which each cleartext scalar is multiplied before being rounded to the nearest integer and encoded.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11159,8 +11108,6 @@ across the slots formed from each factor.&lt;/p>
 &lt;p>This attribute can only be used in the context of on full CRT packing, where
 the polynomial &lt;code>f(x)&lt;/code> splits completely (into linear factors) and the number
 of slots equals the degree of &lt;code>f(x)&lt;/code>. This happens when &lt;code>q&lt;/code> is prime and &lt;code>q = 1 mod n&lt;/code>.&lt;/p>
-&lt;p>A &lt;code>scaling_factor&lt;/code> is optionally applied on the scalar when converting from
-a rounded floating point to an integer.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.full_crt_packing_encoding&amp;lt;scaling_factor=10000&amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
@@ -11176,7 +11123,7 @@ a rounded floating point to an integer.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">scaling_factor&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The factor by which each cleartext scalar is multiplied before being rounded to the nearest integer and encoded.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11248,7 +11195,7 @@ coefficients.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">scaling_factor&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The factor by which each cleartext scalar is multiplied before being rounded to the nearest integer and encoded.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11263,11 +11210,10 @@ encrypted.&lt;/p>
 encrypted and decryption can be performed. For example, if the decryption of
 a ciphertext $c = (c_0(x), c_1(x))$ is performed by computing the inner
 product $(c_0(x), c_1(x)) \cdot (1, s(x))$ then the key is $(1, s(x))$.&lt;/p>
-&lt;p>The &lt;code>slot_index&lt;/code> describes the key after using a Galois automorphism to
-rotate the plaintext slots by &lt;code>slot_index&lt;/code>. This will correspond to an
-action $\phi_k: x \rightarrow x^k$ for some &lt;code>k&lt;/code> that depends on the
-structure of the Galois group for the chosen scheme parameters. The
-corresponding key will have a new basis $(1, s(x^(k)))$.&lt;/p>
+&lt;p>Rotating the plaintext slots by &lt;code>slot_index&lt;/code> using a Galois automorphism
+will correspond to an action $\phi_k: x \rightarrow x^k$ for some &lt;code>k&lt;/code> that
+depends on the structure of the Galois group for the chosen scheme
+parameters. The corresponding key will have a new basis $(1, s(x^(k)))$.&lt;/p>
 &lt;h4 id="parameters-5">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -11281,7 +11227,7 @@ corresponding key will have a new basis $(1, s(x^(k)))$.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">slot_index&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The number of slots the plaintext has been rotated by (via a Galois automorphism) relative to the original key.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11305,12 +11251,12 @@ int # current
 &lt;tr>
 &lt;td style="text-align:center">elements&lt;/td>
 &lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;mlir::IntegerAttr&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The moduli in the modulus chain.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">current&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The index into &lt;code>elements&lt;/code> of the current (last active) modulus.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11354,7 +11300,7 @@ multiplication and rescaling.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">ring&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::RingAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The plaintext ring, whose coefficient type determines the plaintext modulus $t$.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">encoding&lt;/td>
@@ -12666,11 +12612,6 @@ int, # dimension
 int64_t # scale
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This attribute is used to store all mgmt parameters.&lt;/p>
-&lt;p>The attribute is a struct with the following fields:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>level&lt;/code> : the level of the ciphertext, from L to 0&lt;/li>
-&lt;li>&lt;code>dimension&lt;/code> : the dimension of the ciphertext, defaults to 2&lt;/li>
-&lt;/ul>
 &lt;p>Internally, this attribute is used by secret-to-&lt;scheme>
 for determining the level and dimension of the ciphertext.&lt;/p>
 &lt;p>It should be populated by &amp;ndash;secret-with-mgmt-&lt;scheme> before
@@ -12694,17 +12635,17 @@ going through the secret-to-&lt;scheme> pass.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">level&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The level of the ciphertext, from L to 0.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">dimension&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The dimension of the ciphertext, defaults to 2.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">scale&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The scale of the ciphertext, defaults to -1 (unset).&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12716,11 +12657,6 @@ int, # evalAddCount
 int # keySwitchCount
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This attribute is used to store some OpenFHE-specific parameters.&lt;/p>
-&lt;p>The attribute is a struct with the following fields:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>evalAddCount&lt;/code> : param for OpenFHE SetEvalAddCount&lt;/li>
-&lt;li>&lt;code>keySwitchCount&lt;/code> : param for OpenFHE SetKeySwitchCount&lt;/li>
-&lt;/ul>
 &lt;p>When this attribute presents, the lowering of openfhe pass
 will use these parameters to set the corresponding OpenFHE
 parameters.&lt;/p>
@@ -12741,12 +12677,12 @@ going through the secret-to-bgv bgv-to-openfhe pass.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">evalAddCount&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Param for OpenFHE SetEvalAddCount.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">keySwitchCount&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Param for OpenFHE SetKeySwitchCount.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13093,8 +13029,6 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;h3 id="modarithattr">ModArithAttr&lt;/h3>
 &lt;p>&lt;em>A typed modular arithmetic value&lt;/em>&lt;/p>
 &lt;p>A typed modular arithmetic value.&lt;/p>
-&lt;p>The &lt;code>type&lt;/code> parameter is expected to be a modular arithmetic coefficient
-type, and &lt;code>value&lt;/code> is the corresponding integer representative.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#v&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#mod_arith.value&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">17&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;...&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters">Parameters:&lt;/h4>
@@ -13110,12 +13044,12 @@ type, and &lt;code>value&lt;/code> is the corresponding integer representative.&
 &lt;tr>
 &lt;td style="text-align:center">type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::mod_arith::ModArithType&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The modular arithmetic coefficient type.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">value&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::IntegerAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The corresponding integer representative.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15757,7 +15691,7 @@ Chebyshev polynomials of the first kind.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">coefficients&lt;/td>
 &lt;td style="text-align:center">&lt;code>ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The coefficients in the basis of Chebyshev polynomials of the first kind.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15785,7 +15719,7 @@ must occur at most once.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">polynomial&lt;/td>
 &lt;td style="text-align:center">&lt;code>FloatPolynomial&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The polynomial with double precision floating point coefficients.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15814,7 +15748,7 @@ must occur at most once.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">polynomial&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::IntPolynomial&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The polynomial with integer coefficients.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15828,11 +15762,6 @@ IntegerAttr # degree
 &lt;/code>&lt;/pre>&lt;p>A primitive root attribute stores a typed root &lt;code>value&lt;/code> and an integer
 &lt;code>degree&lt;/code>, corresponding to a primitive root of unity of the given degree, i.e.,
 &lt;code>degree&lt;/code> is the smallest positive integer such that &lt;code>value^degree = 1&lt;/code>&lt;/p>
-&lt;p>The root value is represented as either:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>#mod_arith.value&amp;lt;...&amp;gt;&lt;/code> for a single modular coefficient ring, or&lt;/li>
-&lt;li>&lt;code>#rns.value&amp;lt;...&amp;gt;&lt;/code> for an RNS coefficient ring.&lt;/li>
-&lt;/ul>
 &lt;p>This is used as an attribute on &lt;code>polynomial.ntt&lt;/code> and &lt;code>polynomial.intt&lt;/code> ops
 to specify the root of unity used in lowering the transform.&lt;/p>
 &lt;p>Example:&lt;/p>
@@ -15851,12 +15780,12 @@ to specify the root of unity used in lowering the transform.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">value&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Attribute&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The root value, either a &lt;code>#mod_arith.value&lt;/code> for a single modular coefficient ring, or an &lt;code>#rns.value&lt;/code> for an RNS coefficient ring.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">degree&lt;/td>
 &lt;td style="text-align:center">&lt;code>IntegerAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The degree of the root of unity, i.e., the smallest positive integer such that &lt;code>value^degree = 1&lt;/code>.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15882,17 +15811,17 @@ to specify the root of unity used in lowering the transform.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">coefficients&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::DenseIntElementsAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The coefficients of each RNS limb.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The type of the polynomial.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">form&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::Form&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The representation form of the polynomial (defaults to coefficient form).&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15939,12 +15868,12 @@ and simplifying.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">coefficientType&lt;/td>
 &lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The type of the polynomial coefficients, which owns all semantics pertaining to coefficient arithmetic in the ring.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">polynomialModulus&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::IntPolynomialAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>An optional polynomial modulus; polynomials are represented by their remainder when dividing by this modulus.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15972,12 +15901,12 @@ and simplifying.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The polynomial type of the value.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">value&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::ChebyshevPolynomialAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The untyped polynomial value.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16005,12 +15934,12 @@ and simplifying.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The polynomial type of the value.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">value&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::FloatPolynomialAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The untyped polynomial value.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16038,12 +15967,12 @@ and simplifying.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The polynomial type of the value.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">value&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::IntPolynomialAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The untyped polynomial value.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -18266,8 +18195,6 @@ canonicalization patterns, etc.&lt;/p>
 &lt;h3 id="rnsattr">RNSAttr&lt;/h3>
 &lt;p>&lt;em>A typed RNS value&lt;/em>&lt;/p>
 &lt;p>A typed RNS value with one integer per basis limb.&lt;/p>
-&lt;p>The &lt;code>type&lt;/code> parameter is expected to be an RNS coefficient type, and
-&lt;code>values&lt;/code> stores one residue for each limb.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#v1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#mod_arith.value&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">17&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">256&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#v2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#mod_arith.value&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">19&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">256&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
@@ -18285,12 +18212,12 @@ canonicalization patterns, etc.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">values&lt;/td>
 &lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;Attribute&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>One residue for each limb of the RNS basis.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::rns::RNSType&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The RNS coefficient type.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -18597,17 +18524,17 @@ e.g. &lt;code>[R:4:1]&lt;/code>; the numeric ids are also accepted on input.&lt;
 &lt;tr>
 &lt;td style="text-align:center">dim&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The logical tensor axis index, or a sentinel value: -1 for replication, -2 for gap.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">size&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The number of elements traversed along this dimension.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">stride&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The stride of the traversal (defaults to 1).&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -18674,17 +18601,17 @@ the rotations and a larger one wraps.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">dims&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The ordered list of &lt;code>rotom.dim&lt;/code> dimensions, split into ciphertext dims and slot dims.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">n&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The slot count (ciphertext slot capacity).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">rolls&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::DenseI64ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>Flattened &lt;code>(from, by)&lt;/code> argument pairs of &lt;code>roll(from, by)&lt;/code> metadata, applied left to right.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -18709,7 +18636,7 @@ seeding layouts explored by Rotom.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">layouts&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::ArrayAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The list of &lt;code>rotom.layout&lt;/code> seed attributes.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: SCIFRBool</title><link>https://heir.dev/docs/dialects/scifrbool/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/scifrbool/</guid><description>
@@ -19307,9 +19234,6 @@ compiler must respect.&lt;/li>
 &lt;li>To allow the layout optimization pipeline to materialize its kernel selection
 decisions to the IR.&lt;/li>
 &lt;/ol>
-&lt;p>The &lt;code>name&lt;/code> field corresponds to an internally-defined kernel name, and if
-&lt;code>force&lt;/code> is set to &lt;code>true&lt;/code>, then the kernel may not be overridden by HEIR&amp;rsquo;s
-internal passes.&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -19323,12 +19247,12 @@ internal passes.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">name&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::KernelName&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>An internally-defined kernel name.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">force&lt;/td>
 &lt;td style="text-align:center">&lt;code>bool&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>If true, the kernel may not be overridden by HEIR&amp;rsquo;s internal passes.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -19666,7 +19590,7 @@ which follows the ISL syntax for &lt;code>isl_basic_map&lt;/code>. For example:&
 &lt;tr>
 &lt;td style="text-align:center">layout&lt;/td>
 &lt;td style="text-align:center">&lt;code>mlir::StringAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>A string representation of the integer relation, in ISL &lt;code>isl_basic_map&lt;/code> syntax.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -19696,12 +19620,12 @@ with attribute &lt;code>tensor_ext.original_type&amp;lt;!secret.secret&amp;lt;te
 &lt;tr>
 &lt;td style="text-align:center">originalType&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The original type of the secret tensor before layout conversion.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">layout&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::Attribute&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The layout of the original type.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -21112,7 +21036,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">gates&lt;/td>
 &lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;::mlir::heir::tfhe_rust_bool::TfheRustBoolGateEnumAttr&amp;gt;&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>The list of Boolean gates.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
