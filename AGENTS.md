@@ -19,7 +19,10 @@
 - `scripts/templates/templates.py` (which requires `python-fire` and `jinja2`)
   provides boilerplate for generating new transforms and passes. After running
   the script to create a new pass, one still must register the pass in
-  `heir-opt.cpp` and add the necessary build dependencies.
+  `lib/Tools/HeirOptRegistration.cpp` (shared by `heir-opt` and the python
+  bindings) and add the necessary build dependencies to `lib/Tools/BUILD`.
+  Likewise, new translations are registered in
+  `lib/Tools/HeirTranslateRegistration.cpp`.
 
 ### heir-opt flags
 

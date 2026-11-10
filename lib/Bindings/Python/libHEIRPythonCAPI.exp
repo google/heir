@@ -1,0 +1,27 @@
+# Exported symbols of libHEIRPythonCAPI.so (macOS): the MLIR and HEIR C APIs,
+# and the C++ runtime, if it is linked statically. See libHEIRPythonCAPI.lds.
+_mlir*
+_heir*
+__ZNSt*
+__ZNKSt*
+__ZSt*
+__ZTISt*
+__ZTSSt*
+__ZTVSt*
+__ZTTSt*
+__ZTINSt*
+__ZTSNSt*
+__ZTVNSt*
+__ZTTNSt*
+__ZTCNSt*
+__ZTIN10__cxxabiv1*
+__ZTSN10__cxxabiv1*
+__ZTVN10__cxxabiv1*
+__Znw*
+__Zna*
+__Zdl*
+__Zda*
+___cxa_*
+___dynamic_cast*
+___gxx_personality_*
+__Unwind_*

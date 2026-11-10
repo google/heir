@@ -76,6 +76,22 @@ config_setting(
     },
 )
 
+# Yosys/ABC-based passes and pipelines in heir-opt (`--yosys-optimizer`,
+# `--mlir-to-cggi`). The python wheel is built with `--//:enable_yosys=0`,
+# since it ships neither the Yosys techmap files nor the ABC binary.
+string_flag(
+    name = "enable_yosys",
+    build_setting_default = "1",
+)
+
+config_setting(
+    name = "config_disable_yosys",
+    flag_values = {
+        ":enable_yosys": "0",
+    },
+    visibility = ["//visibility:public"],
+)
+
 # OpenFHE interpreter
 string_flag(
     name = "openfhe_enable_timing",

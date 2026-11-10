@@ -1,0 +1,131 @@
+#include "lib/Pipelines/YosysPipelineRegistration.h"
+
+#include <string>
+#include <vector>
+
+#include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
+#include "lib/Dialect/Debug/Transforms/ValidateNames.h"
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
+#include "lib/Dialect/Secret/Transforms/AddDebugPort.h"
+#include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
+#include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
+#include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
+#include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"    // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+
+using namespace mlir;
+using namespace heir;
+using mlir::func::FuncOp;
+
+namespace mlir::heir {
+
+static std::vector<std::string> opsToDistribute = {"secret.separator"};
+static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
+
+CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string& yosysFilesPath,
+                                              const std::string& abcPath) {
+  return [=](OpPassManager& pm, const MLIRToCGGIPipelineOptions& options) {
+    mlirToCGGIPipeline(pm, options, yosysFilesPath, abcPath);
+  };
+}
+
+void mlirToCGGIPipeline(OpPassManager& pm,
+                        const MLIRToCGGIPipelineOptions& options,
+                        const std::string& yosysFilesPath,
+                        const std::string& abcPath) {
+  pm.addPass(debug::createDebugValidateNames());
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
+  pm.addPass(createConvertTensorToLinalgPass());
+  pm.addPass(createLinalgGeneralizeNamedOpsPass());
+
+  // Linalg to Affine loops
+  // pm.addPass(createDropUnitDims());
+  pm.addPass(createFoldConstantTensors());
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(createCanonicalizerPass());
+  pm.addNestedPass<FuncOp>(createTensorLinalgToAffineLoops());
+
+  // Affine loop optimizations
+  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+  pm.addNestedPass<FuncOp>(
+      affine::createLoopFusionPass(0, 0, true, affine::FusionMode::Greedy));
+  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+  pm.addPass(affine::createAffineParallelize());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createCanonicalizerPass());
+
+  if (options.dataType == Bool) {
+    pm.addPass(createFullLoopUnroll());
+  }
+
+  // Cleanup after loop unroll
+  ::mlir::arith::ArithIntRangeNarrowingOptions arithOps;
+  arithOps.bitwidthsSupported = llvm::to_vector(bitWidths);
+  // This pass also materializes known constants, so forwards arith.constant
+  // tensor<...> with tensor.extracts.
+  pm.addPass(::mlir::arith::createArithIntRangeNarrowing(arithOps));
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(createForwardInsertToExtract());
+  pm.addPass(createFoldConstantTensors());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSymbolDCEPass());
+  pm.addPass(createRemoveDeadValuesPass());
+
+  // Booleanize
+  auto distributeOpts = secret::SecretDistributeGenericOptions{
+      .opsToDistribute = llvm::to_vector(opsToDistribute)};
+  switch (options.dataType) {
+    case Bool:
+      // Wrap with secret.generic and then distribute-generic.
+      pm.addPass(createWrapGeneric());
+      pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
+      pm.addPass(createCanonicalizerPass());
+      pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
+                                      options.unrollFactor,
+                                      options.useSubmodules, options.mode));
+      // Cleanup
+      pm.addPass(mlir::createCSEPass());
+      pm.addPass(createCanonicalizerPass());
+      pm.addPass(createFoldConstantTensors());
+      pm.addPass(createSCCPPass());
+      pm.addPass(createSymbolDCEPass());
+
+      // Lower combinational circuit to CGGI
+      pm.addPass(secret::createSecretDistributeGeneric());
+      pm.addPass(createCanonicalizerPass());
+      pm.addPass(createSecretToCGGI());
+
+      break;
+    case Integer:
+      pm.addPass(arith::createArithToCGGI());
+      break;
+  }
+  // Cleanup SecretToCGGI
+  pm.addPass(createRemoveDeadValuesPass());
+  pm.addPass(createSymbolDCEPass());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(createForwardInsertToExtract());
+  pm.addPass(createFoldConstantTensors());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSCCPPass());
+}
+
+}  // namespace mlir::heir

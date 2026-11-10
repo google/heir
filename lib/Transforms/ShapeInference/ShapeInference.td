@@ -11,8 +11,8 @@ def ShapeInference : Pass<"shape-inference"> {
     starting from function arguments annotated with a {shape.shape} attribute.
     Shape inference is only supported for operations that implement InferTypeOpInterface.
 
-    This is primarily intended to be used in conjunction with the Python frontend,
-    which infers the rank, but not the length of each dimension, for tensor types.
+    This is useful for programs produced by frontends that know the rank, but
+    not the length of each dimension, of tensor types.
   }];
 
   let dependentDialects = [

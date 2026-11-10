@@ -1,0 +1,3 @@
+# Exported symbols of the python extension modules (macOS); see
+# python_extension.lds.
+_PyInit_*

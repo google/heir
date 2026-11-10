@@ -58,50 +58,21 @@ jobs:
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          path: dist
-          pattern: dist-*
-          merge-multiple: true
-
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
           path: archive
           name: source-archive
 
-      - name: Extract and rename binaries
+      # The standalone heir-opt and heir-translate binaries (which aren't part
+      # of the wheels), named after the wheels' platform tags. See
+      # _build_wheels.yml.
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: extracted
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: List binaries
         shell: bash
-        run: |
-          mkdir -p extracted
-          for whl in dist/*.whl; do
-            filename=$(basename "$whl")
-
-            # Extract the platform tag from the wheel filename. Wheels are
-            # named: distribution-version-python_tag-abi_tag-platform_tag.whl We
-            # reverse the string, take the first part separated by '-', reverse
-            # it back, and strip the '.whl' extension. This gives us the platform
-            # tag robustly.
-            platform=$(echo "$filename" | rev | cut -d- -f1 | rev | cut -d. -f1)
-
-            echo "Processing wheel $whl for platform $platform"
-
-            # Extract specific binaries from the wheel. We use -j (junk paths)
-            # to extract them directly into tmp_extract without recreating the
-            # directory structure.
-            unzip -j "$whl" "heir/heir-opt" -d tmp_extract || true
-            unzip -j "$whl" "heir/heir-translate" -d tmp_extract || true
-
-            # Rename the extracted binaries to include the platform tag. This
-            # prevents them from overwriting each other when uploaded to the same
-            # release.
-            if [ -f tmp_extract/heir-opt ]; then
-              mv tmp_extract/heir-opt "extracted/heir-opt-$platform"
-            fi
-            if [ -f tmp_extract/heir-translate ]; then
-              mv tmp_extract/heir-translate "extracted/heir-translate-$platform"
-            fi
-            rm -rf tmp_extract
-          done
-          echo "Extracted files:"
-          ls -alh extracted/
+        run: ls -alh extracted/
 
       - name: Determine Tag Name
         id: tag

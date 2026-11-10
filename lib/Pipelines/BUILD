@@ -41,28 +41,42 @@ cc_library(
     ],
 )
 
+# Pipelines lowering CGGI to its backends. Must not depend on Yosys/ABC, since
+# the python bindings use it.
 cc_library(
     name = "BooleanPipelineRegistration",
     srcs = ["BooleanPipelineRegistration.cpp"],
     hdrs = ["BooleanPipelineRegistration.h"],
     deps = [
-        "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRust",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
+        "@heir//lib/Transforms/BooleanVectorizer",
+        "@heir//lib/Transforms/ForwardStoreToLoad",
+        "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:MemRefTransforms",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+# The Yosys/ABC-based `mlir-to-cggi` pipeline (only registered in heir-opt).
+cc_library(
+    name = "YosysPipelineRegistration",
+    srcs = ["YosysPipelineRegistration.cpp"],
+    hdrs = ["YosysPipelineRegistration.h"],
+    deps = [
+        "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/Debug/Transforms:ValidateNames",
-        "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Transforms:AddDebugPort",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
-        "@heir//lib/Transforms/BooleanVectorizer",
         "@heir//lib/Transforms/FoldConstantTensors",
         "@heir//lib/Transforms/ForwardInsertToExtract",
-        "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/LinalgCanonicalizations",
-        "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/TensorLinalgToAffineLoops",
         "@heir//lib/Transforms/YosysOptimizer",
@@ -71,7 +85,6 @@ cc_library(
         "@llvm-project//mlir:ArithTransforms",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:LinalgTransforms",
-        "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:Transforms",
