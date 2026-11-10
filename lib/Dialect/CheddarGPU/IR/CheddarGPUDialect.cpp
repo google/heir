@@ -2,6 +2,7 @@
 
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.h"
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUEnums.h"
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
@@ -23,6 +24,10 @@ void CheddarGPUDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.cpp.inc"
+      >();
+  addOperations<
+#define GET_OP_LIST
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUOps.cpp.inc"
       >();
 }
 
