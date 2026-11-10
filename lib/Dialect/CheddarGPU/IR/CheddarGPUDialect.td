@@ -28,6 +28,7 @@ def CheddarGPU_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 
+  let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
 }
 

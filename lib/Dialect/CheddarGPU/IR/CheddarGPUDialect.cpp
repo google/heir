@@ -1,5 +1,17 @@
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
 
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.h"
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUEnums.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+
+// Generated enum definitions; they need the complete AsmParser/AsmPrinter
+// types from DialectImplementation.h above.
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUEnums.cpp.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.cpp.inc"
+
 // Generated headers
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.cpp.inc"
 
@@ -7,7 +19,12 @@ namespace mlir {
 namespace heir {
 namespace cheddar_gpu {
 
-void CheddarGPUDialect::initialize() {}
+void CheddarGPUDialect::initialize() {
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.cpp.inc"
+      >();
+}
 
 }  // namespace cheddar_gpu
 }  // namespace heir
