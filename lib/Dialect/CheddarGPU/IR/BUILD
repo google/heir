@@ -12,18 +12,24 @@ cc_library(
     srcs = [
         "CheddarGPUAttributes.cpp",
         "CheddarGPUDialect.cpp",
+        "CheddarGPUOps.cpp",
+        "CheddarGPUTraits.cpp",
     ],
     hdrs = [
         "CheddarGPUAttributes.h",
         "CheddarGPUDialect.h",
         "CheddarGPUEnums.h",
+        "CheddarGPUOps.h",
+        "CheddarGPUTraits.h",
     ],
     deps = [
         ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":enums_inc_gen",
+        ":ops_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -32,13 +38,16 @@ td_library(
     name = "td_files",
     srcs = [
         "CheddarGPUAttributes.td",
+        "CheddarGPUConstraints.td",
         "CheddarGPUDialect.td",
         "CheddarGPUEnums.td",
+        "CheddarGPUOps.td",
     ],
     includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
     ],
 )
 
@@ -70,6 +79,17 @@ add_heir_dialect_library(
     dialect_doc_name = "cheddar_gpu",
     kind = "attribute",
     td_file = "CheddarGPUAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "ops_inc_gen",
+    dialect = "CheddarGPU",
+    dialect_doc_name = "cheddar_gpu",
+    kind = "op",
+    td_file = "CheddarGPUOps.td",
     deps = [
         ":td_files",
     ],
