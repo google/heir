@@ -60,8 +60,8 @@ SingleMemrefPreprocessingTypeConverter::SingleMemrefPreprocessingTypeConverter(
 int64_t SingleMemrefPreprocessingTypeConverter::getFlatBaseOffset(
     PreprocessingStorageType storageTy, Type elementType,
     uint32_t siteId) const {
-  DenseSet<Type> uniqueTypes(storageTy.getElementTypes().begin(),
-                             storageTy.getElementTypes().end());
+  [[maybe_unused]] DenseSet<Type> uniqueTypes(
+      storageTy.getElementTypes().begin(), storageTy.getElementTypes().end());
   assert(uniqueTypes.size() == 1 && "expected single unique element type");
   assert(*uniqueTypes.begin() == elementType && "element type mismatch");
   auto layout = analysis.getLayout(elementType, siteId);

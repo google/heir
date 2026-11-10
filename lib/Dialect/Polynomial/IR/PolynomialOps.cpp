@@ -550,9 +550,6 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
       dyn_cast<rns::RNSType>(ringAttr.getCoefficientType());
   if (!elementType) return failure();
 
-  APInt start = op.getStart();
-  APInt size = op.getSize();
-
   rns::RNSType outputRNSType =
       inferExtractSliceReturnTypes(context, &op, elementType);
   RingAttr outputRingAttr =

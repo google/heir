@@ -747,11 +747,9 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementBicyclicMatmul(const T& packedA, const T& packedB, int64_t m,
                         int64_t n, int64_t p, const DagType& dagType) {
-  APInt mAPInt = APInt(64, m);
   APInt nAPInt = APInt(64, n);
   APInt pAPInt = APInt(64, p);
 
-  APInt mInvModN = multiplicativeInverse(mAPInt.urem(nAPInt), nAPInt);
   APInt pInvModN = multiplicativeInverse(pAPInt.urem(nAPInt), nAPInt);
 
   auto derivedRotationIndexFn = [&](int64_t giantStepSize,
