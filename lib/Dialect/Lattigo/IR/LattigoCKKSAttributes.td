@@ -29,12 +29,12 @@ def Lattigo_CKKSParametersLiteral
         Users must also specify a default initial scale for the plaintexts1.
     }];
     let parameters = (ins
-      "int":$logN,
-      OptionalParameter<"DenseI64ArrayAttr">:$Q,
-      OptionalParameter<"DenseI64ArrayAttr">:$P,
-      OptionalParameter<"DenseI32ArrayAttr">:$logQ,
-      OptionalParameter<"DenseI32ArrayAttr">:$logP,
-      "int":$logDefaultScale
+      AttrParameter<"int", "The log2 of the polynomial degree.">:$logN,
+      OptionalParameter<"DenseI64ArrayAttr", "The moduli chain of the ciphertext modulus.">:$Q,
+      OptionalParameter<"DenseI64ArrayAttr", "The moduli chain of the special (key-switching) modulus.">:$P,
+      OptionalParameter<"DenseI32ArrayAttr", "The bit sizes of the moduli in the ciphertext modulus chain.">:$logQ,
+      OptionalParameter<"DenseI32ArrayAttr", "The bit sizes of the moduli in the special modulus chain.">:$logP,
+      AttrParameter<"int", "The log2 of the default initial scale for plaintexts.">:$logDefaultScale
     );
 }
 
@@ -50,7 +50,7 @@ def Lattigo_CKKSBootstrappingParametersLiteral
         This struct contains only optional fields.
     }];
     let parameters = (ins
-      OptionalParameter<"int">:$logN
+      OptionalParameter<"int", "The log2 of the polynomial degree used during bootstrapping.">:$logN
     );
 }
 

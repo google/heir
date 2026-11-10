@@ -44,7 +44,10 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
     #layout = #tensor_ext.layout<"{[d0] -> [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 >= 0 and d0 >= 0 and ct >= 0 and slot >= 0 and -slot + 1023 >= 0 and -d0 + d3 * 1024 + 1023 >= 0 and d0 - d3 * 1024 >= 0 and -d0 + d4 * 1024 + 1023 >= 0 and d0 - d4 * 1024 >= 0 }">
     ```
   }];
-  let parameters = (ins "mlir::StringAttr":$layout);
+  let parameters = (ins
+    AttrParameter<"mlir::StringAttr",
+      "A string representation of the integer relation, in ISL `isl_basic_map` syntax.">:$layout
+  );
   let genVerifyDecl = 1;
   let assemblyFormat = "`<` $layout `>`";
 
@@ -79,8 +82,8 @@ def TensorExt_OriginalTypeAttr : TensorExt_Attr<"OriginalType", "original_type">
     with attribute `tensor_ext.original_type<!secret.secret<tensor<32xi8>>`.
   }];
   let parameters = (ins
-    "::mlir::Type":$originalType,
-    "::mlir::Attribute":$layout
+    AttrParameter<"::mlir::Type", "The original type of the secret tensor before layout conversion.">:$originalType,
+    AttrParameter<"::mlir::Attribute", "The layout of the original type.">:$layout
   );
   let assemblyFormat =  "`<` struct(params) `>`";
 }

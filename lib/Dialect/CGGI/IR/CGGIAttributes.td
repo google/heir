@@ -30,7 +30,7 @@ def CGGI_CGGIBoolGates : CGGI_Attr<"CGGIBoolGates", "cggi_bool_gates"> {
   }];
 
   let parameters = (ins
-      ArrayRefParameter<"::mlir::heir::cggi::CGGIBoolGateEnumAttr">: $gates);
+      ArrayRefParameter<"::mlir::heir::cggi::CGGIBoolGateEnumAttr", "The list of Boolean gates.">: $gates);
 
   let assemblyFormat = "`<` $gates `>`";
 }

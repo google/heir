@@ -20,9 +20,6 @@ def RNS_RNSAttr : RNS_Attr<"RNS", "value", [DeclareAttrInterfaceMethods<Limbwise
   let description = [{
     A typed RNS value with one integer per basis limb.
 
-    The `type` parameter is expected to be an RNS coefficient type, and
-    `values` stores one residue for each limb.
-
     Example:
 
     ```mlir
@@ -32,8 +29,8 @@ def RNS_RNSAttr : RNS_Attr<"RNS", "value", [DeclareAttrInterfaceMethods<Limbwise
     ```
   }];
   let parameters = (ins
-    ArrayRefParameter<"Attribute">:$values,
-    "::mlir::heir::rns::RNSType":$type
+    ArrayRefParameter<"Attribute", "One residue for each limb of the RNS basis.">:$values,
+    AttrParameter<"::mlir::heir::rns::RNSType", "The RNS coefficient type.">:$type
   );
   let genVerifyDecl = 1;
   let hasCustomAssemblyFormat = 1;

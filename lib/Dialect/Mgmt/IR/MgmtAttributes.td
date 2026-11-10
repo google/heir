@@ -14,10 +14,6 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
   let description = [{
     This attribute is used to store all mgmt parameters.
 
-    The attribute is a struct with the following fields:
-      - `level` : the level of the ciphertext, from L to 0
-      - `dimension` : the dimension of the ciphertext, defaults to 2
-
     Internally, this attribute is used by secret-to-<scheme>
     for determining the level and dimension of the ciphertext.
 
@@ -35,9 +31,9 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
   }];
 
   let parameters = (ins
-    "int": $level,
-    DefaultValuedParameter<"int", "2">:$dimension,
-    DefaultValuedParameter<"int64_t", "-1">:$scale
+    AttrParameter<"int", "The level of the ciphertext, from L to 0.">: $level,
+    DefaultValuedParameter<"int", "2", "The dimension of the ciphertext, defaults to 2.">:$dimension,
+    DefaultValuedParameter<"int64_t", "-1", "The scale of the ciphertext, defaults to -1 (unset).">:$scale
   );
   let builders = [
     AttrBuilder<(ins "int":$level, "int":$dimension), [{
@@ -55,10 +51,6 @@ def Mgmt_OpenfheParamsAttr : Mgmt_Attr<"OpenfheParams", "openfhe_params"> {
   let description = [{
     This attribute is used to store some OpenFHE-specific parameters.
 
-    The attribute is a struct with the following fields:
-      - `evalAddCount` : param for OpenFHE SetEvalAddCount
-      - `keySwitchCount` : param for OpenFHE SetKeySwitchCount
-
     When this attribute presents, the lowering of openfhe pass
     will use these parameters to set the corresponding OpenFHE
     parameters.
@@ -73,8 +65,8 @@ def Mgmt_OpenfheParamsAttr : Mgmt_Attr<"OpenfheParams", "openfhe_params"> {
   }];
 
   let parameters = (ins
-    "int": $evalAddCount,
-    "int": $keySwitchCount
+    AttrParameter<"int", "Param for OpenFHE SetEvalAddCount.">: $evalAddCount,
+    AttrParameter<"int", "Param for OpenFHE SetKeySwitchCount.">: $keySwitchCount
   );
   let assemblyFormat = "`<` struct(params) `>`";
 }

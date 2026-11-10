@@ -19,39 +19,33 @@ def Cheddar_ParameterSetAttr
   let description = [{
     Records the parameters needed to construct a `cheddar::Parameter<word>` (and
     optionally bootstrapping level budgets when bootstrapping is enabled).
-
-    - `logN`: Log2 of the polynomial ring degree.
-    - `logScale`: Log2 of the base scaling factor at level 0.
-    - `mainPrimes`: Array of main RNS primes.
-    - `auxPrimes`: Array of auxiliary (special) RNS primes for key switching.
-    - `terminalPrimes`: Optional array of terminal RNS primes.
-    - `levelConfig`: Optional flattened array of `[numMain_0, numTerminal_0, numMain_1, numTerminal_1, ...]` pairs for each level from level 0 up to maxLevel.
-    - `wordBits`: Optional word bit width (32 or 64, defaults to 32 if all primes < 2^31 else 64).
-    - `defaultEncryptionLevel`: Optional default encryption level. Must be a valid level index into `levelConfig` when both are present; levels above it are reserved for bootstrapping.
-    - `additionalBase`: Optional 2-element array `[numMain, numTerminal]` for additional base primes at level 0.
-    - `denseHammingWeight`: Optional dense secret key Hamming weight.
-    - `sparseHammingWeight`: Optional sparse secret key Hamming weight.
-    - `boot`: Whether bootstrapping is enabled (defaults to false). When true,
-      a `cheddar::BootContext` must be constructed and `numCtsLevels` and
-      `numStcLevels` are required.
-    - `numCtsLevels`: Optional CoeffToSlot level budget for bootstrapping.
-    - `numStcLevels`: Optional SlotToCoeff level budget for bootstrapping.
   }];
   let parameters = (ins
-    "int":$logN,
-    "int":$logScale,
-    "DenseI64ArrayAttr":$mainPrimes,
-    "DenseI64ArrayAttr":$auxPrimes,
-    OptionalParameter<"DenseI64ArrayAttr">:$terminalPrimes,
-    OptionalParameter<"DenseI32ArrayAttr">:$levelConfig,
-    OptionalParameter<"std::optional<int>">:$wordBits,
-    OptionalParameter<"std::optional<int>">:$defaultEncryptionLevel,
-    OptionalParameter<"DenseI32ArrayAttr">:$additionalBase,
-    OptionalParameter<"std::optional<int>">:$denseHammingWeight,
-    OptionalParameter<"std::optional<int>">:$sparseHammingWeight,
-    DefaultValuedParameter<"bool", "false">:$boot,
-    OptionalParameter<"std::optional<int>">:$numCtsLevels,
-    OptionalParameter<"std::optional<int>">:$numStcLevels
+    AttrParameter<"int", "Log2 of the polynomial ring degree.">:$logN,
+    AttrParameter<"int", "Log2 of the base scaling factor at level 0.">:$logScale,
+    AttrParameter<"DenseI64ArrayAttr", "Array of main RNS primes.">:$mainPrimes,
+    AttrParameter<"DenseI64ArrayAttr", "Array of auxiliary (special) RNS primes for key switching.">:$auxPrimes,
+    OptionalParameter<"DenseI64ArrayAttr", "Optional array of terminal RNS primes.">:$terminalPrimes,
+    OptionalParameter<"DenseI32ArrayAttr",
+      "Optional flattened array of `[numMain_0, numTerminal_0, numMain_1, "
+      "numTerminal_1, ...]` pairs for each level from level 0 up to maxLevel.">:$levelConfig,
+    OptionalParameter<"std::optional<int>",
+      "Optional word bit width (32 or 64, defaults to 32 if all primes < 2^31 else 64).">:$wordBits,
+    OptionalParameter<"std::optional<int>",
+      "Optional default encryption level. Must be a valid level index into "
+      "`levelConfig` when both are present; levels above it are reserved for "
+      "bootstrapping.">:$defaultEncryptionLevel,
+    OptionalParameter<"DenseI32ArrayAttr",
+      "Optional 2-element array `[numMain, numTerminal]` for additional base "
+      "primes at level 0.">:$additionalBase,
+    OptionalParameter<"std::optional<int>", "Optional dense secret key Hamming weight.">:$denseHammingWeight,
+    OptionalParameter<"std::optional<int>", "Optional sparse secret key Hamming weight.">:$sparseHammingWeight,
+    DefaultValuedParameter<"bool", "false",
+      "Whether bootstrapping is enabled (defaults to false). When true, a "
+      "`cheddar::BootContext` must be constructed and `numCtsLevels` and "
+      "`numStcLevels` are required.">:$boot,
+    OptionalParameter<"std::optional<int>", "Optional CoeffToSlot level budget for bootstrapping.">:$numCtsLevels,
+    OptionalParameter<"std::optional<int>", "Optional SlotToCoeff level budget for bootstrapping.">:$numStcLevels
   );
   let genVerifyDecl = 1;
 }

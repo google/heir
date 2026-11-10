@@ -55,7 +55,9 @@ class LWE_EncodingAttrWithScalingParam<string attrName, string attrMnemonic, lis
   let assemblyFormat = "`<` struct(params) `>`";
 
   let parameters = (ins
-    "int64_t":$scaling_factor
+    AttrParameter<"int64_t",
+      "The factor by which each cleartext scalar is multiplied before being "
+      "rounded to the nearest integer and encoded.">:$scaling_factor
   );
 }
 
@@ -68,9 +70,6 @@ def LWE_ConstantCoefficientEncoding
     All other coefficients of the plaintext are set to be zero. This encoding is
     used to encode scalar LWE ciphertexts where the plaintext space is viewed
     as a polynomial ring modulo `x`.
-
-    The scalar is first multiplied by the `scaling_factor` and then rounded to
-    the nearest integer before encoding into the plaintext coefficient.
 
     Example:
 
@@ -87,9 +86,6 @@ def LWE_CoefficientEncoding
     A coefficient encoding of a list of integers asserts that the coefficients
     of the polynomials contain the integers, with the same semantics as
     `constant_coefficient_encoding` for per-coefficient encodings.
-
-    A `scaling_factor` is optionally applied on the scalar when converting from
-    a rounded floating point to an integer.
 
     Example:
 
@@ -183,9 +179,6 @@ def LWE_FullCRTPackingEncoding
     of slots equals the degree of `f(x)`. This happens when `q` is prime and `q
     = 1 mod n`.
 
-    A `scaling_factor` is optionally applied on the scalar when converting from
-    a rounded floating point to an integer.
-
     Example:
 
     ```
@@ -221,7 +214,8 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
   }];
 
   let parameters = (ins
-    "::mlir::heir::polynomial::RingAttr":$ring,
+    AttrParameter<"::mlir::heir::polynomial::RingAttr",
+      "The plaintext ring, whose coefficient type determines the plaintext modulus $t$.">:$ring,
     AnyPlaintextEncodingAttr:$encoding
   );
 
@@ -241,15 +235,16 @@ def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
     a ciphertext $c = (c_0(x), c_1(x))$ is performed by computing the inner
     product $(c_0(x), c_1(x)) \cdot (1, s(x))$ then the key is $(1, s(x))$.
 
-    The `slot_index` describes the key after using a Galois automorphism to
-    rotate the plaintext slots by `slot_index`. This will correspond to an
-    action $\phi_k: x \rightarrow x^k$ for some `k` that depends on the
-    structure of the Galois group for the chosen scheme parameters. The
-    corresponding key will have a new basis $(1, s(x^(k)))$.
+    Rotating the plaintext slots by `slot_index` using a Galois automorphism
+    will correspond to an action $\phi_k: x \rightarrow x^k$ for some `k` that
+    depends on the structure of the Galois group for the chosen scheme
+    parameters. The corresponding key will have a new basis $(1, s(x^(k)))$.
   }];
 
   let parameters = (ins
-    DefaultValuedParameter<"int", "0">:$slot_index
+    DefaultValuedParameter<"int", "0",
+      "The number of slots the plaintext has been rotated by (via a Galois "
+      "automorphism) relative to the original key.">:$slot_index
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
@@ -301,21 +296,20 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace", [OpAsmAttr
     #ring = #polynomial.ring<coefficientType = i32, polynomialModulus = <1 + x**1024>>
     #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = lsb>
     ```
-
-    The ciphertext encoding info is used to describe the way the plaintext data
-    is encoded into the ciphertext (in the MSB, LSB, or mixed).
-
-    The `size` parameter is used to describe the number of polynomials
-    comprising the ciphertext. This is typically 2 for RLWE ciphertexts that
-    are made up of an $(a, b)$ pair and greater than 2 for LWE instances. For
-    example, after an RLWE multiplication of two size 2 ciphertexts,
-    the ciphertext's size will be 3.
   }];
 
   let parameters = (ins
-    "::mlir::heir::polynomial::RingAttr":$ring,
-    "::mlir::heir::lwe::LweEncryptionType":$encryption_type,
-    DefaultValuedParameter<"unsigned", "2">:$size
+    AttrParameter<"::mlir::heir::polynomial::RingAttr",
+      "The ring that the ciphertext elements belong to; its coefficient type "
+      "describes the semantics of the ciphertext coefficients.">:$ring,
+    AttrParameter<"::mlir::heir::lwe::LweEncryptionType",
+      "Describes how the plaintext data is encoded into the ciphertext (in the "
+      "MSB, LSB, or mixed).">:$encryption_type,
+    DefaultValuedParameter<"unsigned", "2",
+      "The number of polynomials comprising the ciphertext. This is typically 2 "
+      "for RLWE ciphertexts that are made up of an $(a, b)$ pair and greater "
+      "than 2 for LWE instances. For example, after an RLWE multiplication of "
+      "two size 2 ciphertexts, the ciphertext's size will be 3.">:$size
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
@@ -346,8 +340,8 @@ def LWE_ModulusChainAttr : AttrDef<LWE_Dialect, "ModulusChain", [OpAsmAttrInterf
   }];
 
   let parameters = (ins
-    ArrayRefParameter<"mlir::IntegerAttr">:$elements,
-    "int":$current
+    ArrayRefParameter<"mlir::IntegerAttr", "The moduli in the modulus chain.">:$elements,
+    AttrParameter<"int", "The index into `elements` of the current (last active) modulus.">:$current
   );
 
   let assemblyFormat = "`<` `elements` `=` `<` $elements `>``,` `current` `=` $current `>`";

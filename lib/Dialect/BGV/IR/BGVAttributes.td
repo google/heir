@@ -18,21 +18,17 @@ def BGV_SchemeParam
     : BGV_Attribute<"SchemeParam", "scheme_param"> {
     let summary = "BGV Scheme Parameters";
     let description = [{
-      This attribute is used for recording the scheme parameters for CKKS.
-
-      The attribute is a struct with the following fields:
-        - `int` logN: The log of the degree of the polynomial modulus.
-        - `DenseI64ArrayAttr` Q: The array of primes in the ciphertext modulus.
-        - `DenseI64ArrayAttr` P: The array of primes in the special modulus, used for key switching.
-        - `int64_t` plaintextModulus: The plaintext modulus.
+      This attribute is used for recording the scheme parameters for BGV.
     }];
     let parameters = (ins
-      "int":$logN,
-      "DenseI64ArrayAttr":$Q,
-      "DenseI64ArrayAttr":$P,
-      "int64_t":$plaintextModulus,
-      DefaultValuedParameter<"BGVEncryptionType", "BGVEncryptionType::pk">:$encryptionType,
-      DefaultValuedParameter<"BGVEncryptionTechnique", "BGVEncryptionTechnique::standard">:$encryptionTechnique
+      AttrParameter<"int", "The log of the degree of the polynomial modulus.">:$logN,
+      AttrParameter<"DenseI64ArrayAttr", "The array of primes in the ciphertext modulus.">:$Q,
+      AttrParameter<"DenseI64ArrayAttr", "The array of primes in the special modulus, used for key switching.">:$P,
+      AttrParameter<"int64_t", "The plaintext modulus.">:$plaintextModulus,
+      DefaultValuedParameter<"BGVEncryptionType", "BGVEncryptionType::pk",
+        "The encryption type (defaults to `pk`).">:$encryptionType,
+      DefaultValuedParameter<"BGVEncryptionTechnique", "BGVEncryptionTechnique::standard",
+        "The encryption technique (defaults to `standard`).">:$encryptionTechnique
     );
 }
 

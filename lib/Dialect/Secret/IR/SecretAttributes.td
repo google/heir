@@ -23,12 +23,11 @@ def Secret_KernelAttr : Secret_Attr<"Kernel", "kernel"> {
     compiler must respect.
     2. To allow the layout optimization pipeline to materialize its kernel selection
     decisions to the IR.
-
-    The `name` field corresponds to an internally-defined kernel name, and if
-    `force` is set to `true`, then the kernel may not be overridden by HEIR's
-    internal passes.
   }];
-  let parameters = (ins "::mlir::heir::KernelName":$name, "bool":$force);
+  let parameters = (ins
+    AttrParameter<"::mlir::heir::KernelName", "An internally-defined kernel name.">:$name,
+    AttrParameter<"bool", "If true, the kernel may not be overridden by HEIR's internal passes.">:$force
+  );
 }
 
 #endif  // LIB_DIALECT_SECRET_IR_SECRETATTRIBUTES_TD_

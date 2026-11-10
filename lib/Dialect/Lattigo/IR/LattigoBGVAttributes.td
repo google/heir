@@ -32,12 +32,12 @@ def Lattigo_BGVParametersLiteral
         (i.e., the plaintext space has n slots).
     }];
     let parameters = (ins
-      "int":$logN,
-      OptionalParameter<"DenseI64ArrayAttr">:$Q,
-      OptionalParameter<"DenseI64ArrayAttr">:$P,
-      OptionalParameter<"DenseI32ArrayAttr">:$logQ,
-      OptionalParameter<"DenseI32ArrayAttr">:$logP,
-      "int64_t":$plaintextModulus
+      AttrParameter<"int", "The log2 of the polynomial degree.">:$logN,
+      OptionalParameter<"DenseI64ArrayAttr", "The moduli chain of the ciphertext modulus.">:$Q,
+      OptionalParameter<"DenseI64ArrayAttr", "The moduli chain of the special (key-switching) modulus.">:$P,
+      OptionalParameter<"DenseI32ArrayAttr", "The bit sizes of the moduli in the ciphertext modulus chain.">:$logQ,
+      OptionalParameter<"DenseI32ArrayAttr", "The bit sizes of the moduli in the special modulus chain.">:$logP,
+      AttrParameter<"int64_t", "The coefficient modulus in plaintext-space (T).">:$plaintextModulus
     );
 }
 

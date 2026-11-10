@@ -20,9 +20,6 @@ def ModArith_ModArithAttr : ModArith_Attr<"ModArith", "value",
   let description = [{
     A typed modular arithmetic value.
 
-    The `type` parameter is expected to be a modular arithmetic coefficient
-    type, and `value` is the corresponding integer representative.
-
     Example:
 
     ```mlir
@@ -30,8 +27,8 @@ def ModArith_ModArithAttr : ModArith_Attr<"ModArith", "value",
     ```
   }];
   let parameters = (ins
-    "::mlir::heir::mod_arith::ModArithType":$type,
-    "::mlir::IntegerAttr":$value
+    AttrParameter<"::mlir::heir::mod_arith::ModArithType", "The modular arithmetic coefficient type.">:$type,
+    AttrParameter<"::mlir::IntegerAttr", "The corresponding integer representative.">:$value
   );
   let hasCustomAssemblyFormat = 1;
 }

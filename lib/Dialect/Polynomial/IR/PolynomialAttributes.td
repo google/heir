@@ -31,7 +31,9 @@ def Polynomial_IntPolynomialAttr : Polynomial_Attr<"IntPolynomial", "int_polynom
     #poly = #polynomial.int_polynomial<x**1024 + 1>
     ```
   }];
-  let parameters = (ins "::mlir::heir::polynomial::IntPolynomial":$polynomial);
+  let parameters = (ins
+    AttrParameter<"::mlir::heir::polynomial::IntPolynomial", "The polynomial with integer coefficients.">:$polynomial
+  );
   let hasCustomAssemblyFormat = 1;
 }
 
@@ -53,7 +55,9 @@ def Polynomial_FloatPolynomialAttr : Polynomial_Attr<"FloatPolynomial", "float_p
     #poly = #polynomial.float_polynomial<0.5 x**7 + 1.5>
     ```
   }];
-  let parameters = (ins "FloatPolynomial":$polynomial);
+  let parameters = (ins
+    AttrParameter<"FloatPolynomial", "The polynomial with double precision floating point coefficients.">:$polynomial
+  );
   let hasCustomAssemblyFormat = 1;
 }
 
@@ -69,7 +73,10 @@ def Polynomial_TypedIntPolynomialAttr : Polynomial_Attr<
     #poly_verbose = #polynomial.typed_int_polynomial<1 x**7 + 4> : !poly_ty
     ```
   }];
-  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::IntPolynomialAttr":$value);
+  let parameters = (ins
+    AttrParameter<"::mlir::Type", "The polynomial type of the value.">:$type,
+    AttrParameter<"::mlir::heir::polynomial::IntPolynomialAttr", "The untyped polynomial value.">:$value
+  );
   let assemblyFormat = "$value `:` $type";
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
@@ -103,7 +110,10 @@ def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
     #poly_verbose = #polynomial.typed_float_polynomial<1.4 x**7 + 4.5> : !poly_ty
     ```
   }];
-  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::FloatPolynomialAttr":$value);
+  let parameters = (ins
+    AttrParameter<"::mlir::Type", "The polynomial type of the value.">:$type,
+    AttrParameter<"::mlir::heir::polynomial::FloatPolynomialAttr", "The untyped polynomial value.">:$value
+  );
   let assemblyFormat = "$value `:` $type";
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
@@ -136,7 +146,9 @@ def Polynomial_ChebyshevPolynomialAttr : Polynomial_Attr<"ChebyshevPolynomial", 
     #poly = #polynomial.chebyshev_polynomial<[1.0, 2.0, 3.0, 4.0]>
     ```
   }];
-  let parameters = (ins "ArrayAttr":$coefficients);
+  let parameters = (ins
+    AttrParameter<"ArrayAttr", "The coefficients in the basis of Chebyshev polynomials of the first kind.">:$coefficients
+  );
   let assemblyFormat = "`<` $coefficients `>`";
 }
 
@@ -152,7 +164,10 @@ def Polynomial_TypedChebyshevPolynomialAttr : Polynomial_Attr<
     #poly_verbose = #polynomial.typed_chebyshev_polynomial<[1.4, 4.5, 6.0, 7.0]> : !poly_ty
     ```
   }];
-  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::ChebyshevPolynomialAttr":$value);
+  let parameters = (ins
+    AttrParameter<"::mlir::Type", "The polynomial type of the value.">:$type,
+    AttrParameter<"::mlir::heir::polynomial::ChebyshevPolynomialAttr", "The untyped polynomial value.">:$value
+  );
   let assemblyFormat = "$value `:` $type";
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
@@ -211,8 +226,12 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring", [OpAsmAttrInterface]> 
   }];
 
   let parameters = (ins
-    "Type": $coefficientType,
-    OptionalParameter<"::mlir::heir::polynomial::IntPolynomialAttr">: $polynomialModulus
+    AttrParameter<"Type",
+      "The type of the polynomial coefficients, which owns all semantics "
+      "pertaining to coefficient arithmetic in the ring.">: $coefficientType,
+    OptionalParameter<"::mlir::heir::polynomial::IntPolynomialAttr",
+      "An optional polynomial modulus; polynomials are represented by their "
+      "remainder when dividing by this modulus.">: $polynomialModulus
   );
   let assemblyFormat = "`<` struct(params) `>`";
   let builders = [
@@ -242,10 +261,6 @@ def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_ro
     `degree`, corresponding to a primitive root of unity of the given degree, i.e.,
     `degree` is the smallest positive integer such that `value^degree = 1`
 
-    The root value is represented as either:
-    - `#mod_arith.value<...>` for a single modular coefficient ring, or
-    - `#rns.value<...>` for an RNS coefficient ring.
-
     This is used as an attribute on `polynomial.ntt` and `polynomial.intt` ops
     to specify the root of unity used in lowering the transform.
 
@@ -257,8 +272,12 @@ def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_ro
     ```
   }];
   let parameters = (ins
-    "::mlir::Attribute":$value,
-    "IntegerAttr":$degree
+    AttrParameter<"::mlir::Attribute",
+      "The root value, either a `#mod_arith.value` for a single modular "
+      "coefficient ring, or an `#rns.value` for an RNS coefficient ring.">:$value,
+    AttrParameter<"IntegerAttr",
+      "The degree of the root of unity, i.e., the smallest positive integer "
+      "such that `value^degree = 1`.">:$degree
   );
   let assemblyFormat = "`<` struct(params) `>`";
 }
@@ -270,11 +289,12 @@ def Polynomial_RNSPolynomialAttr : Polynomial_Attr<"RNSPolynomial", "rns_polynom
   }];
   let genVerifyDecl = 1;
   let parameters = (ins
-    "::mlir::DenseIntElementsAttr":$coefficients,
-    "::mlir::Type":$type,
+    AttrParameter<"::mlir::DenseIntElementsAttr", "The coefficients of each RNS limb.">:$coefficients,
+    AttrParameter<"::mlir::Type", "The type of the polynomial.">:$type,
     DefaultValuedParameter<
       "::mlir::heir::polynomial::Form",
-      "::mlir::heir::polynomial::Form::COEFF"
+      "::mlir::heir::polynomial::Form::COEFF",
+      "The representation form of the polynomial (defaults to coefficient form)."
     >:$form
   );
   let assemblyFormat = "`<` $coefficients (`,` $form^)? `>` `:` $type";

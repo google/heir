@@ -29,7 +29,7 @@ def TfheRustBoolGates_Attr : TfheRustBool_Attr<"TfheRustBoolGates", "tfhe_rust_b
   }];
 
   let parameters = (ins
-      ArrayRefParameter<"::mlir::heir::tfhe_rust_bool::TfheRustBoolGateEnumAttr">: $gates);
+      ArrayRefParameter<"::mlir::heir::tfhe_rust_bool::TfheRustBoolGateEnumAttr", "The list of Boolean gates.">: $gates);
 
   let assemblyFormat = "`<` $gates `>`";
 }

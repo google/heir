@@ -29,9 +29,10 @@ def Rotom_DimAttr : Rotom_Attr<"Dim", "dim"> {
   }];
 
   let parameters = (ins
-    "int64_t":$dim,
-    "int64_t":$size,
-    DefaultValuedParameter<"int64_t", "1">:$stride
+    AttrParameter<"int64_t",
+      "The logical tensor axis index, or a sentinel value: -1 for replication, -2 for gap.">:$dim,
+    AttrParameter<"int64_t", "The number of elements traversed along this dimension.">:$size,
+    DefaultValuedParameter<"int64_t", "1", "The stride of the traversal (defaults to 1).">:$stride
   );
 
   let extraClassDeclaration = [{
@@ -109,9 +110,11 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
   }];
 
   let parameters = (ins
-    "::mlir::ArrayAttr":$dims,
-    "int64_t":$n,
-    OptionalParameter<"::mlir::DenseI64ArrayAttr">:$rolls
+    AttrParameter<"::mlir::ArrayAttr",
+      "The ordered list of `rotom.dim` dimensions, split into ciphertext dims and slot dims.">:$dims,
+    AttrParameter<"int64_t", "The slot count (ciphertext slot capacity).">:$n,
+    OptionalParameter<"::mlir::DenseI64ArrayAttr",
+      "Flattened `(from, by)` argument pairs of `roll(from, by)` metadata, applied left to right.">:$rolls
   );
 
   let genVerifyDecl = 1;
@@ -135,7 +138,7 @@ def Rotom_SeedAttr : Rotom_Attr<"Seed", "seed"> {
     seeding layouts explored by Rotom.
   }];
   let parameters = (ins
-    "::mlir::ArrayAttr":$layouts
+    AttrParameter<"::mlir::ArrayAttr", "The list of `rotom.layout` seed attributes.">:$layouts
   );
 
   let genVerifyDecl = 1;
