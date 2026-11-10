@@ -677,30 +677,46 @@ static RankedTensorType getCollapsedType(
   return RankedTensorType::get(shape, type.getElementType());
 }
 
+// Returns the kept dimension in `group` when `onlyUnitDimsChange` holds.
+static int64_t getKeptDim(RankedTensorType type,
+                          const ReassociationIndices& group) {
+  for (int64_t dim : group) {
+    if (type.getDimSize(dim) != 1) return dim;
+  }
+  return group.front();
+}
+
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation) {
   // Adding or dropping unit dimensions is done on the relation directly, which
   // keeps it free of the local variables the general composition introduces.
   if (!onlyUnitDimsChange(sourceType, reassociation)) {
-    // A collapsed index is the row-major index of its group, so the collapsed
-    // tensor keeps every element in the same slot.
+    // Each collapsed index is the row-major index of its source group, so the
+    // collapsed tensor keeps every element in the same slot.
+    IntegerRelation sourceToCollapsed = getCollapsedRelation(
+        sourceType, getCollapsedType(sourceType, reassociation), reassociation);
     IntegerRelation result = relation;
-    result.applyDomain(getCollapsedRelation(
-        sourceType, getCollapsedType(sourceType, reassociation),
-        reassociation));
+    result.applyDomain(sourceToCollapsed);
     return result;
   }
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
-  for (const ReassociationIndices& associationGroup : reassociation) {
+  if (reassociation.empty()) {
+    clonedRelation->setAndEliminate(
+        0, SmallVector<int64_t>(sourceType.getRank(), 0));
+    return *clonedRelation;
+  }
+  for (const ReassociationIndices& associationGroup :
+       llvm::reverse(reassociation)) {
     // a single-entry association group is a no-op
     if (associationGroup.size() == 1) {
       continue;
     }
+    int64_t keptDim = getKeptDim(sourceType, associationGroup);
     // Iterate starting from the largest index so that earlier deletion do not
     // impact later indices
     for (int64_t reassocDim : llvm::reverse(associationGroup)) {
-      if (sourceType.getShape()[reassocDim] == 1) {
+      if (reassocDim != keptDim) {
         // Drop this unit dimension
         clonedRelation->setAndEliminate(reassocDim, 0);
       }
@@ -718,8 +734,7 @@ presburger::IntegerRelation expandDimensions(
   // an output dimension of size 1. Mainly we have to ensure that the
   // dimension we're adding is in the correct index of the integer relations
   // domain variable list.
-  if (!reassociation.empty() &&
-      !onlyUnitDimsChange(resultType, reassociation)) {
+  if (!onlyUnitDimsChange(resultType, reassociation)) {
     // An expanded index collapses back to its source index row-major, so the
     // expanded tensor keeps every element in the same slot.
     IntegerRelation expandedToSource = getCollapsedRelation(
@@ -742,7 +757,6 @@ presburger::IntegerRelation expandDimensions(
   }
 
   int oldDim = 0;
-  DenseMap<AffineExpr, AffineExpr> oldDimsToNewDims;
   for (const ReassociationIndices& associationGroup : reassociation) {
     // a single-entry association group is a no-op
     if (associationGroup.size() == 1) {
@@ -750,8 +764,9 @@ presburger::IntegerRelation expandDimensions(
       continue;
     }
 
+    int64_t keptDim = getKeptDim(resultType, associationGroup);
     for (int64_t reassocDim : associationGroup) {
-      if (resultType.getShape()[reassocDim] > 1) {
+      if (reassocDim == keptDim) {
         ++oldDim;
       } else {
         // A new dimension of size 1 is being added, so add a new domain

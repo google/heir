@@ -236,7 +236,10 @@ implementGenericKernel(const GenericKernelSpec& spec,
       for (const auto& [slot, reads] : slots) {
         if (r >= reads.size()) continue;
         mask[slot] = reads[r].second;
-        rows.resize(reads[r].first.size(), std::vector<int64_t>(numSlots, -1));
+        if (rows.empty()) {
+          rows.resize(reads[r].first.size(),
+                      std::vector<int64_t>(numSlots, -1));
+        }
         for (auto [row, read] : llvm::zip(rows, reads[r].first)) {
           row[slot] = read;
         }

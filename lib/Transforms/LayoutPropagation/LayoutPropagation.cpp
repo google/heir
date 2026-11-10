@@ -155,6 +155,10 @@ std::pair<Value, LayoutAttr> convertToLayout(
   convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
                            layoutAttr);
   Value toReplace = convertLayoutOp.getResult();
+  if (auto info = findAttributeAssociatedWith(value, kKernelInfoAttrName);
+      succeeded(info)) {
+    setAttributeAssociatedWith(toReplace, kKernelInfoAttrName, *info);
+  }
   builder.replaceUsesWithIf(value, toReplace, [&](OpOperand& operand) {
     return operand.getOwner() == op;
   });
@@ -421,14 +425,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
       return layoutAttr;
     }
     if (auto arrayAttr = dyn_cast<ArrayAttr>(attr)) {
-      auto layoutAttrs = arrayAttr.getAsRange<LayoutAttr>();
-      auto it = layoutAttrs.begin();
-      presburger::IntegerRelation composedRel = (*it).getIntegerRelation();
-      ++it;
-      for (; it != layoutAttrs.end(); ++it) {
-        composedRel.compose((*it).getIntegerRelation());
-      }
-      return LayoutAttr::getFromIntegerRelation(&getContext(), composedRel);
+      return LayoutAttr::composeLayouts(arrayAttr, &getContext());
     }
     llvm_unreachable("unexpected attribute type in assignedLayouts");
   }
@@ -739,6 +736,7 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   // Otherwise keep each result element in the slots of a secret input element
   // read in the same iteration, so that input needs no rotation.
   for (OpOperand* input : op.getDpsInputOperands()) {
+    if (op.getMatchingBlockArgument(input).use_empty()) continue;
     Value value = input->get();
     if (resultLayout || !assignedLayouts.contains(value) ||
         !isSecret(value, solver)) {
@@ -776,7 +774,24 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   Value result = op.getResult(0);
   assignedLayouts.insert({result, resultLayout});
   debugAssignLayout(result, resultLayout);
-  setResultLayoutAttr(op);
+  Attribute kernelInfoAttr;
+  for (Value operand : op->getOperands()) {
+    if (operand.getType() == resultType && assignedLayouts.contains(operand) &&
+        getComposedLayoutAttr(operand) == resultLayout) {
+      if (auto info = findAttributeAssociatedWith(operand, kKernelInfoAttrName);
+          succeeded(info)) {
+        kernelInfoAttr = *info;
+        break;
+      }
+    }
+  }
+  if (!kernelInfoAttr) {
+    kernelInfoAttr = makeKernelInfoAttr(
+        &getContext(),
+        KernelInfo{.resultShape = llvm::to_vector(resultType.getShape()),
+                   .gapFactor = 1});
+  }
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 
@@ -819,12 +834,15 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
   // value is encrypted in whatever layout we pick and has no other use.
   struct Candidate {
     OpOperand* input;
+    size_t specInputIndex;
     IntegerRelation layout;
     int64_t conversionCost;
   };
   std::vector<Candidate> candidates;
   for (OpOperand* input : op.getDpsInputOperands()) {
+    if (op.getMatchingBlockArgument(input).use_empty()) continue;
     Value value = input->get();
+    size_t specInputIndex = spec.inputs.size();
     StructuredOperand& operand = spec.inputs.emplace_back();
     operand.indexingMap = op.getMatchingIndexingMap(input);
     auto type = dyn_cast<RankedTensorType>(value.getType());
@@ -863,7 +881,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
       if (!cost) continue;
       conversionCost += *cost;
     }
-    candidates.push_back({input, *pulled, conversionCost});
+    candidates.push_back({input, specInputIndex, *pulled, conversionCost});
   }
   if (candidates.empty()) return;
 
@@ -875,8 +893,7 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
     int64_t conversions = 0;
     for (auto [i, candidate] : llvm::enumerate(candidates)) {
       if (!moved[i]) continue;
-      trial.inputs[candidate.input->getOperandNumber()].layout =
-          candidate.layout;
+      trial.inputs[candidate.specInputIndex].layout = candidate.layout;
       conversions += candidate.conversionCost;
     }
     std::optional<int64_t> cost = groupsAndRotations(trial);
@@ -916,9 +933,12 @@ void LayoutPropagation::chooseGenericInputLayouts(linalg::GenericOp op,
         LayoutAttr::getFromIntegerRelation(&getContext(), candidate.layout);
     auto converted = ConvertLayoutOp::create(
         builder, op->getLoc(), value, getComposedLayoutAttr(value), layout);
-    converted->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
+    solver->getOrCreateState<SecretnessLattice>(converted.getResult())
+        ->getValue()
+        .setSecretness(isSecret(value, solver));
     candidate.input->set(converted);
     assignedLayouts.insert({converted, layout});
+    setResultLayoutAttr(converted);
     debugAssignLayout(converted, layout);
   }
 }
@@ -940,8 +960,10 @@ LogicalResult LayoutPropagation::generalizeAndVisit(linalg::LinalgOp op) {
   if (failed(generic)) return op->emitError() << "failed to generalize";
   for (auto [result, secret] :
        llvm::zip(generic->getResults(), secretResults)) {
-    solver->getOrCreateState<SecretnessLattice>(result)->join(
+    (void)solver->getOrCreateState<SecretnessLattice>(result)->join(
         Secretness(secret));
+    (void)solver->getOrCreateState<LayoutIsFreeLattice>(result)->join(
+        LayoutIsFree(false));
   }
   erasedVisitedOp = true;
   // The generic op's operands get their default layouts like any other op's.
@@ -1128,21 +1150,15 @@ LayoutPropagation::selectBatchMatmulKernel(BatchMatmulOp op,
 }
 
 LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
-  // Reassociate the dimensions to collapse. For e.g. if we collapse d0 x d1 x
-  // d2 to d' then we need to construct the row-major relation from (d0, d1, d2)
-  // -> d'. Then the relation on the collapsed tensor will be the composition
-  // from d' -> (d0, d1, d2) -> (ct, slot).
-  auto rowMajorRelation = getCollapsedRelation(
-      op.getSrcType(), op.getResultType(), op.getReassociationIndices());
-
   auto tensor = op.getSrc();
   LayoutAttr inputLayout = getComposedLayoutAttr(tensor);
-  IntegerRelation relation = inputLayout.getIntegerRelation();
+  IntegerRelation collapsedRelation =
+      collapseDimensions(inputLayout.getIntegerRelation(), op.getSrcType(),
+                         op.getReassociationIndices());
 
-  relation.applyDomain(rowMajorRelation);
   MLIRContext* ctx = &getContext();
   LayoutAttr resultLayoutAttr =
-      LayoutAttr::getFromIntegerRelation(ctx, relation);
+      LayoutAttr::getFromIntegerRelation(ctx, collapsedRelation);
   Attribute kernelInfoAttr =
       cloneKernelInfoWithResultShape(tensor, op.getResultType().getShape());
 
