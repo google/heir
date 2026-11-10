@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <string>
@@ -36,6 +37,18 @@ using BodyBuilderFn = function_ref<scf::ValueVector(OpBuilder&, Location,
 FailureOr<isl_ast_node*> generateLoopNest(
     const presburger::IntegerRelation& rel, isl_ctx* ctx,
     ArrayRef<int> domainIndicesToSchedule = {});
+
+// Calls `fn(domainPoint, rangePoint)` once for every point of `rel`, in
+// lexicographic order of (domain, range). The points come from walking an isl
+// AST built once for `rel`, so the isl work does not depend on the number of
+// points. Every local of `rel` becomes a coordinate of that AST (a loop or an
+// expression). A local that is not a floor division of the variables can take
+// several values for one point; the walk then reaches the point once per
+// value and reports it once.
+void forEachPoint(const presburger::IntegerRelation& rel,
+                  function_ref<void(ArrayRef<int64_t> domainPoint,
+                                    ArrayRef<int64_t> rangePoint)>
+                      fn);
 
 // A debugging helper to generate a C string representation of the loop nest.
 FailureOr<std::string> generateLoopNestAsCStr(

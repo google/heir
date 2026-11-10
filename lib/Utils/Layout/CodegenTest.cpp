@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
@@ -10,6 +11,7 @@
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -422,6 +424,117 @@ TEST(CodegenTest, Conv2dChwFchwAsSequenceNoInterchangeTest) {
     auto result = generateLoopNestAsCStr(rels[i]);
     EXPECT_TRUE(succeeded(result)) << "Failed at relation " << i;
   }
+}
+
+// The points of `relation` whose coordinates lie in [lb, ub], found by testing
+// every candidate for membership.
+std::vector<std::vector<int64_t>> bruteForcePoints(
+    const presburger::IntegerRelation& relation, ArrayRef<int64_t> lb,
+    ArrayRef<int64_t> ub) {
+  std::vector<std::vector<int64_t>> points;
+  std::vector<int64_t> point(lb.begin(), lb.end());
+  while (true) {
+    if (relation.containsPointNoLocal(point)) points.push_back(point);
+    int d = point.size() - 1;
+    for (; d >= 0; --d) {
+      if (++point[d] <= ub[d]) break;
+      point[d] = lb[d];
+    }
+    if (d < 0) return points;
+  }
+}
+
+std::vector<std::vector<int64_t>> scannedPoints(
+    const presburger::IntegerRelation& relation) {
+  std::vector<std::vector<int64_t>> points;
+  forEachPoint(relation, [&](ArrayRef<int64_t> domainPoint,
+                             ArrayRef<int64_t> rangePoint) {
+    std::vector<int64_t> point(domainPoint.begin(), domainPoint.end());
+    point.insert(point.end(), rangePoint.begin(), rangePoint.end());
+    points.push_back(point);
+  });
+  return points;
+}
+
+TEST(CodegenTest, ForEachPointHaleviShoup) {
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [row, col] -> [ct, slot] : (slot - row) mod 4 = 0 and (ct + slot - "
+      "col) mod 8 = 0 and 0 <= row <= 3 and 0 <= col <= 7 and 0 <= ct <= 3 "
+      "and 0 <= slot <= 15 }");
+  ASSERT_TRUE(succeeded(relation));
+  // The brute force lists the points in lexicographic order, as forEachPoint
+  // must.
+  EXPECT_THAT(
+      scannedPoints(relation.value()),
+      Eq(bruteForcePoints(relation.value(), {0, 0, 0, 0}, {3, 7, 3, 15})));
+}
+
+TEST(CodegenTest, ForEachPointFloorDivisions) {
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i] -> [ct, slot] : ct = floor(i/4) and slot = i mod 4 and 0 <= i <= "
+      "9 }");
+  ASSERT_TRUE(succeeded(relation));
+  EXPECT_THAT(scannedPoints(relation.value()),
+              Eq(bruteForcePoints(relation.value(), {0, 0, 0}, {9, 2, 3})));
+}
+
+TEST(CodegenTest, ForEachPointExistential) {
+  // isl keeps e as a loop of the scan, and e takes two values for some points;
+  // each point must still be reported once.
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i] -> [o] : exists (e : i <= 2e <= i + 3 and o <= 3e <= o + 4) and "
+      "0 <= i <= 3 and 0 <= o <= 3 }");
+  ASSERT_TRUE(succeeded(relation));
+  EXPECT_THAT(scannedPoints(relation.value()),
+              Eq(bruteForcePoints(relation.value(), {0, 0}, {3, 3})));
+}
+
+TEST(CodegenTest, ForEachPointLargeCoordinates) {
+  // The loop counter passes INT64_MAX after the last point.
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i] -> [x] : i = 0 and 9223372036854775806 <= x <= "
+      "9223372036854775807 }");
+  ASSERT_TRUE(succeeded(relation));
+  std::vector<std::vector<int64_t>> expected = {{0, 9223372036854775806},
+                                                {0, 9223372036854775807}};
+  EXPECT_THAT(scannedPoints(relation.value()), Eq(expected));
+}
+
+TEST(CodegenTest, ForEachPointLargeIntermediates) {
+  // 4000000000 * i overflows int64_t before the subtraction brings it back.
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i] -> [o] : 4000000000 <= i <= 4000000002 and o = 4000000000i - "
+      "8000000000000000000 }");
+  ASSERT_TRUE(succeeded(relation));
+  std::vector<std::vector<int64_t>> expected = {
+      {4000000000, 8000000000000000000},
+      {4000000001, 8000000004000000000},
+      {4000000002, 8000000008000000000}};
+  EXPECT_THAT(scannedPoints(relation.value()), Eq(expected));
+}
+
+TEST(CodegenTest, ForEachPointLargeConstants) {
+  // ct = 4000000000i - 8000000000 and slot = 2000000000ct -
+  // 8000000000000000000, built directly so that isl's parser keeps both
+  // equalities. isl substitutes ct into slot, which gives the constant
+  // -24000000000000000000.
+  presburger::IntegerRelation relation(
+      presburger::PresburgerSpace::getRelationSpace(/*numDomain=*/1,
+                                                    /*numRange=*/2));
+  relation.addBound(presburger::BoundType::LB, 0, 3);
+  relation.addBound(presburger::BoundType::UB, 0, 4);
+  relation.addEquality({-4000000000LL, 1, 0, 8000000000LL});
+  relation.addEquality({0, -2000000000LL, 1, 8000000000000000000LL});
+  std::vector<std::vector<int64_t>> expected = {
+      {3, 4000000000, 0}, {4, 8000000000, 8000000000000000000}};
+  EXPECT_THAT(scannedPoints(relation), Eq(expected));
+}
+
+TEST(CodegenTest, ForEachPointEmpty) {
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i] -> [o] : o = 2i and 0 <= i <= 4 and o >= 9 }");
+  ASSERT_TRUE(succeeded(relation));
+  EXPECT_TRUE(scannedPoints(relation.value()).empty());
 }
 
 }  // namespace

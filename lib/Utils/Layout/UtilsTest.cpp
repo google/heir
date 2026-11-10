@@ -1035,6 +1035,55 @@ TEST(UtilsTest, TestGetCtComplementPoolingLayer) {
   EXPECT_EQ(collector.points.size(), 1994);
 }
 
+TEST(UtilsTest, TestGetCtComplementGenuineExistentials) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({1024, 8192}, IndexType::get(&context));
+  // Filter layout of a CryptoNets convolution. Some of its locals have no
+  // floor-division definition; enumerating an image with them left as
+  // existentials did not finish within 30 minutes.
+  auto rel = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2, i3] -> [o0, o1] : exists (e1, e2, e3, e4, e5, e6: i1 "
+      "= 0 and (1 + i0 + i3 + o0) mod 2 = 0 and (i0 + o1) mod 2 = 0 and 0 "
+      "<= i0 <= 7 and 0 <= i2 <= 4 and 0 <= i3 <= 4 and 0 <= o0 <= 1023 and "
+      "0 <= o1 <= 8191 and 0 <= e1 <= 12 and 2e1 > -i2 and 4e2 > -i3 + o0 + "
+      "o1 and 2 - 2i3 + o0 + o1 <= 4e2 <= 29 - 2i3 + o0 + o1 and 2e5 >= -1 "
+      "+ i0 + i3 - o0 - o1 + 4e2 and 2e5 >= -50 - i0 - o1 + 4e3 and -2i0 - "
+      "o1 + 4*floor((i0)/4) - 4e1 + 4e3 <= 2e5 <= 1 - 2i0 - o1 + "
+      "4*floor((i0)/4) - 4e1 + 4e3 and 2e5 <= -i0 - o1 + 4e3 and 2e5 <= 25 "
+      "+ i0 and 2e5 <= i0 + i3 - o0 - o1 + 4e2 and 18 - 419i0 + 188i2 - "
+      "206i3 + 206o0 - 212o1 + 376e1 - 412e2 + 236e3 + 1024e4 <= 424e5 <= "
+      "21 - 419i0 + 188i2 - 206i3 + 206o0 - 212o1 + 376e1 - 412e2 + 236e3 + "
+      "1024e4 and -419i0 - 418o1 - 788e3 - 424e5 <= 2048e6 <= 3 - 419i0 - "
+      "418o1 - 788e3 - 424e5) }");
+  ASSERT_TRUE(succeeded(rel));
+  PointCollector collector;
+  getCtComplementPoints(rel.value(), collector, type);
+  std::vector<std::vector<int64_t>> expected;
+  for (int64_t ct = 136; ct <= 295; ++ct) expected.push_back({ct});
+  for (int64_t ct = 484; ct <= 971; ++ct) expected.push_back({ct});
+  EXPECT_EQ(collector.points, expected);
+}
+
+TEST(UtilsTest, TestGetCtComplementUnboundedLocal) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({2, 1}, IndexType::get(&context));
+  // { [0] -> [0, 0] } with a local e >= 0 that nothing bounds from above,
+  // built directly so that isl's parser cannot drop it. The local must not
+  // become an (unbounded) range coordinate.
+  IntegerRelation rel(presburger::PresburgerSpace::getRelationSpace(
+      /*numDomain=*/1, /*numRange=*/2, /*numSymbols=*/0, /*numLocals=*/1));
+  rel.addEquality({1, 0, 0, 0, 0});
+  rel.addEquality({0, 1, 0, 0, 0});
+  rel.addEquality({0, 0, 1, 0, 0});
+  rel.addInequality({0, 0, 0, 1, 0});
+  PointCollector collector;
+  getCtComplementPoints(rel, collector, type);
+  std::vector<std::vector<int64_t>> expected = {{1}};
+  EXPECT_EQ(collector.points, expected);
+}
+
 TEST(UtilsTest, TestIsOneToOneSingleCiphertextPacking) {
   auto permutation = getIntegerRelationFromIslStr(
                          "{ [i] -> [ct, slot] : ct = 0 and (slot - 3i) mod 8 "
