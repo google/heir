@@ -4250,6 +4250,47 @@ Computes the Montgomery form multiplication of &lt;code>lhs&lt;/code> and &lt;co
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="cheddar_gpuneg-heircheddar_gpunegop">&lt;code>cheddar_gpu.neg&lt;/code> (heir::cheddar_gpu::NegOp)&lt;/h3>
+&lt;p>&lt;em>Pointwise modular negation of a polynomial buffer&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cheddar_gpu.neg` $out `,` $in prop-dict attr-dict `:` type($out)
+&lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>kernel::Neg&lt;/code> and &lt;code>ElementWiseHandler::Neg&lt;/code> in &lt;code>ElementWise.cu&lt;/code>.
+Computes &lt;code>out = -in mod Q&lt;/code> limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined
+in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
+&lt;p>Form contract:&lt;/p>
+&lt;ul>
+&lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain.&lt;/li>
+&lt;li>Preserves representation form (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
+&lt;/ul>
+&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>in_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>out_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>out&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>in&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="cheddar_gpusub-heircheddar_gpusubop">&lt;code>cheddar_gpu.sub&lt;/code> (heir::cheddar_gpu::SubOp)&lt;/h3>
 &lt;p>&lt;em>Pointwise modular subtraction of two polynomial buffers&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -4263,7 +4304,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Both operands must have matching form (&lt;code>lhs_form == rhs_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -4274,7 +4315,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
