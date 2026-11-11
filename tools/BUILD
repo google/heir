@@ -62,6 +62,7 @@ cc_binary(
         "@heir//lib/Dialect/Kernel/IR:Dialect",
         "@heir//lib/Dialect/Kernel/Transforms",
         "@heir//lib/Dialect/KeyMgmt/IR:Dialect",
+        "@heir//lib/Dialect/LWE/Conversions/LWEToCheddar",
         "@heir//lib/Dialect/LWE/Conversions/LWEToJaxiteWord",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
