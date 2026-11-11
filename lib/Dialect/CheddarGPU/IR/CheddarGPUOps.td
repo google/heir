@@ -92,6 +92,31 @@ defvar CheddarGPU_UnaryBuilders = [
   }]>
 ];
 
+defvar CheddarGPU_MulConstBuilders = [
+  OpBuilder<(ins "::mlir::Value":$out,
+                 "::mlir::Value":$in,
+                 "::mlir::Value":$cst,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$in_form,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
+                 CArg<"::mlir::IntegerAttr", "{}">:$prime_offset), [{
+      build($_builder, $_state, out, in, cst, in_form, out_form,
+            in_limb_range, out_limb_range, prime_offset, /*num_aux=*/::mlir::IntegerAttr{});
+  }]>,
+  OpBuilder<(ins "::mlir::Value":$out,
+                 "::mlir::Value":$in,
+                 "::mlir::Value":$cst,
+                 "::mlir::heir::cheddar_gpu::Form":$in_form,
+                 "::mlir::heir::cheddar_gpu::Form":$out_form,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
+                 CArg<"::mlir::IntegerAttr", "{}">:$prime_offset), [{
+      build($_builder, $_state, out, in, cst, in_form, out_form,
+            in_limb_range, out_limb_range, prime_offset, /*num_aux=*/::mlir::IntegerAttr{});
+  }]>
+];
+
 //===----------------------------------------------------------------------===//
 // Operation Families
 //===----------------------------------------------------------------------===//
@@ -144,6 +169,32 @@ class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
   }];
 }
 
+// Element-wise operations with per-limb constants (add_const, sub_const,
+// sub_opposite_const, mul_const, mul_imag_unit).
+class CheddarGPU_ConstOpBase<
+    string mnemonic,
+    dag constArg = (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
+    dag extraAttrs = (ins),
+    list<OpBuilder> opBuilders = [],
+    list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out", "in"]>,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in
+    ),
+    constArg,
+    CheddarGPU_UnaryForms,
+    CheddarGPU_UnaryLimbRanges,
+    extraAttrs
+  );
+
+  let builders = opBuilders;
+}
+
 //===----------------------------------------------------------------------===//
 // Binary and Unary Element-Wise Operations
 //===----------------------------------------------------------------------===//
@@ -190,6 +241,51 @@ def CheddarGPU_NegOp : CheddarGPU_UnaryOpBase<"neg", (ins), CheddarGPU_UnaryBuil
   }];
 }
 
+def CheddarGPU_AddConstOp : CheddarGPU_ConstOpBase<"add_const",
+    (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
+    (ins), [],
+    [CheddarGPU_FormsMatch<["in_form", "out_form"]>, CheddarGPU_PerLimbOf<"cst", "out">]> {
+  let summary = "Pointwise addition of per-limb constants to a polynomial buffer";
+  let description = [{
+    Mirrors Cheddar's `kernel::AddConst` and `ElementWiseHandler::AddConst` in `ElementWise.cu`.
+    Computes `out[l][i] = in[l][i] + cst[l] mod Q_l`, where `Q_l` is the `l`-th limb
+    of `Q` from `CheddarGPU_ParamsAttr`.
+
+    Form contract:
+    - Valid in both `coeff` and `eval` domain (`in_form == out_form`).
+  }];
+}
+
+def CheddarGPU_SubConstOp : CheddarGPU_ConstOpBase<"sub_const",
+    (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
+    (ins), [],
+    [CheddarGPU_FormsMatch<["in_form", "out_form"]>, CheddarGPU_PerLimbOf<"cst", "out">]> {
+  let summary = "Pointwise subtraction of per-limb constants from a polynomial buffer";
+  let description = [{
+    Mirrors Cheddar's `kernel::SubConst` and `ElementWiseHandler::SubConst` in `ElementWise.cu`.
+    Computes `out[l][i] = in[l][i] - cst[l] mod Q_l`, where `Q_l` is the `l`-th limb
+    of `Q` from `CheddarGPU_ParamsAttr`.
+
+    Form contract:
+    - Valid in both `coeff` and `eval` domain (`in_form == out_form`).
+  }];
+}
+
+def CheddarGPU_SubOppositeConstOp : CheddarGPU_ConstOpBase<"sub_opposite_const",
+    (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
+    (ins), [],
+    [CheddarGPU_FormsMatch<["in_form", "out_form"]>, CheddarGPU_PerLimbOf<"cst", "out">]> {
+  let summary = "Pointwise subtraction of polynomial from per-limb constants";
+  let description = [{
+    Mirrors Cheddar's `kernel::SubOppositeConst` and `ElementWiseHandler::SubOppositeConst` in `ElementWise.cu`.
+    Computes `out[l][i] = cst[l] - in[l][i] mod Q_l`, where `Q_l` is the `l`-th limb
+    of `Q` from `CheddarGPU_ParamsAttr`.
+
+    Form contract:
+    - Valid in both `coeff` and `eval` domain (`in_form == out_form`).
+  }];
+}
+
 def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
     CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
   let summary = "Pointwise Montgomery modular multiplication";
@@ -201,6 +297,45 @@ def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
     - Polynomial multiplication in evaluation domain is pointwise Montgomery multiplication:
       `(a * R) * (b * R) * R^-1 = (a * b) * R mod Q`.
     - Operands must be in `eval` form (`lhs_form == rhs_form == out_form == eval`).
+  }];
+}
+
+def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
+    (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
+    (ins
+      OptionalAttr<I64Attr>:$prime_offset,
+      OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux),
+    CheddarGPU_MulConstBuilders,
+    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>,
+     CheddarGPU_PerLimbOf<"cst", "out">]> {
+  let summary = "Pointwise Montgomery multiplication by per-limb constants";
+  let description = [{
+    Mirrors Cheddar's `ElementWiseHandler::MultConst` in `ElementWise.cu`.
+    Computes the Montgomery form multiplication of `in` and `cst` mod `Q`
+    limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
+
+    Form contract:
+    - Montgomery multiplication requires `eval` form (`in_form == out_form == eval`).
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Imaginary Unit Operation
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_MulImaginaryUnitOp : CheddarGPU_ConstOpBase<"mul_imag_unit",
+    (ins Arg<CheddarGPU_LimbVector, "per-limb imaginary unit table (psi^(N/2))", [MemRead]>:$i_unit),
+    (ins), [],
+    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>,
+     CheddarGPU_PerLimbOf<"i_unit", "out">]> {
+  let summary = "Pointwise multiplication by imaginary unit in evaluation domain";
+  let description = [{
+    Mirrors Cheddar's `kernel::MultImaginaryUnit` in `ElementWise.cu`.
+    In evaluation domain, multiplying by the imaginary unit corresponds to multiplying
+    first half by `psi^(N/2)` and second half by `-psi^(N/2) = Q - psi^(N/2)`.
+
+    Form contract:
+    - Requires `eval` form (`in_form == out_form == eval`).
   }];
 }
 

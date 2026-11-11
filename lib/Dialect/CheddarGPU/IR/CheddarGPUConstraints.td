@@ -22,6 +22,25 @@ class CheddarGPU_StaticMemRefOfRank<list<Type> elems, int rank, string descr = "
 def CheddarGPU_PolyBuffer : CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
     "statically shaped 2D memref<L x N x iW> polynomial buffer (W = 32 or 64)">;
 
+// 1D statically shaped per-limb constant vector of i32 or i64 elements.
+def CheddarGPU_LimbVector : CheddarGPU_StaticMemRefOfRank<[I32, I64], 1,
+    "statically shaped 1D memref<L x iW> per-limb constant vector (W = 32 or 64)">;
+
+//===----------------------------------------------------------------------===//
+// Dimension Helpers and PredOpTraits
+//===----------------------------------------------------------------------===//
+
+class CheddarGPU_Dim<string v, int d>
+    : StrFunc<"::llvm::cast<::mlir::MemRefType>($" # v # ".getType()).getDimSize(" # d # ")">;
+
+class CheddarGPU_DimRel<string lhs, int ld, string cmp, string rhs, int rd, string descr>
+    : PredOpTrait<descr, CPred<CheddarGPU_Dim<lhs, ld>.result # " " # cmp # " "
+                               # CheddarGPU_Dim<rhs, rd>.result>>;
+
+class CheddarGPU_PerLimbOf<string vec, string poly>
+    : CheddarGPU_DimRel<vec, 0, "==", poly, 0,
+        "'" # vec # "' has one entry per limb of '" # poly # "'">;
+
 //===----------------------------------------------------------------------===//
 // Form Constraints
 //===----------------------------------------------------------------------===//
