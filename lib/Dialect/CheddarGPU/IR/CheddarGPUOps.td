@@ -22,10 +22,20 @@ class CheddarGPU_Op<string mnemonic, list<Trait> traits = []>
   }];
 }
 
+defvar CheddarGPU_UnaryForms = (ins
+  CheddarGPU_FormAttr:$in_form,
+  CheddarGPU_FormAttr:$out_form
+);
+
 defvar CheddarGPU_BinaryForms = (ins
   CheddarGPU_FormAttr:$lhs_form,
   CheddarGPU_FormAttr:$rhs_form,
   CheddarGPU_FormAttr:$out_form
+);
+
+defvar CheddarGPU_UnaryLimbRanges = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$in_limb_range,
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range
 );
 
 defvar CheddarGPU_BinaryLimbRanges = (ins
@@ -61,6 +71,27 @@ defvar CheddarGPU_BinaryBuilders = [
   }]>
 ];
 
+defvar CheddarGPU_UnaryBuilders = [
+  OpBuilder<(ins "::mlir::Value":$out,
+                 "::mlir::Value":$in,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$in_form,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+      build($_builder, $_state, out, in, in_form, out_form,
+            in_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
+  }]>,
+  OpBuilder<(ins "::mlir::Value":$out,
+                 "::mlir::Value":$in,
+                 "::mlir::heir::cheddar_gpu::Form":$in_form,
+                 "::mlir::heir::cheddar_gpu::Form":$out_form,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+      build($_builder, $_state, out, in, in_form, out_form,
+            in_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
+  }]>
+];
+
 //===----------------------------------------------------------------------===//
 // Operation Families
 //===----------------------------------------------------------------------===//
@@ -86,6 +117,30 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
 
   let assemblyFormat = [{
     $out `,` $lhs `,` $rhs prop-dict attr-dict `:` type($out)
+  }];
+}
+
+// Unary element-wise operations on single polynomial buffers (neg).
+class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
+                             list<OpBuilder> opBuilders = [], list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out", "in"]>,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in
+    ),
+    CheddarGPU_UnaryForms,
+    extraAttrs,
+    CheddarGPU_UnaryLimbRanges,
+    (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
+  );
+
+  let builders = opBuilders;
+  let assemblyFormat = [{
+    $out `,` $in prop-dict attr-dict `:` type($out)
   }];
 }
 
@@ -118,6 +173,20 @@ def CheddarGPU_SubOp : CheddarGPU_BinaryOpBase<"sub", [
     Form contract:
     - Modular subtraction is valid in both `coeff` and `eval` domain.
     - Both operands must have matching form (`lhs_form == rhs_form == out_form`).
+  }];
+}
+
+def CheddarGPU_NegOp : CheddarGPU_UnaryOpBase<"neg", (ins), CheddarGPU_UnaryBuilders, [
+    CheddarGPU_FormsMatch<["in_form", "out_form"]>]> {
+  let summary = "Pointwise modular negation of a polynomial buffer";
+  let description = [{
+    Mirrors Cheddar's `kernel::Neg` and `ElementWiseHandler::Neg` in `ElementWise.cu`.
+    Computes `out = -in mod Q` limb-wise, where the limbs of `Q` are defined
+    in `CheddarGPU_ParamsAttr`.
+
+    Form contract:
+    - Valid in both `coeff` and `eval` domain.
+    - Preserves representation form (`in_form == out_form`).
   }];
 }
 
