@@ -71,3 +71,15 @@ func.func @test_num_aux_oob(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>
   }> : memref<4x65536xi32>
   return
 }
+// -----
+// Mul with coeff operand (requires eval)
+
+func.func @test_mul_with_coeff(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
+  // expected-error @below {{failed to verify that {lhs_form, rhs_form, out_form} are 'eval'}}
+  cheddar_gpu.mul %out, %lhs, %rhs <{
+    lhs_form = #cheddar_gpu.form<coeff>,
+    rhs_form = #cheddar_gpu.form<eval>,
+    out_form = #cheddar_gpu.form<eval>
+  }> : memref<4x65536xi32>
+  return
+}

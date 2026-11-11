@@ -29,6 +29,11 @@ def CheddarGPU_PolyBuffer : CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
 class CheddarGPU_FormsMatch<list<string> a>
     : AllMatchSameOperatorTrait<a, "$_self", "form">;
 
+class CheddarGPU_FormsAre<list<string> attrs, EnumCase f>
+    : PredOpTrait<
+        "{" # !interleave(attrs, ", ") # "} are '" # f.str # "'",
+        And<!foreach(a, attrs, CPred<"$" # a # " == ::mlir::heir::cheddar_gpu::Form::" # f.symbol>)>>;
+
 //===----------------------------------------------------------------------===//
 // Attribute Constraints
 //===----------------------------------------------------------------------===//

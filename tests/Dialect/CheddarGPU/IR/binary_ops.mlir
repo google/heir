@@ -31,4 +31,26 @@ module attributes {
     return
   }
 
+  // CHECK: @test_sub
+  func.func @test_sub(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
+    // CHECK: cheddar_gpu.sub %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}> : memref<4x65536xi32>
+    cheddar_gpu.sub %out, %lhs, %rhs <{
+      lhs_form = #cheddar_gpu.form<eval>,
+      rhs_form = #cheddar_gpu.form<eval>,
+      out_form = #cheddar_gpu.form<eval>
+    }> : memref<4x65536xi32>
+    return
+  }
+
+  // CHECK: @test_mul
+  func.func @test_mul(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
+    // CHECK: cheddar_gpu.mul %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}> : memref<4x65536xi32>
+    cheddar_gpu.mul %out, %lhs, %rhs <{
+      lhs_form = #cheddar_gpu.form<eval>,
+      rhs_form = #cheddar_gpu.form<eval>,
+      out_form = #cheddar_gpu.form<eval>
+    }> : memref<4x65536xi32>
+    return
+  }
+
 }

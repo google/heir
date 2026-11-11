@@ -35,21 +35,29 @@ defvar CheddarGPU_BinaryLimbRanges = (ins
 );
 
 defvar CheddarGPU_BinaryBuilders = [
-  OpBuilder<(ins "Value":$out, "Value":$lhs, "Value":$rhs,
-                 "FormAttr":$lhs_form, "FormAttr":$rhs_form, "FormAttr":$out_form,
-                 CArg<"DenseI64ArrayAttr", "{}">:$lhs_limb_range,
-                 CArg<"DenseI64ArrayAttr", "{}">:$rhs_limb_range,
-                 CArg<"DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+  OpBuilder<(ins "::mlir::Value":$out,
+                 "::mlir::Value":$lhs,
+                 "::mlir::Value":$rhs,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$lhs_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$rhs_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
       build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/IntegerAttr{});
+            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
   }]>,
-  OpBuilder<(ins "Value":$out, "Value":$lhs, "Value":$rhs,
-                 "Form":$lhs_form, "Form":$rhs_form, "Form":$out_form,
-                 CArg<"DenseI64ArrayAttr", "{}">:$lhs_limb_range,
-                 CArg<"DenseI64ArrayAttr", "{}">:$rhs_limb_range,
-                 CArg<"DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+  OpBuilder<(ins "::mlir::Value":$out,
+                 "::mlir::Value":$lhs,
+                 "::mlir::Value":$rhs,
+                 "::mlir::heir::cheddar_gpu::Form":$lhs_form,
+                 "::mlir::heir::cheddar_gpu::Form":$rhs_form,
+                 "::mlir::heir::cheddar_gpu::Form":$out_form,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$lhs_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$rhs_limb_range,
+                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
       build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/IntegerAttr{});
+            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
   }]>
 ];
 
@@ -96,6 +104,34 @@ def CheddarGPU_AddOp : CheddarGPU_BinaryOpBase<"add", [
     Form contract:
     - Modular addition is valid in both `coeff` and `eval` domain.
     - Both operands must have matching form (`lhs_form == rhs_form == out_form`).
+  }];
+}
+
+def CheddarGPU_SubOp : CheddarGPU_BinaryOpBase<"sub", [
+    CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>]> {
+  let summary = "Pointwise modular subtraction of two polynomial buffers";
+  let description = [{
+    Mirrors Cheddar's `kernel::Sub` and `ElementWiseHandler::Sub` in `ElementWise.cu`.
+    Computes `out = lhs - rhs mod Q` limb-wise, where the limbs of `Q` are defined
+    in `CheddarGPU_ParamsAttr`.
+
+    Form contract:
+    - Modular subtraction is valid in both `coeff` and `eval` domain.
+    - Both operands must have matching form (`lhs_form == rhs_form == out_form`).
+  }];
+}
+
+def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
+    CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
+  let summary = "Pointwise Montgomery modular multiplication";
+  let description = [{
+    Mirrors Cheddar's `kernel::Mult` and `ElementWiseHandler::Mult` in `ElementWise.cu`.
+    Computes the Montgomery form multiplication of `lhs` and `rhs` mod `Q`.
+
+    Form contract:
+    - Polynomial multiplication in evaluation domain is pointwise Montgomery multiplication:
+      `(a * R) * (b * R) * R^-1 = (a * b) * R mod Q`.
+    - Operands must be in `eval` form (`lhs_form == rhs_form == out_form == eval`).
   }];
 }
 
