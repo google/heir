@@ -195,6 +195,78 @@ class CheddarGPU_ConstOpBase<
   let builders = opBuilders;
 }
 
+// Binary operations on pairs of polynomial buffers (add_2, sub_2).
+class CheddarGPU_PairBinaryOpBase<string mnemonic, list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out_bx", "out_ax", "lhs_bx", "lhs_ax", "rhs_bx", "rhs_ax"]>,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_PolyBuffer, "destination ax buffer", [MemWrite]>:$out_ax,
+      Arg<CheddarGPU_PolyBuffer, "lhs bx buffer", [MemRead]>:$lhs_bx,
+      Arg<CheddarGPU_PolyBuffer, "lhs ax buffer", [MemRead]>:$lhs_ax,
+      Arg<CheddarGPU_PolyBuffer, "rhs bx buffer", [MemRead]>:$rhs_bx,
+      Arg<CheddarGPU_PolyBuffer, "rhs ax buffer", [MemRead]>:$rhs_ax
+    ),
+    CheddarGPU_BinaryForms,
+    CheddarGPU_BinaryLimbRanges,
+    (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
+  );
+
+  let assemblyFormat = [{
+    `ins` `(` $lhs_bx `,` $lhs_ax `,` $rhs_bx `,` $rhs_ax `)`
+    `outs` `(` $out_bx `,` $out_ax `)`
+    prop-dict attr-dict `:` type($out_bx)
+  }];
+}
+
+// Unary operations on pairs of polynomial buffers (neg_2).
+class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out_bx", "out_ax", "in_bx", "in_ax"]>,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_PolyBuffer, "destination ax buffer", [MemWrite]>:$out_ax,
+      Arg<CheddarGPU_PolyBuffer, "in bx buffer", [MemRead]>:$in_bx,
+      Arg<CheddarGPU_PolyBuffer, "in ax buffer", [MemRead]>:$in_ax
+    ),
+    CheddarGPU_UnaryForms,
+    extraAttrs,
+    CheddarGPU_UnaryLimbRanges,
+    (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
+  );
+
+  let assemblyFormat = [{
+    `ins` `(` $in_bx `,` $in_ax `)`
+    `outs` `(` $out_bx `,` $out_ax `)`
+    prop-dict attr-dict `:` type($out_bx)
+  }];
+}
+
+// Ciphertext tensor product and squaring operations (tensor, tensor_square).
+class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands, dag formAttrs,
+                              list<string> matchedTypes, list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<!listconcat(["out_bx", "out_ax", "out_rx"], matchedTypes)>,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_PolyBuffer, "destination ax buffer", [MemWrite]>:$out_ax,
+      Arg<CheddarGPU_PolyBuffer, "destination rx buffer", [MemWrite]>:$out_rx
+    ),
+    srcOperands,
+    formAttrs,
+    (ins OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range)
+  );
+}
+
 //===----------------------------------------------------------------------===//
 // Memory and Data Movement Operations
 //===----------------------------------------------------------------------===//
@@ -360,6 +432,98 @@ def CheddarGPU_MulImaginaryUnitOp : CheddarGPU_ConstOpBase<"mul_imag_unit",
 
     Form contract:
     - Requires `eval` form (`in_form == out_form == eval`).
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Pair Binary and Unary Element-Wise Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_Add2Op : CheddarGPU_PairBinaryOpBase<"add_2", [
+    CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>]> {
+  let summary = "Pointwise modular addition of two pairs of polynomial buffers";
+  let description = [{
+    Mirrors Cheddar's `ElementWiseHandler::Add` with two polynomials, which launches
+    `kernel::Sum<word, 2>` in `ElementWise.cu`.
+    Computes `out_bx = lhs_bx + rhs_bx mod Q` and `out_ax = lhs_ax + rhs_ax mod Q`
+    limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
+  }];
+}
+
+def CheddarGPU_Sub2Op : CheddarGPU_PairBinaryOpBase<"sub_2", [
+    CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>]> {
+  let summary = "Pointwise modular subtraction of two pairs of polynomial buffers";
+  let description = [{
+    Mirrors Cheddar's `ElementWiseHandler::Sub` with two polynomials, which launches
+    `kernel::Sub<word, 2>` in `ElementWise.cu`.
+    Computes `out_bx = lhs_bx - rhs_bx mod Q` and `out_ax = lhs_ax - rhs_ax mod Q`
+    limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
+  }];
+}
+
+def CheddarGPU_Neg2Op : CheddarGPU_PairUnaryOpBase<"neg_2", (ins), [
+    CheddarGPU_FormsMatch<["in_form", "out_form"]>]> {
+  let summary = "Pointwise modular negation of two polynomial buffers";
+  let description = [{
+    Mirrors Cheddar's `ElementWiseHandler::Neg` with two polynomials, which launches
+    `kernel::Neg<word, 2>` in `ElementWise.cu`.
+    Computes `out_bx = -in_bx mod Q` and `out_ax = -in_ax mod Q` limb-wise, where
+    the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Ciphertext Tensor Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_TensorOp : CheddarGPU_TensorOpBase<"tensor",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "src1 bx buffer", [MemRead]>:$src1_bx,
+      Arg<CheddarGPU_PolyBuffer, "src1 ax buffer", [MemRead]>:$src1_ax,
+      Arg<CheddarGPU_PolyBuffer, "src2 bx buffer", [MemRead]>:$src2_bx,
+      Arg<CheddarGPU_PolyBuffer, "src2 ax buffer", [MemRead]>:$src2_ax
+    ),
+    CheddarGPU_BinaryForms,
+    ["src1_bx", "src1_ax", "src2_bx", "src2_ax"],
+    [CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
+  let summary = "Ciphertext tensor product: (b1*b2, b1*a2 + a1*b2, a1*a2)";
+  let description = [{
+    Mirrors Cheddar's `kernel::Tensor` and `ElementWiseHandler::Tensor` in `ElementWise.cu`.
+    Multiplies two degree-1 ciphertexts (b1, a1) and (b2, a2) into a degree-2 ciphertext
+    (b1*b2, b1*a2 + a1*b2, a1*a2) using Karatsuba modular multiplication.
+
+    Form contract:
+    - Requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    `ins` `(` $src1_bx `,` $src1_ax `,` $src2_bx `,` $src2_ax `)`
+    `outs` `(` $out_bx `,` $out_ax `,` $out_rx `)`
+    prop-dict attr-dict `:` type($out_bx)
+  }];
+}
+
+def CheddarGPU_TensorSquareOp : CheddarGPU_TensorOpBase<"tensor_square",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "src bx buffer", [MemRead]>:$src_bx,
+      Arg<CheddarGPU_PolyBuffer, "src ax buffer", [MemRead]>:$src_ax
+    ),
+    CheddarGPU_UnaryForms,
+    ["src_bx", "src_ax"],
+    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>]> {
+  let summary = "Ciphertext tensor squaring: (b1^2, 2*b1*a1, a1^2)";
+  let description = [{
+    Mirrors Cheddar's `kernel::TensorSquare` in `ElementWise.cu`.
+    Squares degree-1 ciphertext (b1, a1) into degree-2 ciphertext (b1^2, 2*b1*a1, a1^2).
+
+    Form contract:
+    - Requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    `ins` `(` $src_bx `,` $src_ax `)`
+    `outs` `(` $out_bx `,` $out_ax `,` $out_rx `)`
+    prop-dict attr-dict `:` type($out_bx)
   }];
 }
 

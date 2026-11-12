@@ -74,8 +74,11 @@ LogicalResult verifyLimbRangesWithin(Operation* op) {
 
   if (failed(checkRange(0, "out_limb_range"))) return failure();
   if (failed(checkRange(1, "lhs_limb_range"))) return failure();
+  if (failed(checkRange(2, "lhs_limb_range"))) return failure();
   if (failed(checkRange(1, "in_limb_range"))) return failure();
+  if (failed(checkRange(2, "in_limb_range"))) return failure();
   if (failed(checkRange(2, "rhs_limb_range"))) return failure();
+  if (failed(checkRange(4, "rhs_limb_range"))) return failure();
 
   if (auto numAuxAttr = op->getAttrOfType<IntegerAttr>("num_aux")) {
     auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
