@@ -196,6 +196,30 @@ class CheddarGPU_ConstOpBase<
 }
 
 //===----------------------------------------------------------------------===//
+// Memory and Data Movement Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_CopyOp : CheddarGPU_Op<"copy", [
+    AllElementTypesMatch<["out", "in"]>,
+    CheddarGPU_SameDegree<["out", "in"]>,
+    CheddarGPU_LimbRangesWithin,
+    CheddarGPU_InOutCountsMatch
+]> {
+  let summary = "Pointwise copy of a polynomial buffer or slice";
+  let description = [{
+    Copies elements from `in` to `out`.
+    Supports optional `in_limb_range` and `out_limb_range` [start, count].
+  }];
+
+  let arguments = (ins
+    Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+    Arg<CheddarGPU_PolyBuffer, "source buffer", [MemRead]>:$in,
+    OptionalAttr<CheddarGPU_LimbRangeAttr>:$in_limb_range,
+    OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range
+  );
+}
+
+//===----------------------------------------------------------------------===//
 // Binary and Unary Element-Wise Operations
 //===----------------------------------------------------------------------===//
 

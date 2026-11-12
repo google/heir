@@ -1,5 +1,6 @@
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUTraits.h"
 
+#include <cassert>
 #include <cstdint>
 #include <optional>
 
@@ -84,6 +85,31 @@ LogicalResult verifyLimbRangesWithin(Operation* op) {
     }
   }
 
+  return success();
+}
+
+LogicalResult verifyInOutCountsMatch(Operation* op) {
+  if (op->getNumOperands() < 2) return success();
+  auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
+  auto inType = ::llvm::dyn_cast<MemRefType>(op->getOperand(1).getType());
+  if (!outType || !inType || outType.getRank() < 1 || inType.getRank() < 1)
+    return success();
+
+  auto getLimbCount = [&](StringRef attrName, MemRefType type) {
+    if (auto range = op->getAttrOfType<DenseI64ArrayAttr>(attrName)) {
+      assert(range.size() == 2 && "guaranteed by CheddarGPU_LimbRangeAttr");
+      return range.asArrayRef()[1];
+    }
+    return type.getDimSize(0);
+  };
+
+  int64_t outCount = getLimbCount("out_limb_range", outType);
+  int64_t inCount = getLimbCount("in_limb_range", inType);
+
+  if (inCount != outCount) {
+    return op->emitOpError("limb count mismatch between in and out (")
+           << inCount << " vs " << outCount << ")";
+  }
   return success();
 }
 

@@ -33,6 +33,13 @@ def CheddarGPU_LimbVector : CheddarGPU_StaticMemRefOfRank<[I32, I64], 1,
 class CheddarGPU_Dim<string v, int d>
     : StrFunc<"::llvm::cast<::mlir::MemRefType>($" # v # ".getType()).getDimSize(" # d # ")">;
 
+class CheddarGPU_SameDim<list<string> names, int d, string what>
+    : AllMatchSameOperatorTrait<names,
+        "::llvm::cast<::mlir::MemRefType>($_self.getType()).getDimSize(" # d # ")", what>;
+
+class CheddarGPU_SameDegree<list<string> n>
+    : CheddarGPU_SameDim<n, 1, "polynomial degree (dim 1)">;
+
 class CheddarGPU_DimRel<string lhs, int ld, string cmp, string rhs, int rd, string descr>
     : PredOpTrait<descr, CPred<CheddarGPU_Dim<lhs, ld>.result # " " # cmp # " "
                                # CheddarGPU_Dim<rhs, rd>.result>>;
@@ -76,6 +83,14 @@ def CheddarGPU_LimbRangesWithin : NativeOpTrait<"LimbRangesWithin"> {
 }
 
 def CheddarGPU_LimbRangesWithinDest : NativeOpTrait<"LimbRangesWithin"> {
+  let cppNamespace = "::mlir::heir::cheddar_gpu";
+}
+
+def CheddarGPU_InOutLimbRangesWithin : NativeOpTrait<"InOutLimbRangesWithin"> {
+  let cppNamespace = "::mlir::heir::cheddar_gpu";
+}
+
+def CheddarGPU_InOutCountsMatch : NativeOpTrait<"InOutCountsMatch"> {
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 }
 
