@@ -693,7 +693,6 @@ presburger::IntegerRelation expandDimensions(
   }
 
   int oldDim = 0;
-  DenseMap<AffineExpr, AffineExpr> oldDimsToNewDims;
   for (const ReassociationIndices& associationGroup : reassociation) {
     // a single-entry association group is a no-op
     if (associationGroup.size() == 1) {
