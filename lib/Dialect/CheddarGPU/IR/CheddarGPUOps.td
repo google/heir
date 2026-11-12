@@ -92,37 +92,14 @@ defvar CheddarGPU_UnaryBuilders = [
   }]>
 ];
 
-defvar CheddarGPU_MulConstBuilders = [
-  OpBuilder<(ins "::mlir::Value":$out,
-                 "::mlir::Value":$in,
-                 "::mlir::Value":$cst,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$in_form,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
-                 CArg<"::mlir::IntegerAttr", "{}">:$prime_offset), [{
-      build($_builder, $_state, out, in, cst, in_form, out_form,
-            in_limb_range, out_limb_range, prime_offset, /*num_aux=*/::mlir::IntegerAttr{});
-  }]>,
-  OpBuilder<(ins "::mlir::Value":$out,
-                 "::mlir::Value":$in,
-                 "::mlir::Value":$cst,
-                 "::mlir::heir::cheddar_gpu::Form":$in_form,
-                 "::mlir::heir::cheddar_gpu::Form":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
-                 CArg<"::mlir::IntegerAttr", "{}">:$prime_offset), [{
-      build($_builder, $_state, out, in, cst, in_form, out_form,
-            in_limb_range, out_limb_range, prime_offset, /*num_aux=*/::mlir::IntegerAttr{});
-  }]>
-];
-
 //===----------------------------------------------------------------------===//
 // Operation Families
 //===----------------------------------------------------------------------===//
 
 // Binary element-wise operations on single polynomial buffers (add, sub, mul).
-class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
+class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
+                              bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "lhs", "rhs"]>,
         CheddarGPU_LimbRangesWithin
@@ -133,12 +110,12 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
       Arg<CheddarGPU_PolyBuffer, "left-hand side operand", [MemRead]>:$lhs,
       Arg<CheddarGPU_PolyBuffer, "right-hand side operand", [MemRead]>:$rhs
     ),
-    CheddarGPU_BinaryForms,
+    !if(hasForms, CheddarGPU_BinaryForms, (ins)),
     CheddarGPU_BinaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
   );
 
-  let builders = CheddarGPU_BinaryBuilders;
+  let builders = !if(hasForms, CheddarGPU_BinaryBuilders, []);
 
   let assemblyFormat = [{
     $out `,` $lhs `,` $rhs prop-dict attr-dict `:` type($out)
@@ -146,8 +123,10 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
 }
 
 // Unary element-wise operations on single polynomial buffers (neg).
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
 class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
-                             list<OpBuilder> opBuilders = [], list<Trait> traits = []>
+                             list<OpBuilder> opBuilders = [], list<Trait> traits = [],
+                             bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
         CheddarGPU_LimbRangesWithin
@@ -157,7 +136,7 @@ class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
       Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
       Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in
     ),
-    CheddarGPU_UnaryForms,
+    !if(hasForms, CheddarGPU_UnaryForms, (ins)),
     extraAttrs,
     CheddarGPU_UnaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
@@ -171,12 +150,14 @@ class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
 
 // Element-wise operations with per-limb constants (add_const, sub_const,
 // sub_opposite_const, mul_const, mul_imag_unit).
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
 class CheddarGPU_ConstOpBase<
     string mnemonic,
     dag constArg = (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
     dag extraAttrs = (ins),
     list<OpBuilder> opBuilders = [],
-    list<Trait> traits = []>
+    list<Trait> traits = [],
+    bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
         CheddarGPU_LimbRangesWithin
@@ -187,7 +168,7 @@ class CheddarGPU_ConstOpBase<
       Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in
     ),
     constArg,
-    CheddarGPU_UnaryForms,
+    !if(hasForms, CheddarGPU_UnaryForms, (ins)),
     CheddarGPU_UnaryLimbRanges,
     extraAttrs
   );
@@ -223,7 +204,9 @@ class CheddarGPU_PairBinaryOpBase<string mnemonic, list<Trait> traits = []>
 }
 
 // Unary operations on pairs of polynomial buffers (neg_2).
-class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<Trait> traits = []>
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
+class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<Trait> traits = [],
+                                 bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out_bx", "out_ax", "in_bx", "in_ax"]>,
         CheddarGPU_LimbRangesWithin
@@ -235,7 +218,7 @@ class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<T
       Arg<CheddarGPU_PolyBuffer, "in bx buffer", [MemRead]>:$in_bx,
       Arg<CheddarGPU_PolyBuffer, "in ax buffer", [MemRead]>:$in_ax
     ),
-    CheddarGPU_UnaryForms,
+    !if(hasForms, CheddarGPU_UnaryForms, (ins)),
     extraAttrs,
     CheddarGPU_UnaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
@@ -249,7 +232,7 @@ class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<T
 }
 
 // Ciphertext tensor product and squaring operations (tensor, tensor_square).
-class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands, dag formAttrs,
+class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands,
                               list<string> matchedTypes, list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<!listconcat(["out_bx", "out_ax", "out_rx"], matchedTypes)>,
@@ -262,7 +245,6 @@ class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands, dag formAttrs,
       Arg<CheddarGPU_PolyBuffer, "destination rx buffer", [MemWrite]>:$out_rx
     ),
     srcOperands,
-    formAttrs,
     (ins OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range)
   );
 }
@@ -382,8 +364,7 @@ def CheddarGPU_SubOppositeConstOp : CheddarGPU_ConstOpBase<"sub_opposite_const",
   }];
 }
 
-def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
-    CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
+def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", hasForms = 0> {
   let summary = "Pointwise Montgomery modular multiplication";
   let description = [{
     Mirrors Cheddar's `kernel::Mult` and `ElementWiseHandler::Mult` in `ElementWise.cu`.
@@ -392,7 +373,7 @@ def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
     Form contract:
     - Polynomial multiplication in evaluation domain is pointwise Montgomery multiplication:
       `(a * R) * (b * R) * R^-1 = (a * b) * R mod Q`.
-    - Operands must be in `eval` form (`lhs_form == rhs_form == out_form == eval`).
+    - All operands are in `eval` form.
   }];
 }
 
@@ -401,9 +382,9 @@ def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
     (ins
       OptionalAttr<I64Attr>:$prime_offset,
       OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux),
-    CheddarGPU_MulConstBuilders,
-    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>,
-     CheddarGPU_PerLimbOf<"cst", "out">]> {
+    [],
+    [CheddarGPU_PerLimbOf<"cst", "out">],
+    hasForms = 0> {
   let summary = "Pointwise Montgomery multiplication by per-limb constants";
   let description = [{
     Mirrors Cheddar's `ElementWiseHandler::MultConst` in `ElementWise.cu`.
@@ -411,7 +392,7 @@ def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
     limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
 
     Form contract:
-    - Montgomery multiplication requires `eval` form (`in_form == out_form == eval`).
+    - `in` and `out` are in `eval` form.
   }];
 }
 
@@ -422,8 +403,8 @@ def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
 def CheddarGPU_MulImaginaryUnitOp : CheddarGPU_ConstOpBase<"mul_imag_unit",
     (ins Arg<CheddarGPU_LimbVector, "per-limb imaginary unit table (psi^(N/2))", [MemRead]>:$i_unit),
     (ins), [],
-    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>,
-     CheddarGPU_PerLimbOf<"i_unit", "out">]> {
+    [CheddarGPU_PerLimbOf<"i_unit", "out">],
+    hasForms = 0> {
   let summary = "Pointwise multiplication by imaginary unit in evaluation domain";
   let description = [{
     Mirrors Cheddar's `kernel::MultImaginaryUnit` in `ElementWise.cu`.
@@ -431,7 +412,7 @@ def CheddarGPU_MulImaginaryUnitOp : CheddarGPU_ConstOpBase<"mul_imag_unit",
     first half by `psi^(N/2)` and second half by `-psi^(N/2) = Q - psi^(N/2)`.
 
     Form contract:
-    - Requires `eval` form (`in_form == out_form == eval`).
+    - `in` and `out` are in `eval` form.
   }];
 }
 
@@ -483,9 +464,7 @@ def CheddarGPU_TensorOp : CheddarGPU_TensorOpBase<"tensor",
       Arg<CheddarGPU_PolyBuffer, "src2 bx buffer", [MemRead]>:$src2_bx,
       Arg<CheddarGPU_PolyBuffer, "src2 ax buffer", [MemRead]>:$src2_ax
     ),
-    CheddarGPU_BinaryForms,
-    ["src1_bx", "src1_ax", "src2_bx", "src2_ax"],
-    [CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
+    ["src1_bx", "src1_ax", "src2_bx", "src2_ax"]> {
   let summary = "Ciphertext tensor product: (b1*b2, b1*a2 + a1*b2, a1*a2)";
   let description = [{
     Mirrors Cheddar's `kernel::Tensor` and `ElementWiseHandler::Tensor` in `ElementWise.cu`.
@@ -493,7 +472,7 @@ def CheddarGPU_TensorOp : CheddarGPU_TensorOpBase<"tensor",
     (b1*b2, b1*a2 + a1*b2, a1*a2) using Karatsuba modular multiplication.
 
     Form contract:
-    - Requires `eval` form for all operands.
+    - All operands are in `eval` form.
   }];
 
   let assemblyFormat = [{
@@ -508,16 +487,14 @@ def CheddarGPU_TensorSquareOp : CheddarGPU_TensorOpBase<"tensor_square",
       Arg<CheddarGPU_PolyBuffer, "src bx buffer", [MemRead]>:$src_bx,
       Arg<CheddarGPU_PolyBuffer, "src ax buffer", [MemRead]>:$src_ax
     ),
-    CheddarGPU_UnaryForms,
-    ["src_bx", "src_ax"],
-    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>]> {
+    ["src_bx", "src_ax"]> {
   let summary = "Ciphertext tensor squaring: (b1^2, 2*b1*a1, a1^2)";
   let description = [{
     Mirrors Cheddar's `kernel::TensorSquare` in `ElementWise.cu`.
     Squares degree-1 ciphertext (b1, a1) into degree-2 ciphertext (b1^2, 2*b1*a1, a1^2).
 
     Form contract:
-    - Requires `eval` form for all operands.
+    - All operands are in `eval` form.
   }];
 
   let assemblyFormat = [{
