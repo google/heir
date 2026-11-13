@@ -365,6 +365,18 @@ bzl_library(
     visibility = ["//visibility:public"],
 )
 
+# Selectors for MemorySanitizer builds, used by llc.bzl to instrument LLVM IR
+# that is compiled outside the C++ toolchain.
+alias(
+    name = "msan_build",
+    actual = "@platforms//:incompatible",  # copybara: msan_build
+)
+
+alias(
+    name = "msan_track_origins_build",
+    actual = "@platforms//:incompatible",  # copybara: msan_track_origins_build
+)
+
 bzl_library(
     name = "mlir_translate_bzl",
     srcs = ["mlir-translate.bzl"],
