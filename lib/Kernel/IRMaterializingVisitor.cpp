@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -13,6 +14,9 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/Utils.h"
 #include "lib/Utils/MathUtils.h"
+#include "lib/Utils/TensorUtils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/Sequence.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -22,7 +26,10 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -106,7 +113,13 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
 
   TypedAttr attr;
-  if (auto floatTy = dyn_cast<mlir::FloatType>(tensorTy.getElementType())) {
+  Type elementType = tensorTy.getElementType();
+  if (elementType.isF32()) {
+    SmallVector<float> values(node.value.begin(), node.value.end());
+    attr = DenseElementsAttr::get(tensorTy, ArrayRef(values));
+  } else if (elementType.isF64()) {
+    attr = DenseElementsAttr::get(tensorTy, ArrayRef(node.value));
+  } else if (auto floatTy = dyn_cast<mlir::FloatType>(elementType)) {
     SmallVector<APFloat> values;
     for (double v : node.value) {
       APFloat apVal(v);
@@ -117,7 +130,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     attr = DenseElementsAttr::get(tensorTy, values);
   } else {
     // Node values are doubles and we must convert them to integers
-    auto intTy = cast<mlir::IntegerType>(tensorTy.getElementType());
+    auto intTy = cast<mlir::IntegerType>(elementType);
     SmallVector<APInt> values;
     for (double v : node.value) {
       APInt apVal(intTy.getWidth(), std::floor(v));
@@ -209,7 +222,11 @@ std::vector<Value> IRMaterializingVisitor::operator()(
                                     builder.getIndexAttr(1));
 
   if (auto tensorTy = dyn_cast<RankedTensorType>(evaluatedType)) {
-    auto extractOp = tensor::ExtractSliceOp::create(builder, tensorTy, operand,
+    // The extracted row keeps the operand's element type, which may differ
+    // from the evaluated type's (e.g., an integer input of a float kernel).
+    auto resultTy =
+        RankedTensorType::get(tensorTy.getShape(), tensorType.getElementType());
+    auto extractOp = tensor::ExtractSliceOp::create(builder, resultTy, operand,
                                                     offsets, sizes, strides);
     createdOpCallback(extractOp);
     return {extractOp};
@@ -418,6 +435,114 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     const ResultAtNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
   std::vector<Value> operands = this->process(node.operand, builder);
   return {operands[node.index]};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ElementwiseOpNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  SmallVector<Value> operands;
+  for (const auto& operand : node.operands) {
+    operands.push_back(this->process(operand, builder)[0]);
+  }
+  auto shapedType = cast<RankedTensorType>(operands.front().getType());
+  SmallVector<Type> resultTypes;
+  for (Type type : node.op->getResultTypes()) {
+    resultTypes.push_back(shapedType.clone(type));
+  }
+  OperationState state(builder.getLoc(), node.op->getName(), operands,
+                       resultTypes, node.op->getAttrs());
+  Operation* op = builder.create(state);
+  createdOpCallback(op);
+  return {op->getResults().begin(), op->getResults().end()};
+}
+
+// Constant and scalar sources become a constant or a splat; any other source
+// is read by a loop over constant index tables.
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const GatherNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value source = node.source ? this->process(node.source, builder)[0] : Value();
+  Type elementType =
+      source ? getElementTypeOrSelf(source.getType()) : builder.getIndexType();
+  auto resultType = RankedTensorType::get(node.shape, elementType);
+  Attribute zero = builder.getZeroAttr(elementType);
+  auto create = [&](auto op) {
+    createdOpCallback(op);
+    return op;
+  };
+
+  Attribute constant;
+  if (!source || matchPattern(source, m_Constant(&constant))) {
+    auto elements = dyn_cast_if_present<ElementsAttr>(constant);
+    std::function<Attribute(int64_t)> read;
+    if (elements) read = constantElementReader(elements);
+    if (!elements || read) {
+      SmallVector<Attribute> result;
+      for (int64_t index : node.indices) {
+        if (index < 0) {
+          result.push_back(zero);
+        } else if (!source) {
+          result.push_back(builder.getIndexAttr(index));
+        } else {
+          result.push_back(read ? read(index) : constant);
+        }
+      }
+      return {create(arith::ConstantOp::create(
+          builder, resultType, DenseElementsAttr::get(resultType, result)))};
+    }
+  }
+
+  auto sourceType = dyn_cast<RankedTensorType>(source.getType());
+  if (!sourceType &&
+      llvm::all_of(node.indices, [](int64_t index) { return index >= 0; })) {
+    return {create(tensor::SplatOp::create(builder, resultType, source))};
+  }
+  Value flat = source;
+  if (!sourceType) {
+    flat = create(tensor::FromElementsOp::create(builder, source));
+  } else if (sourceType.getRank() == 0) {
+    flat = create(tensor::ExpandShapeOp::create(
+        builder, RankedTensorType::get({1}, elementType), source,
+        ArrayRef<ReassociationIndices>{}));
+  } else if (sourceType.getRank() > 1) {
+    flat = create(tensor::CollapseShapeOp::create(
+        builder, source,
+        ArrayRef<ReassociationIndices>{
+            llvm::to_vector(llvm::seq<int64_t>(sourceType.getRank()))}));
+  }
+  SmallVector<int64_t> from, to;
+  for (auto [i, index] : llvm::enumerate(node.indices)) {
+    if (index < 0) continue;
+    from.push_back(index);
+    to.push_back(i);
+  }
+  auto table = [&](ArrayRef<int64_t> values) -> Value {
+    auto type = RankedTensorType::get({static_cast<int64_t>(values.size())},
+                                      builder.getIndexType());
+    return create(arith::ConstantOp::create(
+        builder, type, DenseElementsAttr::get(type, values)));
+  };
+  Value fromTable = table(from), toTable = table(to);
+  auto flatType =
+      RankedTensorType::get({resultType.getNumElements()}, elementType);
+  Value init = create(arith::ConstantOp::create(
+      builder, flatType, DenseElementsAttr::get(flatType, zero)));
+  Value lower = create(arith::ConstantIndexOp::create(builder, 0));
+  Value upper = create(arith::ConstantIndexOp::create(builder, from.size()));
+  Value step = create(arith::ConstantIndexOp::create(builder, 1));
+  auto loop = scf::ForOp::create(
+      builder, lower, upper, step, ValueRange{init},
+      [&](OpBuilder& nested, Location loc, Value k, ValueRange iterArgs) {
+        Value src = tensor::ExtractOp::create(nested, loc, fromTable, k);
+        Value dst = tensor::ExtractOp::create(nested, loc, toTable, k);
+        Value element = tensor::ExtractOp::create(nested, loc, flat, src);
+        Value updated =
+            tensor::InsertOp::create(nested, loc, element, iterArgs[0], dst);
+        scf::YieldOp::create(nested, loc, updated);
+      });
+  loop->walk([&](Operation* op) { createdOpCallback(op); });
+  SmallVector<ReassociationIndices> reassociation = {
+      llvm::to_vector(llvm::seq<int64_t>(resultType.getRank()))};
+  return {create(tensor::ExpandShapeOp::create(
+      builder, resultType, loop.getResult(0), reassociation))};
 }
 
 }  // namespace kernel

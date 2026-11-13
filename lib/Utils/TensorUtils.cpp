@@ -2,14 +2,16 @@
 
 #include <cassert>
 #include <cstdint>
+#include <functional>
 
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/IndexingUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -60,6 +62,31 @@ SmallVector<ReassociationIndices> getReassociationForReshapeAtDim(
     reassociationGroup.clear();
   }
   return reassociation;
+}
+
+std::function<Attribute(int64_t)> constantElementReader(
+    ElementsAttr elementsAttr) {
+  if (auto valuesBegin = elementsAttr.try_value_begin<Attribute>()) {
+    return
+        [begin = *valuesBegin](int64_t i) -> Attribute { return *(begin + i); };
+  }
+  auto floatType = dyn_cast<FloatType>(elementsAttr.getElementType());
+  if (!floatType) return nullptr;
+  if (auto resource = dyn_cast<DenseF32ResourceElementsAttr>(elementsAttr)) {
+    if (auto data = resource.tryGetAsArrayRef()) {
+      return [data = *data, floatType](int64_t i) -> Attribute {
+        return FloatAttr::get(floatType, data[i]);
+      };
+    }
+  } else if (auto resource =
+                 dyn_cast<DenseF64ResourceElementsAttr>(elementsAttr)) {
+    if (auto data = resource.tryGetAsArrayRef()) {
+      return [data = *data, floatType](int64_t i) -> Attribute {
+        return FloatAttr::get(floatType, data[i]);
+      };
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace heir

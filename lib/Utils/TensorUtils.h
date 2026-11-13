@@ -2,14 +2,22 @@
 #define LIB_UTILS_TENSORUTILS_H_
 
 #include <cstdint>
+#include <functional>
 
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
+
+// Returns a reader for the elements of a constant tensor, by flat row-major
+// index, or an empty function when the constant cannot be read. Supports
+// DenseElementsAttr and DenseF{32,64}ResourceElementsAttr.
+std::function<Attribute(int64_t)> constantElementReader(
+    ElementsAttr elementsAttr);
 
 // Returns the flattened index of the given tensor type and indices.
 int64_t getFlattenedIndex(RankedTensorType tensorType,

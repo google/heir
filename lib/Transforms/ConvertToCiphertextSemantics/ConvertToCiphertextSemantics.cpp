@@ -42,6 +42,7 @@
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
+#include "lib/Utils/TensorUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/Hashing.h"             // from @llvm-project
@@ -1200,35 +1201,6 @@ struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
  private:
   bool unrollKernels;
 };
-
-// Returns a reader for the elements of a constant tensor, by flat row-major
-// index, or an empty function when the constant cannot be read.
-//
-// Supports both DenseElementsAttr and DenseF{32,64}ResourceElementsAttr.
-std::function<Attribute(int64_t)> constantElementReader(
-    ElementsAttr elementsAttr) {
-  if (auto valuesBegin = elementsAttr.try_value_begin<Attribute>()) {
-    return
-        [begin = *valuesBegin](int64_t i) -> Attribute { return *(begin + i); };
-  }
-  auto floatType = dyn_cast<FloatType>(elementsAttr.getElementType());
-  if (!floatType) return nullptr;
-  if (auto resource = dyn_cast<DenseF32ResourceElementsAttr>(elementsAttr)) {
-    if (auto data = resource.tryGetAsArrayRef()) {
-      return [data = *data, floatType](int64_t i) -> Attribute {
-        return FloatAttr::get(floatType, data[i]);
-      };
-    }
-  } else if (auto resource =
-                 dyn_cast<DenseF64ResourceElementsAttr>(elementsAttr)) {
-    if (auto data = resource.tryGetAsArrayRef()) {
-      return [data = *data, floatType](int64_t i) -> Attribute {
-        return FloatAttr::get(floatType, data[i]);
-      };
-    }
-  }
-  return nullptr;
-}
 
 struct PreserveLinalgMatvecAsLinearTransform
     : public ConversionBase<linalg::MatvecOp> {
