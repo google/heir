@@ -38,21 +38,15 @@ module attributes {
 
   // CHECK: @test_mul_const
   func.func @test_mul_const(%out: memref<4x65536xi32>, %in: memref<4x65536xi32>, %cst: memref<4xi32>) {
-    // CHECK: cheddar_gpu.mul_const %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}in_form = eval{{.*}}> : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
-    cheddar_gpu.mul_const %out, %in, %cst <{
-      in_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>
-    }> : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
+    // CHECK: cheddar_gpu.mul_const %{{.*}}, %{{.*}}, %{{.*}} : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
+    cheddar_gpu.mul_const %out, %in, %cst : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
     return
   }
 
   // CHECK: @test_mul_imag_unit
   func.func @test_mul_imag_unit(%out: memref<4x65536xi32>, %in: memref<4x65536xi32>, %i_unit: memref<4xi32>) {
-    // CHECK: cheddar_gpu.mul_imag_unit %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}in_form = eval{{.*}}> : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
-    cheddar_gpu.mul_imag_unit %out, %in, %i_unit <{
-      in_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>
-    }> : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
+    // CHECK: cheddar_gpu.mul_imag_unit %{{.*}}, %{{.*}}, %{{.*}} : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
+    cheddar_gpu.mul_imag_unit %out, %in, %i_unit : (memref<4x65536xi32>, memref<4x65536xi32>, memref<4xi32>) -> ()
     return
   }
 
