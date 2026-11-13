@@ -22,6 +22,22 @@ class CheddarGPU_StaticMemRefOfRank<list<Type> elems, int rank, string descr = "
 def CheddarGPU_PolyBuffer : CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
     "statically shaped 2D memref<L x N x iW> polynomial buffer (W = 32 or 64)">;
 
+// Statically shaped RankedTensor of a given rank.
+class CheddarGPU_StaticTensorOfRank<list<Type> elems, int rank, string descr = "",
+                                    list<Pred> extra = []>
+    : ConfinedType<TensorRankOf<elems, [rank]>, !listconcat([HasStaticShapePred], extra),
+                   !if(!empty(descr), descr, "statically shaped " # TensorRankOf<elems, [rank]>.summary),
+                   "::mlir::RankedTensorType">;
+
+// 2D statically shaped polynomial tensor of i32 or i64 elements.
+def CheddarGPU_PolyTensor : CheddarGPU_StaticTensorOfRank<[I32, I64], 2,
+    "statically shaped 2D tensor<L x N x iW> polynomial (W = 32 or 64)">;
+
+// 2D statically shaped polynomial buffer or tensor of i32 or i64 elements.
+def CheddarGPU_PolyLike : AnyTypeOf<
+    [CheddarGPU_PolyBuffer, CheddarGPU_PolyTensor],
+    "statically shaped 2D polynomial memref or tensor", "::mlir::ShapedType">;
+
 // 1D statically shaped per-limb constant vector of i32 or i64 elements.
 def CheddarGPU_LimbVector : CheddarGPU_StaticMemRefOfRank<[I32, I64], 1,
     "statically shaped 1D memref<L x iW> per-limb constant vector (W = 32 or 64)">;
@@ -48,11 +64,11 @@ def CheddarGPU_PolyBuffer64 : CheddarGPU_StaticMemRefOfRank<[I64], 2,
 //===----------------------------------------------------------------------===//
 
 class CheddarGPU_Dim<string v, int d>
-    : StrFunc<"::llvm::cast<::mlir::MemRefType>($" # v # ".getType()).getDimSize(" # d # ")">;
+    : StrFunc<"::llvm::cast<::mlir::ShapedType>($" # v # ".getType()).getDimSize(" # d # ")">;
 
 class CheddarGPU_SameDim<list<string> names, int d, string what>
     : AllMatchSameOperatorTrait<names,
-        "::llvm::cast<::mlir::MemRefType>($_self.getType()).getDimSize(" # d # ")", what>;
+        "::llvm::cast<::mlir::ShapedType>($_self.getType()).getDimSize(" # d # ")", what>;
 
 class CheddarGPU_SameDegree<list<string> n>
     : CheddarGPU_SameDim<n, 1, "polynomial degree (dim 1)">;
