@@ -44,6 +44,25 @@ defvar CheddarGPU_BinaryLimbRanges = (ins
   OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range
 );
 
+defvar CheddarGPU_AccumCommonAttrs = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<I64Attr>:$prime_offset,
+  OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+);
+
+defvar CheddarGPU_CPAccumAddCommonAttrs = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<I64Attr>:$prime_offset,
+  OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+);
+
+defvar CheddarGPU_PermuteAccumCommonAttrs = (ins
+  DenseI64ArrayAttr:$galois_factors,
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<I64Attr>:$prime_offset,
+  OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+);
+
 defvar CheddarGPU_BinaryBuilders = [
   OpBuilder<(ins "::mlir::Value":$out,
                  "::mlir::Value":$lhs,
@@ -92,37 +111,14 @@ defvar CheddarGPU_UnaryBuilders = [
   }]>
 ];
 
-defvar CheddarGPU_MulConstBuilders = [
-  OpBuilder<(ins "::mlir::Value":$out,
-                 "::mlir::Value":$in,
-                 "::mlir::Value":$cst,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$in_form,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
-                 CArg<"::mlir::IntegerAttr", "{}">:$prime_offset), [{
-      build($_builder, $_state, out, in, cst, in_form, out_form,
-            in_limb_range, out_limb_range, prime_offset, /*num_aux=*/::mlir::IntegerAttr{});
-  }]>,
-  OpBuilder<(ins "::mlir::Value":$out,
-                 "::mlir::Value":$in,
-                 "::mlir::Value":$cst,
-                 "::mlir::heir::cheddar_gpu::Form":$in_form,
-                 "::mlir::heir::cheddar_gpu::Form":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
-                 CArg<"::mlir::IntegerAttr", "{}">:$prime_offset), [{
-      build($_builder, $_state, out, in, cst, in_form, out_form,
-            in_limb_range, out_limb_range, prime_offset, /*num_aux=*/::mlir::IntegerAttr{});
-  }]>
-];
-
 //===----------------------------------------------------------------------===//
 // Operation Families
 //===----------------------------------------------------------------------===//
 
 // Binary element-wise operations on single polynomial buffers (add, sub, mul).
-class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
+class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
+                              bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "lhs", "rhs"]>,
         CheddarGPU_LimbRangesWithin
@@ -133,12 +129,12 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
       Arg<CheddarGPU_PolyBuffer, "left-hand side operand", [MemRead]>:$lhs,
       Arg<CheddarGPU_PolyBuffer, "right-hand side operand", [MemRead]>:$rhs
     ),
-    CheddarGPU_BinaryForms,
+    !if(hasForms, CheddarGPU_BinaryForms, (ins)),
     CheddarGPU_BinaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
   );
 
-  let builders = CheddarGPU_BinaryBuilders;
+  let builders = !if(hasForms, CheddarGPU_BinaryBuilders, []);
 
   let assemblyFormat = [{
     $out `,` $lhs `,` $rhs prop-dict attr-dict `:` type($out)
@@ -146,8 +142,10 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = []>
 }
 
 // Unary element-wise operations on single polynomial buffers (neg).
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
 class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
-                             list<OpBuilder> opBuilders = [], list<Trait> traits = []>
+                             list<OpBuilder> opBuilders = [], list<Trait> traits = [],
+                             bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
         CheddarGPU_LimbRangesWithin
@@ -157,7 +155,7 @@ class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
       Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
       Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in
     ),
-    CheddarGPU_UnaryForms,
+    !if(hasForms, CheddarGPU_UnaryForms, (ins)),
     extraAttrs,
     CheddarGPU_UnaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
@@ -171,12 +169,14 @@ class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
 
 // Element-wise operations with per-limb constants (add_const, sub_const,
 // sub_opposite_const, mul_const, mul_imag_unit).
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
 class CheddarGPU_ConstOpBase<
     string mnemonic,
     dag constArg = (ins Arg<CheddarGPU_LimbVector, "per-limb constant buffer", [MemRead]>:$cst),
     dag extraAttrs = (ins),
     list<OpBuilder> opBuilders = [],
-    list<Trait> traits = []>
+    list<Trait> traits = [],
+    bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
         CheddarGPU_LimbRangesWithin
@@ -187,7 +187,7 @@ class CheddarGPU_ConstOpBase<
       Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in
     ),
     constArg,
-    CheddarGPU_UnaryForms,
+    !if(hasForms, CheddarGPU_UnaryForms, (ins)),
     CheddarGPU_UnaryLimbRanges,
     extraAttrs
   );
@@ -223,7 +223,9 @@ class CheddarGPU_PairBinaryOpBase<string mnemonic, list<Trait> traits = []>
 }
 
 // Unary operations on pairs of polynomial buffers (neg_2).
-class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<Trait> traits = []>
+// Ops that accept only one form set `hasForms = 0`; their forms are implied.
+class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<Trait> traits = [],
+                                 bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out_bx", "out_ax", "in_bx", "in_ax"]>,
         CheddarGPU_LimbRangesWithin
@@ -235,7 +237,7 @@ class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<T
       Arg<CheddarGPU_PolyBuffer, "in bx buffer", [MemRead]>:$in_bx,
       Arg<CheddarGPU_PolyBuffer, "in ax buffer", [MemRead]>:$in_ax
     ),
-    CheddarGPU_UnaryForms,
+    !if(hasForms, CheddarGPU_UnaryForms, (ins)),
     extraAttrs,
     CheddarGPU_UnaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
@@ -249,7 +251,7 @@ class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<T
 }
 
 // Ciphertext tensor product and squaring operations (tensor, tensor_square).
-class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands, dag formAttrs,
+class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands,
                               list<string> matchedTypes, list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<!listconcat(["out_bx", "out_ax", "out_rx"], matchedTypes)>,
@@ -262,8 +264,37 @@ class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands, dag formAttrs,
       Arg<CheddarGPU_PolyBuffer, "destination rx buffer", [MemWrite]>:$out_rx
     ),
     srcOperands,
-    formAttrs,
     (ins OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range)
+  );
+}
+
+// Accumulation operations base classes.
+class CheddarGPU_AccumOpBase<string mnemonic, dag inOperands, dag accumAttrs,
+                             list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AttrSizedOperandSegments,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out),
+    inOperands,
+    accumAttrs
+  );
+}
+
+class CheddarGPU_PairAccumOpBase<string mnemonic, dag inOperands, dag accumAttrs,
+                                 list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AttrSizedOperandSegments,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_PolyBuffer, "destination ax buffer", [MemWrite]>:$out_ax
+    ),
+    inOperands,
+    accumAttrs
   );
 }
 
@@ -382,8 +413,7 @@ def CheddarGPU_SubOppositeConstOp : CheddarGPU_ConstOpBase<"sub_opposite_const",
   }];
 }
 
-def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
-    CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
+def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", hasForms = 0> {
   let summary = "Pointwise Montgomery modular multiplication";
   let description = [{
     Mirrors Cheddar's `kernel::Mult` and `ElementWiseHandler::Mult` in `ElementWise.cu`.
@@ -392,7 +422,7 @@ def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", [
     Form contract:
     - Polynomial multiplication in evaluation domain is pointwise Montgomery multiplication:
       `(a * R) * (b * R) * R^-1 = (a * b) * R mod Q`.
-    - Operands must be in `eval` form (`lhs_form == rhs_form == out_form == eval`).
+    - All operands are in `eval` form.
   }];
 }
 
@@ -401,9 +431,9 @@ def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
     (ins
       OptionalAttr<I64Attr>:$prime_offset,
       OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux),
-    CheddarGPU_MulConstBuilders,
-    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>,
-     CheddarGPU_PerLimbOf<"cst", "out">]> {
+    [],
+    [CheddarGPU_PerLimbOf<"cst", "out">],
+    hasForms = 0> {
   let summary = "Pointwise Montgomery multiplication by per-limb constants";
   let description = [{
     Mirrors Cheddar's `ElementWiseHandler::MultConst` in `ElementWise.cu`.
@@ -411,7 +441,7 @@ def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
     limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
 
     Form contract:
-    - Montgomery multiplication requires `eval` form (`in_form == out_form == eval`).
+    - `in` and `out` are in `eval` form.
   }];
 }
 
@@ -422,8 +452,8 @@ def CheddarGPU_MulConstOp : CheddarGPU_ConstOpBase<"mul_const",
 def CheddarGPU_MulImaginaryUnitOp : CheddarGPU_ConstOpBase<"mul_imag_unit",
     (ins Arg<CheddarGPU_LimbVector, "per-limb imaginary unit table (psi^(N/2))", [MemRead]>:$i_unit),
     (ins), [],
-    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>,
-     CheddarGPU_PerLimbOf<"i_unit", "out">]> {
+    [CheddarGPU_PerLimbOf<"i_unit", "out">],
+    hasForms = 0> {
   let summary = "Pointwise multiplication by imaginary unit in evaluation domain";
   let description = [{
     Mirrors Cheddar's `kernel::MultImaginaryUnit` in `ElementWise.cu`.
@@ -431,7 +461,7 @@ def CheddarGPU_MulImaginaryUnitOp : CheddarGPU_ConstOpBase<"mul_imag_unit",
     first half by `psi^(N/2)` and second half by `-psi^(N/2) = Q - psi^(N/2)`.
 
     Form contract:
-    - Requires `eval` form (`in_form == out_form == eval`).
+    - `in` and `out` are in `eval` form.
   }];
 }
 
@@ -483,9 +513,7 @@ def CheddarGPU_TensorOp : CheddarGPU_TensorOpBase<"tensor",
       Arg<CheddarGPU_PolyBuffer, "src2 bx buffer", [MemRead]>:$src2_bx,
       Arg<CheddarGPU_PolyBuffer, "src2 ax buffer", [MemRead]>:$src2_ax
     ),
-    CheddarGPU_BinaryForms,
-    ["src1_bx", "src1_ax", "src2_bx", "src2_ax"],
-    [CheddarGPU_FormsAre<["lhs_form", "rhs_form", "out_form"], CheddarGPU_Form_Eval>]> {
+    ["src1_bx", "src1_ax", "src2_bx", "src2_ax"]> {
   let summary = "Ciphertext tensor product: (b1*b2, b1*a2 + a1*b2, a1*a2)";
   let description = [{
     Mirrors Cheddar's `kernel::Tensor` and `ElementWiseHandler::Tensor` in `ElementWise.cu`.
@@ -493,7 +521,7 @@ def CheddarGPU_TensorOp : CheddarGPU_TensorOpBase<"tensor",
     (b1*b2, b1*a2 + a1*b2, a1*a2) using Karatsuba modular multiplication.
 
     Form contract:
-    - Requires `eval` form for all operands.
+    - All operands are in `eval` form.
   }];
 
   let assemblyFormat = [{
@@ -508,16 +536,14 @@ def CheddarGPU_TensorSquareOp : CheddarGPU_TensorOpBase<"tensor_square",
       Arg<CheddarGPU_PolyBuffer, "src bx buffer", [MemRead]>:$src_bx,
       Arg<CheddarGPU_PolyBuffer, "src ax buffer", [MemRead]>:$src_ax
     ),
-    CheddarGPU_UnaryForms,
-    ["src_bx", "src_ax"],
-    [CheddarGPU_FormsAre<["in_form", "out_form"], CheddarGPU_Form_Eval>]> {
+    ["src_bx", "src_ax"]> {
   let summary = "Ciphertext tensor squaring: (b1^2, 2*b1*a1, a1^2)";
   let description = [{
     Mirrors Cheddar's `kernel::TensorSquare` in `ElementWise.cu`.
     Squares degree-1 ciphertext (b1, a1) into degree-2 ciphertext (b1^2, 2*b1*a1, a1^2).
 
     Form contract:
-    - Requires `eval` form for all operands.
+    - All operands are in `eval` form.
   }];
 
   let assemblyFormat = [{
@@ -525,6 +551,389 @@ def CheddarGPU_TensorSquareOp : CheddarGPU_TensorOpBase<"tensor_square",
     `outs` `(` $out_bx `,` $out_ax `,` $out_rx `)`
     prop-dict attr-dict `:` type($out_bx)
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// Accumulation Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_CPAccumOp : CheddarGPU_AccumOpBase<"cp_accum",
+    (ins
+      Variadic<CheddarGPU_PolyBuffer>:$ct_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_AccumCommonAttrs,
+    [
+      CheddarGPU_SameCount<["ct_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_srcs", "out">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"ct_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products: dst = sum_k (common_srcs[k] * ct_srcs[k])";
+  let description = [{
+    Mirrors Cheddar's `kernel::CPAccum` and `ElementWiseHandler::CPAccumWorker<false/true>`
+    in `ElementWise.cu`.
+    Computes `out = sum_k MultMontgomery(ct_srcs[k], common_srcs[k])`.
+    `common_srcs` can be polynomial buffers (`memref<LxNxiW>`) or per-limb constants (`memref<LxiW>`).
+
+    Form contract:
+    - Montgomery pointwise multiplication requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    $out `,` `ct_srcs` `(` $ct_srcs `)` `,` `common_srcs` `(` $common_srcs `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_CPAccum2Op : CheddarGPU_PairAccumOpBase<"cp_accum_2",
+    (ins
+      Variadic<CheddarGPU_PolyBuffer>:$ct_bx_srcs,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_ax_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_AccumCommonAttrs,
+    [
+      AllTypesMatch<["out_bx", "out_ax"]>,
+      CheddarGPU_SameCount<["ct_bx_srcs", "ct_ax_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_bx_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachSameRingAs<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out_bx", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products for two polynomials: {out_bx, out_ax} = sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])";
+  let description = [{
+    Mirrors Cheddar's `CPAccum<word,2,...>` / `PAccum` in `Context.cpp` / `ElementWise.cu`.
+    Computes `{out_bx, out_ax} = sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])` over `k < K` (K <= 4),
+    reading each `common[k]` (mod-up digit) once for both outputs.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` `ct_bx_srcs` `(` $ct_bx_srcs `)` `,`
+    `ct_ax_srcs` `(` $ct_ax_srcs `)` `,` `common_srcs` `(` $common_srcs `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_CPAccumAddOp : CheddarGPU_AccumOpBase<"cp_accum_add",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "initial accumulator buffer", [MemRead]>:$acc,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_CPAccumAddCommonAttrs,
+    [
+      AllTypesMatch<["out", "acc"]>,
+      CheddarGPU_SameCount<["ct_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_srcs", "out">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"ct_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products with base: dst = acc + sum_k (common_srcs[k] * ct_srcs[k])";
+  let description = [{
+    Mirrors Cheddar's `kernel::CPAccumAdd` in `ElementWise.cu`.
+    Computes `out = acc + sum_k MultMontgomery(ct_srcs[k], common_srcs[k])`.
+
+    Form contract:
+    - Montgomery pointwise multiplication requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    $out `,` `acc` `(` $acc `)` `,` `ct_srcs` `(` $ct_srcs `)` `,`
+    `common_srcs` `(` $common_srcs `)` prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_CPAccumAdd2Op : CheddarGPU_PairAccumOpBase<"cp_accum_add_2",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "initial accumulator bx buffer", [MemRead]>:$acc_bx,
+      Arg<CheddarGPU_PolyBuffer, "initial accumulator ax buffer", [MemRead]>:$acc_ax,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_bx_srcs,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_ax_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_CPAccumAddCommonAttrs,
+    [
+      AllTypesMatch<["out_bx", "out_ax", "acc_bx", "acc_ax"]>,
+      CheddarGPU_SameCount<["ct_bx_srcs", "ct_ax_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_bx_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachSameRingAs<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out_bx", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products with base for two polynomials: {out_bx, out_ax} = {acc_bx, acc_ax} + sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])";
+  let description = [{
+    Mirrors Cheddar's `CPAccumAdd<L,2>` / `CAccum` in `Context.cpp` / `ElementWise.cu`.
+    Computes `{out_bx, out_ax} = {acc_bx, acc_ax} + sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])`.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` `acc` `(` $acc_bx `,` $acc_ax `)` `,`
+    `ct_bx_srcs` `(` $ct_bx_srcs `)` `,` `ct_ax_srcs` `(` $ct_ax_srcs `)` `,`
+    `common_srcs` `(` $common_srcs `)` prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Permutation and Automorphism Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_PermuteOp : CheddarGPU_UnaryOpBase<"permute",
+    (ins OptionalAttr<I64Attr>:$galois,
+         UnitAttr:$conj), [],
+    [
+      CheddarGPU_ExactlyOneOf<"galois", "conj">
+    ],
+    hasForms = 0> {
+  let summary = "Galois automorphism permutation in eval form";
+  let description = [{
+    Mirrors Cheddar's `kernel::Permute` and `ElementWiseHandler::Permute` in `ElementWise.cu`
+    to compute a Galois automorphism on a polynomial.
+
+    Computes:
+
+      `e = brev_{logN+1}(x) + 1`
+      `src = brev_{logN+1}(e * g - 1)`
+
+    where `g` is either the Galois factor (`galois` attr, `5^k mod 2N`) or complex conjugation
+    `2N - 1` (`conj` unit attr).
+
+    Form contract:
+    - Requires `eval` form for ciphertext operands.
+    - in-place permutation is not supported.
+  }];
+}
+
+def CheddarGPU_Permute2Op : CheddarGPU_PairUnaryOpBase<"permute_2",
+    (ins OptionalAttr<I64Attr>:$galois,
+         UnitAttr:$conj),
+    [
+      CheddarGPU_ExactlyOneOf<"galois", "conj">
+    ],
+    hasForms = 0> {
+  let summary = "Galois automorphism permutation for two polynomials";
+  let description = [{
+    Same as `cheddar_gpu.permute` with two polynomials.
+
+    Computes eval-form Galois automorphism on both bx and ax simultaneously.
+
+    Note in-place permutation is not supported, so all operand buffers
+    must be distinct.
+  }];
+}
+
+def CheddarGPU_PermuteAccumOp : CheddarGPU_AccumOpBase<"permute_accum",
+    (ins
+      Optional<CheddarGPU_PolyBuffer>:$acc,
+      Variadic<CheddarGPU_PolyBuffer>:$srcs
+    ),
+    CheddarGPU_PermuteAccumCommonAttrs,
+    [
+      OptionalTypesMatchWith<"accumulator matches output type", "out", "acc", "$_self">,
+      CheddarGPU_SameCount<["srcs", "galois_factors"]>,
+      CheddarGPU_NonEmpty<"srcs">,
+      CheddarGPU_EachTypeIs<"srcs", "out">
+    ]> {
+  let summary = "Accumulate multiple Galois automorphism permutations";
+  let description = [{
+    Mirrors Cheddar's `kernel::PermuteAccum` and `kernel::PermuteAccumAdd` in `ElementWise.cu`.
+    Computes `out = (acc +) sum_k permute(srcs[k], galois_factors[k])`.
+
+    Form contract:
+    - Requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    $out `,` (`acc` `(` $acc^ `)` `,`)? `srcs` `(` $srcs `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_PermuteAccum2Op : CheddarGPU_PairAccumOpBase<"permute_accum_2",
+    (ins
+      Optional<CheddarGPU_PolyBuffer>:$acc_bx,
+      Optional<CheddarGPU_PolyBuffer>:$acc_ax,
+      Variadic<CheddarGPU_PolyBuffer>:$srcs_bx,
+      Variadic<CheddarGPU_PolyBuffer>:$srcs_ax
+    ),
+    CheddarGPU_PermuteAccumCommonAttrs,
+    [
+      AllTypesMatch<["out_bx", "out_ax"]>,
+      CheddarGPU_BothOrNeither<"acc_bx", "acc_ax">,
+      OptionalTypesMatchWith<"acc_bx matches out_bx", "out_bx", "acc_bx", "$_self">,
+      OptionalTypesMatchWith<"acc_ax matches out_ax", "out_ax", "acc_ax", "$_self">,
+      CheddarGPU_SameCount<["srcs_bx", "srcs_ax", "galois_factors"]>,
+      CheddarGPU_NonEmpty<"srcs_bx">,
+      CheddarGPU_EachTypeIs<"srcs_bx", "out_bx">,
+      CheddarGPU_EachTypeIs<"srcs_ax", "out_ax">
+    ]> {
+  let summary = "Accumulate multiple Galois automorphism permutations for two polynomials";
+  let description = [{
+    Mirrors Cheddar's `PermuteAccum` for 2 polynomials in `ElementWise.cu`.
+    Computes `{out_bx, out_ax} = ({acc_bx, acc_ax} +) sum_k permute({srcs_bx[k], srcs_ax[k]}, galois_factors[k])`.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` (`acc` `(` $acc_bx^ `,` $acc_ax `)` `,`)?
+    `srcs_bx` `(` $srcs_bx `)` `,` `srcs_ax` `(` $srcs_ax `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Forward/Inverse Number Theoretic Transform operations (ntt, intt).
+//===----------------------------------------------------------------------===//
+
+defvar CheddarGPU_NTTCommonAttrs = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$in_limb_range,
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<CheddarGPU_PairAttr>:$prime_range,
+  OptionalAttr<DenseI64ArrayAttr>:$prime_indices
+);
+
+class CheddarGPU_NTTOpBase<string mnemonic, list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out", "in"]>,
+        CheddarGPU_LimbRangesWithin,
+        CheddarGPU_NTTPrimeCounts,
+      ], traits)>;
+
+def CheddarGPU_NTTOp : CheddarGPU_NTTOpBase<"ntt", [
+    CheddarGPU_Requires<"skip_copy_src", "static_cast<bool>(getSkipRange())",
+                        "'skip_copy_src' requires 'skip_range' to be set">,
+    CheddarGPU_OptionalSameRingAs<"skip_copy_src", "out">,
+    CheddarGPU_SpanEndWithinDim0<"skip_range", "out">
+  ]> {
+  let summary = "Forward Number Theoretic Transform (NTT)";
+  let description = [{
+    Mirrors Cheddar's `NTTHandler::NTT` and `NTTHandler::NTTForModUp` in `NTT.cu`.
+    Computes the forward negacyclic number theoretic transform limb-wise, where
+    the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`. `in` is in `coeff`
+    form and `out` is in `eval` form.
+
+    - If `montgomery_conversion` is set, `in` holds standard residues, which are
+      converted to Montgomery form. Otherwise, `in` must already be in Montgomery
+      form.
+    - `prime_range` (`[offset, count]`) or `prime_indices` optionally select which
+      limbs of `Q` the active limbs are reduced by.
+    - If `skip_range = [start, end]` is set, limbs `[start, end)` of `out` are not
+      transformed. If `skip_copy_src` is also set, those limbs are instead copied
+      verbatim from `skip_copy_src`, starting at its limb `skip_copy_in_offset`.
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in,
+      Arg<Optional<CheddarGPU_PolyBuffer>,
+          "verbatim copy source buffer for skipped limbs", [MemRead]>:$skip_copy_src
+    ),
+    (ins
+      BoolAttr:$montgomery_conversion,
+      OptionalAttr<CheddarGPU_SpanAttr>:$skip_range
+    ),
+    CheddarGPU_NTTCommonAttrs,
+    (ins DefaultValuedAttr<CheddarGPU_NonNegI64Attr, "0">:$skip_copy_in_offset)
+  );
+
+  let hasVerifier = 1;
+
+  let assemblyFormat = [{
+    $out `,` $in ( `,` `skip_copy_src` `(` $skip_copy_src^ `)` )? prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$out,
+                   "::mlir::Value":$in,
+                   "::mlir::BoolAttr":$montgomery_conversion,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$skip_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$prime_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$prime_indices), [{
+      build($_builder, $_state, out, in, /*skip_copy_src=*/::mlir::Value(),
+            montgomery_conversion, skip_range,
+            in_limb_range, out_limb_range, prime_range, prime_indices,
+            /*skip_copy_in_offset=*/0);
+    }]>
+  ];
+}
+
+def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
+    PredOpTrait<"'cst' is present iff epilogue is not 'none'",
+      CPred<"static_cast<bool>(getCst()) == ($epilogue != ::mlir::heir::cheddar_gpu::INTTEpilogue::None)">>,
+    CheddarGPU_OptionalElemTypeMatches<"cst", "out">,
+  ]> {
+  let summary = "Inverse Number Theoretic Transform (INTT) with optional epilogue";
+  let description = [{
+    Mirrors Cheddar's `NTTHandler::INTT` and `NTTHandler::INTTAndMultConst` in
+    `NTT.cu`. Computes the inverse negacyclic number theoretic transform
+    limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
+    `in` is in `eval` form.
+
+    The `epilogue` selects what is applied to the transformed result:
+    - `none`: no epilogue (`cst` must be absent). If `montgomery_conversion` is
+      set, the result is converted out of Montgomery form; otherwise it stays in
+      Montgomery form. `out` is in `coeff` form.
+    - `mult_const`: the result is Montgomery-multiplied limb-wise by the per-limb
+      constant `cst`. `out` is in `coeff` form.
+    - `mult_const_normalize`: as `mult_const`, then each residue is centered into
+      `[-(Q-1)/2, (Q-1)/2]`. `out` is in `coeff_centered` form.
+
+    `prime_range` (`[offset, count]`) or `prime_indices` optionally select which
+    limbs of `Q` the active limbs are reduced by. If `in_split =
+    [split_count, extra_limbs]` is set, the first `split_count` active limbs are
+    read contiguously from `in`, and the remaining limbs are read after skipping
+    `extra_limbs` limbs of `in`.
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in,
+      Arg<Optional<CheddarGPU_LimbVector>, "per-limb constant buffer", [MemRead]>:$cst
+    ),
+    (ins
+      BoolAttr:$montgomery_conversion,
+      CheddarGPU_INTTEpilogueAttr:$epilogue
+    ),
+    CheddarGPU_NTTCommonAttrs,
+    (ins OptionalAttr<CheddarGPU_InSplitAttr>:$in_split)
+  );
+
+  let hasVerifier = 1;
+
+  let assemblyFormat = [{
+    $out `,` $in ( `,` `cst` `(` $cst^ `)` )? prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$out,
+                   "::mlir::Value":$in,
+                   "::mlir::Value":$cst,
+                   "::mlir::BoolAttr":$montgomery_conversion,
+                   "::mlir::heir::cheddar_gpu::INTTEpilogueAttr":$epilogue,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$prime_range), [{
+      build($_builder, $_state, out, in, cst,
+            montgomery_conversion, epilogue,
+            in_limb_range, out_limb_range, prime_range,
+            /*prime_indices=*/nullptr, /*in_split=*/nullptr);
+    }]>
+  ];
 }
 
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPU_OPS_TD_
