@@ -69,24 +69,18 @@ defvar CheddarGPU_BinaryBuilders = [
                  "::mlir::Value":$rhs,
                  "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
                  "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$lhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$rhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form), [{
       build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
+            /*num_aux=*/::mlir::IntegerAttr{});
   }]>,
   OpBuilder<(ins "::mlir::Value":$out,
                  "::mlir::Value":$lhs,
                  "::mlir::Value":$rhs,
                  "::mlir::heir::cheddar_gpu::Form":$lhs_form,
                  "::mlir::heir::cheddar_gpu::Form":$rhs_form,
-                 "::mlir::heir::cheddar_gpu::Form":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$lhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$rhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+                 "::mlir::heir::cheddar_gpu::Form":$out_form), [{
       build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
+            /*num_aux=*/::mlir::IntegerAttr{});
   }]>
 ];
 
@@ -121,11 +115,6 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
                               bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "lhs", "rhs"]>,
-        CheddarGPU_LimbRanges<[{ {
-          {"out_limb_range", getOutLimbRange(), {getOut()}},
-          {"lhs_limb_range", getLhsLimbRange(), {getLhs()}},
-          {"rhs_limb_range", getRhsLimbRange(), {getRhs()}},
-        } }]>,
         CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
@@ -135,7 +124,6 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
       Arg<CheddarGPU_PolyBuffer, "right-hand side operand", [MemRead]>:$rhs
     ),
     !if(hasForms, CheddarGPU_BinaryForms, (ins)),
-    CheddarGPU_BinaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
   );
 

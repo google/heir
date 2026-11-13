@@ -17,20 +17,6 @@ module attributes {
     return
   }
 
-  // CHECK: @test_add_eval_with_limb_range
-  func.func @test_add_eval_with_limb_range(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
-    // CHECK: cheddar_gpu.add %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}lhs_limb_range = [0, 2]{{.*}}> : memref<4x65536xi32>
-    cheddar_gpu.add %out, %lhs, %rhs <{
-      lhs_form = #cheddar_gpu.form<eval>,
-      rhs_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>,
-      lhs_limb_range = array<i64: 0, 2>,
-      rhs_limb_range = array<i64: 0, 2>,
-      out_limb_range = array<i64: 0, 2>
-    }> : memref<4x65536xi32>
-    return
-  }
-
   // CHECK: @test_sub
   func.func @test_sub(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
     // CHECK: cheddar_gpu.sub %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}> : memref<4x65536xi32>
