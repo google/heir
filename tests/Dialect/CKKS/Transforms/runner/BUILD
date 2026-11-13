@@ -20,9 +20,9 @@ genrule(
 )
 
 heir_opt(
-    name = "key_to_ntt_heir_opt",
-    src = "key_to_ntt.mlir",
-    generated_filename = "key_to_ntt_heir_opt.mlir",
+    name = "ntt_helpers_heir_opt",
+    src = "ntt_helpers.mlir",
+    generated_filename = "ntt_helpers_heir_opt.mlir",
     pass_flags = [
         "--attach-ntt-roots",
         "--heir-polynomial-to-llvm",
@@ -30,16 +30,16 @@ heir_opt(
 )
 
 mlir_translate(
-    name = "key_to_ntt_mlir_translate",
-    src = "key_to_ntt_heir_opt.mlir",
-    generated_filename = "key_to_ntt_mlir_translate.ll",
+    name = "ntt_helpers_mlir_translate",
+    src = "ntt_helpers_heir_opt.mlir",
+    generated_filename = "ntt_helpers_mlir_translate.ll",
     pass_flags = ["--mlir-to-llvmir"],
 )
 
 llc(
-    name = "key_to_ntt_llc",
-    src = "key_to_ntt_mlir_translate.ll",
-    generated_filename = "key_to_ntt_llc.o",
+    name = "ntt_helpers_llc",
+    src = "ntt_helpers_mlir_translate.ll",
+    generated_filename = "ntt_helpers_llc.o",
     pass_flags = [
         "-filetype=obj",
         "-relocation-model=pic",
@@ -47,8 +47,8 @@ llc(
 )
 
 cc_library(
-    name = "relinearize_test_support",
-    srcs = ["key_to_ntt_llc.o"],
+    name = "runner_test_support",
+    srcs = ["ntt_helpers_llc.o"],
     hdrs = ["relinearize_test_data.h"],
     alwayslink = True,
 )
@@ -61,5 +61,16 @@ llvm_runner_test(
     ],
     main_c_src = "relinearize_test.cc",
     mlir_src = "relinearize.mlir",
-    deps = [":relinearize_test_support"],
+    deps = [":runner_test_support"],
+)
+
+llvm_runner_test(
+    name = "mul_relinearize",
+    heir_opt_flags = [
+        "--ckks-to-polynomial",
+        "--heir-polynomial-to-llvm",
+    ],
+    main_c_src = "mul_relinearize_test.cc",
+    mlir_src = "mul_relinearize.mlir",
+    deps = [":runner_test_support"],
 )

@@ -1,17 +1,25 @@
-"""Generate test data for the end-to-end ckks.relinearize runner test.
+"""Generate test data for the end-to-end ckks.relinearize runner tests.
 
-Writes a C++ header containing a secret key, a 3-component ciphertext
-(c0, c1, c2), a relinearization key, and the expected phase
-c0 + c1*s + c2*s^2. A correct relinearization (d0, d1) must satisfy
-d0 + d1*s == expected phase up to a noise bound.
+Writes a C++ header shared by two tests, with a secret key s and a
+relinearization key used by both:
+
+- relinearize: a 3-component ciphertext (c0, c1, c2) and the expected phase
+  c0 + c1*s + c2*s^2.
+- mul_relinearize: two 2-component ciphertexts a and b and the expected phase
+  (a0 + a1*s)(b0 + b1*s) of their product.
+
+In both tests, a correct result (d0, d1) must satisfy d0 + d1*s == expected
+phase up to a noise bound.
 
 The relinearization key is in coefficient form and follows the hybrid key
 switching in lib/Dialect/LWE/Transforms/DecomposeLWEOps.cpp.
 
 Array layouts (row-major, limbs innermost) match the lowered MLIR types:
-  ct:       [3][N][len(Q)]
-  ksk:      [num_digits][2][N][len(Q) + len(P)]
-  expected: [N][len(Q)]
+  ct:           [3][N][len(Q)]
+  ct_a, ct_b:   [2][N][len(Q)]
+  ksk:          [num_digits][2][N][len(Q) + len(P)]
+  expected:     [N][len(Q)]
+  expected_mul: [N][len(Q)]
 
 Usage: python3 generate_relinearize_test_data.py <output.h>
 """
@@ -84,6 +92,15 @@ def main():
     b = add(add(neg_as, e, qp), gadget, qp)
     ksk.append((b, a))
 
+  # Two 2-component ciphertexts for the mul + relinearize test.
+  ct_a = [[rng.randrange(q_prod) for _ in range(N)] for _ in range(2)]
+  ct_b = [[rng.randrange(q_prod) for _ in range(N)] for _ in range(2)]
+
+  def phase(c):
+    return add(c[0], negacyclic_mul(c[1], s, q_prod), q_prod)
+
+  expected_mul = negacyclic_mul(phase(ct_a), phase(ct_b), q_prod)
+
   # Nise bound for the relinearized phase: each digit contributeso at most
   # N * (Q_i / 2) * ERROR_BOUND / P, and mod-down rounding adds at most
   # (N + 1) / 2. Double it for slack; it is still far below any limb.
@@ -108,11 +125,14 @@ def main():
     f.write(array("kQ", Q))
     f.write(array("kSecretKey", s))
     f.write(array("kCiphertext", [x for c in ct for x in to_limbs(c, Q)]))
+    f.write(array("kCiphertextA", [x for c in ct_a for x in to_limbs(c, Q)]))
+    f.write(array("kCiphertextB", [x for c in ct_b for x in to_limbs(c, Q)]))
     relin_key = []
     for b, a in ksk:
       relin_key += to_limbs(b, qp_basis) + to_limbs(a, qp_basis)
     f.write(array("kRelinKey", relin_key))
     f.write(array("kExpectedPhase", to_limbs(expected, Q)))
+    f.write(array("kExpectedMulPhase", to_limbs(expected_mul, Q)))
 
 
 if __name__ == "__main__":
