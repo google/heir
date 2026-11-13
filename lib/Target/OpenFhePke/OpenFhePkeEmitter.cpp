@@ -1451,7 +1451,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   }
 
   auto ofValueToString = [&](OpFoldResult ofr) -> std::string {
-    if (auto intAttr = ofr.dyn_cast<Attribute>()) {
+    if (auto intAttr = llvm::dyn_cast<Attribute>(ofr)) {
       return std::to_string(
           cast<IntegerAttr>(intAttr).getValue().getSExtValue());
     }
@@ -1529,7 +1529,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   }
 
   auto ofValueToString = [&](OpFoldResult ofr) -> std::string {
-    if (auto intAttr = ofr.dyn_cast<Attribute>()) {
+    if (auto intAttr = llvm::dyn_cast<Attribute>(ofr)) {
       return std::to_string(
           cast<IntegerAttr>(intAttr).getValue().getSExtValue());
     }
@@ -1544,7 +1544,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
 
   bool isStridesAllOne = true;
   for (auto stride : strides) {
-    if (auto intAttr = stride.dyn_cast<Attribute>()) {
+    if (auto intAttr = llvm::dyn_cast_if_present<Attribute>(stride)) {
       if (cast<IntegerAttr>(intAttr).getValue().getSExtValue() != 1) {
         isStridesAllOne = false;
         break;

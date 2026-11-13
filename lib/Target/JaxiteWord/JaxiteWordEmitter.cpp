@@ -745,7 +745,7 @@ LogicalResult JaxiteWordEmitter::printOperation(tensor::ExtractSliceOp op) {
     if (i > 0) os << ", ";
 
     std::string offsetStr;
-    if (auto intAttr = offsets[i].dyn_cast<Attribute>()) {
+    if (auto intAttr = llvm::dyn_cast<Attribute>(offsets[i])) {
       offsetStr =
           std::to_string(cast<IntegerAttr>(intAttr).getValue().getSExtValue());
     } else {
@@ -791,7 +791,7 @@ LogicalResult JaxiteWordEmitter::printOperation(tensor::InsertSliceOp op) {
     if (i > 0) os << ", ";
 
     std::string offsetStr;
-    if (auto intAttr = offsets[i].dyn_cast<Attribute>()) {
+    if (auto intAttr = llvm::dyn_cast<Attribute>(offsets[i])) {
       offsetStr =
           std::to_string(cast<IntegerAttr>(intAttr).getValue().getSExtValue());
     } else {
