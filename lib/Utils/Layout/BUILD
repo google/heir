@@ -50,6 +50,7 @@ cc_library(
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
     deps = [
+        ":Codegen",
         ":IslConversion",
         "@heir//lib/Utils:MathUtils",
         "@isl",
