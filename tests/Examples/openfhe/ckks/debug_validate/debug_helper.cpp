@@ -7,13 +7,13 @@
 
 void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
                   const std::map<std::string, std::string>& debugAttrMap) {
-  auto name = debugAttrMap.at("debug.name");
+  [[maybe_unused]] auto name = debugAttrMap.at("debug.name");
   assert(name == "input_val" || name == "output_val");
 }
 
 void __heir_debug(CryptoContextT cc, PrivateKeyT sk,
                   std::vector<CiphertextT> ct,
                   const std::map<std::string, std::string>& debugAttrMap) {
-  auto name = debugAttrMap.at("debug.name");
+  [[maybe_unused]] auto name = debugAttrMap.at("debug.name");
   assert(name == "input_val" || name == "output_val");
 }
