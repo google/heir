@@ -1,10 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_test")
 load("@rules_go//go:def.bzl", "go_test")
 
-package(
-    default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
-)
+package(default_applicable_licenses = ["@heir//:license"])
 
 cc_test(
     name = "openfhe_test",
