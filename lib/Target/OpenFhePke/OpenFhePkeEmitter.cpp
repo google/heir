@@ -1692,8 +1692,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
   // std::vector<CiphertextType> result = {input[0], ..., input[n]};
   auto result = op.getResult();
-  if (result.getType().getRank() != 1) {
-    return failure();
+  // Only rank-0 and rank-1 tensor construction is currently supported.
+  // TODO(#1703): Support higher-rank tensors.
+  if (result.getType().getRank() > 1) {
+    return op.emitOpError()
+           << "expected a rank-0 or rank-1 tensor, but got rank "
+           << result.getType().getRank();
   }
   os << "const ";
   if (failed(emitTypedAssignPrefix(result, op->getLoc()))) {
