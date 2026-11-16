@@ -790,4 +790,150 @@ def CheddarGPU_PermuteAccum2Op : CheddarGPU_PairAccumOpBase<"permute_accum_2",
   }];
 }
 
+//===----------------------------------------------------------------------===//
+// Forward/Inverse Number Theoretic Transform operations (ntt, intt).
+//===----------------------------------------------------------------------===//
+
+defvar CheddarGPU_NTTCommonAttrs = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$in_limb_range,
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<CheddarGPU_PairAttr>:$prime_range,
+  OptionalAttr<DenseI64ArrayAttr>:$prime_indices
+);
+
+class CheddarGPU_NTTOpBase<string mnemonic, list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out", "in"]>,
+        CheddarGPU_LimbRangesWithin,
+        CheddarGPU_NTTPrimeCounts,
+      ], traits)>;
+
+def CheddarGPU_NTTOp : CheddarGPU_NTTOpBase<"ntt", [
+    CheddarGPU_Requires<"skip_copy_src", "static_cast<bool>(getSkipRange())",
+                        "'skip_copy_src' requires 'skip_range' to be set">,
+    CheddarGPU_OptionalSameRingAs<"skip_copy_src", "out">,
+    CheddarGPU_SpanEndWithinDim0<"skip_range", "out">
+  ]> {
+  let summary = "Forward Number Theoretic Transform (NTT)";
+  let description = [{
+    Mirrors Cheddar's `NTTHandler::NTT` and `NTTHandler::NTTForModUp` in `NTT.cu`.
+    Computes the forward negacyclic number theoretic transform limb-wise, where
+    the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`. `in` is in `coeff`
+    form and `out` is in `eval` form.
+
+    - If `montgomery_conversion` is set, `in` holds standard residues, which are
+      converted to Montgomery form. Otherwise, `in` must already be in Montgomery
+      form.
+    - `prime_range` (`[offset, count]`) or `prime_indices` optionally select which
+      limbs of `Q` the active limbs are reduced by.
+    - If `skip_range = [start, end]` is set, limbs `[start, end)` of `out` are not
+      transformed. If `skip_copy_src` is also set, those limbs are instead copied
+      verbatim from `skip_copy_src`, starting at its limb `skip_copy_in_offset`.
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in,
+      Arg<Optional<CheddarGPU_PolyBuffer>,
+          "verbatim copy source buffer for skipped limbs", [MemRead]>:$skip_copy_src
+    ),
+    (ins
+      BoolAttr:$montgomery_conversion,
+      OptionalAttr<CheddarGPU_SpanAttr>:$skip_range
+    ),
+    CheddarGPU_NTTCommonAttrs,
+    (ins DefaultValuedAttr<CheddarGPU_NonNegI64Attr, "0">:$skip_copy_in_offset)
+  );
+
+  let hasVerifier = 1;
+
+  let assemblyFormat = [{
+    $out `,` $in ( `,` `skip_copy_src` `(` $skip_copy_src^ `)` )? prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$out,
+                   "::mlir::Value":$in,
+                   "::mlir::BoolAttr":$montgomery_conversion,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$skip_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$prime_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$prime_indices), [{
+      build($_builder, $_state, out, in, /*skip_copy_src=*/::mlir::Value(),
+            montgomery_conversion, skip_range,
+            in_limb_range, out_limb_range, prime_range, prime_indices,
+            /*skip_copy_in_offset=*/0);
+    }]>
+  ];
+}
+
+def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
+    PredOpTrait<"'cst' is present iff epilogue is not 'none'",
+      CPred<"static_cast<bool>(getCst()) == ($epilogue != ::mlir::heir::cheddar_gpu::INTTEpilogue::None)">>,
+    CheddarGPU_OptionalElemTypeMatches<"cst", "out">,
+  ]> {
+  let summary = "Inverse Number Theoretic Transform (INTT) with optional epilogue";
+  let description = [{
+    Mirrors Cheddar's `NTTHandler::INTT` and `NTTHandler::INTTAndMultConst` in
+    `NTT.cu`. Computes the inverse negacyclic number theoretic transform
+    limb-wise, where the limbs of `Q` are defined in `CheddarGPU_ParamsAttr`.
+    `in` is in `eval` form.
+
+    The `epilogue` selects what is applied to the transformed result:
+    - `none`: no epilogue (`cst` must be absent). If `montgomery_conversion` is
+      set, the result is converted out of Montgomery form; otherwise it stays in
+      Montgomery form. `out` is in `coeff` form.
+    - `mult_const`: the result is Montgomery-multiplied limb-wise by the per-limb
+      constant `cst`. `out` is in `coeff` form.
+    - `mult_const_normalize`: as `mult_const`, then each residue is centered into
+      `[-(Q-1)/2, (Q-1)/2]`. `out` is in `coeff_centered` form.
+
+    `prime_range` (`[offset, count]`) or `prime_indices` optionally select which
+    limbs of `Q` the active limbs are reduced by. If `in_split =
+    [split_count, extra_limbs]` is set, the first `split_count` active limbs are
+    read contiguously from `in`, and the remaining limbs are read after skipping
+    `extra_limbs` limbs of `in`.
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in,
+      Arg<Optional<CheddarGPU_LimbVector>, "per-limb constant buffer", [MemRead]>:$cst
+    ),
+    (ins
+      BoolAttr:$montgomery_conversion,
+      CheddarGPU_INTTEpilogueAttr:$epilogue
+    ),
+    CheddarGPU_NTTCommonAttrs,
+    (ins OptionalAttr<CheddarGPU_InSplitAttr>:$in_split)
+  );
+
+  let hasVerifier = 1;
+
+  let assemblyFormat = [{
+    $out `,` $in ( `,` `cst` `(` $cst^ `)` )? prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$out,
+                   "::mlir::Value":$in,
+                   "::mlir::Value":$cst,
+                   "::mlir::BoolAttr":$montgomery_conversion,
+                   "::mlir::heir::cheddar_gpu::INTTEpilogueAttr":$epilogue,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$in_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range,
+                   CArg<"::mlir::DenseI64ArrayAttr", "{}">:$prime_range), [{
+      build($_builder, $_state, out, in, cst,
+            montgomery_conversion, epilogue,
+            in_limb_range, out_limb_range, prime_range,
+            /*prime_indices=*/nullptr, /*in_split=*/nullptr);
+    }]>
+  ];
+}
+
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPU_OPS_TD_

@@ -101,6 +101,27 @@ class CheddarGPU_BothOrNeither<string a, string b> : PredOpTrait<
     CPred<"static_cast<bool>(" # CheddarGPU_Getter<a>.call # ") == static_cast<bool>("
           # CheddarGPU_Getter<b>.call # ")">>;
 
+class CheddarGPU_Requires<string a, string bCond, string descr>
+    : PredOpTrait<descr, CPred<"!" # CheddarGPU_Getter<a>.call # " || (" # bCond # ")">>;
+
+class CheddarGPU_OptionalSameRingAs<string opt, string ref> : PredOpTrait<
+    "'" # opt # "' (if present) has the degree and word type of '" # ref # "'",
+    CPred<"!" # CheddarGPU_Getter<opt>.call # " || (" # CheddarGPU_Dim<opt, 1>.result # " == "
+          # CheddarGPU_Dim<ref, 1>.result # " && ::llvm::cast<::mlir::MemRefType>($" # opt
+          # ".getType()).getElementType() == ::llvm::cast<::mlir::MemRefType>($" # ref # ".getType()).getElementType())">>;
+
+class CheddarGPU_OptionalElemTypeMatches<string opt, string ref> : PredOpTrait<
+    "'" # opt # "' (if present) has same element type as '" # ref # "'",
+    CPred<"!" # CheddarGPU_Getter<opt>.call # " || ("
+          # "::llvm::cast<::mlir::MemRefType>($" # opt # ".getType()).getElementType() == "
+          # "::llvm::cast<::mlir::MemRefType>($" # ref # ".getType()).getElementType())">>;
+
+class CheddarGPU_SpanEndWithinDim0<string span, string buf, bit optional = 1> : PredOpTrait<
+    "end of '" # span # "' is within dim 0 of '" # buf # "'",
+    CPred<!if(optional,
+        "!" # CheddarGPU_Getter<span>.call # " || (*" # CheddarGPU_Getter<span>.call # ")[1] <= " # CheddarGPU_Dim<buf, 0>.result,
+        CheddarGPU_Getter<span>.call # "[1] <= " # CheddarGPU_Dim<buf, 0>.result)>>;
+
 //===----------------------------------------------------------------------===//
 // Form Constraints
 //===----------------------------------------------------------------------===//
@@ -126,6 +147,20 @@ def CheddarGPU_LimbRangeAttr
 
 def CheddarGPU_NonNegI64Attr : ConfinedAttr<I64Attr, [IntNonNegative]>;
 
+def CheddarGPU_StartEnd : AttrConstraint<CPred<
+    "::llvm::cast<::mlir::DenseI64ArrayAttr>($_self).asArrayRef()[0] >= 0 && "
+    "::llvm::cast<::mlir::DenseI64ArrayAttr>($_self).asArrayRef()[1] >= "
+    "::llvm::cast<::mlir::DenseI64ArrayAttr>($_self).asArrayRef()[0]">,
+    "of the form [start >= 0, end >= start]">;
+
+def CheddarGPU_SpanAttr
+    : ConfinedAttr<DenseI64ArrayAttr, [DenseArrayCount<2>, CheddarGPU_StartEnd]>;
+
+def CheddarGPU_PairAttr : ConfinedAttr<DenseI64ArrayAttr, [DenseArrayCount<2>]>;
+
+def CheddarGPU_InSplitAttr : ConfinedAttr<DenseI64ArrayAttr,
+    [DenseArrayCount<2>, DenseArrayNonNegative<DenseI64ArrayAttr>]>;
+
 //===----------------------------------------------------------------------===//
 // Native Traits
 //===----------------------------------------------------------------------===//
@@ -143,6 +178,10 @@ def CheddarGPU_InOutLimbRangesWithin : NativeOpTrait<"InOutLimbRangesWithin"> {
 }
 
 def CheddarGPU_InOutCountsMatch : NativeOpTrait<"InOutCountsMatch"> {
+  let cppNamespace = "::mlir::heir::cheddar_gpu";
+}
+
+def CheddarGPU_NTTPrimeCounts : NativeOpTrait<"NTTPrimeCounts"> {
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 }
 
