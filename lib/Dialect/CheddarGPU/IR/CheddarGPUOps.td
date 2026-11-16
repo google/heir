@@ -44,6 +44,25 @@ defvar CheddarGPU_BinaryLimbRanges = (ins
   OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range
 );
 
+defvar CheddarGPU_AccumCommonAttrs = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<I64Attr>:$prime_offset,
+  OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+);
+
+defvar CheddarGPU_CPAccumAddCommonAttrs = (ins
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<I64Attr>:$prime_offset,
+  OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+);
+
+defvar CheddarGPU_PermuteAccumCommonAttrs = (ins
+  DenseI64ArrayAttr:$galois_factors,
+  OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+  OptionalAttr<I64Attr>:$prime_offset,
+  OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+);
+
 defvar CheddarGPU_BinaryBuilders = [
   OpBuilder<(ins "::mlir::Value":$out,
                  "::mlir::Value":$lhs,
@@ -246,6 +265,36 @@ class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands,
     ),
     srcOperands,
     (ins OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range)
+  );
+}
+
+// Accumulation operations base classes.
+class CheddarGPU_AccumOpBase<string mnemonic, dag inOperands, dag accumAttrs,
+                             list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AttrSizedOperandSegments,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out),
+    inOperands,
+    accumAttrs
+  );
+}
+
+class CheddarGPU_PairAccumOpBase<string mnemonic, dag inOperands, dag accumAttrs,
+                                 list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AttrSizedOperandSegments,
+        CheddarGPU_LimbRangesWithin
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_PolyBuffer, "destination ax buffer", [MemWrite]>:$out_ax
+    ),
+    inOperands,
+    accumAttrs
   );
 }
 
@@ -501,6 +550,243 @@ def CheddarGPU_TensorSquareOp : CheddarGPU_TensorOpBase<"tensor_square",
     `ins` `(` $src_bx `,` $src_ax `)`
     `outs` `(` $out_bx `,` $out_ax `,` $out_rx `)`
     prop-dict attr-dict `:` type($out_bx)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Accumulation Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_CPAccumOp : CheddarGPU_AccumOpBase<"cp_accum",
+    (ins
+      Variadic<CheddarGPU_PolyBuffer>:$ct_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_AccumCommonAttrs,
+    [
+      CheddarGPU_SameCount<["ct_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_srcs", "out">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"ct_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products: dst = sum_k (common_srcs[k] * ct_srcs[k])";
+  let description = [{
+    Mirrors Cheddar's `kernel::CPAccum` and `ElementWiseHandler::CPAccumWorker<false/true>`
+    in `ElementWise.cu`.
+    Computes `out = sum_k MultMontgomery(ct_srcs[k], common_srcs[k])`.
+    `common_srcs` can be polynomial buffers (`memref<LxNxiW>`) or per-limb constants (`memref<LxiW>`).
+
+    Form contract:
+    - Montgomery pointwise multiplication requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    $out `,` `ct_srcs` `(` $ct_srcs `)` `,` `common_srcs` `(` $common_srcs `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_CPAccum2Op : CheddarGPU_PairAccumOpBase<"cp_accum_2",
+    (ins
+      Variadic<CheddarGPU_PolyBuffer>:$ct_bx_srcs,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_ax_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_AccumCommonAttrs,
+    [
+      AllTypesMatch<["out_bx", "out_ax"]>,
+      CheddarGPU_SameCount<["ct_bx_srcs", "ct_ax_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_bx_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachSameRingAs<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out_bx", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products for two polynomials: {out_bx, out_ax} = sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])";
+  let description = [{
+    Mirrors Cheddar's `CPAccum<word,2,...>` / `PAccum` in `Context.cpp` / `ElementWise.cu`.
+    Computes `{out_bx, out_ax} = sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])` over `k < K` (K <= 4),
+    reading each `common[k]` (mod-up digit) once for both outputs.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` `ct_bx_srcs` `(` $ct_bx_srcs `)` `,`
+    `ct_ax_srcs` `(` $ct_ax_srcs `)` `,` `common_srcs` `(` $common_srcs `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_CPAccumAddOp : CheddarGPU_AccumOpBase<"cp_accum_add",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "initial accumulator buffer", [MemRead]>:$acc,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_CPAccumAddCommonAttrs,
+    [
+      AllTypesMatch<["out", "acc"]>,
+      CheddarGPU_SameCount<["ct_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_srcs", "out">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"ct_srcs", "out">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products with base: dst = acc + sum_k (common_srcs[k] * ct_srcs[k])";
+  let description = [{
+    Mirrors Cheddar's `kernel::CPAccumAdd` in `ElementWise.cu`.
+    Computes `out = acc + sum_k MultMontgomery(ct_srcs[k], common_srcs[k])`.
+
+    Form contract:
+    - Montgomery pointwise multiplication requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    $out `,` `acc` `(` $acc `)` `,` `ct_srcs` `(` $ct_srcs `)` `,`
+    `common_srcs` `(` $common_srcs `)` prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_CPAccumAdd2Op : CheddarGPU_PairAccumOpBase<"cp_accum_add_2",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "initial accumulator bx buffer", [MemRead]>:$acc_bx,
+      Arg<CheddarGPU_PolyBuffer, "initial accumulator ax buffer", [MemRead]>:$acc_ax,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_bx_srcs,
+      Variadic<CheddarGPU_PolyBuffer>:$ct_ax_srcs,
+      Variadic<CheddarGPU_PolyOrLimbBuffer>:$common_srcs
+    ),
+    CheddarGPU_CPAccumAddCommonAttrs,
+    [
+      AllTypesMatch<["out_bx", "out_ax", "acc_bx", "acc_ax"]>,
+      CheddarGPU_SameCount<["ct_bx_srcs", "ct_ax_srcs", "common_srcs"]>,
+      CheddarGPU_NonEmpty<"ct_bx_srcs">,
+      CheddarGPU_EachSameRingAs<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachSameRingAs<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_Each2DTypeIs<"common_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_bx_srcs", "out_bx">,
+      CheddarGPU_EachCoversOutCount<"ct_ax_srcs", "out_ax">,
+      CheddarGPU_EachCoversOutCount<"common_srcs", "out_bx", 1>
+    ]> {
+  let summary = "Accumulate Montgomery products with base for two polynomials: {out_bx, out_ax} = {acc_bx, acc_ax} + sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])";
+  let description = [{
+    Mirrors Cheddar's `CPAccumAdd<L,2>` / `CAccum` in `Context.cpp` / `ElementWise.cu`.
+    Computes `{out_bx, out_ax} = {acc_bx, acc_ax} + sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])`.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` `acc` `(` $acc_bx `,` $acc_ax `)` `,`
+    `ct_bx_srcs` `(` $ct_bx_srcs `)` `,` `ct_ax_srcs` `(` $ct_ax_srcs `)` `,`
+    `common_srcs` `(` $common_srcs `)` prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Permutation and Automorphism Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_PermuteOp : CheddarGPU_UnaryOpBase<"permute",
+    (ins OptionalAttr<I64Attr>:$galois,
+         UnitAttr:$conj), [],
+    [
+      CheddarGPU_ExactlyOneOf<"galois", "conj">
+    ],
+    hasForms = 0> {
+  let summary = "Galois automorphism permutation in eval form";
+  let description = [{
+    Mirrors Cheddar's `kernel::Permute` and `ElementWiseHandler::Permute` in `ElementWise.cu`
+    to compute a Galois automorphism on a polynomial.
+
+    Computes:
+
+      `e = brev_{logN+1}(x) + 1`
+      `src = brev_{logN+1}(e * g - 1)`
+
+    where `g` is either the Galois factor (`galois` attr, `5^k mod 2N`) or complex conjugation
+    `2N - 1` (`conj` unit attr).
+
+    Form contract:
+    - Requires `eval` form for ciphertext operands.
+    - in-place permutation is not supported.
+  }];
+}
+
+def CheddarGPU_Permute2Op : CheddarGPU_PairUnaryOpBase<"permute_2",
+    (ins OptionalAttr<I64Attr>:$galois,
+         UnitAttr:$conj),
+    [
+      CheddarGPU_ExactlyOneOf<"galois", "conj">
+    ],
+    hasForms = 0> {
+  let summary = "Galois automorphism permutation for two polynomials";
+  let description = [{
+    Same as `cheddar_gpu.permute` with two polynomials.
+
+    Computes eval-form Galois automorphism on both bx and ax simultaneously.
+
+    Note in-place permutation is not supported, so all operand buffers
+    must be distinct.
+  }];
+}
+
+def CheddarGPU_PermuteAccumOp : CheddarGPU_AccumOpBase<"permute_accum",
+    (ins
+      Optional<CheddarGPU_PolyBuffer>:$acc,
+      Variadic<CheddarGPU_PolyBuffer>:$srcs
+    ),
+    CheddarGPU_PermuteAccumCommonAttrs,
+    [
+      OptionalTypesMatchWith<"accumulator matches output type", "out", "acc", "$_self">,
+      CheddarGPU_SameCount<["srcs", "galois_factors"]>,
+      CheddarGPU_NonEmpty<"srcs">,
+      CheddarGPU_EachTypeIs<"srcs", "out">
+    ]> {
+  let summary = "Accumulate multiple Galois automorphism permutations";
+  let description = [{
+    Mirrors Cheddar's `kernel::PermuteAccum` and `kernel::PermuteAccumAdd` in `ElementWise.cu`.
+    Computes `out = (acc +) sum_k permute(srcs[k], galois_factors[k])`.
+
+    Form contract:
+    - Requires `eval` form for all operands.
+  }];
+
+  let assemblyFormat = [{
+    $out `,` (`acc` `(` $acc^ `)` `,`)? `srcs` `(` $srcs `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_PermuteAccum2Op : CheddarGPU_PairAccumOpBase<"permute_accum_2",
+    (ins
+      Optional<CheddarGPU_PolyBuffer>:$acc_bx,
+      Optional<CheddarGPU_PolyBuffer>:$acc_ax,
+      Variadic<CheddarGPU_PolyBuffer>:$srcs_bx,
+      Variadic<CheddarGPU_PolyBuffer>:$srcs_ax
+    ),
+    CheddarGPU_PermuteAccumCommonAttrs,
+    [
+      AllTypesMatch<["out_bx", "out_ax"]>,
+      CheddarGPU_BothOrNeither<"acc_bx", "acc_ax">,
+      OptionalTypesMatchWith<"acc_bx matches out_bx", "out_bx", "acc_bx", "$_self">,
+      OptionalTypesMatchWith<"acc_ax matches out_ax", "out_ax", "acc_ax", "$_self">,
+      CheddarGPU_SameCount<["srcs_bx", "srcs_ax", "galois_factors"]>,
+      CheddarGPU_NonEmpty<"srcs_bx">,
+      CheddarGPU_EachTypeIs<"srcs_bx", "out_bx">,
+      CheddarGPU_EachTypeIs<"srcs_ax", "out_ax">
+    ]> {
+  let summary = "Accumulate multiple Galois automorphism permutations for two polynomials";
+  let description = [{
+    Mirrors Cheddar's `PermuteAccum` for 2 polynomials in `ElementWise.cu`.
+    Computes `{out_bx, out_ax} = ({acc_bx, acc_ax} +) sum_k permute({srcs_bx[k], srcs_ax[k]}, galois_factors[k])`.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` (`acc` `(` $acc_bx^ `,` $acc_ax `)` `,`)?
+    `srcs_bx` `(` $srcs_bx `)` `,` `srcs_ax` `(` $srcs_ax `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
   }];
 }
 
