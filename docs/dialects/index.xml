@@ -4530,6 +4530,64 @@ Computes &lt;code>{out_bx, out_ax} = {acc_bx, acc_ax} + sum_k MontMul({ct_bx[k],
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="cheddar_gpuintt-heircheddar_gpuinttop">&lt;code>cheddar_gpu.intt&lt;/code> (heir::cheddar_gpu::INTTOp)&lt;/h3>
+&lt;p>&lt;em>Inverse Number Theoretic Transform (INTT) with optional epilogue&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cheddar_gpu.intt` $out `,` $in ( `,` `cst` `(` $cst^ `)` )? prop-dict attr-dict
+`:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>NTTHandler::INTT&lt;/code> and &lt;code>NTTHandler::INTTAndMultConst&lt;/code> in
+&lt;code>NTT.cu&lt;/code>. Computes the inverse negacyclic number theoretic transform
+limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.
+&lt;code>in&lt;/code> is in &lt;code>eval&lt;/code> form.&lt;/p>
+&lt;p>The &lt;code>epilogue&lt;/code> selects what is applied to the transformed result:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>none&lt;/code>: no epilogue (&lt;code>cst&lt;/code> must be absent). If &lt;code>montgomery_conversion&lt;/code> is
+set, the result is converted out of Montgomery form; otherwise it stays in
+Montgomery form. &lt;code>out&lt;/code> is in &lt;code>coeff&lt;/code> form.&lt;/li>
+&lt;li>&lt;code>mult_const&lt;/code>: the result is Montgomery-multiplied limb-wise by the per-limb
+constant &lt;code>cst&lt;/code>. &lt;code>out&lt;/code> is in &lt;code>coeff&lt;/code> form.&lt;/li>
+&lt;li>&lt;code>mult_const_normalize&lt;/code>: as &lt;code>mult_const&lt;/code>, then each residue is centered into
+&lt;code>[-(Q-1)/2, (Q-1)/2]&lt;/code>. &lt;code>out&lt;/code> is in &lt;code>coeff_centered&lt;/code> form.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;code>prime_range&lt;/code> (&lt;code>[offset, count]&lt;/code>) or &lt;code>prime_indices&lt;/code> optionally select which
+limbs of &lt;code>Q&lt;/code> the active limbs are reduced by. If &lt;code>in_split = [split_count, extra_limbs]&lt;/code> is set, the first &lt;code>split_count&lt;/code> active limbs are
+read contiguously from &lt;code>in&lt;/code>, and the remaining limbs are read after skipping
+&lt;code>extra_limbs&lt;/code> limbs of &lt;code>in&lt;/code>.&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>, &lt;code>CheddarGPU_NTTPrimeCounts&lt;/code>&lt;/p>
+&lt;h4 id="attributes-8">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>montgomery_conversion&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>epilogue&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::INTTEpilogueAttr&lt;/td>&lt;td>INTT epilogue post-processing mode&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>prime_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>prime_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>in_split&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements whose value is non-negative&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>out&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>in&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cst&lt;/code>&lt;/td>
+&lt;td>statically shaped 1D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="cheddar_gpumul-heircheddar_gpumulop">&lt;code>cheddar_gpu.mul&lt;/code> (heir::cheddar_gpu::MulOp)&lt;/h3>
 &lt;p>&lt;em>Pointwise Montgomery modular multiplication&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -4543,7 +4601,7 @@ Computes the Montgomery form multiplication of &lt;code>lhs&lt;/code> and &lt;co
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-8">Attributes:&lt;/h4>
+&lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
@@ -4551,7 +4609,7 @@ Computes the Montgomery form multiplication of &lt;code>lhs&lt;/code> and &lt;co
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4586,7 +4644,7 @@ limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>Chedd
 &lt;li>&lt;code>in&lt;/code> and &lt;code>out&lt;/code> are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
@@ -4594,7 +4652,7 @@ limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>Chedd
 &lt;tr>&lt;td>&lt;code>prime_offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4629,13 +4687,13 @@ first half by &lt;code>psi^(N/2)&lt;/code> and second half by &lt;code>-psi^(N/2
 &lt;li>&lt;code>in&lt;/code> and &lt;code>out&lt;/code> are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-10">Attributes:&lt;/h4>
+&lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4671,7 +4729,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Preserves representation form (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-11">Attributes:&lt;/h4>
+&lt;h4 id="attributes-12">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>in_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -4680,7 +4738,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-11">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4710,7 +4768,7 @@ prop-dict attr-dict `:` type($out_bx)
 Computes &lt;code>out_bx = -in_bx mod Q&lt;/code> and &lt;code>out_ax = -in_ax mod Q&lt;/code> limb-wise, where
 the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-12">Attributes:&lt;/h4>
+&lt;h4 id="attributes-13">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>in_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -4719,7 +4777,7 @@ the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-12">Operands:&lt;/h4>
+&lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4746,6 +4804,60 @@ the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="cheddar_gpuntt-heircheddar_gpunttop">&lt;code>cheddar_gpu.ntt&lt;/code> (heir::cheddar_gpu::NTTOp)&lt;/h3>
+&lt;p>&lt;em>Forward Number Theoretic Transform (NTT)&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cheddar_gpu.ntt` $out `,` $in ( `,` `skip_copy_src` `(` $skip_copy_src^ `)` )? prop-dict attr-dict
+`:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>NTTHandler::NTT&lt;/code> and &lt;code>NTTHandler::NTTForModUp&lt;/code> in &lt;code>NTT.cu&lt;/code>.
+Computes the forward negacyclic number theoretic transform limb-wise, where
+the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>. &lt;code>in&lt;/code> is in &lt;code>coeff&lt;/code>
+form and &lt;code>out&lt;/code> is in &lt;code>eval&lt;/code> form.&lt;/p>
+&lt;ul>
+&lt;li>If &lt;code>montgomery_conversion&lt;/code> is set, &lt;code>in&lt;/code> holds standard residues, which are
+converted to Montgomery form. Otherwise, &lt;code>in&lt;/code> must already be in Montgomery
+form.&lt;/li>
+&lt;li>&lt;code>prime_range&lt;/code> (&lt;code>[offset, count]&lt;/code>) or &lt;code>prime_indices&lt;/code> optionally select which
+limbs of &lt;code>Q&lt;/code> the active limbs are reduced by.&lt;/li>
+&lt;li>If &lt;code>skip_range = [start, end]&lt;/code> is set, limbs &lt;code>[start, end)&lt;/code> of &lt;code>out&lt;/code> are not
+transformed. If &lt;code>skip_copy_src&lt;/code> is also set, those limbs are instead copied
+verbatim from &lt;code>skip_copy_src&lt;/code>, starting at its limb &lt;code>skip_copy_in_offset&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>, &lt;code>CheddarGPU_NTTPrimeCounts&lt;/code>&lt;/p>
+&lt;h4 id="attributes-14">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>montgomery_conversion&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>skip_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [start >= 0, end >= start]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>prime_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>prime_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>skip_copy_in_offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-14">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>out&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>in&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>skip_copy_src&lt;/code>&lt;/td>
+&lt;td>statically shaped 2D memref of 32-bit signless integer or 64-bit signless integer values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="cheddar_gpupermute-heircheddar_gpupermuteop">&lt;code>cheddar_gpu.permute&lt;/code> (heir::cheddar_gpu::PermuteOp)&lt;/h3>
 &lt;p>&lt;em>Galois automorphism permutation in eval form&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -4763,7 +4875,7 @@ to compute a Galois automorphism on a polynomial.&lt;/p>
 &lt;li>in-place permutation is not supported.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-13">Attributes:&lt;/h4>
+&lt;h4 id="attributes-15">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galois&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -4772,7 +4884,7 @@ to compute a Galois automorphism on a polynomial.&lt;/p>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-13">Operands:&lt;/h4>
+&lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4802,7 +4914,7 @@ prop-dict attr-dict `:` type($out_bx)
 &lt;p>Note in-place permutation is not supported, so all operand buffers
 must be distinct.&lt;/p>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-14">Attributes:&lt;/h4>
+&lt;h4 id="attributes-16">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galois&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -4811,7 +4923,7 @@ must be distinct.&lt;/p>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-14">Operands:&lt;/h4>
+&lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4850,7 +4962,7 @@ Computes &lt;code>out = (acc +) sum_k permute(srcs[k], galois_factors[k])&lt;/co
 &lt;li>Requires &lt;code>eval&lt;/code> form for all operands.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-15">Attributes:&lt;/h4>
+&lt;h4 id="attributes-17">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galois_factors&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
@@ -4858,7 +4970,7 @@ Computes &lt;code>out = (acc +) sum_k permute(srcs[k], galois_factors[k])&lt;/co
 &lt;tr>&lt;td>&lt;code>prime_offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-15">Operands:&lt;/h4>
+&lt;h4 id="operands-17">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4890,7 +5002,7 @@ Computes &lt;code>out = (acc +) sum_k permute(srcs[k], galois_factors[k])&lt;/co
 &lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>PermuteAccum&lt;/code> for 2 polynomials in &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>{out_bx, out_ax} = ({acc_bx, acc_ax} +) sum_k permute({srcs_bx[k], srcs_ax[k]}, galois_factors[k])&lt;/code>.&lt;/p>
 &lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-16">Attributes:&lt;/h4>
+&lt;h4 id="attributes-18">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galois_factors&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
@@ -4898,7 +5010,7 @@ Computes &lt;code>{out_bx, out_ax} = ({acc_bx, acc_ax} +) sum_k permute({srcs_bx
 &lt;tr>&lt;td>&lt;code>prime_offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-16">Operands:&lt;/h4>
+&lt;h4 id="operands-18">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4946,7 +5058,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Both operands must have matching form (&lt;code>lhs_form == rhs_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-17">Attributes:&lt;/h4>
+&lt;h4 id="attributes-19">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -4957,7 +5069,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-17">Operands:&lt;/h4>
+&lt;h4 id="operands-19">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4991,7 +5103,7 @@ prop-dict attr-dict `:` type($out_bx)
 Computes &lt;code>out_bx = lhs_bx - rhs_bx mod Q&lt;/code> and &lt;code>out_ax = lhs_ax - rhs_ax mod Q&lt;/code>
 limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-18">Attributes:&lt;/h4>
+&lt;h4 id="attributes-20">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -5002,7 +5114,7 @@ limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>Chedd
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-18">Operands:&lt;/h4>
+&lt;h4 id="operands-20">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5049,7 +5161,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-19">Attributes:&lt;/h4>
+&lt;h4 id="attributes-21">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>in_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -5057,7 +5169,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-19">Operands:&lt;/h4>
+&lt;h4 id="operands-21">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5092,7 +5204,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-20">Attributes:&lt;/h4>
+&lt;h4 id="attributes-22">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>in_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
@@ -5100,7 +5212,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;tr>&lt;td>&lt;code>in_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-20">Operands:&lt;/h4>
+&lt;h4 id="operands-22">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5137,12 +5249,12 @@ Multiplies two degree-1 ciphertexts (b1, a1) and (b2, a2) into a degree-2 cipher
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-21">Attributes:&lt;/h4>
+&lt;h4 id="attributes-23">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-21">Operands:&lt;/h4>
+&lt;h4 id="operands-23">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5194,12 +5306,12 @@ Squares degree-1 ciphertext (b1, a1) into degree-2 ciphertext (b1^2, 2&lt;em>b1&
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
 &lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
-&lt;h4 id="attributes-22">Attributes:&lt;/h4>
+&lt;h4 id="attributes-24">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-22">Operands:&lt;/h4>
+&lt;h4 id="operands-24">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
