@@ -15,7 +15,9 @@ def CheddarGPU_Dialect : Dialect {
       N = 2^log_n is the ring degree, and W in {32, 64} is the word width.
     - Limb layout is limb-major `[limb][coeff]`.
     - Limb order follows Cheddar convention: `ter[num_ter - 1 ... 0], main[0 ...], aux[0 ...]`.
-    - Every buffer operand carries a required representation form:
+    - Every buffer operand has a representation form. Ops that accept more
+      than one form carry `*_form` attributes; for all other ops the forms are
+      implied and documented in the op description. The forms are:
       * `coeff`: canonical coefficient form in `[0, q)`. Natural order.
       * `coeff_centered`: centered coefficient form in `[-(q-1)/2, (q-1)/2]`. Natural order.
       * `eval`: evaluation domain representation. By Cheddar convention, data in

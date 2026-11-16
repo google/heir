@@ -10,13 +10,9 @@ module attributes {
   func.func @test_tensor(%b: memref<4x65536xi32>, %a: memref<4x65536xi32>, %r: memref<4x65536xi32>,
                          %s1_b: memref<4x65536xi32>, %s1_a: memref<4x65536xi32>,
                          %s2_b: memref<4x65536xi32>, %s2_a: memref<4x65536xi32>) {
-    // CHECK: cheddar_gpu.tensor ins(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) outs(%{{.*}}, %{{.*}}, %{{.*}}) <{{.*}}lhs_form = eval{{.*}}> : memref<4x65536xi32>
+    // CHECK: cheddar_gpu.tensor ins(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) outs(%{{.*}}, %{{.*}}, %{{.*}}) : memref<4x65536xi32>
     cheddar_gpu.tensor ins(%s1_b, %s1_a, %s2_b, %s2_a)
-                       outs(%b, %a, %r) <{
-      lhs_form = #cheddar_gpu.form<eval>,
-      rhs_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>
-    }> : memref<4x65536xi32>
+                       outs(%b, %a, %r) : memref<4x65536xi32>
     return
   }
 
@@ -24,12 +20,9 @@ module attributes {
   func.func @test_tensor_with_limb_range(%b: memref<4x65536xi32>, %a: memref<4x65536xi32>, %r: memref<4x65536xi32>,
                                          %s1_b: memref<4x65536xi32>, %s1_a: memref<4x65536xi32>,
                                          %s2_b: memref<4x65536xi32>, %s2_a: memref<4x65536xi32>) {
-    // CHECK: cheddar_gpu.tensor ins(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) outs(%{{.*}}, %{{.*}}, %{{.*}}) <{{.*}}lhs_form = eval{{.*}}> : memref<4x65536xi32>
+    // CHECK: cheddar_gpu.tensor ins(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) outs(%{{.*}}, %{{.*}}, %{{.*}}) <out_limb_range = [0, 2]> : memref<4x65536xi32>
     cheddar_gpu.tensor ins(%s1_b, %s1_a, %s2_b, %s2_a)
                        outs(%b, %a, %r) <{
-      lhs_form = #cheddar_gpu.form<eval>,
-      rhs_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>,
       out_limb_range = array<i64: 0, 2>
     }> : memref<4x65536xi32>
     return
@@ -38,12 +31,9 @@ module attributes {
   // CHECK: @test_tensor_square
   func.func @test_tensor_square(%b: memref<4x65536xi32>, %a: memref<4x65536xi32>, %r: memref<4x65536xi32>,
                                 %s_b: memref<4x65536xi32>, %s_a: memref<4x65536xi32>) {
-    // CHECK: cheddar_gpu.tensor_square ins(%{{.*}}, %{{.*}}) outs(%{{.*}}, %{{.*}}, %{{.*}}) <{{.*}}in_form = eval{{.*}}> : memref<4x65536xi32>
+    // CHECK: cheddar_gpu.tensor_square ins(%{{.*}}, %{{.*}}) outs(%{{.*}}, %{{.*}}, %{{.*}}) : memref<4x65536xi32>
     cheddar_gpu.tensor_square ins(%s_b, %s_a)
-                              outs(%b, %a, %r) <{
-      in_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>
-    }> : memref<4x65536xi32>
+                              outs(%b, %a, %r) : memref<4x65536xi32>
     return
   }
 
