@@ -1445,26 +1445,123 @@ struct UndilateConv2DNchwFchw
   }
 };
 
-/// Rewrites a conv_2d_nchw_fchw whose filter and output both have a size-1
-/// spatial dimension as a conv_1d_ncw_fcw.
+/// Rewrites a 2D convolution or pooling op whose window and output both have a
+/// size-1 spatial dimension as the corresponding 1D op.
 ///
 /// This arises because torch-mlir lowers a 1D pool as a 2D pool over an
-/// expanded unit dimension (with strides [1, s]), which RewriteAvgPoolAsConv2D
-/// turns into a conv_2d. This pattern is applied to the conv rather than the
-/// pool so that RewriteAvgPoolAsConv2D can first fold the trailing average
-/// pooling division into the kernel.
-struct DownscaleSizeOneWindowedConv2D
-    : public OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
- public:
-  DownscaleSizeOneWindowedConv2D(MLIRContext* context)
-      : OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp>(context) {}
+/// expanded unit dimension (with strides [1, s]). An average pool is first
+/// turned into a conv_2d by RewriteAvgPoolAsConv2D, so that the trailing
+/// average pooling division is folded into the kernel, and the conv_2d is then
+/// downscaled. A max pool is downscaled directly, so that
+/// RewriteMaxPoolAsSelectionConvs can apply to it.
+template <typename OpTy>
+struct DownscaleSizeOneWindowed2DOp : public OpRewritePattern<OpTy> {
+  using OpRewritePattern<OpTy>::OpRewritePattern;
 
-  using OpRewritePattern::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(mlir::linalg::Conv2DNchwFchwOp convOp,
+  LogicalResult matchAndRewrite(OpTy op,
                                 PatternRewriter& rewriter) const override {
     return linalg::downscaleSizeOneWindowedConvolution(
-        rewriter, cast<linalg::LinalgOp>(convOp.getOperation()));
+        rewriter, cast<linalg::LinalgOp>(op.getOperation()));
+  }
+};
+
+// Whether `value` is a splat of -inf, the identity of max, either as a constant
+// or as a linalg.fill of a constant.
+static bool isNegInfSplat(Value value) {
+  APFloat splat(0.0);
+  if (auto fill = value.getDefiningOp<linalg::FillOp>()) {
+    if (!matchPattern(fill.getInputs()[0], m_ConstantFloat(&splat)))
+      return false;
+  } else {
+    DenseFPElementsAttr attr;
+    if (!matchPattern(value, m_Constant(&attr)) || !attr.isSplat())
+      return false;
+    splat = attr.getSplatValue<APFloat>();
+  }
+  return splat.isInfinity() && splat.isNegative();
+}
+
+/// Rewrites a 1D max pool as an elementwise max over "selection" convolutions,
+/// one per window offset. The selection convolution for window offset t has a
+/// kernel that is 1 at (f, f, t) and 0 elsewhere, so with the pool's strides
+/// and dilations its output at o is the input at o * stride + t * dilation.
+/// The elementwise maxima are then approximated by PolynomialApproximation
+/// (via max(a, b) = a + relu(b - a)), and the convolutions are linear kernels
+/// that layout propagation supports.
+///
+/// The maxima are combined in a balanced tree to minimize multiplicative
+/// depth. A window of k elements costs k convolutions and k - 1 maxima.
+///
+/// Requires the pool's init to be -inf (as exported by torch), so that it can
+/// be dropped. A max pool whose input is a tensor.pad with a nonzero padding
+/// value is left alone so that ZeroPadNonNegativeMaxPoolInput can first try to
+/// rewrite the padding to zero.
+struct RewriteMaxPoolAsSelectionConvs
+    : public OpRewritePattern<linalg::PoolingNcwMaxOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(linalg::PoolingNcwMaxOp poolOp,
+                                PatternRewriter& rewriter) const override {
+    Value input = poolOp.getInputs()[0];
+    auto inputTy = dyn_cast<RankedTensorType>(input.getType());
+    auto windowTy = dyn_cast<RankedTensorType>(poolOp.getInputs()[1].getType());
+    auto outputTy = dyn_cast<RankedTensorType>(poolOp.getResultTypes()[0]);
+    if (!inputTy || !windowTy || !outputTy || !inputTy.hasStaticShape() ||
+        !windowTy.hasStaticShape() || !outputTy.hasStaticShape())
+      return rewriter.notifyMatchFailure(poolOp, "requires static shapes");
+    if (!isa<FloatType>(outputTy.getElementType()))
+      return rewriter.notifyMatchFailure(poolOp, "requires float elements");
+    if (!isNegInfSplat(poolOp.getOutputs()[0]))
+      return rewriter.notifyMatchFailure(poolOp, "requires a -inf init");
+    if (auto pad = input.getDefiningOp<tensor::PadOp>()) {
+      APFloat padValue(0.0);
+      Value padConstant = pad.getConstantPaddingValue();
+      if (!padConstant ||
+          !matchPattern(padConstant, m_ConstantFloat(&padValue)) ||
+          !padValue.isZero())
+        return rewriter.notifyMatchFailure(poolOp,
+                                           "input has a nonzero padding value");
+    }
+
+    Location loc = poolOp.getLoc();
+    Type eltTy = outputTy.getElementType();
+    int64_t c = inputTy.getDimSize(1);
+    int64_t windowSize = windowTy.getNumElements();
+    SmallVector<int64_t> kernelShape{c, c};
+    llvm::append_range(kernelShape, windowTy.getShape());
+    auto kernelTy = RankedTensorType::get(kernelShape, eltTy);
+    Attribute zeroAttr = rewriter.getZeroAttr(eltTy);
+    Attribute oneAttr = rewriter.getOneAttr(eltTy);
+    Value zeroInit = arith::ConstantOp::create(
+        rewriter, loc, DenseElementsAttr::get(outputTy, zeroAttr));
+
+    SmallVector<Value> selected;
+    for (int64_t offset = 0; offset < windowSize; ++offset) {
+      SmallVector<Attribute> values(c * c * windowSize, zeroAttr);
+      for (int64_t f = 0; f < c; ++f) {
+        values[(f * c + f) * windowSize + offset] = oneAttr;
+      }
+      Value kernel = arith::ConstantOp::create(
+          rewriter, loc, DenseElementsAttr::get(kernelTy, values));
+      selected.push_back(linalg::Conv1DNcwFcwOp::create(
+                             rewriter, loc, outputTy, ValueRange{input, kernel},
+                             ValueRange{zeroInit}, poolOp.getStrides(),
+                             poolOp.getDilations())
+                             .getResult(0));
+    }
+
+    while (selected.size() > 1) {
+      SmallVector<Value> next;
+      for (size_t i = 0; i + 1 < selected.size(); i += 2) {
+        next.push_back(arith::MaximumFOp::create(rewriter, loc, selected[i],
+                                                 selected[i + 1]));
+      }
+      if (selected.size() % 2 == 1) next.push_back(selected.back());
+      selected = std::move(next);
+    }
+
+    rewriter.replaceOp(poolOp, selected.front());
+    return success();
   }
 };
 
@@ -1476,14 +1573,17 @@ struct LinalgCanonicalizations
 
     RewritePatternSet patterns(context);
     patterns.add<
-        BroadcastToExpandShape, DownscaleSizeOneWindowedConv2D,
-        DropCfAssertInLinalg, FoldBroadcastExtractSlice, FoldConstantBroadcast,
-        FoldConstantFill, FoldConstantLinalgTranspose, FuseConv2DPooling,
-        LinalgGenericToElementwise, LinalgMapToElementwise,
+        BroadcastToExpandShape, DropCfAssertInLinalg, FoldBroadcastExtractSlice,
+        FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
+        FuseConv2DPooling, LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
-        RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
-        UndilateConv2DNchwFchw, ZeroPadNonNegativeMaxPoolInput>(context);
+        RewriteMaxPoolAsSelectionConvs, RewriteTransposedMatvec,
+        RewriteTransposedVecmat, UndilateConv1DNcwFcw, UndilateConv2DNchwFchw,
+        ZeroPadNonNegativeMaxPoolInput>(context);
 
+    patterns.add<DownscaleSizeOneWindowed2DOp<linalg::Conv2DNchwFchwOp>,
+                 DownscaleSizeOneWindowed2DOp<linalg::PoolingNchwMaxOp>>(
+        context);
     mlir::linalg::populateDecomposeProjectedPermutationPatterns(patterns);
 
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
