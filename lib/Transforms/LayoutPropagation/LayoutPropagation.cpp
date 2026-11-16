@@ -1301,6 +1301,26 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   if (auto assignOp = filter.getDefiningOp<AssignLayoutOp>()) {
     originalFilter = assignOp.getValue();
   }
+  // The Halevi-Shoup kernel packs each diagonal of the expanded filter matrix
+  // into a single ciphertext, so both of its (padded) dimensions must fit in
+  // one. Otherwise the diagonal layout silently drops the rows beyond the slot
+  // count, and the kernel produces fewer ciphertexts than the result layout.
+  RankedTensorType expandedFilterType = get2dConvChwFchwFilterExpandedType(
+      filterType, matrixOperand.dataType, matrixOperand.padding, strides,
+      interchangeRows);
+  int64_t requiredSlots = llvm::PowerOf2Ceil(std::max(
+      expandedFilterType.getDimSize(0), expandedFilterType.getDimSize(1)));
+  if (requiredSlots > minSlotCount) {
+    return op->emitOpError()
+           << "expanded filter matrix of shape "
+           << expandedFilterType.getDimSize(0) << "x"
+           << expandedFilterType.getDimSize(1)
+           << " does not fit in a single ciphertext of "
+           << static_cast<int64_t>(minSlotCount)
+           << " slots; multi-ciphertext convolutions are not yet supported. "
+              "Set min-slot-count to at least "
+           << requiredSlots;
+  }
   auto maybeRels = get2dConvChwFchwFilterAsSequence(
       filterType, matrixOperand.dataType, strides, matrixOperand.padding,
       minSlotCount, interchangeRows);
