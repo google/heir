@@ -26,9 +26,9 @@ constexpr int64_t kNumQP = kNumQ + 1;
 using Converter = void (*)(StridedMemRefType<int64_t, 2>*,
                            StridedMemRefType<int64_t, 2>*);
 
-// Applies `convert` to each [kN][numLimbs] polynomial in `data`, in place.
-void convertEachPoly(std::vector<int64_t>& data, int64_t numLimbs,
-                     Converter convert) {
+// Applies `Convert` to each [kN][numLimbs] polynomial in `data`, in place.
+template <Converter Convert>
+void convertEachPoly(std::vector<int64_t>& data, int64_t numLimbs) {
   const int64_t polySize = kN * numLimbs;
   const int64_t numPolys = data.size() / polySize;
   for (int64_t p = 0; p < numPolys; ++p) {
@@ -38,7 +38,7 @@ void convertEachPoly(std::vector<int64_t>& data, int64_t numLimbs,
     StridedMemRefType<int64_t, 2> input(poly.data(), poly.data(), 0,
                                         {kN, numLimbs}, {numLimbs, 1});
     StridedMemRefType<int64_t, 2> output;
-    convert(&output, &input);
+    Convert(&output, &input);
     for (int64_t i = 0; i < kN; ++i) {
       for (int64_t l = 0; l < numLimbs; ++l) {
         data[p * polySize + i * numLimbs + l] =
@@ -55,11 +55,11 @@ TEST(MulRelinearizeTest, PreservesPhaseWithinNoiseBound) {
   // NTT (eval) form, so convert the inputs here and the result below.
   const int64_t ctSize = 2 * kN * kNumQ;
   std::vector<int64_t> ksk(kRelinKey, kRelinKey + kNumDigits * 2 * kN * kNumQP);
-  convertEachPoly(ksk, kNumQP, _mlir_ciface_key_to_ntt);
+  convertEachPoly<_mlir_ciface_key_to_ntt>(ksk, kNumQP);
   std::vector<int64_t> a(kCiphertextA, kCiphertextA + ctSize);
-  convertEachPoly(a, kNumQ, _mlir_ciface_ct_to_ntt);
+  convertEachPoly<_mlir_ciface_ct_to_ntt>(a, kNumQ);
   std::vector<int64_t> b(kCiphertextB, kCiphertextB + ctSize);
-  convertEachPoly(b, kNumQ, _mlir_ciface_ct_to_ntt);
+  convertEachPoly<_mlir_ciface_ct_to_ntt>(b, kNumQ);
 
   StridedMemRefType<int64_t, 3> aRef(a.data(), a.data(), 0, {2, kN, kNumQ},
                                      {kN * kNumQ, kNumQ, 1});
@@ -88,7 +88,7 @@ TEST(MulRelinearizeTest, PreservesPhaseWithinNoiseBound) {
     }
   }
   free(result.basePtr);
-  convertEachPoly(out, kNumQ, _mlir_ciface_ct_from_ntt);
+  convertEachPoly<_mlir_ciface_ct_from_ntt>(out, kNumQ);
 
   auto output = [&](int64_t component, int64_t i, int64_t limb) -> uint64_t {
     return out[(component * kN + i) * kNumQ + limb];
