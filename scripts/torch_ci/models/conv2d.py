@@ -17,7 +17,7 @@ model = Conv2dModel()
 model.eval()
 
 # Example input: (batch_size, channels, height, width)
-sample_input = torch.randn(1, 3, 16, 16)
+sample_input = torch.randn(1, 3, 8, 8)
 
 # Export to MLIR
 export_and_save(model, (sample_input,), __file__)
