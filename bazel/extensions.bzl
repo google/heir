@@ -1,6 +1,6 @@
 """Module extensions for MLIR Tutorial dependencies."""
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
@@ -60,3 +60,14 @@ def _cheddar_deps_impl(_):
     )
 
 cheddar_deps = module_extension(implementation = _cheddar_deps_impl)
+
+def _stablehlo_deps_impl(_):
+    maybe(
+        git_repository,
+        name = "stablehlo",
+        branch = "main",
+        init_submodules = False,
+        remote = "https://github.com/openxla/stablehlo.git",
+    )
+
+stablehlo_deps = module_extension(implementation = _stablehlo_deps_impl)

@@ -230,6 +230,7 @@ cc_binary(
         "@llvm-project//mlir:Transforms",
         "@llvm-project//mlir:UBToLLVM",
         "@llvm-project//mlir:VectorToLLVM",
+        "@stablehlo//:stablehlo_ops",
     ],
 )
 
@@ -303,6 +304,7 @@ cc_binary(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+        "@stablehlo//:stablehlo_ops",
     ],
 )
 

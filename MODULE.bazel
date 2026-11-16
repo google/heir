@@ -140,6 +140,10 @@ llvm_configure(
     targets = _LLVM_TARGETS,
 )
 
+# StableHLO dependency
+stablehlo_extensions = use_extension("//bazel:extensions.bzl", "stablehlo_deps")
+use_repo(stablehlo_extensions, "stablehlo")
+
 # eigen 4.0.0-20241125.bcr.1 has issues with gitlab changing the checksum
 # Cf. https://github.com/google/heir/issues/1840
 bazel_dep(name = "eigen", version = "3.4.0.bcr.3")

@@ -38,6 +38,7 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-lsp-server/MlirLspServerMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
+#include "stablehlo/dialect/StablehloOps.h"                // from @stablehlo
 
 using namespace mlir;
 using namespace heir;
@@ -83,6 +84,7 @@ int main(int argc, char** argv) {
   registry.insert<memref::MemRefDialect>();
   registry.insert<polynomial::PolynomialDialect>();
   registry.insert<scf::SCFDialect>();
+  registry.insert<stablehlo::StablehloDialect>();
   registry.insert<tensor::TensorDialect>();
 
   return mlir::failed(mlir::MlirLspServerMain(argc, argv, registry));
