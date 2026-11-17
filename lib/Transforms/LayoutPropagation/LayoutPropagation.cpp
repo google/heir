@@ -978,21 +978,15 @@ LayoutPropagation::selectBatchMatmulKernel(BatchMatmulOp op,
 }
 
 LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
-  // Reassociate the dimensions to collapse. For e.g. if we collapse d0 x d1 x
-  // d2 to d' then we need to construct the row-major relation from (d0, d1, d2)
-  // -> d'. Then the relation on the collapsed tensor will be the composition
-  // from d' -> (d0, d1, d2) -> (ct, slot).
-  auto rowMajorRelation = getCollapsedRelation(
-      op.getSrcType(), op.getResultType(), op.getReassociationIndices());
-
   auto tensor = op.getSrc();
   LayoutAttr inputLayout = getComposedLayoutAttr(tensor);
-  IntegerRelation relation = inputLayout.getIntegerRelation();
+  IntegerRelation collapsedRelation =
+      collapseDimensions(inputLayout.getIntegerRelation(), op.getSrcType(),
+                         op.getReassociationIndices());
 
-  relation.applyDomain(rowMajorRelation);
   MLIRContext* ctx = &getContext();
   LayoutAttr resultLayoutAttr =
-      LayoutAttr::getFromIntegerRelation(ctx, relation);
+      LayoutAttr::getFromIntegerRelation(ctx, collapsedRelation);
   Attribute kernelInfoAttr =
       cloneKernelInfoWithResultShape(tensor, op.getResultType().getShape());
 
