@@ -30,7 +30,9 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -236,9 +238,28 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     llvm::dbgs() << "\n";
   });
 
-  // Now compute the cost of hoisting each conversion layout.
+  // Now compute the cost of hoisting each conversion layout. When the op has
+  // multiple convert_layout users, hoisting one rewrites the others'
+  // from_layout to the hoisted layout, so the hoisted layout must cover all
+  // elements placed by the original output layout.
+  auto preservesDomain = [](ConvertLayoutOp convertLayoutOp) {
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+    if (!fromLayout || !toLayout) return true;
+    presburger::IntegerPolyhedron fromDomain =
+        fromLayout.getIntegerRelation().getDomainSet();
+    presburger::IntegerPolyhedron toDomain =
+        toLayout.getIntegerRelation().getDomainSet();
+    if (fromDomain.getNumDimVars() != toDomain.getNumDimVars()) return false;
+    return presburger::PresburgerSet(fromDomain)
+        .isSubsetOf(presburger::PresburgerSet(toDomain));
+  };
   SmallVector<HoistOption> hoistingOptions;
   for (auto resultLayoutConversion : resultLayoutConversions) {
+    if (resultLayoutConversions.size() > 1 &&
+        !preservesDomain(resultLayoutConversion)) {
+      continue;
+    }
     auto options = computeHoistingOptions(op, resultLayoutConversion, solver);
     for (auto& option : options) {
       LLVM_DEBUG(llvm::dbgs()
@@ -270,7 +291,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
         return a.cost < b.cost;
       });
 
-  if (minHoistingCost->cost > 0) {
+  if (hoistingOptions.empty() || minHoistingCost->cost > 0) {
     LLVM_DEBUG(llvm::dbgs()
                << "Skipping op, all hoisting results have positive net cost\n");
     return UNHOISTABLE;

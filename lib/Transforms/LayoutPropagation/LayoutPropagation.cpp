@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "lib/Analysis/LayoutFoldingAnalysis/LayoutFoldingAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
@@ -790,8 +791,10 @@ LogicalResult LayoutPropagation::generalizeAndVisit(linalg::LinalgOp op) {
   if (failed(generic)) return op->emitError() << "failed to generalize";
   for (auto [result, secret] :
        llvm::zip(generic->getResults(), secretResults)) {
-    solver->getOrCreateState<SecretnessLattice>(result)->join(
+    (void)solver->getOrCreateState<SecretnessLattice>(result)->join(
         Secretness(secret));
+    (void)solver->getOrCreateState<LayoutIsFreeLattice>(result)->join(
+        LayoutIsFree(false));
   }
   erasedVisitedOp = true;
   // The generic op's operands get their default layouts like any other op's.

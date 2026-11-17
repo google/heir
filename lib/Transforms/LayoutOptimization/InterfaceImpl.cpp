@@ -315,6 +315,12 @@ Hoister createPadHoister(tensor::PadOp op) {
   };
 }
 
+static bool isSingleCiphertext1DVector(const IntegerRelation& rel) {
+  return rel.getNumDomainVars() == 1 &&
+         rel.getConstantBoundOnDimSize64(
+             rel.getVarKindOffset(VarKind::Range)) == 1;
+}
+
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
     HoistResult result;
@@ -322,6 +328,10 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
+    if (!isSingleCiphertext1DVector(fromLayout.getIntegerRelation()) ||
+        !isSingleCiphertext1DVector(toLayout.getIntegerRelation())) {
+      return failure();
+    }
 
     // Operand order for Matvec op is:
     //
@@ -364,6 +374,10 @@ Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
+    if (!isSingleCiphertext1DVector(fromLayout.getIntegerRelation()) ||
+        !isSingleCiphertext1DVector(toLayout.getIntegerRelation())) {
+      return failure();
+    }
 
     // Operand order for Conv_1d op is:
     //
