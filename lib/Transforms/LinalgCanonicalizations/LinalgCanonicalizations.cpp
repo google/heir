@@ -1445,6 +1445,103 @@ struct UndilateConv2DNchwFchw
   }
 };
 
+// If `value` is `x` scaled by a constant slope `a`, either as an arith.mulf or
+// as a linalg.generic whose body is a single mulf of `x` and a broadcast
+// constant (torch's PReLU weight), returns the op computing it.
+static Operation* getConstantScaleOf(Value value, Value x) {
+  Operation* op = value.getDefiningOp();
+  if (!op) return nullptr;
+
+  if (auto mul = dyn_cast<arith::MulFOp>(op)) {
+    Value other = mul.getLhs() == x   ? mul.getRhs()
+                  : mul.getRhs() == x ? mul.getLhs()
+                                      : nullptr;
+    return other && matchPattern(other, m_Constant()) ? op : nullptr;
+  }
+
+  auto generic = dyn_cast<linalg::GenericOp>(op);
+  if (!generic || generic.getNumDpsInputs() != 2 ||
+      generic.getNumResults() != 1 ||
+      generic.getNumParallelLoops() != generic.getNumLoops())
+    return nullptr;
+  Block* body = generic.getBody();
+  auto yield = cast<linalg::YieldOp>(body->getTerminator());
+  auto mul = yield.getOperand(0).getDefiningOp<arith::MulFOp>();
+  if (!mul || &body->front() != mul.getOperation()) return nullptr;
+  if (!llvm::is_contained({mul.getLhs(), mul.getRhs()}, body->getArgument(0)) ||
+      !llvm::is_contained({mul.getLhs(), mul.getRhs()}, body->getArgument(1)))
+    return nullptr;
+  for (OpOperand* input : generic.getDpsInputOperands()) {
+    AffineMap map = generic.getMatchingIndexingMap(input);
+    if (input->get() == x && map.isIdentity()) continue;
+    if (input->get() != x && matchPattern(input->get(), m_Constant())) continue;
+    return nullptr;
+  }
+  return llvm::is_contained(generic.getDpsInputs(), x) ? op : nullptr;
+}
+
+// Rewrites a PReLU, select(x > 0, x, a * x) for a constant slope a, as
+//   a * x + (1 - a) * relu(x) = a * x + relu(x) - a * relu(x),
+// so that it is approximated through ReLU (as max(x, 0)), which is continuous,
+// rather than as a select on the discontinuous step x > 0. torch exports the
+// comparison, the scaling, and the select as separate linalg.generic ops; by
+// the time this pattern applies, the comparison and select are elementwise
+// tensor ops. a * relu(x) is computed by cloning the op computing a * x, so a
+// per-channel slope works too.
+struct RewritePReluAsRelu : public OpRewritePattern<arith::SelectOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(arith::SelectOp op,
+                                PatternRewriter& rewriter) const override {
+    auto cmp = op.getCondition().getDefiningOp<arith::CmpFOp>();
+    if (!cmp) return rewriter.notifyMatchFailure(op, "condition is not cmpf");
+    Value x = op.getTrueValue();
+    if (!isa<RankedTensorType>(x.getType()))
+      return rewriter.notifyMatchFailure(op, "requires tensors");
+
+    // x > 0 or 0 < x, with any strictness or ordering.
+    auto isZero = [](Value v) { return matchPattern(v, m_AnyZeroFloat()); };
+    bool greaterThanZero = false;
+    switch (cmp.getPredicate()) {
+      case arith::CmpFPredicate::OGT:
+      case arith::CmpFPredicate::OGE:
+      case arith::CmpFPredicate::UGT:
+      case arith::CmpFPredicate::UGE:
+        greaterThanZero = cmp.getLhs() == x && isZero(cmp.getRhs());
+        break;
+      case arith::CmpFPredicate::OLT:
+      case arith::CmpFPredicate::OLE:
+      case arith::CmpFPredicate::ULT:
+      case arith::CmpFPredicate::ULE:
+        greaterThanZero = cmp.getRhs() == x && isZero(cmp.getLhs());
+        break;
+      default:
+        break;
+    }
+    if (!greaterThanZero)
+      return rewriter.notifyMatchFailure(op, "condition is not x > 0");
+
+    Operation* scale = getConstantScaleOf(op.getFalseValue(), x);
+    if (!scale)
+      return rewriter.notifyMatchFailure(op,
+                                         "false value is not a constant * x");
+
+    Location loc = op.getLoc();
+    Value zero = arith::ConstantOp::create(
+        rewriter, loc,
+        DenseElementsAttr::get(cast<ShapedType>(x.getType()),
+                               rewriter.getZeroAttr(getElementTypeOrSelf(x))));
+    Value relu = arith::MaximumFOp::create(rewriter, loc, x, zero);
+    IRMapping mapping;
+    mapping.map(x, relu);
+    Value scaledRelu = rewriter.clone(*scale, mapping)->getResult(0);
+    Value reluPart = arith::SubFOp::create(rewriter, loc, relu, scaledRelu);
+    rewriter.replaceOpWithNewOp<arith::AddFOp>(op, op.getFalseValue(),
+                                               reluPart);
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -1457,8 +1554,9 @@ struct LinalgCanonicalizations
         FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
         FuseConv2DPooling, LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
-        RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
-        UndilateConv2DNchwFchw, ZeroPadNonNegativeMaxPoolInput>(context);
+        RewritePReluAsRelu, RewriteTransposedMatvec, RewriteTransposedVecmat,
+        UndilateConv1DNcwFcw, UndilateConv2DNchwFchw,
+        ZeroPadNonNegativeMaxPoolInput>(context);
 
     mlir::linalg::populateDecomposeProjectedPermutationPatterns(patterns);
 
