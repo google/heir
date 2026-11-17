@@ -420,14 +420,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
       return layoutAttr;
     }
     if (auto arrayAttr = dyn_cast<ArrayAttr>(attr)) {
-      auto layoutAttrs = arrayAttr.getAsRange<LayoutAttr>();
-      auto it = layoutAttrs.begin();
-      presburger::IntegerRelation composedRel = (*it).getIntegerRelation();
-      ++it;
-      for (; it != layoutAttrs.end(); ++it) {
-        composedRel.compose((*it).getIntegerRelation());
-      }
-      return LayoutAttr::getFromIntegerRelation(&getContext(), composedRel);
+      return LayoutAttr::composeLayouts(arrayAttr, &getContext());
     }
     llvm_unreachable("unexpected attribute type in assignedLayouts");
   }
