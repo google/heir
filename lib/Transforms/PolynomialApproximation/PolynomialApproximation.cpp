@@ -625,8 +625,16 @@ struct GoldschmidtApproximation : public OpRewritePattern<arith::DivFOp> {
     using NodeTy = kernel::ArithmeticDagNode<kernel::SSAValue>;
     auto xNode = NodeTy::leaf(kernel::SSAValue(x));
     auto y0Node = NodeTy::leaf(kernel::SSAValue(eval.getResult()));
+    // Unroll the iterations: layout propagation supports loops, but this
+    // loop has a loop-carried secret, and each iteration consumes a level, so
+    // secret-insert-mgmt would bootstrap the loop-carried values every
+    // iteration to make them level-invariant. Generally the goldschmidt loop
+    // is short, so we can hard-unroll it without worrying too much. Otherwise
+    // we would want to add additional smarts to the partial-loop-unrolling
+    // analysis in the Halo passes.
     auto resultNode = polynomial::goldschmidtLoop<kernel::SSAValue>(
-        xNode, y0Node, split.numIterations, kernel::mlirTypeToDagType(type));
+        xNode, y0Node, split.numIterations, kernel::mlirTypeToDagType(type),
+        /*unroll=*/true);
 
     ImplicitLocOpBuilder b(loc, rewriter);
     kernel::IRMaterializingVisitor visitor(type);
@@ -819,6 +827,38 @@ struct DecomposeBinaryMinMax : public OpRewritePattern<OpTy> {
   DataFlowSolver* solver;
 };
 
+// Rewrites a / b to a * (1 / b) when the divisor b is secret and a is not the
+// constant 1, so that GoldschmidtApproximation applies to the reciprocal. The
+// approximation attributes (`levels`, `domain_lower`, `domain_upper`) describe
+// the divisor, so they move to the new reciprocal. Ops in a linalg body are
+// left alone, as in DecomposeBinaryMinMax.
+struct DecomposeSecretDivision : public OpRewritePattern<arith::DivFOp> {
+  DecomposeSecretDivision(MLIRContext* context, DataFlowSolver* solver)
+      : OpRewritePattern<arith::DivFOp>(context), solver(solver) {}
+
+  LogicalResult matchAndRewrite(arith::DivFOp op,
+                                PatternRewriter& rewriter) const override {
+    if (op->getParentOfType<linalg::LinalgOp>()) return failure();
+    if (!mlir::heir::isSecret(op.getRhs(), solver))
+      return rewriter.notifyMatchFailure(op, "divisor is not secret");
+    if (matchPattern(op.getLhs(), m_OneFloat()))
+      return rewriter.notifyMatchFailure(op, "already a reciprocal");
+
+    Location loc = op.getLoc();
+    Value one = arith::ConstantOp::create(
+        rewriter, loc, cast<TypedAttr>(rewriter.getOneAttr(op.getType())));
+    auto reciprocal = arith::DivFOp::create(rewriter, loc, one, op.getRhs());
+    for (StringRef name : {"levels", "domain_lower", "domain_upper"}) {
+      if (Attribute attr = op->getAttr(name)) reciprocal->setAttr(name, attr);
+    }
+    rewriter.replaceOpWithNewOp<arith::MulFOp>(op, op.getLhs(), reciprocal);
+    return success();
+  }
+
+ private:
+  DataFlowSolver* solver;
+};
+
 struct PolynomialApproximation
     : impl::PolynomialApproximationBase<PolynomialApproximation> {
   using PolynomialApproximationBase::PolynomialApproximationBase;
@@ -840,8 +880,8 @@ struct PolynomialApproximation
       decompositions.add<DecomposeBinaryMinMax<arith::MaximumFOp, true>,
                          DecomposeBinaryMinMax<arith::MaxNumFOp, true>,
                          DecomposeBinaryMinMax<arith::MinimumFOp, false>,
-                         DecomposeBinaryMinMax<arith::MinNumFOp, false>>(
-          context, &solver);
+                         DecomposeBinaryMinMax<arith::MinNumFOp, false>,
+                         DecomposeSecretDivision>(context, &solver);
       (void)applyPatternsGreedily(getOperation(), std::move(decompositions));
     }
 
