@@ -21,4 +21,12 @@ module attributes {scheme.bgv} {
     %0 = tensor.insert %v into %arg0[] : tensor<f32>
     return %0 : tensor<f32>
   }
+
+  func.func @test_0d_tensor_from_elements(%arg0: f32) -> tensor<f32> {
+    // CHECK: std::vector<float> test_0d_tensor_from_elements(float [[arg0:[^ ]*]])
+    // CHECK: const std::vector<float> [[result:[^ ]*]] = {[[arg0]]};
+    // CHECK: return [[result]];
+    %0 = tensor.from_elements %arg0 : tensor<f32>
+    return %0 : tensor<f32>
+  }
 }
