@@ -155,6 +155,10 @@ std::pair<Value, LayoutAttr> convertToLayout(
   convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
                            layoutAttr);
   Value toReplace = convertLayoutOp.getResult();
+  if (auto info = findAttributeAssociatedWith(value, kKernelInfoAttrName);
+      succeeded(info)) {
+    setAttributeAssociatedWith(toReplace, kKernelInfoAttrName, *info);
+  }
   builder.replaceUsesWithIf(value, toReplace, [&](OpOperand& operand) {
     return operand.getOwner() == op;
   });
@@ -734,6 +738,7 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   // Otherwise keep each result element in the slots of a secret input element
   // read in the same iteration, so that input needs no rotation.
   for (OpOperand* input : op.getDpsInputOperands()) {
+    if (op.getMatchingBlockArgument(input).use_empty()) continue;
     Value value = input->get();
     if (resultLayout || !assignedLayouts.contains(value) ||
         !isSecret(value, solver)) {
@@ -762,6 +767,24 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
     resultLayout = *defaultLayout;
   }
 
+  Attribute kernelInfoAttr;
+  for (Value operand : op->getOperands()) {
+    if (operand.getType() == resultType && assignedLayouts.contains(operand) &&
+        getComposedLayoutAttr(operand) == resultLayout) {
+      if (auto info = findAttributeAssociatedWith(operand, kKernelInfoAttrName);
+          succeeded(info)) {
+        kernelInfoAttr = *info;
+        break;
+      }
+    }
+  }
+  if (!kernelInfoAttr) {
+    kernelInfoAttr = makeKernelInfoAttr(
+        &getContext(),
+        KernelInfo{.resultShape = llvm::to_vector(resultType.getShape()),
+                   .gapFactor = 1});
+  }
+
   // The kernel accumulates into (or partially overwrites) the init, so the
   // init must share the result layout; converting a plaintext init is cheap.
   if (failed(alignInitWithResultLayout(op, init, resultLayout))) {
@@ -770,7 +793,7 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   Value result = op.getResult(0);
   assignedLayouts.insert({result, resultLayout});
   debugAssignLayout(result, resultLayout);
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 

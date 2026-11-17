@@ -26,6 +26,7 @@
 #include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
 
 // ISL
+#include "include/isl/aff.h"         // from @isl
 #include "include/isl/ctx.h"         // from @isl
 #include "include/isl/map.h"         // from @isl
 #include "include/isl/map_type.h"    // from @isl
@@ -102,8 +103,9 @@ FailureOr<isl_map*> getAccessMap(const StructuredOperand& operand,
     reason = llvm::formatv("indexing map of {0} is not affine", name);
     return failure();
   }
-  isl_map* access = isl_map_apply_range(toIslMap(*indexRel, ctx),
-                                        toIslMap(operand.layout, ctx));
+  isl_map* access = isl_map_preimage_domain_pw_multi_aff(
+      toIslMap(operand.layout, ctx),
+      isl_pw_multi_aff_from_map(toIslMap(*indexRel, ctx)));
   if (!access) {
     reason =
         llvm::formatv("failed to compose indexing map and layout of {0}", name);
