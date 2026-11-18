@@ -309,6 +309,20 @@ static FailureOr<Value> implementCyclicAssignLayoutStep(
   return loop.getResult(0);
 }
 
+// The value of a dense resource constant with a non-empty blob of whole-byte
+// elements, or null. Assign-layout folds such constants by default.
+static DenseResourceElementsAttr getByteAlignedResource(Value input) {
+  auto cstOp = input.getDefiningOp<arith::ConstantOp>();
+  if (!cstOp) return nullptr;
+  auto resourceAttr = dyn_cast<DenseResourceElementsAttr>(cstOp.getValue());
+  if (!resourceAttr || resourceAttr.getData().empty()) return nullptr;
+  Type elementType = resourceAttr.getElementType();
+  if (!elementType.isIntOrFloat() ||
+      elementType.getIntOrFloatBitWidth() % 8 != 0)
+    return nullptr;
+  return resourceAttr;
+}
+
 static FailureOr<Value> implementAssignLayoutStep(
     Value input, LayoutAttr layout, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
@@ -396,21 +410,12 @@ static FailureOr<Value> implementAssignLayoutStep(
   }
 
   DenseElementsAttr constantAttr;
-  DenseResourceElementsAttr resourceAttr;
-  ArrayRef<char> resourceRaw;
   bool isDenseConstant = matchPattern(input, m_Constant(&constantAttr));
-  if (!isDenseConstant) {
-    if (auto cstOp =
-            dyn_cast_or_null<arith::ConstantOp>(input.getDefiningOp())) {
-      if ((resourceAttr =
-               dyn_cast<DenseResourceElementsAttr>(cstOp.getValue()))) {
-        resourceRaw = resourceAttr.getData();
-      }
-    }
-  }
-  bool isResourceConstant = !resourceRaw.empty() &&
-                            elementType.isIntOrFloat() &&
-                            elementType.getIntOrFloatBitWidth() % 8 == 0;
+  DenseResourceElementsAttr resourceAttr =
+      isDenseConstant ? nullptr : getByteAlignedResource(input);
+  ArrayRef<char> resourceRaw =
+      resourceAttr ? resourceAttr.getData() : ArrayRef<char>();
+  bool isResourceConstant = static_cast<bool>(resourceAttr);
   auto tryFolding = [&]() -> FailureOr<Value> {
     if (!dataSemanticType) return failure();
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
@@ -643,13 +648,35 @@ FailureOr<Value> implementAssignLayout(
   OpBuilder::InsertionGuard guard(builder);
 
   if (auto arrayAttr = dyn_cast<ArrayAttr>(layout)) {
+    if (arrayAttr.empty() || !llvm::all_of(arrayAttr, [](Attribute a) {
+          return isa<LayoutAttr>(a);
+        }))
+      return builder.emitError() << "Expected a non-empty array of LayoutAttr";
+    // A constant that every step would fold (a resource constant, or any
+    // constant when folding is requested) is packed in one step through the
+    // composed layout. Folding enumerates the points of a layout, and the
+    // points of the composed layout are those of the packed result, while
+    // folding step by step builds every intermediate tensor, which can be far
+    // larger: for a 32x16x3x3 strided convolution filter at 16384 slots, one
+    // intermediate has 8192x16x16384 elements and the result 8192x16384.
+    bool isResource = static_cast<bool>(getByteAlignedResource(input));
+    bool foldsEveryStep =
+        isa<RankedTensorType>(input.getType()) &&
+        (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE
+             ? isResource || matchPattern(input, m_Constant())
+             : strategy == CodegenStrategy::AUTO && isResource);
+    if (foldsEveryStep) {
+      Type targetType = materializeLayout(
+          getElementTypeOrSelf(input.getType()),
+          cast<LayoutAttr>(arrayAttr.getValue().back()), minSlotCount);
+      return implementAssignLayoutStep(
+          input, LayoutAttr::composeLayouts(arrayAttr, builder.getContext()),
+          targetType, builder, createdOpCallback, /*isLast=*/true,
+          /*domainSchedule=*/{}, strategy);
+    }
     Value currentInput = input;
     for (size_t i = 0; i < arrayAttr.size(); ++i) {
-      auto layoutAttr = dyn_cast<LayoutAttr>(arrayAttr[i]);
-      if (!layoutAttr) {
-        return builder.emitError()
-               << "All layouts in the array must be LayoutAttr";
-      }
+      auto layoutAttr = cast<LayoutAttr>(arrayAttr[i]);
       bool isLast = (i == arrayAttr.size() - 1);
       Type targetType;
       auto elementType = getElementTypeOrSelf(currentInput.getType());
