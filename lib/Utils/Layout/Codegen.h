@@ -50,6 +50,15 @@ void forEachPoint(const presburger::IntegerRelation& rel,
                                     ArrayRef<int64_t> rangePoint)>
                       fn);
 
+// Like forEachPoint, but calls `fn` as the scan visits the points: in no
+// particular order, and once per value of each local that is not a floor
+// division, so possibly several times per point. Unlike forEachPoint it keeps
+// no memory per point.
+void forEachPointUnordered(const presburger::IntegerRelation& rel,
+                           function_ref<void(ArrayRef<int64_t> domainPoint,
+                                             ArrayRef<int64_t> rangePoint)>
+                               fn);
+
 // A debugging helper to generate a C string representation of the loop nest.
 FailureOr<std::string> generateLoopNestAsCStr(
     const presburger::IntegerRelation& rel,

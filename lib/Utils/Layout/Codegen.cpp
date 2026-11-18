@@ -511,8 +511,9 @@ LogicalResult forEachPointOfBoundedSet(
 
 }  // namespace
 
-void forEachPoint(const presburger::IntegerRelation& rel,
-                  function_ref<void(ArrayRef<int64_t>, ArrayRef<int64_t>)> fn) {
+void forEachPointUnordered(
+    const presburger::IntegerRelation& rel,
+    function_ref<void(ArrayRef<int64_t>, ArrayRef<int64_t>)> fn) {
   unsigned numDomain = rel.getNumDomainVars();
   unsigned numVars = numDomain + rel.getNumRangeVars();
 
@@ -522,11 +523,9 @@ void forEachPoint(const presburger::IntegerRelation& rel,
   isl_ctx* ctx = isl_ctx_alloc();
   isl_basic_set* lifted = isl_basic_set_flatten(isl_basic_set_lift(
       isl_basic_map_wrap(convertRelationToBasicMap(rel, ctx))));
-  std::vector<int64_t> coords;
-  size_t numWitnesses = 0;
+  SmallVector<int64_t> point(numVars);
   LogicalResult scanned =
       forEachPointOfBoundedSet(lifted, [&](ArrayRef<DynamicAPInt> witness) {
-        ++numWitnesses;
         for (unsigned i = 0; i < numVars; ++i) {
           if (witness[i] < std::numeric_limits<int64_t>::min() ||
               witness[i] > std::numeric_limits<int64_t>::max()) {
@@ -534,14 +533,30 @@ void forEachPoint(const presburger::IntegerRelation& rel,
                 "forEachPoint: a point of the relation does not fit in "
                 "int64_t");
           }
-          coords.push_back(int64_t(witness[i]));
+          point[i] = int64_t(witness[i]);
         }
+        fn(ArrayRef<int64_t>(point).take_front(numDomain),
+           ArrayRef<int64_t>(point).drop_front(numDomain));
       });
   isl_ctx_free(ctx);
   if (failed(scanned)) {
     llvm::report_fatal_error(
         "forEachPoint: isl cannot scan the relation; it must be bounded");
   }
+}
+
+void forEachPoint(const presburger::IntegerRelation& rel,
+                  function_ref<void(ArrayRef<int64_t>, ArrayRef<int64_t>)> fn) {
+  unsigned numDomain = rel.getNumDomainVars();
+  unsigned numVars = numDomain + rel.getNumRangeVars();
+  std::vector<int64_t> coords;
+  size_t numWitnesses = 0;
+  forEachPointUnordered(
+      rel, [&](ArrayRef<int64_t> domainPoint, ArrayRef<int64_t> rangePoint) {
+        ++numWitnesses;
+        llvm::append_range(coords, domainPoint);
+        llvm::append_range(coords, rangePoint);
+      });
   if (numVars == 0) {
     if (numWitnesses > 0) fn({}, {});
     return;

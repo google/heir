@@ -440,8 +440,9 @@ static FailureOr<Value> implementAssignLayoutStep(
     };
     bool srcIsSplat = isDenseConstant && constantAttr.isSplat();
     // The points are packed as they are scanned rather than collected first,
-    // since a packed filter can have hundreds of millions of them. The first
-    // slot that receives two distinct values, if any, fails the fold.
+    // since a packed filter can have hundreds of millions of them; packing a
+    // point twice writes the same value. The first slot that receives two
+    // distinct values, if any, fails the fold.
     std::optional<int64_t> conflict;
     auto conflictError = [&]() {
       return builder.emitError()
@@ -462,8 +463,8 @@ static FailureOr<Value> implementAssignLayoutStep(
           static_cast<size_t>(numTargetElements) * byteWidth, 0);
 
       std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
-      forEachPoint(rel, [&](ArrayRef<int64_t> domainPoint,
-                            ArrayRef<int64_t> rangePoint) {
+      forEachPointUnordered(rel, [&](ArrayRef<int64_t> domainPoint,
+                                     ArrayRef<int64_t> rangePoint) {
         int64_t dstFlat = flatten(rangePoint, dstStrides);
         if (conflict || dstFlat < 0 || dstFlat >= numTargetElements) return;
         int64_t srcFlat = srcIsSplat ? 0 : flatten(domainPoint, srcStrides);
@@ -511,7 +512,7 @@ static FailureOr<Value> implementAssignLayoutStep(
         srcIsSplat ? constantAttr.getSplatValue<Attribute>() : Attribute();
     auto srcValues = constantAttr.getValues<Attribute>();
     std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
-    forEachPoint(
+    forEachPointUnordered(
         rel, [&](ArrayRef<int64_t> domainPoint, ArrayRef<int64_t> rangePoint) {
           int64_t dstFlat = flatten(rangePoint, dstStrides);
           if (conflict || dstFlat < 0 || dstFlat >= numTargetElements) return;
