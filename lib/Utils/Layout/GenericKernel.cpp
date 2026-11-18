@@ -469,11 +469,39 @@ FailureOr<IntegerRelation> inferInducedOutputLayout(
     isl_map_free(*inputAccess);
     return fail("the indexing maps are not affine");
   }
-  // o -> (ct, slot): every output element lands where the input element read
-  // in the same iteration lives.
-  isl_map* induced =
-      isl_map_apply_domain(*inputAccess, toIslMap(*outputIndex, ctx));
-  if (reduceToLexmin) induced = isl_map_lexmin(induced);
+  isl_map* induced;
+  if (!reduceToLexmin) {
+    // o -> (ct, slot): every output element lands where the input element
+    // read in the same iteration lives.
+    induced = isl_map_apply_domain(*inputAccess, toIslMap(*outputIndex, ctx));
+  } else {
+    isl_map_free(*inputAccess);
+    // Detecting equalities and removing redundancies turns existential
+    // variables into explicit divisions where possible; isl_map_lexmin
+    // otherwise computes them by sampling.
+    auto simplify = [](__isl_take isl_map* map) {
+      return isl_map_coalesce(
+          isl_map_remove_redundancies(isl_map_detect_equalities(map)));
+    };
+    // The smallest position among those of all elements an output reads is
+    // the smallest among their first positions, so only the first replica of
+    // each element enters the lexmin. The loops stay in the range, o -> (ct,
+    // slot, d), so the lexmin has no existential variables for them; the
+    // smallest (ct, slot, d) has the smallest (ct, slot), and projecting out
+    // d leaves it.
+    // Composing by isl_map_apply_range eliminates the input element and
+    // derives the divisions of `access` afresh; a preimage keeps those of the
+    // lexmin result, whose large multipliers made the second lexmin run for
+    // minutes.
+    isl_map* first = isl_map_lexmin(simplify(toIslMap(inputLayout, ctx)));
+    isl_map* access = isl_map_apply_range(toIslMap(*inputIndex, ctx), first);
+    isl_map* loops = isl_map_identity(
+        isl_space_map_from_set(isl_space_domain(isl_map_get_space(access))));
+    isl_map* withLoops = isl_map_apply_domain(
+        isl_map_flat_range_product(access, loops), toIslMap(*outputIndex, ctx));
+    induced = isl_map_project_out(isl_map_lexmin(simplify(withLoops)),
+                                  isl_dim_out, 2, loopRanges.size());
+  }
   isl_set* domain =
       getElementsWithPlacedPartner(*outputIndex, *inputIndex, inputLayout, ctx);
   return toLayoutRelation(ctx, isl_map_coalesce(induced), domain, outputShape,
