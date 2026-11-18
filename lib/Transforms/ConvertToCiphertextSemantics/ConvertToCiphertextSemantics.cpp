@@ -2941,7 +2941,7 @@ class ConvertTensorExtractSlice
 
     setMaterializedAttr(remapAndExtract);
     setAttributeAssociatedWith(remapAndExtract->getResult(0), kLayoutAttrName,
-                               sliceLayoutAttr);
+                               resultLayout);
     rewriter.replaceOp(op, remapAndExtract->getResult(0));
     return success();
   }
