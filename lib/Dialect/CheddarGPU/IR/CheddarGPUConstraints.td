@@ -165,15 +165,27 @@ def CheddarGPU_InSplitAttr : ConfinedAttr<DenseI64ArrayAttr,
 // Native Traits
 //===----------------------------------------------------------------------===//
 
-def CheddarGPU_LimbRangesWithin : NativeOpTrait<"LimbRangesWithin"> {
+def CheddarGPU_NumAuxWithinOut : NativeOpTrait<"NumAuxWithinOut"> {
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 }
 
-def CheddarGPU_LimbRangesWithinDest : NativeOpTrait<"LimbRangesWithin"> {
-  let cppNamespace = "::mlir::heir::cheddar_gpu";
-}
-
-def CheddarGPU_InOutLimbRangesWithin : NativeOpTrait<"InOutLimbRangesWithin"> {
+// Verifies that each listed `[offset, count]` limb range fits within dim 0 of
+// each listed operand (and within the module's prime chain), and that limb
+// ranges are not applied to tensor operands.
+//
+// `checks` is a C++ braced-init-list of `{attrName, range, {operands...}}`
+// entries, evaluated inside the concrete op class (so ODS accessors work).
+class CheddarGPU_LimbRanges<code checks>
+    : NativeOpTrait<"LimbRangesWithin", /*traits=*/[],
+        /*extraOpDeclaration=*/[{
+          ::llvm::SmallVector<::mlir::heir::cheddar_gpu::LimbRangeCheck>
+          getLimbRangeChecks();
+        }],
+        /*extraOpDefinition=*/!strconcat(
+          "::llvm::SmallVector<::mlir::heir::cheddar_gpu::LimbRangeCheck> ",
+          "$cppClass::getLimbRangeChecks() { return ",
+          checks,
+          "; }")> {
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 }
 

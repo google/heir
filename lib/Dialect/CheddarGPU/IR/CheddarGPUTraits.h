@@ -5,41 +5,64 @@
 #include <optional>
 
 #include "llvm/include/llvm/ADT/ArrayRef.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir::heir::cheddar_gpu {
 
-LogicalResult verifyLimbRangesWithin(Operation* op);
+struct LimbRangeCheck {
+  StringRef attrName;
+  std::optional<ArrayRef<int64_t>> range;
+  SmallVector<Value, 3> operands;
+};
 
-// Verifies that operand-specific limb ranges (out_limb_range, in_limb_range,
-// lhs_limb_range, rhs_limb_range) are within bounds of their corresponding
-// operand's limb dimension (dim 0). Also verifies num_aux against operand 0.
+LogicalResult verifyLimbRange(Operation* op,
+                              std::optional<ArrayRef<int64_t>> range,
+                              int64_t numLimbs);
+
+LogicalResult verifyLimbRange(Operation* op,
+                              std::optional<ArrayRef<int64_t>> range,
+                              Value operand, StringRef attrName = "");
+
+LogicalResult verifyNumAux(Operation* op, std::optional<int64_t> numAux,
+                           int64_t numLimbs);
+
 template <typename ConcreteType>
 class LimbRangesWithin
     : public OpTrait::TraitBase<ConcreteType, LimbRangesWithin> {
  public:
   static LogicalResult verifyTrait(Operation* op) {
-    return verifyLimbRangesWithin(op);
+    for (const LimbRangeCheck& c :
+         ::llvm::cast<ConcreteType>(op).getLimbRangeChecks()) {
+      for (Value v : c.operands) {
+        if (failed(verifyLimbRange(op, c.range, v, c.attrName)))
+          return failure();
+      }
+    }
+    return success();
   }
 };
 
 template <typename ConcreteType>
-using LimbRangesWithinDest = LimbRangesWithin<ConcreteType>;
-
-inline LogicalResult verifyLimbRangesWithinDest(Operation* op) {
-  return verifyLimbRangesWithin(op);
-}
-
-template <typename ConcreteType>
-using InOutLimbRangesWithin = LimbRangesWithin<ConcreteType>;
-
-inline LogicalResult verifyInOutLimbRangesWithin(Operation* op) {
-  return verifyLimbRangesWithin(op);
-}
+class NumAuxWithinOut
+    : public OpTrait::TraitBase<ConcreteType, NumAuxWithinOut> {
+ public:
+  static LogicalResult verifyTrait(Operation* op) {
+    if (auto numAuxAttr = op->getAttrOfType<IntegerAttr>("num_aux")) {
+      auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
+      if (outType && outType.getRank() >= 1) {
+        return verifyNumAux(op, numAuxAttr.getInt(), outType.getDimSize(0));
+      }
+    }
+    return success();
+  }
+};
 
 LogicalResult verifyInOutCountsMatch(Operation* op);
 

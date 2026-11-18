@@ -18,8 +18,6 @@
 
 namespace mlir::heir::cheddar_gpu {
 
-namespace {
-
 LogicalResult verifyLimbRange(Operation* op,
                               std::optional<ArrayRef<int64_t>> range,
                               int64_t numLimbs) {
@@ -46,6 +44,15 @@ LogicalResult verifyLimbRange(Operation* op,
   return success();
 }
 
+LogicalResult verifyLimbRange(Operation* op,
+                              std::optional<ArrayRef<int64_t>> range,
+                              Value operand, StringRef /*attrName*/) {
+  if (!range) return success();
+  auto memrefType = ::llvm::dyn_cast<MemRefType>(operand.getType());
+  if (!memrefType || memrefType.getRank() < 1) return success();
+  return verifyLimbRange(op, range, memrefType.getDimSize(0));
+}
+
 LogicalResult verifyNumAux(Operation* op, std::optional<int64_t> numAux,
                            int64_t numLimbs) {
   if (numAux) {
@@ -55,39 +62,6 @@ LogicalResult verifyNumAux(Operation* op, std::optional<int64_t> numAux,
              << numLimbs << "], but got " << *numAux;
     }
   }
-  return success();
-}
-
-}  // namespace
-
-LogicalResult verifyLimbRangesWithin(Operation* op) {
-  if (op->getNumOperands() == 0) return success();
-
-  auto checkRange = [&](unsigned opIdx, StringRef attrName) -> LogicalResult {
-    if (opIdx >= op->getNumOperands()) return success();
-    auto type = ::llvm::dyn_cast<MemRefType>(op->getOperand(opIdx).getType());
-    if (!type || type.getRank() < 1) return success();
-    if (auto range = op->getAttrOfType<DenseI64ArrayAttr>(attrName))
-      return verifyLimbRange(op, range.asArrayRef(), type.getDimSize(0));
-    return success();
-  };
-
-  if (failed(checkRange(0, "out_limb_range"))) return failure();
-  if (failed(checkRange(1, "lhs_limb_range"))) return failure();
-  if (failed(checkRange(2, "lhs_limb_range"))) return failure();
-  if (failed(checkRange(1, "in_limb_range"))) return failure();
-  if (failed(checkRange(2, "in_limb_range"))) return failure();
-  if (failed(checkRange(2, "rhs_limb_range"))) return failure();
-  if (failed(checkRange(4, "rhs_limb_range"))) return failure();
-
-  if (auto numAuxAttr = op->getAttrOfType<IntegerAttr>("num_aux")) {
-    auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
-    if (outType && outType.getRank() >= 1) {
-      if (failed(verifyNumAux(op, numAuxAttr.getInt(), outType.getDimSize(0))))
-        return failure();
-    }
-  }
-
   return success();
 }
 

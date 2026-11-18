@@ -121,7 +121,12 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
                               bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "lhs", "rhs"]>,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{ {
+          {"out_limb_range", getOutLimbRange(), {getOut()}},
+          {"lhs_limb_range", getLhsLimbRange(), {getLhs()}},
+          {"rhs_limb_range", getRhsLimbRange(), {getRhs()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins
@@ -148,7 +153,11 @@ class CheddarGPU_UnaryOpBase<string mnemonic, dag extraAttrs = (ins),
                              bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{ {
+          {"out_limb_range", getOutLimbRange(), {getOut()}},
+          {"in_limb_range",  getInLimbRange(),  {getIn()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins
@@ -179,7 +188,11 @@ class CheddarGPU_ConstOpBase<
     bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOut()}},
+          {"in_limb_range",  getInLimbRange(),  {getIn()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins
@@ -199,7 +212,12 @@ class CheddarGPU_ConstOpBase<
 class CheddarGPU_PairBinaryOpBase<string mnemonic, list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out_bx", "out_ax", "lhs_bx", "lhs_ax", "rhs_bx", "rhs_ax"]>,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOutBx(), getOutAx()}},
+          {"lhs_limb_range", getLhsLimbRange(), {getLhsBx(), getLhsAx()}},
+          {"rhs_limb_range", getRhsLimbRange(), {getRhsBx(), getRhsAx()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins
@@ -228,7 +246,11 @@ class CheddarGPU_PairUnaryOpBase<string mnemonic, dag extraAttrs = (ins), list<T
                                  bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out_bx", "out_ax", "in_bx", "in_ax"]>,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOutBx(), getOutAx()}},
+          {"in_limb_range",  getInLimbRange(),  {getInBx(), getInAx()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins
@@ -255,7 +277,9 @@ class CheddarGPU_TensorOpBase<string mnemonic, dag srcOperands,
                               list<string> matchedTypes, list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<!listconcat(["out_bx", "out_ax", "out_rx"], matchedTypes)>,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOutBx(), getOutAx(), getOutRx()}},
+        } }]>
       ], traits)> {
   let arguments = !con(
     (ins
@@ -273,7 +297,10 @@ class CheddarGPU_AccumOpBase<string mnemonic, dag inOperands, dag accumAttrs,
                              list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AttrSizedOperandSegments,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOut()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out),
@@ -286,7 +313,10 @@ class CheddarGPU_PairAccumOpBase<string mnemonic, dag inOperands, dag accumAttrs
                                  list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AttrSizedOperandSegments,
-        CheddarGPU_LimbRangesWithin
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOutBx(), getOutAx()}},
+        } }]>,
+        CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
     (ins
@@ -305,7 +335,10 @@ class CheddarGPU_PairAccumOpBase<string mnemonic, dag inOperands, dag accumAttrs
 def CheddarGPU_CopyOp : CheddarGPU_Op<"copy", [
     AllElementTypesMatch<["out", "in"]>,
     CheddarGPU_SameDegree<["out", "in"]>,
-    CheddarGPU_LimbRangesWithin,
+    CheddarGPU_LimbRanges<[{{
+      {"out_limb_range", getOutLimbRange(), {getOut()}},
+      {"in_limb_range",  getInLimbRange(),  {getIn()}},
+    } }]>,
     CheddarGPU_InOutCountsMatch
 ]> {
   let summary = "Pointwise copy of a polynomial buffer or slice";
@@ -804,7 +837,10 @@ defvar CheddarGPU_NTTCommonAttrs = (ins
 class CheddarGPU_NTTOpBase<string mnemonic, list<Trait> traits = []>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "in"]>,
-        CheddarGPU_LimbRangesWithin,
+        CheddarGPU_LimbRanges<[{{
+          {"out_limb_range", getOutLimbRange(), {getOut()}},
+          {"in_limb_range",  getInLimbRange(),  {getIn()}},
+        } }]>,
         CheddarGPU_NTTPrimeCounts,
       ], traits)>;
 
