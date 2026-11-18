@@ -68,7 +68,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;p>&lt;em>Addition operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.add` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
@@ -109,7 +109,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
@@ -150,7 +150,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;p>&lt;em>Lower the modulus level of the ciphertext via dropping RNS limbs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.level_reduce` operands prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
@@ -359,7 +359,7 @@ encrypted against. A ciphertext is canonically encrypted against key basis
 &lt;code>(1, s)&lt;/code>. After a multiplication, its size will increase and the basis will be
 &lt;code>(1, s, s^2)&lt;/code>. The array that represents the key basis is constructed by
 listing the powers of &lt;code>s&lt;/code> at each position of the array. For example, &lt;code>(1, s, s^2)&lt;/code> corresponds to &lt;code>[0, 1, 2]&lt;/code>, while &lt;code>(1, s^2)&lt;/code> corresponds to &lt;code>[0, 2]&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
@@ -506,7 +506,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
@@ -547,7 +547,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
@@ -4170,7 +4170,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Modular addition is valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain.&lt;/li>
 &lt;li>Both operands must have matching form (&lt;code>lhs_form == rhs_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4215,7 +4215,7 @@ prop-dict attr-dict `:` type($out_bx)
 &lt;code>kernel::Sum&amp;lt;word, 2&amp;gt;&lt;/code> in &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>out_bx = lhs_bx + rhs_bx mod Q&lt;/code> and &lt;code>out_ax = lhs_ax + rhs_ax mod Q&lt;/code>
 limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4273,7 +4273,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;ul>
 &lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4311,7 +4311,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cheddar_gpu.copy` operands prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Copies elements from &lt;code>in&lt;/code> to &lt;code>out&lt;/code>.
 Supports optional &lt;code>in_limb_range&lt;/code> and &lt;code>out_limb_range&lt;/code> [start, count].&lt;/p>
-&lt;p>Traits: &lt;code>CheddarGPU_InOutCountsMatch&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_InOutCountsMatch&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4350,7 +4350,7 @@ Computes &lt;code>out = sum_k MultMontgomery(ct_srcs[k], common_srcs[k])&lt;/cod
 &lt;ul>
 &lt;li>Montgomery pointwise multiplication requires &lt;code>eval&lt;/code> form for all operands.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4390,7 +4390,7 @@ Computes &lt;code>out = sum_k MultMontgomery(ct_srcs[k], common_srcs[k])&lt;/cod
 &lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>CPAccum&amp;lt;word,2,...&amp;gt;&lt;/code> / &lt;code>PAccum&lt;/code> in &lt;code>Context.cpp&lt;/code> / &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>{out_bx, out_ax} = sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])&lt;/code> over &lt;code>k &amp;lt; K&lt;/code> (K &amp;lt;= 4),
 reading each &lt;code>common[k]&lt;/code> (mod-up digit) once for both outputs.&lt;/p>
-&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4440,7 +4440,7 @@ Computes &lt;code>out = acc + sum_k MultMontgomery(ct_srcs[k], common_srcs[k])&l
 &lt;ul>
 &lt;li>Montgomery pointwise multiplication requires &lt;code>eval&lt;/code> form for all operands.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4483,7 +4483,7 @@ Computes &lt;code>out = acc + sum_k MultMontgomery(ct_srcs[k], common_srcs[k])&l
 `common_srcs` `(` $common_srcs `)` prop-dict attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>CPAccumAdd&amp;lt;L,2&amp;gt;&lt;/code> / &lt;code>CAccum&lt;/code> in &lt;code>Context.cpp&lt;/code> / &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>{out_bx, out_ax} = {acc_bx, acc_ax} + sum_k MontMul({ct_bx[k], ct_ax[k]}, common[k])&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4553,7 +4553,7 @@ constant &lt;code>cst&lt;/code>. &lt;code>out&lt;/code> is in &lt;code>coeff&lt;
 limbs of &lt;code>Q&lt;/code> the active limbs are reduced by. If &lt;code>in_split = [split_count, extra_limbs]&lt;/code> is set, the first &lt;code>split_count&lt;/code> active limbs are
 read contiguously from &lt;code>in&lt;/code>, and the remaining limbs are read after skipping
 &lt;code>extra_limbs&lt;/code> limbs of &lt;code>in&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>, &lt;code>CheddarGPU_NTTPrimeCounts&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NTTPrimeCounts&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4600,7 +4600,7 @@ Computes the Montgomery form multiplication of &lt;code>lhs&lt;/code> and &lt;co
 &lt;code>(a * R) * (b * R) * R^-1 = (a * b) * R mod Q&lt;/code>.&lt;/li>
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4643,7 +4643,7 @@ limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>Chedd
 &lt;ul>
 &lt;li>&lt;code>in&lt;/code> and &lt;code>out&lt;/code> are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4686,7 +4686,7 @@ first half by &lt;code>psi^(N/2)&lt;/code> and second half by &lt;code>-psi^(N/2
 &lt;ul>
 &lt;li>&lt;code>in&lt;/code> and &lt;code>out&lt;/code> are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4728,7 +4728,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain.&lt;/li>
 &lt;li>Preserves representation form (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-12">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4767,7 +4767,7 @@ prop-dict attr-dict `:` type($out_bx)
 &lt;code>kernel::Neg&amp;lt;word, 2&amp;gt;&lt;/code> in &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>out_bx = -in_bx mod Q&lt;/code> and &lt;code>out_ax = -in_ax mod Q&lt;/code> limb-wise, where
 the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-13">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4823,7 +4823,7 @@ limbs of &lt;code>Q&lt;/code> the active limbs are reduced by.&lt;/li>
 transformed. If &lt;code>skip_copy_src&lt;/code> is also set, those limbs are instead copied
 verbatim from &lt;code>skip_copy_src&lt;/code>, starting at its limb &lt;code>skip_copy_in_offset&lt;/code>.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>, &lt;code>CheddarGPU_NTTPrimeCounts&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NTTPrimeCounts&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-14">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4874,7 +4874,7 @@ to compute a Galois automorphism on a polynomial.&lt;/p>
 &lt;li>Requires &lt;code>eval&lt;/code> form for ciphertext operands.&lt;/li>
 &lt;li>in-place permutation is not supported.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-15">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4913,7 +4913,7 @@ prop-dict attr-dict `:` type($out_bx)
 &lt;p>Computes eval-form Galois automorphism on both bx and ax simultaneously.&lt;/p>
 &lt;p>Note in-place permutation is not supported, so all operand buffers
 must be distinct.&lt;/p>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-16">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4961,7 +4961,7 @@ Computes &lt;code>out = (acc +) sum_k permute(srcs[k], galois_factors[k])&lt;/co
 &lt;ul>
 &lt;li>Requires &lt;code>eval&lt;/code> form for all operands.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-17">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5001,7 +5001,7 @@ Computes &lt;code>out = (acc +) sum_k permute(srcs[k], galois_factors[k])&lt;/co
 `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>PermuteAccum&lt;/code> for 2 polynomials in &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>{out_bx, out_ax} = ({acc_bx, acc_ax} +) sum_k permute({srcs_bx[k], srcs_ax[k]}, galois_factors[k])&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AttrSizedOperandSegments&lt;/code>, &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-18">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5057,7 +5057,7 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Modular subtraction is valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain.&lt;/li>
 &lt;li>Both operands must have matching form (&lt;code>lhs_form == rhs_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-19">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5102,7 +5102,7 @@ prop-dict attr-dict `:` type($out_bx)
 &lt;code>kernel::Sub&amp;lt;word, 2&amp;gt;&lt;/code> in &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>out_bx = lhs_bx - rhs_bx mod Q&lt;/code> and &lt;code>out_ax = lhs_ax - rhs_ax mod Q&lt;/code>
 limb-wise, where the limbs of &lt;code>Q&lt;/code> are defined in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-20">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5160,7 +5160,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;ul>
 &lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-21">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5203,7 +5203,7 @@ of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;ul>
 &lt;li>Valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain (&lt;code>in_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-22">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5248,7 +5248,7 @@ Multiplies two degree-1 ciphertexts (b1, a1) and (b2, a2) into a degree-2 cipher
 &lt;ul>
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-23">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5305,7 +5305,7 @@ Squares degree-1 ciphertext (b1, a1) into degree-2 ciphertext (b1^2, 2&lt;em>b1&
 &lt;ul>
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-24">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -5476,7 +5476,7 @@ rescaling to achieve intermediate widths of rescaling.&lt;/p>
 &lt;p>&lt;em>Addition operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.add` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
@@ -5517,7 +5517,7 @@ rescaling to achieve intermediate widths of rescaling.&lt;/p>
 &lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.add_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
@@ -5602,7 +5602,7 @@ and refresh its parameters, allowing for further computations on the ciphertext.
 &lt;p>&lt;em>Lower the modulus level of the ciphertext via dropping RNS limbs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.level_reduce` operands prop-dict attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>ReducesLevelOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
@@ -5904,7 +5904,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.sub` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
@@ -5945,7 +5945,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.sub_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
@@ -12466,14 +12466,18 @@ of the polynomials contain the integers, with the same semantics as
 &lt;p>&lt;em>An encoding of a scalar in the constant coefficient&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#lwe.constant_coefficient_encoding&amp;lt;
-int64_t # scaling_factor
+int64_t, # scaling_factor
+unsigned # plaintext_bits
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>An encoding of a single scalar into the constant coefficient of the plaintext.&lt;/p>
 &lt;p>All other coefficients of the plaintext are set to be zero. This encoding is
 used to encode scalar LWE ciphertexts where the plaintext space is viewed
 as a polynomial ring modulo &lt;code>x&lt;/code>.&lt;/p>
+&lt;p>For scalar LWE (CGGI) ciphertexts, &lt;code>plaintext_bits&lt;/code> optionally records the
+plaintext bit width (with &lt;code>0&lt;/code> meaning unset).&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.constant_coefficient_encoding&amp;lt;scaling_factor=10000&amp;gt;
+#cggi_encoding = #lwe.constant_coefficient_encoding&amp;lt;scaling_factor=268435456, plaintext_bits=4&amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -12488,6 +12492,11 @@ as a polynomial ring modulo &lt;code>x&lt;/code>.&lt;/p>
 &lt;td style="text-align:center">scaling_factor&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
 &lt;td>The factor by which each cleartext scalar is multiplied before being rounded to the nearest integer and encoded.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">plaintext_bits&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>plaintext bit width for scalar LWE (CGGI); 0 = unset&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12669,21 +12678,18 @@ will never overflow beyond the message type.&lt;/p>
 ::mlir::heir::polynomial::RingAttr, # ring
 Attribute # encoding
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;p>An attribute describing the plaintext space and the transformation from
-application data to plaintext space of an FHE scheme.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>An attribute describing the plaintext space and encoding of an
+&lt;code>!lwe.lwe_plaintext&lt;/code> value.&lt;/p>
 &lt;p>The plaintext space information is the ring structure, which contains the
 plaintext modulus $t$, which may be a power of two in the case of CGGI
-ciphertexts, or a prime power for RLWE. LWE ciphertexts use the
-ideal polynomial of degree 1 $x$. The plaintext modulus used in LWE-based
+plaintexts, or a prime power for RLWE. Scalar LWE plaintexts use the
+ideal polynomial of degree 1, $x$. The plaintext modulus used in LWE-based
 CGGI plaintexts describes the full message space $\mathbb{Z}_p$ including
 the padding bits.&lt;/p>
-&lt;p>For RLWE schemes, this will include the type of encoding of application data
-integers to a plaintext space &lt;code>Z_p[X]/X^N + 1&lt;/code>. This may be a constant
-coefficient encoding, CRT-based packing for SIMD semantics, or other slot
-packing. When using full CRT packing, the ring must split into linear
-factors. The CKKS scheme will also include attributes describing the complex
-encoding, including the scaling factor, which will change after
-multiplication and rescaling.&lt;/p>
+&lt;p>For RLWE schemes, this includes the encoding of application data to a
+plaintext space &lt;code>Z_p[X]/X^N + 1&lt;/code>, such as constant coefficient encoding,
+CRT-based packing for SIMD semantics, or CKKS inverse canonical encoding.
+When using full CRT packing, the ring must split into linear factors.&lt;/p>
 &lt;h4 id="parameters-7">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -12717,15 +12723,15 @@ may overflow beyond the message type.&lt;/p>
 &lt;p>&lt;em>A ciphertext type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!lwe.lwe_ciphertext&amp;lt;
-PlaintextSpaceAttr, # plaintext_space
+Attribute, # encoding
 CiphertextSpaceAttr, # ciphertext_space
 KeyAttr, # key
 ModulusChainAttr # modulus_chain
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;p>An LWE ciphertext will always contain the plaintext space, ciphertext space,
-and key information.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>An LWE ciphertext will always contain the plaintext encoding, ciphertext
+space, and key information.&lt;/p>
 &lt;p>A modulus chain is optionally specified for parameter choices in RLWE
-schemes that use more than one of modulus. When no modulus chain is
+schemes that use more than one modulus. When no modulus chain is
 specified, the ciphertext modulus is always the ciphertext ring&amp;rsquo;s
 coefficient modulus.&lt;/p>
 &lt;h4 id="parameters-8">Parameters:&lt;/h4>
@@ -12739,9 +12745,9 @@ coefficient modulus.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">plaintext_space&lt;/td>
-&lt;td style="text-align:center">&lt;code>PlaintextSpaceAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td style="text-align:center">encoding&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>An encoding of a scalar in the constant coefficient or An encoding of cleartexts directly as coefficients. or An encoding of cleartexts via the inverse canonical embedding. or An encoding of cleartexts via CRT slots.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">ciphertext_space&lt;/td>
@@ -13333,7 +13339,7 @@ an encryption of round(Q&amp;rsquo; / Q * x).&lt;/p>
 &lt;p>&lt;em>Add two RLWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.radd` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
@@ -13374,7 +13380,7 @@ an encryption of round(Q&amp;rsquo; / Q * x).&lt;/p>
 &lt;p>&lt;em>Addition between RLWE ciphertext-plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.radd_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
@@ -13721,7 +13727,7 @@ back to the top level of the modulus chain.&lt;/p>
 &lt;p>&lt;em>Subtract two RLWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rsub` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-19">Operands:&lt;/h4>
@@ -13762,7 +13768,7 @@ back to the top level of the modulus chain.&lt;/p>
 &lt;p>&lt;em>Subtraction between RLWE ciphertext-plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rsub_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultEncodings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-20">Operands:&lt;/h4>
