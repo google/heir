@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -421,10 +422,6 @@ static FailureOr<Value> implementAssignLayoutStep(
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
     int64_t numTargetElements = targetType.getNumElements();
 
-    PointPairCollector collector(dataSemanticType.getRank(),
-                                 /*rangeDims=*/targetType.getRank());
-    enumeratePoints(rel, collector);
-
     // Row-major strides let us flatten a multi-dimensional point with plain
     // integer math, avoiding per-element getFlattenedIndex() interface lookups
     auto rowMajorStrides = [](ArrayRef<int64_t> shape) {
@@ -442,6 +439,16 @@ static FailureOr<Value> implementAssignLayoutStep(
       return flat;
     };
     bool srcIsSplat = isDenseConstant && constantAttr.isSplat();
+    // The points are packed as they are scanned rather than collected first,
+    // since a packed filter can have hundreds of millions of them. The first
+    // slot that receives two distinct values, if any, fails the fold.
+    std::optional<int64_t> conflict;
+    auto conflictError = [&]() {
+      return builder.emitError()
+             << "layout maps two distinct data values to the same slot "
+             << *conflict << "; a non-replicated value cannot be packed "
+             << "into this (non-injective) layout";
+    };
 
     // Fast path: for byte-aligned int/float element types, pack directly into a
     // raw byte buffer rather than building an N-element SmallVector<Attribute>
@@ -455,25 +462,25 @@ static FailureOr<Value> implementAssignLayoutStep(
           static_cast<size_t>(numTargetElements) * byteWidth, 0);
 
       std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
-      for (const auto& [domainPoint, rangePoint] : collector.points) {
+      forEachPoint(rel, [&](ArrayRef<int64_t> domainPoint,
+                            ArrayRef<int64_t> rangePoint) {
         int64_t dstFlat = flatten(rangePoint, dstStrides);
-        if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
+        if (conflict || dstFlat < 0 || dstFlat >= numTargetElements) return;
         int64_t srcFlat = srcIsSplat ? 0 : flatten(domainPoint, srcStrides);
         if (!srcIsSplat && written[dstFlat] &&
             std::memcmp(
                 rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
                 srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
                 byteWidth) != 0) {
-          return builder.emitError()
-                 << "layout maps two distinct data values to the same slot "
-                 << dstFlat << "; a non-replicated value cannot be packed "
-                 << "into this (non-injective) layout";
+          conflict = dstFlat;
+          return;
         }
         if (!srcIsSplat) written[dstFlat] = true;
         std::memcpy(rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
                     srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
                     byteWidth);
-      }
+      });
+      if (conflict) return conflictError();
 
       TypedAttr packedConstantAttr;
       ArrayRef<char> packedRaw(rawBuffer.data(), rawBuffer.size());
@@ -504,21 +511,21 @@ static FailureOr<Value> implementAssignLayoutStep(
         srcIsSplat ? constantAttr.getSplatValue<Attribute>() : Attribute();
     auto srcValues = constantAttr.getValues<Attribute>();
     std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
-    for (const auto& [domainPoint, rangePoint] : collector.points) {
-      int64_t dstFlat = flatten(rangePoint, dstStrides);
-      if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
-      Attribute val = srcIsSplat ? splatValue
-                                 : srcValues[static_cast<size_t>(
-                                       flatten(domainPoint, srcStrides))];
-      if (!srcIsSplat && written[dstFlat] && packedValues[dstFlat] != val) {
-        return builder.emitError()
-               << "layout maps two distinct data values to the same slot "
-               << dstFlat << "; a non-replicated value cannot be packed "
-               << "into this (non-injective) layout";
-      }
-      if (!srcIsSplat) written[dstFlat] = true;
-      packedValues[dstFlat] = val;
-    }
+    forEachPoint(
+        rel, [&](ArrayRef<int64_t> domainPoint, ArrayRef<int64_t> rangePoint) {
+          int64_t dstFlat = flatten(rangePoint, dstStrides);
+          if (conflict || dstFlat < 0 || dstFlat >= numTargetElements) return;
+          Attribute val = srcIsSplat ? splatValue
+                                     : srcValues[static_cast<size_t>(
+                                           flatten(domainPoint, srcStrides))];
+          if (!srcIsSplat && written[dstFlat] && packedValues[dstFlat] != val) {
+            conflict = dstFlat;
+            return;
+          }
+          if (!srcIsSplat) written[dstFlat] = true;
+          packedValues[dstFlat] = val;
+        });
+    if (conflict) return conflictError();
 
     auto packedConstantAttr =
         DenseElementsAttr::get(targetType, ArrayRef<Attribute>(packedValues));
