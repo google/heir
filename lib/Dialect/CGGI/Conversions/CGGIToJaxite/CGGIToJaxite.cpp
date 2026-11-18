@@ -1,6 +1,7 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
 
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
@@ -42,10 +43,11 @@ class CGGIToJaxiteTypeConverter : public TypeConverter {
   CGGIToJaxiteTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([](lwe::LWECiphertextType type) -> Type {
-      if (type.getPlaintextSpace()
-              .getRing()
-              .getCoefficientType()
-              .getIntOrFloatBitWidth() == 3) {
+      std::optional<unsigned> width = lwe::getCGGIPlaintextBitWidth(type);
+      if (!width.has_value()) {
+        return Type();
+      }
+      if (*width == 3) {
         return type;
       }
       llvm_unreachable("Unsupported cleartext bitwidth in jaxite");

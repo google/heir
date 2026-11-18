@@ -73,18 +73,25 @@ LogicalResult RMulRingEltOp::verify() {
 }
 
 LogicalResult TrivialEncryptOp::verify() {
-  auto plaintextSpace =
+  auto ptSpace =
       cast<LWEPlaintextType>(getElementTypeOrSelf(this->getInput().getType()))
           .getPlaintextSpace();
-  auto outPlaintextSpace =
-      cast<LWECiphertextType>(getElementTypeOrSelf(this->getOutput().getType()))
-          .getPlaintextSpace();
+  auto outCt = cast<LWECiphertextType>(
+      getElementTypeOrSelf(this->getOutput().getType()));
+  auto outEncoding = outCt.getEncoding();
 
-  if (plaintextSpace != outPlaintextSpace) {
-    return this->emitOpError()
-           << "plaintext space of the input and output must match, but "
-           << "found input attr " << plaintextSpace << " and output attr "
-           << outPlaintextSpace;
+  if (auto ccEncoding = dyn_cast<ConstantCoefficientEncodingAttr>(outEncoding);
+      ccEncoding && ccEncoding.getPlaintextBits() != 0) {
+    if (auto integerTy =
+            dyn_cast<IntegerType>(ptSpace.getRing().getCoefficientType())) {
+      if (integerTy.getWidth() != ccEncoding.getPlaintextBits()) {
+        return this->emitOpError()
+               << "output encoding plaintext_bits ("
+               << ccEncoding.getPlaintextBits()
+               << ") must match input plaintext ring coefficient type width ("
+               << integerTy.getWidth() << ")";
+      }
+    }
   }
 
   return success();
@@ -381,8 +388,8 @@ LogicalResult ModDownOp::inferReturnTypes(
       ctx, outputRingAttr, inputCtSpaceAttr.getEncryptionType(),
       inputCtSpaceAttr.getSize());
   auto resultType = lwe::LWECiphertextType::get(
-      ctx, inputCtType.getPlaintextSpace(), outputCtSpaceAttr,
-      inputCtType.getKey(), inputCtType.getModulusChain());
+      ctx, inputCtType.getEncoding(), outputCtSpaceAttr, inputCtType.getKey(),
+      inputCtType.getModulusChain());
   results.push_back(resultType);
   return success();
 }

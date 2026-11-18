@@ -32,13 +32,13 @@
 #ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
 #ksk_ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ksk_ring_rns_L1_1_x1024_, encryption_type = lsb>
 
-!ct = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct1 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct2 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-!ct_ksk = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ksk_ciphertext_space_L1_, key = #key>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct2 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct_ksk = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ksk_ciphertext_space_L1_, key = #key>
 
-!ct_tensor = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_scalar = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_tensor = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_scalar = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 
 // CHECK: module
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {

@@ -23,7 +23,7 @@ class HasEncoding<
     "the first arg's type's encoding matches the given encoding",
     CPred<
       comparator # "(" #
-      "::llvm::cast<lwe::" # ty # ">(getElementTypeOrSelf($" # encodingHolder # ".getType())).getPlaintextSpace().getEncoding(), " #
+      "::mlir::heir::lwe::getTypeEncoding(::llvm::cast<lwe::" # ty # ">(getElementTypeOrSelf($" # encodingHolder # ".getType()))), " #
       "$" # encoding # ")"
     >
   >;
@@ -33,13 +33,14 @@ class EncodingsMatch<
   string ty1,
   string encodingHolder2,
   string ty2,
-  string comparator = "std::equal_to<>()"
+  string comparator = "::mlir::heir::lwe::areEncodingsCompatible"
 > : PredOpTrait<
     "the first arg's type's encoding matches the given encoding",
     CPred<
       comparator # "(" #
-      "::llvm::cast<lwe::" # ty1 # ">(getElementTypeOrSelf($" # encodingHolder1 # ".getType())).getPlaintextSpace().getEncoding(), " #
-      "::llvm::cast<lwe::" # ty2 # ">(getElementTypeOrSelf($" # encodingHolder2 # ".getType())).getPlaintextSpace().getEncoding())"
+      "::mlir::heir::lwe::getTypeEncoding(::llvm::cast<lwe::" # ty1 # ">(getElementTypeOrSelf($" # encodingHolder1 # ".getType()))), " #
+      "::mlir::heir::lwe::getTypeEncoding(::llvm::cast<lwe::" # ty2 # ">(getElementTypeOrSelf($" # encodingHolder2 # ".getType())))" #
+      ")"
     >
   >;
 
@@ -122,26 +123,26 @@ def LWE_AddOp : LWE_BinOp<"add", [SameOperandsAndResultType,Commutative]> {
   let summary = "Add two LWE ciphertexts";
 }
 
-def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor, Commutative]> {
+def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, SameOperandsAndResultEncodings, InferTypeOpAdaptor, Commutative]> {
   let summary = "Add two RLWE ciphertexts";
   let assemblyFormat = [{
     operands attr-dict `:` functional-type(operands, results)
   }];
 }
 
-def LWE_RAddPlainOp : LWE_CiphertextPlaintextOp<"radd_plain", [Commutative, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+def LWE_RAddPlainOp : LWE_CiphertextPlaintextOp<"radd_plain", [Commutative, SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Addition between RLWE ciphertext-plaintext";
   let hasCanonicalizer = 1;
 }
 
-def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Subtract two RLWE ciphertexts";
   let assemblyFormat = [{
     operands attr-dict `:` functional-type(operands, results)
   }];
 }
 
-def LWE_RSubPlainOp : LWE_CiphertextPlaintextOp<"rsub_plain", [SameOperandsAndResultPlaintextTypes]> {
+def LWE_RSubPlainOp : LWE_CiphertextPlaintextOp<"rsub_plain", [SameOperandsAndResultEncodings]> {
   let summary = "Subtraction between RLWE ciphertext-plaintext";
 }
 

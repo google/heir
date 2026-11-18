@@ -202,7 +202,7 @@ func.func @test_prepare_slots_too_small() -> !kernel.prepared_linear_transform<l
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
-!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // The ciphertext sits at level 0 (its chain's current); a transform
 // prepared for level 1 must be rejected.
@@ -241,7 +241,7 @@ func.func @test_input_plaintext(%arg0: tensor<1x!pt>) -> tensor<1x!pt> {
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
-!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // Each ciphertext is transformed independently, so the diagonals must fit in
 // one ciphertext's 512 slots, not in the 2 * 512 slots of the whole tensor.
@@ -263,7 +263,7 @@ func.func @test_multi_ciphertext_diagonals_too_wide(%arg0: tensor<2x!ct>) -> ten
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
-!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // A scalar ciphertext (e.g. after elementwise-to-affine) is still checked.
 func.func @test_scalar_ciphertext_diagonals_too_wide(%arg0: !ct) -> !ct {
@@ -284,7 +284,7 @@ func.func @test_scalar_ciphertext_diagonals_too_wide(%arg0: !ct) -> !ct {
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
-!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 // A prepared transform is applied per ciphertext as well.
 func.func @test_apply_multi_ciphertext_slots_too_small(%arg0: tensor<2x!ct>) -> tensor<2x!ct> {
@@ -306,7 +306,7 @@ func.func @test_apply_multi_ciphertext_slots_too_small(%arg0: tensor<2x!ct>) -> 
 !rns_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
-!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain>
 
 func.func @test_apply_scalar_ciphertext_slots_too_small(%arg0: !ct) -> !ct {
   %diagonals = arith.constant dense<1.0> : tensor<2x1024xf64>

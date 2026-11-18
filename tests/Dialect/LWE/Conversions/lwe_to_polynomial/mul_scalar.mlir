@@ -13,7 +13,7 @@
 #ring_rns_L2_x1024 = #polynomial.ring<coefficientType = !rns_L2, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_x1024, encryption_type = lsb>
 
-!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_rns_L2_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key>
+!ct_L1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1, key = #key>
 
 // CHECK: func.func @test_mul_scalar
 // CHECK-SAME: tensor<2x!poly

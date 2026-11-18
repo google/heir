@@ -40,12 +40,11 @@ std::optional<ValueRange> PackedLut3Op::getLookupTableInputs() {
   return std::nullopt;
 }
 
-static int64_t getMaxCoefficient(lwe::LWECiphertextType type) {
-  auto plaintextBitwidth = type.getPlaintextSpace()
-                               .getRing()
-                               .getCoefficientType()
-                               .getIntOrFloatBitWidth();
-  return (1 << plaintextBitwidth) - 1;
+static std::optional<int64_t> getMaxCoefficient(lwe::LWECiphertextType type) {
+  std::optional<unsigned> plaintextBitwidth =
+      lwe::getCGGIPlaintextBitWidth(type);
+  if (!plaintextBitwidth.has_value()) return std::nullopt;
+  return (1LL << *plaintextBitwidth) - 1;
 }
 
 template <typename T>
@@ -85,18 +84,20 @@ LogicalResult LutLinCombOp::verify() {
   // types.
   if (!type) return emitOpError("expected LWE ciphertext element type");
 
-  int64_t maxCoeff = getMaxCoefficient(type);
-  if (failed(verifyCoefficients(*this, getCoefficients(), maxCoeff)))
+  std::optional<int64_t> maxCoeff = getMaxCoefficient(type);
+  if (!maxCoeff.has_value()) return success();
+  if (failed(verifyCoefficients(*this, getCoefficients(), *maxCoeff)))
     return failure();
 
-  return verifyLutActiveBits(*this, getLookupTable().getValue(), maxCoeff);
+  return verifyLutActiveBits(*this, getLookupTable().getValue(), *maxCoeff);
 }
 
 LogicalResult ProgrammableBootstrapOp::verify() {
   auto type =
       cast<lwe::LWECiphertextType>(getElementTypeOrSelf(getOutput().getType()));
-  int64_t maxCoeff = getMaxCoefficient(type);
-  return verifyLutActiveBits(*this, getLookupTable().getValue(), maxCoeff);
+  std::optional<int64_t> maxCoeff = getMaxCoefficient(type);
+  if (!maxCoeff.has_value()) return success();
+  return verifyLutActiveBits(*this, getLookupTable().getValue(), *maxCoeff);
 }
 
 LogicalResult MultiLutLinCombOp::verify() {
@@ -106,12 +107,13 @@ LogicalResult MultiLutLinCombOp::verify() {
     return emitOpError("number of outputs must match number of LUTs");
 
   auto type = cast<lwe::LWECiphertextType>(getOutputs().front().getType());
-  int64_t maxCoeff = getMaxCoefficient(type);
-  if (failed(verifyCoefficients(*this, getCoefficients(), maxCoeff)))
+  std::optional<int64_t> maxCoeff = getMaxCoefficient(type);
+  if (!maxCoeff.has_value()) return success();
+  if (failed(verifyCoefficients(*this, getCoefficients(), *maxCoeff)))
     return failure();
 
   for (int64_t lut : getLookupTables()) {
-    if (failed(verifyLutActiveBits(*this, APInt(64, lut), maxCoeff)))
+    if (failed(verifyLutActiveBits(*this, APInt(64, lut), *maxCoeff)))
       return failure();
   }
 

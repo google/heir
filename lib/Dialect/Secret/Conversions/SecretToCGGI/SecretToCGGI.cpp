@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
@@ -95,22 +96,20 @@ Operation* convertWriteOpInterface(
   Type valueToStoreType = valueToStore.getType();
   return llvm::TypeSwitch<Type, Operation*>(valueToStoreType)
       // Plaintext integer into tensor
-      .Case<IntegerType>([&](auto valType) {
+      .Case<IntegerType>([&](auto valType) -> Operation* {
         auto ctTy =
             dyn_cast<lwe::LWECiphertextType>(toTensorTy.getElementType());
-        auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(),
-                                                 ctTy.getPlaintextSpace());
-
-        auto plaintextBits = ctTy.getPlaintextSpace()
-                                 .getRing()
-                                 .getCoefficientType()
-                                 .getIntOrFloatBitWidth();
+        if (!ctTy) return nullptr;
+        std::optional<unsigned> plaintextBits =
+            lwe::getCGGIPlaintextBitWidth(ctTy);
+        if (!plaintextBits.has_value()) return nullptr;
+        auto ptxtTy = lwe::getCGGIPlaintextType(ctTy);
 
         if (valType.getWidth() == 1) {
           auto ctValue = lwe::TrivialEncryptOp::create(
               b, ctTy,
               lwe::EncodeOp::create(b, op->getLoc(), ptxtTy, valueToStore,
-                                    b.getIndexAttr(plaintextBits)));
+                                    b.getIndexAttr(*plaintextBits)));
 
           return tensor::InsertOp::create(b, ctValue, toTensor, indices);
         }
@@ -131,7 +130,7 @@ Operation* convertWriteOpInterface(
         auto ctValue = lwe::TrivialEncryptOp::create(
             b, ctTy,
             lwe::EncodeOp::create(b, op->getLoc(), ptxtTy, bitValue,
-                                  b.getIndexAttr(plaintextBits)));
+                                  b.getIndexAttr(*plaintextBits)));
 
         indices.push_back(idx);
         return tensor::InsertOp::create(b, ctValue, toTensor, indices);
@@ -190,9 +189,15 @@ Operation* convertReadOpInterface(
                                         strides);
 }
 
-SmallVector<Value> encodeInputs(
+FailureOr<SmallVector<Value>> encodeInputs(
     Operation* op, ValueRange inputs,
     ContextAwareConversionPatternRewriter& rewriter) {
+  if (llvm::all_of(inputs, [](Value input) {
+        return isa<lwe::LWECiphertextType>(input.getType());
+      })) {
+    return llvm::to_vector(inputs);
+  }
+
   // Get the ciphertext type.
   lwe::LWECiphertextType ctxtTy;
   for (auto input : inputs) {
@@ -201,12 +206,16 @@ SmallVector<Value> encodeInputs(
       break;
     }
   }
+  if (!ctxtTy) return failure();
 
   // Encode any plaintexts in the inputs.
-  auto ptxtSpace = ctxtTy.getPlaintextSpace();
-  auto plaintextBits = rewriter.getIndexAttr(
-      ptxtSpace.getRing().getCoefficientType().getIntOrFloatBitWidth());
-  auto ptxtTy = lwe::LWEPlaintextType::get(rewriter.getContext(), ptxtSpace);
+  std::optional<unsigned> plaintextBitsOpt =
+      lwe::getCGGIPlaintextBitWidth(ctxtTy);
+  if (!plaintextBitsOpt.has_value()) {
+    return failure();
+  }
+  auto plaintextBits = rewriter.getIndexAttr(*plaintextBitsOpt);
+  auto ptxtTy = lwe::getCGGIPlaintextType(ctxtTy);
   return llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
     if (!isa<lwe::LWECiphertextType>(input.getType())) {
       IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
@@ -299,8 +308,13 @@ class SecretGenericOpLUTConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter& rewriter) const override {
-    SmallVector<Value> encodedInputs =
+    FailureOr<SmallVector<Value>> encodedInputsOrFailure =
         encodeInputs(op.getOperation(), inputs, rewriter);
+    if (failed(encodedInputsOrFailure)) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
+    SmallVector<Value>& encodedInputs = *encodedInputsOrFailure;
 
     // Assemble the lookup table.
     comb::TruthTableOp truthOp =
@@ -332,10 +346,15 @@ class SecretGenericOpGateConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter& rewriter) const override {
+    FailureOr<SmallVector<Value>> encodedInputs =
+        encodeInputs(op.getOperation(), inputs, rewriter);
+    if (failed(encodedInputs)) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
     return rewriter
-        .replaceOpWithNewOp<CGGIGateOp>(
-            op, outputTypes, encodeInputs(op.getOperation(), inputs, rewriter),
-            attributes)
+        .replaceOpWithNewOp<CGGIGateOp>(op, outputTypes, *encodedInputs,
+                                        attributes)
         .getOperation();
   }
 };
@@ -398,6 +417,10 @@ class SecretGenericOpTensorInsertConversion
     auto* newOp = convertWriteOpInterface(
         insertOp, {insertOp.getIndices().begin(), insertOp.getIndices().end()},
         inputs[0], toTensor, rewriter);
+    if (!newOp) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
     rewriter.replaceOp(op, newOp);
     return newOp;
   }
@@ -418,6 +441,10 @@ class SecretGenericOpTensorInsertSliceConversion
     auto* newOp = convertWriteOpInterface(
         insertOp, {insertOp.getOffsets().begin(), insertOp.getOffsets().end()},
         inputs[0], toTensor, rewriter);
+    if (!newOp) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
     rewriter.replaceOp(op, newOp);
     return newOp;
   }
@@ -568,8 +595,14 @@ struct ConvertSecretConcealOp
                                       ->getContextualAttr(op.getResult())
                                       .value_or(nullptr));
     auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(convertedTy));
-    auto ptxtTy =
-        lwe::LWEPlaintextType::get(b.getContext(), ctTy.getPlaintextSpace());
+    std::optional<unsigned> plaintextBitsOpt =
+        lwe::getCGGIPlaintextBitWidth(ctTy);
+    if (!plaintextBitsOpt.has_value()) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
+    unsigned plaintextBits = *plaintextBitsOpt;
+    auto ptxtTy = lwe::getCGGIPlaintextType(ctTy);
 
     Value valueToStore = adaptor.getCleartext();
     Value resultValue;
@@ -578,11 +611,6 @@ struct ConvertSecretConcealOp
         [&](TypedValue<IntegerType> value) -> SmallVector<Value> {
       auto valueType = value.getType();
       if (valueType.getWidth() == 1) {
-        auto plaintextBits = ctTy.getPlaintextSpace()
-                                 .getRing()
-                                 .getCoefficientType()
-                                 .getIntOrFloatBitWidth();
-
         return {lwe::TrivialEncryptOp::create(
             b, b.getLoc(), ctTy,
             lwe::EncodeOp::create(b, b.getLoc(), ptxtTy, value,
@@ -598,11 +626,6 @@ struct ConvertSecretConcealOp
         auto andOp = arith::AndIOp::create(b, value, bitMask);
         auto shifted = arith::ShRSIOp::create(b, andOp, shiftAmount);
         auto bitValue = arith::TruncIOp::create(b, b.getI1Type(), shifted);
-
-        auto plaintextBits = ctTy.getPlaintextSpace()
-                                 .getRing()
-                                 .getCoefficientType()
-                                 .getIntOrFloatBitWidth();
 
         auto ctValue = lwe::TrivialEncryptOp::create(
             b, b.getLoc(), ctTy,
@@ -675,8 +698,13 @@ struct ConvertFromElementsOp
           op, "tensor element type must be a ciphertext");
     }
 
-    auto ptTy =
-        lwe::LWEPlaintextType::get(b.getContext(), ctTy.getPlaintextSpace());
+    std::optional<unsigned> plaintextBitsOpt =
+        lwe::getCGGIPlaintextBitWidth(ctTy);
+    if (!plaintextBitsOpt.has_value()) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
+    auto ptTy = lwe::getCGGIPlaintextType(ctTy);
     // All elements of the operation must have the same type. If they are
     // scalars, construct a from_elements op, encoding plaintexts as necessary.
     if (!isa<ShapedType>(inputs[0].getType())) {
@@ -685,15 +713,10 @@ struct ConvertFromElementsOp
         if (isa<lwe::LWECiphertextType>(element.getType())) {
           values.push_back(element);
         } else {
-          auto plaintextBits = ctTy.getPlaintextSpace()
-                                   .getRing()
-                                   .getCoefficientType()
-                                   .getIntOrFloatBitWidth();
-
           auto ctElement = lwe::TrivialEncryptOp::create(
               b, b.getLoc(), ctTy,
               lwe::EncodeOp::create(b, b.getLoc(), ptTy, element,
-                                    b.getIndexAttr(plaintextBits)));
+                                    b.getIndexAttr(*plaintextBitsOpt)));
 
           values.push_back(ctElement);
         }

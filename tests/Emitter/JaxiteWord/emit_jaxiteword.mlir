@@ -8,9 +8,9 @@
 #ciphertext_space_D3 = #lwe.ciphertext_space<ring = #ring_i32_1_x8, encryption_type = mix, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
 #modulus_chain_L2 = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64>, current = 1>
-!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
-!ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain_L2>
-!ct_L2_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_D3, key = #key, modulus_chain = #modulus_chain_L2>
+!ct_L1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
+!ct_L2 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain_L2>
+!ct_L2_D3 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_D3, key = #key, modulus_chain = #modulus_chain_L2>
 !pt = !lwe.lwe_plaintext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>>
 
 // CHECK: def test_add(

@@ -11,8 +11,8 @@
 #ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L1_D3_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L1_D3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !pt_ = !lwe.lwe_plaintext<plaintext_space = <ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>>
 !pkey_L1_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L1_1_x1024_>
 

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
@@ -63,12 +64,13 @@ struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
 
   LogicalResult matchAndRewrite(LutLinCombOp op,
                                 PatternRewriter& rewriter) const override {
-    Type scalarTy = rewriter.getIntegerType(
-        cast<lwe::LWECiphertextType>(op.getInputs().front().getType())
-            .getPlaintextSpace()
-            .getRing()
-            .getCoefficientType()
-            .getIntOrFloatBitWidth());
+    std::optional<unsigned> plaintextBits = lwe::getCGGIPlaintextBitWidth(
+        cast<lwe::LWECiphertextType>(op.getInputs().front().getType()));
+    if (!plaintextBits.has_value()) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
+    Type scalarTy = rewriter.getIntegerType(*plaintextBits);
     // Use LWE operations to create the linear combination of inputs.
     Value result;
     for (auto [input, coeff] :

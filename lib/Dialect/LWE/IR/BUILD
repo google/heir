@@ -34,7 +34,6 @@ cc_library(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Utils",
-        "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

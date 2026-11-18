@@ -11,11 +11,10 @@
 
 #modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
 
-#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #inverse_canonical_encoding>
 
 #ciphertext_space_L0_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb, size = 3>
 
-!ct = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0_D3_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @test_input_dimension_error(%input: !ct) {
   // expected-error@+1 {{x.dim == 2 does not hold}}
@@ -41,12 +40,12 @@ func.func @test_input_dimension_error(%input: !ct) {
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
-!ct_L0_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
-!ct_L1_D3_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
+!ct_L0_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
+!ct_L1_D3_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
   func.func @mul(%ct: !ct_L1_) -> !ct_L0_ {
-    // expected-error@+1 {{'ckks.mul' op output plaintext space does not match}}
+    // expected-error@+1 {{'ckks.mul' op output encoding does not match}}
     %ct_0 = ckks.mul %ct, %ct : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
     %ct_1 = ckks.relinearize %ct_0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L1_D3_) -> !ct_L1_
     %ct_2 = ckks.rescale %ct_1 <to_ring = #ring_rns_L0_1_x1024_> : !ct_L1_ -> !ct_L0_
@@ -75,15 +74,15 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
-!ct_L0_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding2>, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
-!ct_L1_1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
-!ct_L1_D3_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
+!ct_L0_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding2, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
+!ct_L1_1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding1, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
+!ct_L1_D3_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding1, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
   func.func @mul(%ct: !ct_L1_) -> !ct_L0_ {
     %ct_0 = ckks.mul %ct, %ct : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
     %ct_1 = ckks.relinearize %ct_0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L1_D3_) -> !ct_L1_1
-    // expected-error@+1 {{'ckks.rescale' op output plaintext space does not match}}
+    // expected-error@+1 {{'ckks.rescale' op output encoding does not match}}
     %ct_2 = ckks.rescale %ct_1 <to_ring = #ring_rns_L0_1_x1024_> : !ct_L1_1 -> !ct_L0_
     return %ct_2 : !ct_L0_
   }
@@ -106,8 +105,8 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 #ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
-!ct_L0_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
+!ct_L0_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L1_C1_>
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
   func.func @bootstrap(%ct: !ct_L0_) -> !ct_L1_ {
     // expected-error@+1 {{'ckks.bootstrap' op output ciphertext must have 2 levels but has 1}}
@@ -139,8 +138,8 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [3602879
 !rns_other_ = !rns.rns<!Z35184372121601_i64_>
 #ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
 #ring_rns_other_1_x1024_ = #polynomial.ring<coefficientType = !rns_other_, polynomialModulus = <1 + x**1024>>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = <ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>, key = #key>
-!ct_other_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024_, encoding = #inverse_canonical_encoding>, ciphertext_space = <ring = #ring_rns_other_1_x1024_, encryption_type = lsb>, key = #key>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = <ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>, key = #key>
+!ct_other_ = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = <ring = #ring_rns_other_1_x1024_, encryption_type = lsb>, key = #key>
 func.func @rescale_not_prefix(%ct: !ct_L1_) -> !ct_other_ {
   // expected-error@+1 {{'ckks.rescale' op output ring basis should be a prefix of the input ring basis}}
   %ct_1 = ckks.rescale %ct <to_ring = #ring_rns_other_1_x1024_> : !ct_L1_ -> !ct_other_

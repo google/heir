@@ -7,7 +7,7 @@ def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
   let cppNamespace = "::mlir::heir::lwe";
 }
 
-def SameOperandsAndResultPlaintextTypes:  NativeOpTrait<"SameOperandsAndResultPlaintextTypes"> {
+def SameOperandsAndResultEncodings:  NativeOpTrait<"SameOperandsAndResultEncodings"> {
   let cppNamespace = "::mlir::heir::lwe";
 }
 

@@ -59,7 +59,6 @@ class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
                             SmallVector<int32_t> moduliPerLevel)
       : SecretToRlweTypeConverter(ctx, rlweRing, std::move(moduliPerLevel)) {}
 
- protected:
   polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const override {
     // Note that slot number for CKKS is always half of the ring dimension.
     // so ring.getPolynomialModulus() is not useful here
@@ -68,6 +67,7 @@ class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
                                      ring.getPolynomialModulus());
   }
 
+ protected:
   Attribute getEncodingAttr(MLIRContext* ctx, int64_t scale) const override {
     return lwe::InverseCanonicalEncodingAttr::get(ctx, scale);
   }
@@ -80,8 +80,11 @@ class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
 class SecretGenericPlaintextDivision
     : public SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp> {
  public:
-  using SecretGenericOpConversion<arith::DivFOp,
-                                  ckks::MulPlainOp>::SecretGenericOpConversion;
+  SecretGenericPlaintextDivision(const RlweTypeConverterBase& typeConverter,
+                                 MLIRContext* context)
+      : SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp>(
+            typeConverter, context),
+        rlweTypeConverter(typeConverter) {}
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
@@ -124,7 +127,9 @@ class SecretGenericPlaintextDivision
     auto ciphertextElementTy = cast<lwe::LWECiphertextType>(
         getElementTypeOrSelf(ciphertextInput.getType()));
     FailureOr<Value> encodedPlaintext = encodeCleartextAsPlaintext(
-        b, invertedCleartext, ciphertextElementTy, mgmtAttr, errStream);
+        b, invertedCleartext, ciphertextElementTy,
+        rlweTypeConverter.getPlaintextRing(op.getContext()), mgmtAttr,
+        errStream);
     if (failed(encodedPlaintext)) {
       return rewriter.notifyMatchFailure(op, errMsg);
     }
@@ -134,6 +139,9 @@ class SecretGenericPlaintextDivision
                                               encodedPlaintext.value())
         .getOperation();
   }
+
+ private:
+  const RlweTypeConverterBase& rlweTypeConverter;
 };
 
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {

@@ -20,12 +20,22 @@ namespace lwe {
 
 int64_t getScalingFactorFromEncodingAttr(Attribute encoding);
 
-PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext* ctx,
-                                                PlaintextSpaceAttr x,
-                                                PlaintextSpaceAttr y);
+// Infers the result encoding for a multiplication of two operands with
+// encodings `x` and `y`. For InverseCanonicalEncodingAttr, log-scales add
+// (propagating -1). All other encodings return `x` unchanged.
+Attribute inferMulOpEncoding(Attribute x, Attribute y);
 
-PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
-    MLIRContext* ctx, PlaintextSpaceAttr x, APInt dividedModulus);
+// Infers the result encoding for a modulus switch or rescale of an operand
+// with encoding `x` dividing out `dividedModulus`. For
+// InverseCanonicalEncodingAttr, subtracts round(log2(dividedModulus)) unless
+// scale is 0 or -1. All other encodings return `x` unchanged.
+Attribute inferModulusSwitchOrRescaleOpEncoding(Attribute x,
+                                                const APInt& dividedModulus);
+
+// Returns true if encodings `a` and `b` are compatible: both FullCRT (ignoring
+// scale), both ConstantCoefficient with equal scaling_factor and equal-or-unset
+// (0) plaintext_bits, or `a == b`.
+bool areEncodingsCompatible(Attribute a, Attribute b);
 
 Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
                                               int64_t newScale);

@@ -104,3 +104,49 @@ func.func @test_fn() {
 func.func @test_fn() {
   return
 }
+
+// -----
+
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+#ring_rns_L0_1_x1024_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**1024>>
+#key = #lwe.key<>
+#ciphertext_space = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
+#modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+!ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
+
+// CHECK: #[[ENC1:.*]] = #lwe.inverse_canonical_encoding<scaling_factor = 45>
+// CHECK: !lwe.lwe_ciphertext<encoding = #[[ENC1]],
+// CHECK: test_ct_inverse_canonical
+func.func @test_ct_inverse_canonical(%arg0: !ct) -> !ct {
+  return %arg0 : !ct
+}
+
+// -----
+
+#poly = #polynomial.int_polynomial<x>
+#key = #lwe.key<slot_index = 0>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!ct = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456, plaintext_bits = 3>, ciphertext_space = #cspace, key = #key>
+
+// CHECK: #[[ENC2:.*]] = #lwe.constant_coefficient_encoding<scaling_factor = 268435456, plaintext_bits = 3>
+// CHECK: !lwe.lwe_ciphertext<encoding = #[[ENC2]],
+// CHECK: test_cggi_ct_plaintext_bits
+func.func @test_cggi_ct_plaintext_bits(%arg0: !ct) -> !ct {
+  return %arg0 : !ct
+}
+
+// -----
+
+#poly = #polynomial.int_polynomial<x>
+#key = #lwe.key<slot_index = 0>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!ct = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>, ciphertext_space = #cspace, key = #key>
+
+// CHECK: #[[ENC3:.*]] = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>
+// CHECK: !lwe.lwe_ciphertext<encoding = #[[ENC3]],
+// CHECK: test_cggi_ct_without_plaintext_bits
+func.func @test_cggi_ct_without_plaintext_bits(%arg0: !ct) -> !ct {
+  return %arg0 : !ct
+}

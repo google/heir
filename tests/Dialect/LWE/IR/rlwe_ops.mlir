@@ -23,11 +23,11 @@
   encryption_type=lsb,
   size=3>
 !ct = !lwe.lwe_ciphertext<
-  plaintext_space=#plaintext_space,
+  encoding = #encoding,
   ciphertext_space=#ciphertext_space,
   key=#lwe.key<>>
 !post_mul_ct = !lwe.lwe_ciphertext<
-  plaintext_space=#plaintext_space,
+  encoding = #encoding,
   ciphertext_space=#post_mul_ciphertext_space,
   key=#lwe.key<>>
 

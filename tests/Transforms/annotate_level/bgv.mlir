@@ -33,9 +33,9 @@
 #modulus_chain_L3_C2_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64>, current = 2>
 #modulus_chain_L3_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64>, current = 0>
 
-!ct3 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L3_C3_>
-!ct2 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L2_, key = #key, modulus_chain = #modulus_chain_L3_C2_>
-!ct0 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L3_C0_>
+!ct3 = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L3_C3_>
+!ct2 = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L2_, key = #key, modulus_chain = #modulus_chain_L3_C2_>
+!ct0 = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L3_C0_>
 
 module {
   // CHECK: func.func @test_bgv

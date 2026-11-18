@@ -4,12 +4,11 @@
 !Z65537_i64 = !mod_arith.int<65537 : i64>
 #ring_Z65537_i64_1_x1024 = #polynomial.ring<coefficientType = !Z65537_i64, polynomialModulus = <1 + x**1024>>
 #full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
-#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024, encoding = #full_crt_packing_encoding>
 !Z1095233372161_i64 = !mod_arith.int<1095233372161 : i64>
 !rns_L0 = !rns.rns<!Z1095233372161_i64>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = lsb>
-!ciphertext_rlwe = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0, key = #key>
+!ciphertext_rlwe = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0, key = #key>
 
 #inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 45>
 #ckks_key = #lwe.key<>
@@ -18,7 +17,7 @@
 !rns_ckks_L0 = !rns.rns<!mod_arith.int<36028797018652673 : i64>>
 #ring_rns_ckks_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_ckks_L0, polynomialModulus = <1 + x**1024>>
 #ckks_ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_ckks_L0_1_x1024, encryption_type = mix>
-!ckks_ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ckks_ciphertext_space_L0, key = #ckks_key, modulus_chain = #ckks_modulus_chain>
+!ckks_ct = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ckks_ciphertext_space_L0, key = #ckks_key, modulus_chain = #ckks_modulus_chain>
 
 // CHECK: module
 module {

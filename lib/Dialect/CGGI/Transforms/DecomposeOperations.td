@@ -12,12 +12,6 @@ defvar kAndLut = 8;
 defvar kOrLut = 14;
 defvar kXorLut = 6;
 
-class GetIntegerTyForLWEEncoding<int i> : NativeCodeCall<
-      "$_builder.getIntegerAttr($_builder.getIntegerType("
-          "cast<lwe::LWECiphertextType>($0.getType()).getPlaintextSpace()"
-          ".getRing().getCoefficientType().getIntOrFloatBitWidth()),"
-          # i # ")">;
-
 class GetIndexAttr<int i> : NativeCodeCall<
       "$_builder.getIndexAttr(" # i # ")">;
 

@@ -1,5 +1,6 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 
+#include <cassert>
 #include <cstdint>
 #include <optional>
 
@@ -8,7 +9,9 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
@@ -21,8 +24,15 @@ namespace lwe {
 
 LogicalResult LWECiphertextType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-    PlaintextSpaceAttr, CiphertextSpaceAttr ciphertextSpace, KeyAttr keyAttr,
+    Attribute encoding, CiphertextSpaceAttr ciphertextSpace, KeyAttr keyAttr,
     ModulusChainAttr modulusChain) {
+  if (!encoding ||
+      !mlir::isa<ConstantCoefficientEncodingAttr, CoefficientEncodingAttr,
+                 InverseCanonicalEncodingAttr, FullCRTPackingEncodingAttr>(
+          encoding)) {
+    return emitError() << "expected a valid LWE encoding attribute, but got "
+                       << encoding;
+  }
   if (keyAttr.getSlotIndex() != 0 && (ciphertextSpace.getSize() != 2)) {
     return emitError() << "a ciphertext with nontrivial slot rotation must "
                           "have size 2, but found size "
@@ -49,20 +59,41 @@ LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
   polynomial::IntPolynomial polyX =
       polynomial::IntPolynomial::fromCoefficients({0, 1});
   auto polyXAttr = polynomial::IntPolynomialAttr::get(ctx, polyX);
-  auto plaintextRing = polynomial::RingAttr::get(
-      IntegerType::get(ctx, plaintextBits), polyXAttr);
   auto ciphertextRing = polynomial::RingAttr::get(
       IntegerType::get(ctx, ciphertextBits), polyXAttr);
 
   return lwe::LWECiphertextType::get(
       ctx,
-      lwe::PlaintextSpaceAttr::get(
-          ctx, plaintextRing,
-          lwe::ConstantCoefficientEncodingAttr::get(ctx, scalingFactor)),
+      lwe::ConstantCoefficientEncodingAttr::get(
+          ctx, scalingFactor, static_cast<unsigned>(plaintextBits)),
       lwe::CiphertextSpaceAttr::get(ctx, ciphertextRing,
                                     lwe::LweEncryptionType::msb,
                                     /*dimension=*/742),
       lwe::KeyAttr::get(ctx, 0), /*modulusChain=*/nullptr);
+}
+
+std::optional<unsigned> getCGGIPlaintextBitWidth(LWECiphertextType ctType) {
+  auto encoding =
+      llvm::dyn_cast<ConstantCoefficientEncodingAttr>(ctType.getEncoding());
+  if (!encoding || encoding.getPlaintextBits() == 0) {
+    return std::nullopt;
+  }
+  return encoding.getPlaintextBits();
+}
+
+LWEPlaintextType getCGGIPlaintextType(LWECiphertextType ctType) {
+  auto encoding =
+      llvm::cast<ConstantCoefficientEncodingAttr>(ctType.getEncoding());
+  unsigned bits = encoding.getPlaintextBits();
+  assert(bits != 0 && "CGGI ciphertext must have plaintext_bits set");
+  MLIRContext* ctx = ctType.getContext();
+  auto polyMod = ctType.getCiphertextSpace().getRing().getPolynomialModulus();
+  auto plaintextRing =
+      polynomial::RingAttr::get(IntegerType::get(ctx, bits), polyMod);
+  auto ptEncoding =
+      ConstantCoefficientEncodingAttr::get(ctx, encoding.getScalingFactor());
+  return LWEPlaintextType::get(
+      ctx, PlaintextSpaceAttr::get(ctx, plaintextRing, ptEncoding));
 }
 
 FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType) {
@@ -83,14 +114,12 @@ FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType) {
   lwe::ModulusChainAttr moddedDownChain = lwe::ModulusChainAttr::get(
       ctx, inputType.getModulusChain().getElements(), newLevel);
   LLVM_DEBUG(llvm::dbgs() << "Modded down chain=" << moddedDownChain << "\n");
-  lwe::PlaintextSpaceAttr newPlaintextSpace =
-      inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
-          ctx, inputType.getPlaintextSpace(), dividedModulus);
+  Attribute newEncoding = inferModulusSwitchOrRescaleOpEncoding(
+      inputType.getEncoding(), dividedModulus);
 
-  LLVM_DEBUG(llvm::dbgs() << "new plaintext space=" << newPlaintextSpace
-                          << "\n");
+  LLVM_DEBUG(llvm::dbgs() << "new encoding=" << newEncoding << "\n");
   return lwe::LWECiphertextType::get(
-      ctx, newPlaintextSpace,
+      ctx, newEncoding,
       lwe::CiphertextSpaceAttr::get(
           ctx, newRing, inputType.getCiphertextSpace().getEncryptionType(),
           inputType.getCiphertextSpace().getSize()),
@@ -105,7 +134,7 @@ LWECiphertextType cloneAtLevel(LWECiphertextType inputType, int64_t level) {
       ctx, inputType.getModulusChain().getElements(), level);
   auto newRing = getRingFromModulusChain(newChain, ring.getPolynomialModulus());
   return lwe::LWECiphertextType::get(
-      ctx, inputType.getPlaintextSpace(),
+      ctx, inputType.getEncoding(),
       lwe::CiphertextSpaceAttr::get(
           ctx, newRing, inputType.getCiphertextSpace().getEncryptionType(),
           inputType.getCiphertextSpace().getSize()),

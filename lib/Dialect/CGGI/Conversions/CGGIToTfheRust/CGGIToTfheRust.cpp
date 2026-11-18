@@ -1,5 +1,6 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 
+#include <optional>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
@@ -39,14 +40,13 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
   CGGIToTfheRustTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([ctx](lwe::LWECiphertextType type) -> Type {
-      int width = type.getPlaintextSpace()
-                      .getRing()
-                      .getCoefficientType()
-                      .getIntOrFloatBitWidth();
-      return encryptedUIntTypeFromWidth(ctx, width);
+      std::optional<unsigned> width = lwe::getCGGIPlaintextBitWidth(type);
+      if (!width.has_value()) return Type();
+      return encryptedUIntTypeFromWidth(ctx, *width);
     });
     addConversion([this](ShapedType type) -> Type {
       auto elemType = this->convertType(type.getElementType());
+      if (!elemType) return Type();
       if (auto rankedTensorTy = dyn_cast<RankedTensorType>(type))
         return RankedTensorType::get(rankedTensorTy.getShape(), elemType);
       if (auto memrefTy = dyn_cast<MemRefType>(type))
@@ -452,13 +452,14 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
     auto shapedTy = dyn_cast<ShapedType>(op.getInput().getType());
     Type eltTy = shapedTy ? shapedTy.getElementType() : op.getInput().getType();
 
-    auto width = cast<lwe::LWECiphertextType>(eltTy)
-                     .getPlaintextSpace()
-                     .getRing()
-                     .getCoefficientType()
-                     .getIntOrFloatBitWidth();
-    auto cleartextType = b.getIntegerType(width);
-    auto outputType = encryptedUIntTypeFromWidth(getContext(), width);
+    std::optional<unsigned> width =
+        lwe::getCGGIPlaintextBitWidth(cast<lwe::LWECiphertextType>(eltTy));
+    if (!width.has_value()) {
+      return rewriter.notifyMatchFailure(
+          op, "CGGI ciphertext must have plaintext_bits set");
+    }
+    auto cleartextType = b.getIntegerType(*width);
+    auto outputType = encryptedUIntTypeFromWidth(getContext(), *width);
 
     // not(x) == trivial_encryption(1) - x
     auto oneAttr = b.getIntegerAttr(cleartextType, 1);

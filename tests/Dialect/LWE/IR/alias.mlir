@@ -21,9 +21,9 @@
 #ciphertext_space_L0_D10_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb, size = 10>
 
 // CHECK: [[TY:!ct_L0[_0-9]*]]
-!ct = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 // CHECK: [[TY1:!ct_L0_D10[_0-9]*]]
-!ct1 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D10_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct1 = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0_D10_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 // CHECK: @test_alias(%[[ARG0:.*]]: [[TY]], %[[ARG1:.*]]: [[TY1]]) -> [[TY]]
 func.func @test_alias(%0 : !ct, %1 : !ct1) -> !ct {

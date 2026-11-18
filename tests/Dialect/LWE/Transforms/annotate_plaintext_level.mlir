@@ -20,8 +20,8 @@
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
 !pkey_L1_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L1_1_x32_>
 !pkey_L3_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L3_1_x32_>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L3_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
 
 // CHECK: func @single_use
 func.func @single_use(%ct: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
@@ -176,7 +176,7 @@ func.func @loop_carried(%ct: !ct_L1_, %value: tensor<32xi64>) -> !ct_L1_ {
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x32_, encryption_type = lsb>
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ct_L0_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
+!ct_L0_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L1_C0_>
 
 module attributes {scheme.bfv} {
   // CHECK: func @bfv
@@ -215,8 +215,8 @@ module attributes {scheme.bfv} {
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x32_, encryption_type = lsb>
 #ciphertext_space_L3_ = #lwe.ciphertext_space<ring = #ring_rns_L3_1_x32_, encryption_type = lsb>
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L3_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
 
 // CHECK: func @trivial_encrypt
 func.func @trivial_encrypt(%value: tensor<32xi64>) -> !ct_L3_ {

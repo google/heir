@@ -21,9 +21,9 @@
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0, encryption_type = mix>
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1, encryption_type = mix>
 #ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2, encryption_type = mix>
-!ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64, encoding = #encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L2_C0>
-!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64, encoding = #encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L2_C1>
-!ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64, encoding = #encoding>, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #modulus_chain_L2_C2>
+!ct_L0 = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L2_C0>
+!ct_L1 = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L2_C1>
+!ct_L2 = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #modulus_chain_L2_C2>
 !prepared_L2 = !kernel.prepared_linear_transform<level = 2, slots = 1024, log_bsgs_ratio = 0>
 
 module attributes {

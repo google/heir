@@ -9,6 +9,7 @@
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
@@ -39,12 +40,11 @@ namespace heir {
 
 FailureOr<Value> encodeCleartextAsPlaintext(
     ImplicitLocOpBuilder& builder, Value cleartext,
-    lwe::LWECiphertextType ciphertextElementType, mgmt::MgmtAttr mgmtAttr,
+    lwe::LWECiphertextType ciphertextElementType,
+    polynomial::RingAttr plaintextRing, mgmt::MgmtAttr mgmtAttr,
     llvm::raw_string_ostream& errStr) {
   MLIRContext* ctx = builder.getContext();
-  lwe::PlaintextSpaceAttr plaintextSpace =
-      ciphertextElementType.getPlaintextSpace();
-  Attribute ciphertextEncoding = plaintextSpace.getEncoding();
+  Attribute ciphertextEncoding = ciphertextElementType.getEncoding();
   Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
       ciphertextEncoding, mgmtAttr.getScale());
 
@@ -56,8 +56,7 @@ FailureOr<Value> encodeCleartextAsPlaintext(
   // TODO(#1643): LWEPlaintextType should carry RNS ring info. For now,
   // the level and scale are passed as attributes on the encode op.
   auto plaintextTy = lwe::LWEPlaintextType::get(
-      ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextSpace.getRing(),
-                                        plaintextEncoding));
+      ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextRing, plaintextEncoding));
 
   // The level is deliberately left unset here, for
   // `--lwe-annotate-plaintext-level` to fill in. Reading it off this one
@@ -77,9 +76,9 @@ FailureOr<Value> encodeCleartextAsPlaintext(
   int64_t numSlots =
       cleartextTensorTy.getDimSize(cleartextTensorTy.getRank() - 1);
   if (cleartextTensorTy.getRank() == 1) {
-    Value encodeOp = lwe::RLWEEncodeOp::create(
-                         builder, plaintextTy, cleartext, plaintextEncoding,
-                         plaintextSpace.getRing(), /*level=*/nullptr, scaleAttr)
+    Value encodeOp = lwe::RLWEEncodeOp::create(builder, plaintextTy, cleartext,
+                                               plaintextEncoding, plaintextRing,
+                                               /*level=*/nullptr, scaleAttr)
                          .getResult();
     return encodeOp;
   }
@@ -98,11 +97,10 @@ FailureOr<Value> encodeCleartextAsPlaintext(
     SmallVector<OpFoldResult> strides(2, builder.getIndexAttr(1));
     auto slice = tensor::ExtractSliceOp::create(builder, sliceTy, cleartext,
                                                 offsets, sizes, strides);
-    Value encodedSlice =
-        lwe::RLWEEncodeOp::create(builder, plaintextTy, slice,
-                                  plaintextEncoding, plaintextSpace.getRing(),
-                                  /*level=*/nullptr, scaleAttr)
-            .getResult();
+    Value encodedSlice = lwe::RLWEEncodeOp::create(
+                             builder, plaintextTy, slice, plaintextEncoding,
+                             plaintextRing, /*level=*/nullptr, scaleAttr)
+                             .getResult();
     encodedSlices.push_back(encodedSlice);
   }
 

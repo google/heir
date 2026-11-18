@@ -16,9 +16,9 @@
 #space_Q_D3 = #lwe.ciphertext_space<ring = #ring_Q, encryption_type = lsb, size = 3>
 #space_QP = #lwe.ciphertext_space<ring = #ring_QP, encryption_type = lsb>
 
-!ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Q, encoding = #encoding>, ciphertext_space = #space_Q, key = #key, modulus_chain = #chain>
-!ct_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Q, encoding = #encoding>, ciphertext_space = #space_Q_D3, key = #key, modulus_chain = #chain>
-!ksk_ct = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_QP, encoding = #encoding>, ciphertext_space = #space_QP, key = #key>
+!ct = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #space_Q, key = #key, modulus_chain = #chain>
+!ct_D3 = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #space_Q_D3, key = #key, modulus_chain = #chain>
+!ksk_ct = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #space_QP, key = #key>
 
 // After --convert-polynomial-mul-to-ntt, %a, %b and %ksk are only used in
 // multiplications, so the lowered function takes them in NTT (eval) form and

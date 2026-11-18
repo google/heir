@@ -2,14 +2,11 @@
 
 #poly = #polynomial.int_polynomial<x>
 #key = #lwe.key<slot_index = 0>
-#pspace = #lwe.plaintext_space<
-  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
-  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
 !cmod = !mod_arith.int<7917 : i32>
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = !cmod, polynomialModulus = #poly>,
   encryption_type = msb, size = 10>
-!ct = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ct = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256, plaintext_bits = 3>, ciphertext_space = #cspace, key = #key>
 
 // CHECK: test_add
 func.func @test_add(%0: !ct, %1: !ct) -> !ct {

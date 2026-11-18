@@ -34,7 +34,7 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
 }
 
 def BGV_AddOp : BGV_Op<"add", [Commutative, ElementwiseMappable,
-    SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+    SameOperandsAndResultRings, SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -48,13 +48,13 @@ def BGV_AddOp : BGV_Op<"add", [Commutative, ElementwiseMappable,
 }
 
 def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [ElementwiseMappable,
-    AllCiphertextTypesMatch, SameOperandsAndResultPlaintextTypes, Commutative]> {
+    AllCiphertextTypesMatch, SameOperandsAndResultEncodings, Commutative]> {
   let summary = "Addition operation between ciphertext-plaintext.";
   let hasCanonicalizer = 1;
 }
 
 def BGV_SubOp : BGV_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings,
-    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+    SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -68,7 +68,7 @@ def BGV_SubOp : BGV_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings,
 }
 
 def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain", [ElementwiseMappable,
-      AllCiphertextTypesMatch, SameOperandsAndResultPlaintextTypes]> {
+      AllCiphertextTypesMatch, SameOperandsAndResultEncodings]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
@@ -170,7 +170,7 @@ def BGV_NegateOp : BGV_Op<"negate", [ElementwiseMappable, Involution, SameOperan
 }
 
 def BGV_RelinearizeOp : BGV_Op<"relinearize", [ElementwiseMappable,
-    SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+    SameOperandsAndResultRings, SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{
@@ -215,7 +215,7 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable, Reduces
 
 def BGV_LevelReduceOp : BGV_Op<"level_reduce", [
   ElementwiseMappable,
-  SameOperandsAndResultPlaintextTypes,
+  SameOperandsAndResultEncodings,
   DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>
 ]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";

@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
@@ -28,12 +29,20 @@ namespace lwe {
 LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
                                                int plaintextBits);
 
-inline LWEPlaintextType getCorrespondingPlaintextType(
-    LWECiphertextType ctType) {
-  MLIRContext* ctx = ctType.getContext();
-  return LWEPlaintextType::get(
-      ctx, PlaintextSpaceAttr::get(ctx, ctType.getCiphertextSpace().getRing(),
-                                   ctType.getPlaintextSpace().getEncoding()));
+// Returns the plaintext bit width for a CGGI ciphertext (ConstantCoefficient
+// encoding with non-zero plaintext_bits), or std::nullopt otherwise.
+std::optional<unsigned> getCGGIPlaintextBitWidth(LWECiphertextType ctType);
+
+// Returns the LWEPlaintextType corresponding to a CGGI ciphertext type.
+// Asserts that `plaintext_bits` is non-zero.
+LWEPlaintextType getCGGIPlaintextType(LWECiphertextType ctType);
+
+inline Attribute getTypeEncoding(LWECiphertextType t) {
+  return t.getEncoding();
+}
+
+inline Attribute getTypeEncoding(LWEPlaintextType t) {
+  return t.getPlaintextSpace().getEncoding();
 }
 
 // Return the LWECiphertextType resulting from removing one limb (i.e.,

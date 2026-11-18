@@ -102,15 +102,15 @@ class CiphertextTypeConverter : public TypeConverter {
   }
 };
 
-// Returns the plaintext modulus T of `ciphertextType`, as a scalar constant in
+// Returns the plaintext modulus T of `plaintextType`, as a scalar constant in
 // the coefficient space of `outputPolyTy`. We assume the plaintext coefficient
 // type is a mod arith type.
 static FailureOr<Value> getPlaintextModulusInCiphertextSpace(
     ImplicitLocOpBuilder& builder, Operation* op,
-    lwe::LWECiphertextType ciphertextType,
+    lwe::LWEPlaintextType plaintextType,
     polynomial::PolynomialType outputPolyTy) {
   auto plaintextCoeffType =
-      ciphertextType.getPlaintextSpace().getRing().getCoefficientType();
+      plaintextType.getPlaintextSpace().getRing().getCoefficientType();
   auto plaintextModArithType =
       dyn_cast<mod_arith::ModArithType>(plaintextCoeffType);
   if (!plaintextModArithType) {
@@ -292,7 +292,10 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
           tensor::ExtractOp::create(builder, key, ValueRange{index1});
 
       FailureOr<Value> constantT = getPlaintextModulusInCiphertextSpace(
-          builder, op, outputT, outputPolyTy);
+          builder, op,
+          cast<lwe::LWEPlaintextType>(
+              getElementTypeOrSelf(op.getInput().getType())),
+          outputPolyTy);
       if (failed(constantT)) {
         return rewriter.notifyMatchFailure(
             op, "unsupported plaintext coefficient type");
@@ -339,7 +342,10 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       }
 
       FailureOr<Value> constantT = getPlaintextModulusInCiphertextSpace(
-          builder, op, outputT, outputPolyTy);
+          builder, op,
+          cast<lwe::LWEPlaintextType>(
+              getElementTypeOrSelf(op.getInput().getType())),
+          outputPolyTy);
       if (failed(constantT)) {
         return rewriter.notifyMatchFailure(
             op, "unsupported plaintext coefficient type");

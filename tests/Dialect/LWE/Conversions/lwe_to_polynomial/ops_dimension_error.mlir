@@ -12,7 +12,7 @@
 #invalid_ciphertext_space = #lwe.ciphertext_space<ring = #ring_Z1095233372161, encryption_type = lsb, size=10>
 
 !plaintext_rlwe = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!invalid_ciphertext = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #invalid_ciphertext_space, key = #key>
+!invalid_ciphertext = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #invalid_ciphertext_space, key = #key>
 
 !rlwe_key = !lwe.lwe_secret_key<key = #key, ring = #ring_Z1095233372161>
 

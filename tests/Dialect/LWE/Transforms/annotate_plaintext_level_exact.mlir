@@ -18,8 +18,8 @@
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x32_, encryption_type = lsb>
 #ciphertext_space_L3_ = #lwe.ciphertext_space<ring = #ring_rns_L3_1_x32_, encryption_type = lsb>
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L3_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
 
 module attributes {backend.lattigo, backend.config_override = {requiresMatchingCiphertextPlaintextLevels = true}} {
   // CHECK: func @different_levels
@@ -58,8 +58,8 @@ module attributes {backend.lattigo, backend.config_override = {requiresMatchingC
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x32_, encryption_type = lsb>
 #ciphertext_space_L3_ = #lwe.ciphertext_space<ring = #ring_rns_L3_1_x32_, encryption_type = lsb>
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L3_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
 
 module attributes {backend.lattigo, backend.config_override = {requiresMatchingCiphertextPlaintextLevels = true}} {
   func.func @shared_encoding(%ct1: !ct_L1_, %ct3: !ct_L3_, %value: tensor<32xi64>) -> (!ct_L1_, !ct_L3_) {
@@ -92,8 +92,8 @@ module attributes {backend.lattigo, backend.config_override = {requiresMatchingC
 #ciphertext_space_L3_ = #lwe.ciphertext_space<ring = #ring_rns_L3_1_x32_, encryption_type = lsb>
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
 !pkey_L3_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L3_1_x32_>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L3_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
 
 module attributes {backend.lattigo, backend.config_override = {requiresMatchingCiphertextPlaintextLevels = true}} {
   func.func @encrypt_and_combine_different_levels(%ct1: !ct_L1_, %value: tensor<32xi64>, %pk: !pkey_L3_) -> (!ct_L3_, !ct_L1_) {
@@ -127,8 +127,8 @@ module attributes {backend.lattigo, backend.config_override = {requiresMatchingC
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
 !pkey_L1_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L1_1_x32_>
 !pkey_L3_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L3_1_x32_>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct_L3_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L3_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L3_, key = #key, modulus_chain = #modulus_chain_L5_C3_>
 
 module attributes {backend.lattigo, backend.config_override = {requiresMatchingCiphertextPlaintextLevels = true}} {
   func.func @conflicting_encryptions(%value: tensor<32xi64>, %pk1: !pkey_L1_, %pk3: !pkey_L3_) -> (!ct_L1_, !ct_L3_) {

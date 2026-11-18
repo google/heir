@@ -22,12 +22,11 @@
 !public_key = !lwe.lwe_public_key<key = #key, ring = #ring>
 
 #inverse_canonical_enc = #lwe.inverse_canonical_encoding<scaling_factor = 10000>
-#plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #inverse_canonical_enc>
 #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = msb, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <7917 : i32>, current = 0>
 
 // expected-error@below {{a ciphertext with nontrivial slot rotation must have size 2, but found size 3}}
-!lwe_ciphertext = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
+!lwe_ciphertext = !lwe.lwe_ciphertext<encoding = #inverse_canonical_enc, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
 
 // -----
 
@@ -37,9 +36,8 @@
 !public_key = !lwe.lwe_public_key<key = #key, ring = #ring>
 
 #inverse_canonical_enc = #lwe.inverse_canonical_encoding<scaling_factor = 10000>
-#plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #inverse_canonical_enc>
 #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = msb, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <7917 : i32, 65537 : i32>, current = 1>
 
 // expected-error@below {{the level in the ciphertext ring must match the modulus chain's current}}
-!lwe_ciphertext = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
+!lwe_ciphertext = !lwe.lwe_ciphertext<encoding = #inverse_canonical_enc, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>

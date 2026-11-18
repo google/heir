@@ -2,13 +2,10 @@
 
 #poly = #polynomial.int_polynomial<x>
 #key = #lwe.key<slot_index = 0>
-#pspace = #lwe.plaintext_space<
-  ring = #polynomial.ring<coefficientType = i4, polynomialModulus = #poly>,
-  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
   encryption_type = msb, size = 742>
-!ciphertext = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ciphertext = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456, plaintext_bits = 4>, ciphertext_space = #cspace, key = #key>
 
 func.func @test_bad_coeff_len(%a: !ciphertext, %b: !ciphertext) -> () {
   // expected-error@+1 {{number of coefficients must match number of inputs}}
@@ -21,13 +18,10 @@ func.func @test_bad_coeff_len(%a: !ciphertext, %b: !ciphertext) -> () {
 
 #poly = #polynomial.int_polynomial<x>
 #key = #lwe.key<slot_index = 0>
-#pspace = #lwe.plaintext_space<
-  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
-  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
   encryption_type = msb, size = 742>
-!ciphertext = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ciphertext = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456, plaintext_bits = 3>, ciphertext_space = #cspace, key = #key>
 
 func.func @test_overflowing_coeff(%a: !ciphertext, %b: !ciphertext) -> () {
   // expected-error@below {{coefficient pushes error bits into message space}}
@@ -41,13 +35,10 @@ func.func @test_overflowing_coeff(%a: !ciphertext, %b: !ciphertext) -> () {
 
 #poly = #polynomial.int_polynomial<x>
 #key = #lwe.key<slot_index = 0>
-#pspace = #lwe.plaintext_space<
-  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
-  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
   encryption_type = msb, size = 742>
-!ciphertext = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ciphertext = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456, plaintext_bits = 3>, ciphertext_space = #cspace, key = #key>
 
 func.func @test_too_large_lut(%a: !ciphertext, %b: !ciphertext) -> () {
   // expected-error@below {{LUT is larger than available cleartext bit width}}

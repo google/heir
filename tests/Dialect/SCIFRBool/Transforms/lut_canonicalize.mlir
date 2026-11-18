@@ -19,7 +19,7 @@ i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
 #ciphertext_space_L0_D10_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb, size = 10>
 
 !pt_ty = !lwe.lwe_plaintext< plaintext_space = #plaintext_space>
-!ct_ty = !lwe.lwe_ciphertext< plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct_ty = !lwe.lwe_ciphertext< encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !sk = !lwe.lwe_secret_key<key = #key, ring = #ring_rns_L0_1_x1024_>
 
 func.func @require_post_pass_toposort_lut3(%arg0: tensor<8x!ct_ty>) -> !ct_ty {

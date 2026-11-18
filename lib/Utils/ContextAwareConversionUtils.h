@@ -14,6 +14,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -42,11 +43,22 @@
 namespace mlir {
 namespace heir {
 
+// Base class for RLWE type converters that provide a plaintext ring for
+// encoding cleartexts.
+class RlweTypeConverterBase : public UniquelyNamedAttributeAwareTypeConverter {
+ public:
+  using UniquelyNamedAttributeAwareTypeConverter::
+      UniquelyNamedAttributeAwareTypeConverter;
+
+  virtual polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const = 0;
+};
+
 // Utility to encode a cleartext as a plaintext. Handles single
 // plaintext types and tensor<n x plaintext>.
 FailureOr<Value> encodeCleartextAsPlaintext(
     ImplicitLocOpBuilder& builder, Value cleartext,
-    lwe::LWECiphertextType ciphertextElementType, mgmt::MgmtAttr mgmtAttr,
+    lwe::LWECiphertextType ciphertextElementType,
+    polynomial::RingAttr plaintextRing, mgmt::MgmtAttr mgmtAttr,
     llvm::raw_string_ostream& errStr);
 
 // Replace the input op with a new op where all operands and results have been
@@ -243,15 +255,13 @@ template <typename T, typename Y>
 class SecretGenericOpCipherPlainConversion
     : public SecretGenericOpConversion<T, Y> {
  public:
-  using SecretGenericOpConversion<T, Y>::SecretGenericOpConversion;
-
   // Ciphertext-plaintext ops should take precedence over ciphertext-ciphertext
   // ops because the ops being converted (e.g., addi) don't have a plaintext
   // variant.
   SecretGenericOpCipherPlainConversion(
-      const ContextAwareTypeConverter& typeConverter, MLIRContext* context)
-      : SecretGenericOpConversion<T, Y>(typeConverter, context, /*benefit=*/2) {
-  }
+      const RlweTypeConverterBase& typeConverter, MLIRContext* context)
+      : SecretGenericOpConversion<T, Y>(typeConverter, context, /*benefit=*/2),
+        rlweTypeConverter(typeConverter) {}
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
@@ -297,7 +307,9 @@ class SecretGenericOpCipherPlainConversion
     auto ciphertextElementTy = cast<lwe::LWECiphertextType>(
         getElementTypeOrSelf(ciphertextInput.getType()));
     FailureOr<Value> encodedPlaintext = encodeCleartextAsPlaintext(
-        b, realCleartext, ciphertextElementTy, mgmtAttr, errStream);
+        b, realCleartext, ciphertextElementTy,
+        rlweTypeConverter.getPlaintextRing(op.getContext()), mgmtAttr,
+        errStream);
     if (failed(encodedPlaintext)) {
       return rewriter.notifyMatchFailure(op, errMsg);
     }
@@ -310,6 +322,9 @@ class SecretGenericOpCipherPlainConversion
     };
     return doReplace(ciphertextInput, encodedPlaintext.value()).getOperation();
   }
+
+ private:
+  const RlweTypeConverterBase& rlweTypeConverter;
 };
 
 template <typename T>

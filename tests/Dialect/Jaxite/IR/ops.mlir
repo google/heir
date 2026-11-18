@@ -7,9 +7,8 @@
 
 #key = #lwe.key<slot_index = 0>
 #poly = #polynomial.int_polynomial<x>
-#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!ciphertext = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ciphertext = !lwe.lwe_ciphertext<encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456, plaintext_bits = 3>, ciphertext_space = #cspace, key = #key>
 
 module {
   // CHECK: func @test_create_trivial_bool

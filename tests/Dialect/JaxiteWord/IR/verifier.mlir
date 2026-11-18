@@ -14,8 +14,8 @@
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8, encryption_type = mix>
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x8, encryption_type = mix>
 !pt = !lwe.lwe_plaintext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>>
-!ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L0>
-!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1>
+!ct_L0 = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L0>
+!ct_L1 = !lwe.lwe_ciphertext<encoding = #encoding, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1>
 
 module {
   func.func @add_plain_mismatched_rings(

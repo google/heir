@@ -15,9 +15,9 @@
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = lsb>
 #ciphertext_space_L1_D3 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = lsb, size = 3>
 #ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_rns_L2_1_x1024, encryption_type = lsb>
-!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_rns_L1_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
-!ct_L1_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_rns_L1_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L1_C1>
-!ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_rns_L2_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L2, key = #key>
+!ct_L1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
+!ct_L1_D3 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L1_C1>
+!ct_L2 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L2, key = #key>
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 10, Q = [1095233372161, 1032955396097], P = [998595133441], logDefaultScale = 45>} {
   func.func @test_relin(%ct: !ct_L1_D3, %arg0: tensor<2x!ct_L2>) -> !ct_L1 {
     %ct_0 = ckks.relinearize %ct, %arg0 <from_basis = [0, 1, 2], to_basis = [0, 1]> : (!ct_L1_D3, tensor<2x!ct_L2>) -> !ct_L1

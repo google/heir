@@ -18,10 +18,10 @@
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8, encryption_type = mix>
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x8, encryption_type = mix>
 #ciphertext_space_L1_D3 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x8, encryption_type = mix, size = 3>
-!ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L7_C0>
-!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L7_C1>
-!ct_L1_1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L7_C1>
-!ct_L1_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x8, encoding = #inverse_canonical_encoding1>, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L7_C1>
+!ct_L0 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L7_C0>
+!ct_L1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L7_C1>
+!ct_L1_1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding1, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L7_C1>
+!ct_L1_D3 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding1, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L7_C1>
 
 module attributes {scheme.ckks} {
   // CHECK: func.func @add_plain(

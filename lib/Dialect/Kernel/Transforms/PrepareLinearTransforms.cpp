@@ -41,12 +41,12 @@ struct PrepareLinearTransforms
         << "requested_slot_count attribute not found, "
         << "falling back to using the ring dimension. "
         << "This may have adverse performance implications in some backends.";
-    auto plaintextSpace = ctType.getPlaintextSpace();
-    int64_t ringCapacity = plaintextSpace.getRing()
+    int64_t ringCapacity = ctType.getCiphertextSpace()
+                               .getRing()
                                .getPolynomialModulus()
                                .getPolynomial()
                                .getDegree();
-    if (isa<lwe::InverseCanonicalEncodingAttr>(plaintextSpace.getEncoding())) {
+    if (isa<lwe::InverseCanonicalEncodingAttr>(ctType.getEncoding())) {
       ringCapacity /= 2;
     }
     return ringCapacity;

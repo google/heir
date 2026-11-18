@@ -19,7 +19,7 @@
   size=2>
 
 !ct = !lwe.lwe_ciphertext<
-  plaintext_space=#plaintext_space,
+  encoding = #encoding,
   ciphertext_space=#ciphertext_space,
   key=#lwe.key<>>
 !pt = !lwe.lwe_plaintext<

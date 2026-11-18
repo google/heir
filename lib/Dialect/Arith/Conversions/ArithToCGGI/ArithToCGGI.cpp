@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
@@ -166,17 +167,17 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
         builder.getContext(), inputType.getIntOrFloatBitWidth());
   }
 
-  auto plaintextBits = ciphertextType.getPlaintextSpace()
-                           .getRing()
-                           .getCoefficientType()
-                           .getIntOrFloatBitWidth();
-  auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(),
-                                           ciphertextType.getPlaintextSpace());
+  std::optional<unsigned> plaintextBits =
+      lwe::getCGGIPlaintextBitWidth(ciphertextType);
+  if (!plaintextBits.has_value()) {
+    return Value();
+  }
+  auto ptxtTy = lwe::getCGGIPlaintextType(ciphertextType);
 
   auto trivialEnc = lwe::TrivialEncryptOp::create(
       builder, loc, type,
       lwe::EncodeOp::create(builder, loc, ptxtTy, inputs[0],
-                            builder.getIndexAttr(plaintextBits)));
+                            builder.getIndexAttr(*plaintextBits)));
 
   return trivialEnc;
 }

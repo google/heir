@@ -33,7 +33,7 @@ class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
 }
 
 def CKKS_AddOp : CKKS_Op<"add", [ElementwiseMappable, Commutative, SameOperandsAndResultRings,
-    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+    SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -47,13 +47,13 @@ def CKKS_AddOp : CKKS_Op<"add", [ElementwiseMappable, Commutative, SameOperandsA
 }
 
 def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
-      SameOperandsAndResultPlaintextTypes, Commutative, InferTypeOpAdaptor]> {
+      SameOperandsAndResultEncodings, Commutative, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertext-plaintext.";
   let hasCanonicalizer = 1;
 }
 
 def CKKS_SubOp : CKKS_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings,
-    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+    SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -67,7 +67,7 @@ def CKKS_SubOp : CKKS_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings
 }
 
 def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
-      SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+      SameOperandsAndResultEncodings, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
@@ -190,7 +190,7 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable, ReducesLevelOpInte
 
 def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [
   ElementwiseMappable,
-  SameOperandsAndResultPlaintextTypes,
+  SameOperandsAndResultEncodings,
   InferTypeOpAdaptor,
   DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>
 ]> {

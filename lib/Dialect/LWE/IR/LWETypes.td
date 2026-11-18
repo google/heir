@@ -74,17 +74,17 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   let summary = "A ciphertext type";
 
   let description = [{
-    An LWE ciphertext will always contain the plaintext space, ciphertext space,
-    and key information.
+    An LWE ciphertext will always contain the plaintext encoding, ciphertext
+    space, and key information.
 
     A modulus chain is optionally specified for parameter choices in RLWE
-    schemes that use more than one of modulus. When no modulus chain is
+    schemes that use more than one modulus. When no modulus chain is
     specified, the ciphertext modulus is always the ciphertext ring's
     coefficient modulus.
   }];
 
   let parameters = (ins
-    "PlaintextSpaceAttr":$plaintext_space,
+    AnyPlaintextEncodingAttr:$encoding,
     "CiphertextSpaceAttr":$ciphertext_space,
     "KeyAttr":$key,
     OptionalParameter<"ModulusChainAttr">:$modulus_chain

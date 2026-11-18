@@ -21,8 +21,8 @@
 #chain_truncated = #lwe.modulus_chain<elements = <36028797018652673 : i64>, current = 0>
 #chain_full = #lwe.modulus_chain<elements = <36028797018652673 : i64, 35184372121601 : i64, 35184372744193 : i64>, current = 2>
 
-!ct_L0 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #chain_truncated>
-!ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #chain_full>
+!ct_L0 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #chain_truncated>
+!ct_L2 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L2, key = #key, modulus_chain = #chain_full>
 
 // CHECK-DAG: ![[ctType:.*]] = !lattigo.rlwe.ciphertext
 

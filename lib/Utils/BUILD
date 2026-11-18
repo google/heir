@@ -115,6 +115,7 @@ cc_library(
         ":Utils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",

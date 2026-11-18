@@ -62,7 +62,7 @@ class LWE_EncodingAttrWithScalingParam<string attrName, string attrMnemonic, lis
 }
 
 def LWE_ConstantCoefficientEncoding
-  : LWE_EncodingAttrWithScalingParam<"ConstantCoefficientEncoding", "constant_coefficient_encoding"> {
+  : LWE_EncodingAttrForLWE<"ConstantCoefficientEncoding", "constant_coefficient_encoding"> {
   let summary = "An encoding of a scalar in the constant coefficient";
   let description = [{
     An encoding of a single scalar into the constant coefficient of the plaintext.
@@ -71,12 +71,30 @@ def LWE_ConstantCoefficientEncoding
     used to encode scalar LWE ciphertexts where the plaintext space is viewed
     as a polynomial ring modulo `x`.
 
+    For scalar LWE (CGGI) ciphertexts, `plaintext_bits` optionally records the
+    plaintext bit width (with `0` meaning unset).
+
     Example:
 
     ```
     #coeff_encoding = #lwe.constant_coefficient_encoding<scaling_factor=10000>
+    #cggi_encoding = #lwe.constant_coefficient_encoding<scaling_factor=268435456, plaintext_bits=4>
     ```
   }];
+
+  let parameters = (ins
+    AttrParameter<"int64_t",
+      "The factor by which each cleartext scalar is multiplied before being "
+      "rounded to the nearest integer and encoded.">:$scaling_factor,
+    DefaultValuedParameter<"unsigned", "0",
+      "plaintext bit width for scalar LWE (CGGI); 0 = unset">:$plaintext_bits
+  );
+
+  let builders = [
+    AttrBuilder<(ins "int64_t":$scaling_factor), [{
+      return $_get($_ctxt, scaling_factor, 0u);
+    }]>
+  ];
 }
 
 def LWE_CoefficientEncoding
@@ -194,23 +212,20 @@ def AnyPlaintextEncodingAttr : AnyAttrOf<[LWE_ConstantCoefficientEncoding, LWE_C
 def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
   let mnemonic = "plaintext_space";
   let description = [{
-    An attribute describing the plaintext space and the transformation from
-    application data to plaintext space of an FHE scheme.
+    An attribute describing the plaintext space and encoding of an
+    `!lwe.lwe_plaintext` value.
 
     The plaintext space information is the ring structure, which contains the
     plaintext modulus $t$, which may be a power of two in the case of CGGI
-    ciphertexts, or a prime power for RLWE. LWE ciphertexts use the
-    ideal polynomial of degree 1 $x$. The plaintext modulus used in LWE-based
+    plaintexts, or a prime power for RLWE. Scalar LWE plaintexts use the
+    ideal polynomial of degree 1, $x$. The plaintext modulus used in LWE-based
     CGGI plaintexts describes the full message space $\mathbb{Z}_p$ including
     the padding bits.
 
-    For RLWE schemes, this will include the type of encoding of application data
-    integers to a plaintext space `Z_p[X]/X^N + 1`. This may be a constant
-    coefficient encoding, CRT-based packing for SIMD semantics, or other slot
-    packing. When using full CRT packing, the ring must split into linear
-    factors. The CKKS scheme will also include attributes describing the complex
-    encoding, including the scaling factor, which will change after
-    multiplication and rescaling.
+    For RLWE schemes, this includes the encoding of application data to a
+    plaintext space `Z_p[X]/X^N + 1`, such as constant coefficient encoding,
+    CRT-based packing for SIMD semantics, or CKKS inverse canonical encoding.
+    When using full CRT packing, the ring must split into linear factors.
   }];
 
   let parameters = (ins

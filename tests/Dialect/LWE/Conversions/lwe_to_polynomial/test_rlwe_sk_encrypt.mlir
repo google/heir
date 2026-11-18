@@ -17,14 +17,14 @@
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x8_, encryption_type = lsb>
 
 !plaintext_rlwe = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ciphertext_rlwe = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-!ciphertext_rlwe_L1 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ciphertext_rlwe = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ciphertext_rlwe_L1 = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !rlwe_key = !lwe.lwe_secret_key<key = #key, ring = #ring_rns_L0_1_x8_>
 !rlwe_key_L1 = !lwe.lwe_secret_key<key = #key, ring = #ring_rns_L1_1_x8_>
 
 #ring_Z1095233372161_1_x8_ = #polynomial.ring<coefficientType = !Z1095233372161_i64_, polynomialModulus = <1 + x**8>>
 #ciphertext_space_Z_ = #lwe.ciphertext_space<ring = #ring_Z1095233372161_1_x8_, encryption_type = lsb>
-!ciphertext_rlwe_Z = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_Z_, key = #key>
+!ciphertext_rlwe_Z = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_Z_, key = #key>
 !rlwe_key_Z = !lwe.lwe_secret_key<key = #key, ring = #ring_Z1095233372161_1_x8_>
 
 // CHECK: @test_rlwe_sk_encrypt

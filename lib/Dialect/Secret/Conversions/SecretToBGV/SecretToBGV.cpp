@@ -52,7 +52,6 @@ class SecretToBGVTypeConverter : public SecretToRlweTypeConverter {
         plaintextModulus(ptm),
         isBFV(isBFV) {}
 
- protected:
   polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const override {
     return polynomial::RingAttr::get(
         ctx,
@@ -61,8 +60,13 @@ class SecretToBGVTypeConverter : public SecretToRlweTypeConverter {
         ring.getPolynomialModulus());
   }
 
+ protected:
   Attribute getEncodingAttr(MLIRContext* ctx, int64_t scale) const override {
-    return lwe::FullCRTPackingEncodingAttr::get(ctx, scale);
+    // BGV ciphertext types are scale-free: BGV ops use InferTypeOpAdaptor
+    // (e.g., bgv::MulOp -> lwe::RMulOp), which cannot reproduce mgmt scales
+    // without the plaintext modulus t on ciphertext types. Actual BGV scales
+    // live on mgmt.mgmt, plaintext encodings, and lwe.rlwe_encode ops.
+    return lwe::FullCRTPackingEncodingAttr::get(ctx, 0);
   }
 
   lwe::LweEncryptionType getEncryptionType() const override {

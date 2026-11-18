@@ -11,7 +11,7 @@
 #ciphertext_space_msb = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = msb>
 
 !plaintext_rlwe = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ciphertext_msb = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_msb, key = #key>
+!ciphertext_msb = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_msb, key = #key>
 !sk = !lwe.lwe_secret_key<key = #key, ring = #ring_rns_L0_1_x8_>
 
 func.func @test_sk_encrypt_msb(%arg0: !plaintext_rlwe, %arg1: !sk) -> !ciphertext_msb {
@@ -34,7 +34,7 @@ func.func @test_sk_encrypt_msb(%arg0: !plaintext_rlwe, %arg1: !sk) -> !ciphertex
 #ciphertext_space_mix = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = mix>
 
 !plaintext_rlwe = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ciphertext_mix = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_mix, key = #key>
+!ciphertext_mix = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_mix, key = #key>
 !pk = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L0_1_x8_>
 
 func.func @test_pk_encrypt_mix(%arg0: !plaintext_rlwe, %arg1: !pk) -> !ciphertext_mix {
@@ -57,7 +57,7 @@ func.func @test_pk_encrypt_mix(%arg0: !plaintext_rlwe, %arg1: !pk) -> !ciphertex
 #ciphertext_space_msb = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = msb>
 
 !plaintext_rlwe = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
-!ciphertext_msb = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_msb, key = #key>
+!ciphertext_msb = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_msb, key = #key>
 !sk = !lwe.lwe_secret_key<key = #key, ring = #ring_rns_L0_1_x8_>
 
 func.func @test_decrypt_msb(%arg0: !ciphertext_msb, %arg1: !sk) -> !plaintext_rlwe {

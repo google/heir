@@ -30,11 +30,12 @@ namespace heir {
 // TODO(#1875): support trivial encryptions
 struct ConvertClientConceal
     : public ContextAwareOpConversionPattern<secret::ConcealOp> {
-  ConvertClientConceal(const ContextAwareTypeConverter& typeConverter,
+  ConvertClientConceal(const RlweTypeConverterBase& typeConverter,
                        mlir::MLIRContext* context, bool usePublicKey,
                        polynomial::RingAttr ring)
       : ContextAwareOpConversionPattern<secret::ConcealOp>(typeConverter,
                                                            context),
+        rlweTypeConverter(typeConverter),
         usePublicKey(usePublicKey),
         ring(ring) {}
 
@@ -47,6 +48,7 @@ struct ConvertClientConceal
       secret::ConcealOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const;
 
+  const RlweTypeConverterBase& rlweTypeConverter;
   bool usePublicKey;
   polynomial::RingAttr ring;
 };
@@ -56,10 +58,11 @@ struct ConvertClientConceal
 // material args.
 struct ConvertClientReveal
     : public ContextAwareOpConversionPattern<secret::RevealOp> {
-  ConvertClientReveal(const ContextAwareTypeConverter& typeConverter,
+  ConvertClientReveal(const RlweTypeConverterBase& typeConverter,
                       mlir::MLIRContext* context, polynomial::RingAttr ring)
       : ContextAwareOpConversionPattern<secret::RevealOp>(typeConverter,
                                                           context),
+        rlweTypeConverter(typeConverter),
         ring(ring) {}
 
   LogicalResult matchAndRewrite(
@@ -67,6 +70,7 @@ struct ConvertClientReveal
       ContextAwareConversionPatternRewriter& rewriter) const override;
 
  private:
+  const RlweTypeConverterBase& rlweTypeConverter;
   polynomial::RingAttr ring;
 };
 
@@ -109,8 +113,7 @@ struct ConvertEmpty : public ContextAwareOpConversionPattern<mgmt::InitOp> {
 
 // Common type converter base for converting Secret types to RLWE schemes
 // (such as BGV and CKKS).
-class SecretToRlweTypeConverter
-    : public UniquelyNamedAttributeAwareTypeConverter {
+class SecretToRlweTypeConverter : public RlweTypeConverterBase {
  public:
   SecretToRlweTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
                             SmallVector<int32_t> moduliPerLevel = {});
@@ -120,7 +123,6 @@ class SecretToRlweTypeConverter
                                              mgmt::MgmtAttr mgmtAttr) const;
 
  protected:
-  virtual polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const = 0;
   virtual Attribute getEncodingAttr(MLIRContext* ctx, int64_t scale) const = 0;
   virtual lwe::LweEncryptionType getEncryptionType() const = 0;
 

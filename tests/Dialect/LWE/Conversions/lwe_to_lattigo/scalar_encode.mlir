@@ -13,7 +13,7 @@
 !pkey_L1_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L1_1_x1024_>
 !pt = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
-!ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L1_ = !lwe.lwe_ciphertext<encoding = #full_crt_packing_encoding, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 module attributes {scheme.bgv} {
   // CHECK: func @foo__encrypt__arg0
   func.func @foo__encrypt__arg0(%arg0: i64, %pk: !pkey_L1_) -> !ct_L1_ {

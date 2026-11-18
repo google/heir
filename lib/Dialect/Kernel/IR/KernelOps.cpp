@@ -164,12 +164,12 @@ namespace {
 // packing or the single slot of constant-coefficient encoding, are not
 // checked here.
 int64_t getSlotsPerCiphertext(lwe::LWECiphertextType ctType) {
-  auto plaintextSpace = ctType.getPlaintextSpace();
-  int64_t slots = plaintextSpace.getRing()
+  int64_t slots = ctType.getCiphertextSpace()
+                      .getRing()
                       .getPolynomialModulus()
                       .getPolynomial()
                       .getDegree();
-  if (isa<lwe::InverseCanonicalEncodingAttr>(plaintextSpace.getEncoding())) {
+  if (isa<lwe::InverseCanonicalEncodingAttr>(ctType.getEncoding())) {
     slots /= 2;
   }
   return slots;

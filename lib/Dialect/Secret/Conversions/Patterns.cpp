@@ -9,6 +9,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
@@ -68,6 +69,15 @@ Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
   return keyBlockArg;
 }
 
+static Attribute getPlaintextEncoding(lwe::LWECiphertextType ct,
+                                      Attribute contextualAttr) {
+  if (auto mgmt = dyn_cast_or_null<mgmt::MgmtAttr>(contextualAttr)) {
+    return lwe::getEncodingAttrWithNewScalingFactor(ct.getEncoding(),
+                                                    mgmt.getScale());
+  }
+  return ct.getEncoding();
+}
+
 LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
     secret::ConcealOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
@@ -79,11 +89,15 @@ LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
   Type resultTy = getTypeConverter()->convertType(op.getResult().getType(),
                                                   mgmtAttrResult.value());
   auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(resultTy));
-  auto plaintextTy =
-      lwe::LWEPlaintextType::get(op.getContext(), ctTy.getPlaintextSpace());
+  auto plaintextRing = rlweTypeConverter.getPlaintextRing(op.getContext());
+  Attribute plaintextEncoding =
+      getPlaintextEncoding(ctTy, mgmtAttrResult.value());
+  auto plaintextTy = lwe::LWEPlaintextType::get(
+      op.getContext(), lwe::PlaintextSpaceAttr::get(
+                           op.getContext(), plaintextRing, plaintextEncoding));
 
   Type encodeOpResultTy = plaintextTy;
-  if (auto resultTensorTy = cast<RankedTensorType>(resultTy)) {
+  if (auto resultTensorTy = dyn_cast<RankedTensorType>(resultTy)) {
     encodeOpResultTy =
         RankedTensorType::get(resultTensorTy.getShape(), plaintextTy);
   }
@@ -92,14 +106,12 @@ LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
   // the input to a ciphertext.
   IntegerAttr scaleAttr;
   if (ctTy.getModulusChain()) {
-    scaleAttr =
-        rewriter.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
-            ctTy.getPlaintextSpace().getEncoding()));
+    scaleAttr = rewriter.getI64IntegerAttr(
+        lwe::getScalingFactorFromEncodingAttr(plaintextEncoding));
   }
   auto encoded = lwe::RLWEEncodeOp::create(
       rewriter, op.getLoc(), encodeOpResultTy, op.getCleartext(),
-      ctTy.getPlaintextSpace().getEncoding(),
-      ctTy.getPlaintextSpace().getRing(), /*level=*/nullptr, scaleAttr);
+      plaintextEncoding, plaintextRing, /*level=*/nullptr, scaleAttr);
   auto newOp =
       lwe::TrivialEncryptOp::create(rewriter, op.getLoc(), resultTy, encoded);
   newOp->setAttrs(op->getAttrs());
@@ -152,23 +164,28 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   Value keyBlockArg =
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
 
-  auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
-                                                resultCtTy.getPlaintextSpace());
+  auto plaintextRing = rlweTypeConverter.getPlaintextRing(ctx);
+  auto mgmtAttrResult = getTypeConverter()->getContextualAttr(op.getResult());
+  Attribute contextualAttr =
+      succeeded(mgmtAttrResult)
+          ? mgmtAttrResult.value()
+          : parentFunc.getResultAttr(0, mgmt::MgmtDialect::kArgMgmtAttrName);
+  Attribute plaintextEncoding =
+      getPlaintextEncoding(resultCtTy, contextualAttr);
+  auto plaintextTy = lwe::LWEPlaintextType::get(
+      ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextRing, plaintextEncoding));
 
   // As above, --lwe-annotate-plaintext-level owns the level.
   IntegerAttr encScaleAttr;
   if (resultCtTy.getModulusChain()) {
-    encScaleAttr =
-        rewriter.getI64IntegerAttr(lwe::getScalingFactorFromEncodingAttr(
-            resultCtTy.getPlaintextSpace().getEncoding()));
+    encScaleAttr = rewriter.getI64IntegerAttr(
+        lwe::getScalingFactorFromEncodingAttr(plaintextEncoding));
   }
 
   auto encryptFn = [&](Value cleartext) -> lwe::RLWEEncryptOp {
-    auto encoded =
-        lwe::RLWEEncodeOp::create(rewriter, op.getLoc(), plaintextTy, cleartext,
-                                  resultCtTy.getPlaintextSpace().getEncoding(),
-                                  resultCtTy.getPlaintextSpace().getRing(),
-                                  /*level=*/nullptr, encScaleAttr);
+    auto encoded = lwe::RLWEEncodeOp::create(
+        rewriter, op.getLoc(), plaintextTy, cleartext, plaintextEncoding,
+        plaintextRing, /*level=*/nullptr, encScaleAttr);
     auto encryptOp = lwe::RLWEEncryptOp::create(
         rewriter, op.getLoc(), resultCtTy, encoded.getResult(), keyBlockArg);
     // Copy attributes from the original op to preserve any mgmt attrs needed by
@@ -248,9 +265,19 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
   Value keyBlockArg =
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
 
+  auto plaintextRing = rlweTypeConverter.getPlaintextRing(ctx);
+  auto mgmtAttrResult =
+      getTypeConverter()->getContextualAttr(adaptor.getInput());
+  Attribute contextualAttr =
+      succeeded(mgmtAttrResult)
+          ? mgmtAttrResult.value()
+          : parentFunc.getArgAttr(0, mgmt::MgmtDialect::kArgMgmtAttrName);
+  Attribute plaintextEncoding = getPlaintextEncoding(argCtTy, contextualAttr);
+  auto plaintextSpace =
+      lwe::PlaintextSpaceAttr::get(ctx, plaintextRing, plaintextEncoding);
+
   auto decryptFn = [&](Value ciphertext, Type resultTy) -> lwe::RLWEDecodeOp {
-    auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
-                                                  argCtTy.getPlaintextSpace());
+    auto plaintextTy = lwe::LWEPlaintextType::get(ctx, plaintextSpace);
     auto decrypted = lwe::RLWEDecryptOp::create(
         rewriter, op.getLoc(), plaintextTy, ciphertext, keyBlockArg);
     // Note: we use the secret.reveal op's original result type as the result
@@ -277,10 +304,9 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
     // this pattern lowers the reveal op to have an output tensor type (rather
     // than i16). The rest of the IR manages unpacking, and the rlwe_decode op
     // will only manage the cryptosystem-relevant decoding step (such as iNTT).
-    auto decoded = lwe::RLWEDecodeOp::create(
-        rewriter, op.getLoc(), resultTy, decrypted.getResult(),
-        argCtTy.getPlaintextSpace().getEncoding(),
-        argCtTy.getPlaintextSpace().getRing());
+    auto decoded = lwe::RLWEDecodeOp::create(rewriter, op.getLoc(), resultTy,
+                                             decrypted.getResult(),
+                                             plaintextEncoding, plaintextRing);
     return decoded;
   };
 
@@ -568,8 +594,7 @@ void addSecretToSchemeDefaultConversionTargetsAndPatterns(
 SecretToRlweTypeConverter::SecretToRlweTypeConverter(
     MLIRContext* ctx, polynomial::RingAttr rlweRing,
     SmallVector<int32_t> moduliPerLevel)
-    : UniquelyNamedAttributeAwareTypeConverter(
-          mgmt::MgmtDialect::kArgMgmtAttrName),
+    : RlweTypeConverterBase(mgmt::MgmtDialect::kArgMgmtAttrName),
       ring(rlweRing),
       moduliPerLevel(std::move(moduliPerLevel)) {
   addConversion([](Type type, Attribute attr) -> std::optional<Type> {
@@ -610,7 +635,6 @@ Type SecretToRlweTypeConverter::convertSecretTypeWithMgmtAttr(
     modulusChain.push_back(modulus);
   }
 
-  auto plaintextRing = getPlaintextRing(ctx);
   auto encodingAttr = getEncodingAttr(ctx, scale);
   auto encryptionType = getEncryptionType();
 
@@ -621,7 +645,7 @@ Type SecretToRlweTypeConverter::convertSecretTypeWithMgmtAttr(
                           1;
 
   auto ctType = lwe::LWECiphertextType::get(
-      ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextRing, encodingAttr),
+      ctx, encodingAttr,
       lwe::CiphertextSpaceAttr::get(ctx, levelRing, encryptionType, dimension),
       lwe::KeyAttr::get(ctx, 0),
       lwe::ModulusChainAttr::get(ctx, modulusChain, currentModulusIdx));

@@ -56,13 +56,10 @@ LogicalResult verifyMulOp(Op* op) {
       y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
     return op->emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
   }
-  // verify plaintext space matches
-  auto xPlaintext = x.getPlaintextSpace();
-  auto yPlaintext = y.getPlaintextSpace();
-  auto outPlaintext = out.getPlaintextSpace();
-  if (outPlaintext !=
-      inferMulOpPlaintextSpaceAttr(op->getContext(), xPlaintext, yPlaintext)) {
-    return op->emitOpError() << "output plaintext space does not match";
+  // verify encoding matches
+  auto expectedEncoding = inferMulOpEncoding(x.getEncoding(), y.getEncoding());
+  if (!areEncodingsCompatible(out.getEncoding(), expectedEncoding)) {
+    return op->emitOpError() << "output encoding does not match";
   }
   return success();
 }
@@ -83,13 +80,11 @@ LogicalResult verifyMulPlainOp(Op* op) {
   if (ct.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
     return op->emitOpError() << "output.dim == x.dim does not hold";
   }
-  // verify plaintext space matches
-  auto ctPlaintext = ct.getPlaintextSpace();
-  auto ptPlaintext = pt.getPlaintextSpace();
-  auto outPlaintext = out.getPlaintextSpace();
-  if (outPlaintext != inferMulOpPlaintextSpaceAttr(op->getContext(),
-                                                   ctPlaintext, ptPlaintext)) {
-    return op->emitOpError() << "output plaintext space does not match";
+  // verify encoding matches
+  auto expectedEncoding = inferMulOpEncoding(
+      ct.getEncoding(), pt.getPlaintextSpace().getEncoding());
+  if (!areEncodingsCompatible(out.getEncoding(), expectedEncoding)) {
+    return op->emitOpError() << "output encoding does not match";
   }
   return success();
 }
@@ -133,8 +128,8 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
            << "output ciphertext_space ring should match to_ring";
   }
 
-  auto outPlaintextSpace = out.getPlaintextSpace();
-  auto xPlaintextSpace = x.getPlaintextSpace();
+  auto outEncoding = out.getEncoding();
+  auto xEncoding = x.getEncoding();
 
   bool isModArith = false;
   bool isRNS = false;
@@ -161,10 +156,10 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
 
     auto dividedModulus = xRingCoeffType.getModulus().getValue().sdiv(
         outRingCoeffType.getModulus().getValue());
-    auto newPlaintextSpace = inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
-        op->getContext(), xPlaintextSpace, dividedModulus);
-    if (outPlaintextSpace != newPlaintextSpace) {
-      return op->emitOpError() << "output plaintext space does not match";
+    auto expectedEncoding =
+        inferModulusSwitchOrRescaleOpEncoding(xEncoding, dividedModulus);
+    if (!areEncodingsCompatible(outEncoding, expectedEncoding)) {
+      return op->emitOpError() << "output encoding does not match";
     }
   }
 
@@ -199,10 +194,10 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
       currentModulus = currentModulus.zext(newWidth);
       dividedModulus *= currentModulus;
     }
-    auto newPlaintextSpace = inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
-        op->getContext(), xPlaintextSpace, dividedModulus);
-    if (outPlaintextSpace != newPlaintextSpace) {
-      return op->emitOpError() << "output plaintext space does not match";
+    auto expectedEncoding =
+        inferModulusSwitchOrRescaleOpEncoding(xEncoding, dividedModulus);
+    if (!areEncodingsCompatible(outEncoding, expectedEncoding)) {
+      return op->emitOpError() << "output encoding does not match";
     }
   }
 
@@ -244,7 +239,7 @@ LogicalResult inferAddOpReturnTypes(
   auto newDim = std::max(x.getCiphertextSpace().getSize(),
                          y.getCiphertextSpace().getSize());
   auto newCtTy = lwe::LWECiphertextType::get(
-      ctx, x.getPlaintextSpace(),
+      ctx, x.getEncoding(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     newDim),
@@ -289,14 +284,10 @@ LogicalResult inferMulOpReturnTypes(
   auto y = getCtTy(adaptor.getRhs());
   auto newDim =
       x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
-  auto xPlaintextSpace = x.getPlaintextSpace();
-  auto yPlaintextSpace = y.getPlaintextSpace();
-
-  lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
-      inferMulOpPlaintextSpaceAttr(ctx, xPlaintextSpace, yPlaintextSpace);
+  Attribute newEncoding = inferMulOpEncoding(x.getEncoding(), y.getEncoding());
 
   auto newCtTy = lwe::LWECiphertextType::get(
-      ctx, newPlaintextSpaceAttr,
+      ctx, newEncoding,
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     newDim),
@@ -325,15 +316,12 @@ LogicalResult inferMulPlainOpReturnTypes(
     ct = getCtTy(adaptor.getRhs());
     pt = getPtTy(adaptor.getLhs());
   }
-  auto ctPlaintextSpace = ct.getPlaintextSpace();
-  auto ptPlaintextSpace = pt.getPlaintextSpace();
+  Attribute newEncoding = inferMulOpEncoding(
+      ct.getEncoding(), pt.getPlaintextSpace().getEncoding());
 
-  lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
-      inferMulOpPlaintextSpaceAttr(ctx, ctPlaintextSpace, ptPlaintextSpace);
-
-  auto newCtTy = lwe::LWECiphertextType::get(ctx, newPlaintextSpaceAttr,
-                                             ct.getCiphertextSpace(),
-                                             ct.getKey(), ct.getModulusChain());
+  auto newCtTy =
+      lwe::LWECiphertextType::get(ctx, newEncoding, ct.getCiphertextSpace(),
+                                  ct.getKey(), ct.getModulusChain());
 
   if (auto tensorTy = dyn_cast<RankedTensorType>(adaptor.getLhs().getType())) {
     inferredReturnTypes.push_back(
@@ -351,7 +339,7 @@ LogicalResult inferRelinearizeOpReturnTypes(
     SmallVectorImpl<Type>& inferredReturnTypes) {
   auto x = getCtTy(adaptor.getInput());
   auto newCtTy = lwe::LWECiphertextType::get(
-      ctx, x.getPlaintextSpace(),
+      ctx, x.getEncoding(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     adaptor.getToBasis().size()),
@@ -382,7 +370,7 @@ LogicalResult inferLevelReduceOpReturnTypes(
       newModulusChain, x.getCiphertextSpace().getRing().getPolynomialModulus());
 
   auto newCtTy = lwe::LWECiphertextType::get(
-      ctx, x.getPlaintextSpace(),
+      ctx, x.getEncoding(),
       lwe::CiphertextSpaceAttr::get(ctx, newRing,
                                     x.getCiphertextSpace().getEncryptionType(),
                                     x.getCiphertextSpace().getSize()),
