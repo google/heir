@@ -7,6 +7,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +33,7 @@
 #include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
 
 // ISL
+#include "include/isl/aff.h"             // from @isl
 #include "include/isl/ast.h"             // from @isl
 #include "include/isl/ast_build.h"       // from @isl
 #include "include/isl/ast_type.h"        // from @isl
@@ -39,8 +41,10 @@
 #include "include/isl/ctx.h"             // from @isl
 #include "include/isl/id.h"              // from @isl
 #include "include/isl/id_type.h"         // from @isl
+#include "include/isl/local_space.h"     // from @isl
 #include "include/isl/map.h"             // from @isl
 #include "include/isl/map_type.h"        // from @isl
+#include "include/isl/mat.h"             // from @isl
 #include "include/isl/set.h"             // from @isl
 #include "include/isl/space.h"           // from @isl
 #include "include/isl/space_type.h"      // from @isl
@@ -437,6 +441,74 @@ void run(const ScanNode& node, SmallVectorImpl<DynamicAPInt>& iterators,
   }
 }
 
+// The schedule S[x] -> [B (1, x)] of `set` for a reduced basis B of it (see
+// isl_basic_set_reduced_basis), the basis isl_basic_set_scan walks. B is
+// unimodular, so the schedule maps the integer points of `set` one to one. In
+// its coordinates, lattice constraints that tie the coordinates of `set`
+// (such as one coordinate determined modulo a large constant by others)
+// mostly become narrow loop bounds, where loops over the original coordinates
+// scan the whole bounding box.
+__isl_give isl_map* reducedBasisSchedule(__isl_keep isl_basic_set* set) {
+  isl_mat* basis = isl_basic_set_reduced_basis(set);
+  isl_size numDims = isl_basic_set_dim(set, isl_dim_set);
+  if (!basis || numDims < 0) {
+    isl_mat_free(basis);
+    return nullptr;
+  }
+  isl_space* space = isl_basic_set_get_space(set);
+  isl_local_space* domain = isl_local_space_from_space(isl_space_copy(space));
+  isl_space* range =
+      isl_space_reset_tuple_id(isl_space_copy(space), isl_dim_set);
+  isl_multi_aff* schedule =
+      isl_multi_aff_zero(isl_space_map_from_domain_and_range(space, range));
+  for (int i = 0; i < numDims; ++i) {
+    // Row 1 + i of the basis is (constant, coefficients) of output i.
+    isl_aff* row = isl_aff_val_on_domain(
+        isl_local_space_copy(domain), isl_mat_get_element_val(basis, 1 + i, 0));
+    for (int j = 0; j < numDims; ++j) {
+      row = isl_aff_set_coefficient_val(
+          row, isl_dim_in, j, isl_mat_get_element_val(basis, 1 + i, 1 + j));
+    }
+    schedule = isl_multi_aff_set_aff(schedule, i, row);
+  }
+  isl_local_space_free(domain);
+  isl_mat_free(basis);
+  return isl_map_intersect_domain(
+      isl_map_from_multi_aff(schedule),
+      isl_set_from_basic_set(isl_basic_set_copy(set)));
+}
+
+// Calls `fn` with the coordinates of every integer point of `set`, which must
+// have no parameters or local variables, once per point and in no particular
+// order. The points come from walking an isl AST built once for `set`, so the
+// isl work does not depend on the number of points. The AST scans `set` along
+// a reduced basis of it, like isl_basic_set_scan, so that lattice constraints
+// between coordinates become loop bounds. Fails if `set` is unbounded.
+LogicalResult forEachPointOfBoundedSet(
+    __isl_take isl_basic_set* set,
+    function_ref<void(ArrayRef<DynamicAPInt>)> fn) {
+  isl_ctx* ctx = isl_basic_set_get_ctx(set);
+  set = isl_basic_set_set_tuple_name(isl_basic_set_flatten(set), "S");
+  isl_bool empty = isl_basic_set_is_empty(set);
+  isl_bool bounded =
+      empty == isl_bool_false ? isl_basic_set_is_bounded(set) : isl_bool_true;
+  if (empty == isl_bool_true || empty < 0 || bounded != isl_bool_true) {
+    isl_basic_set_free(set);
+    return success(empty == isl_bool_true);
+  }
+  isl_map* schedule = reducedBasisSchedule(set);
+  isl_basic_set_free(set);
+  if (!schedule) return failure();
+  isl_ast_node* tree = buildAst(isl_union_map_from_map(schedule), ctx);
+  if (!tree) return failure();
+  AstScanner scanner;
+  ScanNode root = scanner.buildNode(tree);
+  isl_ast_node_free(tree);
+  SmallVector<DynamicAPInt> iterators(scanner.numIterators());
+  run(root, iterators, fn);
+  return success();
+}
+
 }  // namespace
 
 void forEachPoint(const presburger::IntegerRelation& rel,
@@ -446,33 +518,53 @@ void forEachPoint(const presburger::IntegerRelation& rel,
 
   // Lifting turns every local of the relation into an ordinary set coordinate,
   // placed after the domain and range ones, so isl builds the scan without
-  // first eliminating the locals (isl_map_compute_divs). The schedule is the
-  // identity, so the AST visits the lifted points in lexicographic order and
-  // the witnesses of one point of `rel` arrive consecutively.
+  // first eliminating the locals (isl_map_compute_divs).
   isl_ctx* ctx = isl_ctx_alloc();
   isl_basic_set* lifted = isl_basic_set_flatten(isl_basic_set_lift(
       isl_basic_map_wrap(convertRelationToBasicMap(rel, ctx))));
-  lifted = isl_basic_set_set_tuple_name(lifted, "S");
-  isl_map* identity = isl_set_identity(isl_set_from_basic_set(lifted));
-  identity = isl_map_reset_tuple_id(identity, isl_dim_out);
-  isl_ast_node* tree = buildAst(isl_union_map_from_map(identity), ctx);
-  if (!tree) llvm::report_fatal_error("forEachPoint: isl codegen failed");
-  AstScanner scanner;
-  ScanNode root = scanner.buildNode(tree);
-  isl_ast_node_free(tree);
+  std::vector<int64_t> coords;
+  size_t numWitnesses = 0;
+  LogicalResult scanned =
+      forEachPointOfBoundedSet(lifted, [&](ArrayRef<DynamicAPInt> witness) {
+        ++numWitnesses;
+        for (unsigned i = 0; i < numVars; ++i) {
+          if (witness[i] < std::numeric_limits<int64_t>::min() ||
+              witness[i] > std::numeric_limits<int64_t>::max()) {
+            llvm::report_fatal_error(
+                "forEachPoint: a point of the relation does not fit in "
+                "int64_t");
+          }
+          coords.push_back(int64_t(witness[i]));
+        }
+      });
   isl_ctx_free(ctx);
+  if (failed(scanned)) {
+    llvm::report_fatal_error(
+        "forEachPoint: isl cannot scan the relation; it must be bounded");
+  }
+  if (numVars == 0) {
+    if (numWitnesses > 0) fn({}, {});
+    return;
+  }
 
-  SmallVector<DynamicAPInt> iterators(scanner.numIterators());
-  SmallVector<int64_t> point(numVars), previous;
-  run(root, iterators, [&](ArrayRef<DynamicAPInt> witness) {
-    // The relation's constraints have int64_t coefficients and bound every
-    // variable, so its points fit in int64_t.
-    for (unsigned i = 0; i < numVars; ++i) point[i] = int64_t(witness[i]);
-    if (!previous.empty() && previous == point) return;
-    previous = point;
-    fn(ArrayRef<int64_t>(point).take_front(numDomain),
-       ArrayRef<int64_t>(point).drop_front(numDomain));
+  // The scan visits the points in no particular order, and a local that is
+  // not a floor division of the variables can take several values for one
+  // point: sort the points and report each once.
+  auto point = [&](size_t i) {
+    return ArrayRef<int64_t>(coords).slice(i * numVars, numVars);
+  };
+  std::vector<size_t> order(numWitnesses);
+  std::iota(order.begin(), order.end(), 0);
+  llvm::sort(order, [&](size_t a, size_t b) {
+    ArrayRef<int64_t> pa = point(a), pb = point(b);
+    return std::lexicographical_compare(pa.begin(), pa.end(), pb.begin(),
+                                        pb.end());
   });
+  for (size_t k = 0; k < order.size(); ++k) {
+    ArrayRef<int64_t> p = point(order[k]);
+    if (k > 0 && p == point(order[k - 1])) continue;
+    fn(p.take_front(numDomain), p.drop_front(numDomain));
+  }
 }
 
 FailureOr<isl_ast_node*> generateLoopNest(

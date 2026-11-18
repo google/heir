@@ -40,11 +40,11 @@ FailureOr<isl_ast_node*> generateLoopNest(
 
 // Calls `fn(domainPoint, rangePoint)` once for every point of `rel`, in
 // lexicographic order of (domain, range). The points come from walking an isl
-// AST built once for `rel`, so the isl work does not depend on the number of
-// points. Every local of `rel` becomes a coordinate of that AST (a loop or an
-// expression). A local that is not a floor division of the variables can take
-// several values for one point; the walk then reaches the point once per
-// value and reports it once.
+// AST built once for `rel` with its locals as coordinates, so the isl work does
+// not depend on the number of points. The AST scans along a reduced basis, like
+// isl_basic_set_scan, so that lattice constraints between coordinates become
+// loop bounds. A local that is not a floor division of the variables can take
+// several values for one point; the point is still reported once.
 void forEachPoint(const presburger::IntegerRelation& rel,
                   function_ref<void(ArrayRef<int64_t> domainPoint,
                                     ArrayRef<int64_t> rangePoint)>
