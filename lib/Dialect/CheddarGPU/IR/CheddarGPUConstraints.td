@@ -114,6 +114,11 @@ class CheddarGPU_BothOrNeither<string a, string b> : PredOpTrait<
     CPred<"static_cast<bool>(" # CheddarGPU_Getter<a>.call # ") == static_cast<bool>("
           # CheddarGPU_Getter<b>.call # ")">>;
 
+class CheddarGPU_LevelOrSentinel<string sentinelCond, string sentinelDescr> : PredOpTrait<
+    "level is non-negative, or -1 when " # sentinelDescr,
+    CPred<"static_cast<int64_t>($level) >= 0 || (static_cast<int64_t>($level) == -1 && ("
+          # sentinelCond # "))">>;
+
 class CheddarGPU_Requires<string a, string bCond, string descr>
     : PredOpTrait<descr, CPred<"!" # CheddarGPU_Getter<a>.call # " || (" # bCond # ")">>;
 
@@ -177,6 +182,7 @@ def CheddarGPU_LimbRangeAttr
     : ConfinedAttr<DenseI64ArrayAttr, [DenseArrayCount<2>, CheddarGPU_OffsetCount]>;
 
 def CheddarGPU_NonNegI64Attr : ConfinedAttr<I64Attr, [IntNonNegative]>;
+def CheddarGPU_PosI64Attr : ConfinedAttr<I64Attr, [IntPositive]>;
 
 def CheddarGPU_StartEnd : AttrConstraint<CPred<
     "::llvm::cast<::mlir::DenseI64ArrayAttr>($_self).asArrayRef()[0] >= 0 && "
@@ -225,6 +231,10 @@ def CheddarGPU_InOutCountsMatch : NativeOpTrait<"InOutCountsMatch"> {
 }
 
 def CheddarGPU_NTTPrimeCounts : NativeOpTrait<"NTTPrimeCounts"> {
+  let cppNamespace = "::mlir::heir::cheddar_gpu";
+}
+
+def CheddarGPU_PadRangeWithinDest : NativeOpTrait<"PadRangeWithinDest"> {
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 }
 

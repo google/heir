@@ -124,4 +124,21 @@ LogicalResult verifyNTTPrimeCounts(Operation* op) {
 
   return success();
 }
+LogicalResult verifyPadRangeWithinDest(Operation* op) {
+  if (op->getNumOperands() == 0) return success();
+  auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
+  if (!outType || outType.getRank() < 1) return success();
+  auto padStartAttr = op->getAttrOfType<IntegerAttr>("pad_start");
+  auto padEndAttr = op->getAttrOfType<IntegerAttr>("pad_end");
+  if (!padStartAttr || !padEndAttr) return success();
+  int64_t padStart = padStartAttr.getInt();
+  int64_t padEnd = padEndAttr.getInt();
+  int64_t numLimbs = outType.getDimSize(0);
+  if (padStart < 0 || padEnd < padStart || padEnd > numLimbs) {
+    return op->emitOpError("pad range [")
+           << padStart << ", " << padEnd << "] out of bounds for output with "
+           << numLimbs << " limbs";
+  }
+  return success();
+}
 }  // namespace mlir::heir::cheddar_gpu

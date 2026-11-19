@@ -1032,4 +1032,183 @@ def CheddarGPU_BConvOp : CheddarGPU_Op<"bconv", [
   );
 }
 
+//===----------------------------------------------------------------------===//
+// ModSwitch Macro and Epilogue Operations
+//===----------------------------------------------------------------------===//
+
+// Modulus switching operations (mod_down, rescale, mod_down_rescale, pseudo_mod_up).
+class CheddarGPU_ModSwitchOpBase<string mnemonic, Attr levelAttr = I64Attr, list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, traits> {
+  let arguments = (ins
+    Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+    Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in,
+    levelAttr:$level
+  );
+}
+
+def CheddarGPU_PseudoModUpOp
+    : CheddarGPU_ModSwitchOpBase<"pseudo_mod_up", I64Attr, [AllTypesMatch<["out", "in"]>]> {
+  let summary = "Scales a polynomial buffer by p_prod = prod(P) mod Q";
+  let description = [{
+    Mirrors Cheddar's `ModSwitchHandler::PseudoModUp` in `ModSwitch.cu:303-317`.
+    Computes `out[l][i] = in[l][i] * p_prod[l] mod Q_l` limb-wise, where `Q_l` is the
+    `l`-th limb of `Q` from `CheddarGPU_ParamsAttr`.
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_ModUpOp : CheddarGPU_Op<"mod_up", [
+    CheddarGPU_NonEmpty<"outs">,
+    VariadicAllTypesMatch<"outs">,
+    CheddarGPU_EachSameRingAs<"outs", "in">,
+    CheddarGPU_LevelOrSentinel<
+        "::llvm::cast<::mlir::MemRefType>((*$outs.begin()).getType()).getDimSize(0) == "
+        # CheddarGPU_Dim<"in", 0>.result # " + 1",
+        "'outs' has one more limb than 'in'">,
+  ]> {
+  let summary = "ModUp basis extension: expands polynomial across beta destination buffers";
+  let description = [{
+    Mirrors Cheddar's `ModSwitchHandler::ModUp` in `ModSwitch.cu:318-398`.
+    Expands input `in` (with `num_q` limbs) into `beta` destination buffers `outs`
+    (each having `num_q + num_aux` limbs).
+    Operates in evaluation (`eval`) domain.
+    `level = -1` denotes the special base-level case where 'outs' has one more limb than 'in'.
+  }];
+
+  let arguments = (ins
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "destination buffers for each beta digit", [MemWrite]>:$outs,
+    Arg<CheddarGPU_PolyBuffer, "input polynomial buffer", [MemRead]>:$in,
+    I64Attr:$level
+  );
+
+  let assemblyFormat = [{
+    `outs` `(` $outs `)` `,` $in prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_ModDownOp : CheddarGPU_ModSwitchOpBase<"mod_down", I64Attr, [
+    CheddarGPU_SameDegree<["out", "in"]>,
+    CheddarGPU_DimRel<"out", 0, "<", "in", 0, "'out' has fewer limbs than 'in'">,
+  ]> {
+  let summary = "ModDown modulus switching: drops auxiliary primes P";
+  let description = [{
+    Mirrors Cheddar's `ModSwitchHandler::ModDown` in `ModSwitch.cu:400-416`.
+    Shrinks input `in` (with `num_q + num_aux` limbs) down to `out` (with `num_q` limbs).
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_RescaleOp : CheddarGPU_ModSwitchOpBase<"rescale", CheddarGPU_PosI64Attr, [
+    CheddarGPU_SameDegree<["out", "in"]>,
+  ]> {
+  let summary = "Rescale modulus switching: drops terminal/main prime(s) from level to level - 1";
+  let description = [{
+    Mirrors Cheddar's `ModSwitchHandler::Rescale` in `ModSwitch.cu:418-435`.
+    Shrinks input `in` (at `level`) down to `out` (at `level - 1`).
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_ModDownRescaleOp : CheddarGPU_ModSwitchOpBase<"mod_down_rescale", CheddarGPU_PosI64Attr, [
+    CheddarGPU_SameDegree<["out", "in"]>,
+  ]> {
+  let summary = "Combined ModDown and Rescale modulus switching";
+  let description = [{
+    Mirrors Cheddar's `ModSwitchHandler::ModDownAndRescale` in `ModSwitch.cu:437-453`.
+    Shrinks input `in` (with `num_q(level) + num_aux` limbs) down to `out` (at `level - 1`).
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+// ModDown epilogue operations (mod_down_epilogue, ntt_mod_down).
+class CheddarGPU_ModDownEpilogueOpBase<string mnemonic, dag inputOperand, string formatStr,
+                                       dag extraAttrs = (ins), list<Trait> traits = [],
+                                       string src2Offset = "0">
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AttrSizedOperandSegments,
+        CheddarGPU_PadRangeWithinDest,
+        PredOpTrait<"'src2' (if present) covers the pad range",
+          CPred<"!getSrc2() || " # CheddarGPU_Dim<"src2", 0>.result
+                # " >= static_cast<int64_t>($pad_end - $pad_start + " # src2Offset # ")">>,
+        CheddarGPU_Requires<"src2_padding", "static_cast<bool>(getSrc2())",
+                            "'src2_padding' requires 'src2' to be set">,
+        PredOpTrait<"'src2_padding' (if present) covers the pad range",
+          CPred<"!getSrc2Padding() || " # CheddarGPU_Dim<"src2_padding", 0>.result
+                # " >= static_cast<int64_t>($pad_end - $pad_start)">>,
+        CheddarGPU_PerLimbOf<"inv_prime_prod", "out">,
+        CheddarGPU_OptionalSameRingAs<"src2", "out">,
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out
+    ),
+    inputOperand,
+    (ins
+      Arg<CheddarGPU_LimbVector, "per-limb inv_prime_prod constants memref<LxiW>", [MemRead]>:$inv_prime_prod,
+      Arg<Optional<CheddarGPU_PolyBuffer>, "optional src2 buffer", [MemRead]>:$src2,
+      Arg<Optional<CheddarGPU_LimbVector>, "optional src2_padding constants", [MemRead]>:$src2_padding,
+      CheddarGPU_NonNegI64Attr:$pad_start,
+      CheddarGPU_NonNegI64Attr:$pad_end
+    ),
+    extraAttrs
+  );
+
+  let assemblyFormat = formatStr;
+}
+
+def CheddarGPU_ModDownEpilogueOp : CheddarGPU_ModDownEpilogueOpBase<"mod_down_epilogue",
+    (ins Arg<CheddarGPU_PolyBuffer, "ntt_bconv polynomial buffer", [MemRead]>:$ntt_bconv),
+    [{
+      $out `,` $ntt_bconv `,` $inv_prime_prod ( `,` `src2` `(` $src2^ `)` )?
+      ( `,` `src2_padding` `(` $src2_padding^ `)` )? prop-dict attr-dict
+      `:` functional-type(operands, results)
+    }],
+    (ins),
+    [
+      AllTypesMatch<["out", "ntt_bconv"]>,
+    ]> {
+  let summary = "Fused epilogue for ModDown, Rescale, and ModDownAndRescale";
+  let description = [{
+    Mirrors Cheddar's `NTTPhase2ForModDown` fused epilogue in `NTT.cu:457-601`.
+    Computes:
+      out[l, i] = ((src2_exists ? (src2[l - pad_start, i] * src2_padding[l - pad_start]) : 0)
+                   - ntt_bconv[l, i]) * inv_prime_prod[l] mod Q_l,
+    where `Q_l` is the `l`-th limb of `Q` from `CheddarGPU_ParamsAttr`.
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_NTTModDownOp : CheddarGPU_ModDownEpilogueOpBase<"ntt_mod_down",
+    (ins Arg<CheddarGPU_PolyBuffer, "input polynomial buffer to transform (coeff form)", [MemRead]>:$ntt_in),
+    [{
+      $out `,` $ntt_in `,` $inv_prime_prod ( `,` `src2` `(` $src2^ `)` )?
+      ( `,` `src2_padding` `(` $src2_padding^ `)` )? prop-dict attr-dict
+      `:` functional-type(operands, results)
+    }],
+    (ins
+      DefaultValuedAttr<CheddarGPU_NonNegI64Attr, "0">:$src2_offset,
+      DefaultValuedAttr<I64Attr, "0">:$prime_offset,
+      OptionalAttr<DenseI64ArrayAttr>:$prime_indices
+    ),
+    [
+      AllTypesMatch<["out", "ntt_in"]>,
+      PredOpTrait<"'prime_indices' (if set) has one entry per limb of 'out'",
+        CPred<"!$prime_indices || static_cast<int64_t>($prime_indices->size()) == "
+              # CheddarGPU_Dim<"out", 0>.result>>,
+    ],
+    "$src2_offset"> {
+  let summary = "Fused Forward NTT and ModDown epilogue";
+  let description = [{
+    Mirrors Cheddar's `NTTPhase2ForModDown` in `NTT.cu:457-601`.
+    Computes forward NTT on `ntt_in` followed by fused ModDown epilogue:
+      out[l, x] = MontMul(ModSub(term1, NTT(ntt_in)[l, x]), inv_prime_prod[l]) mod Q_l
+    where `Q_l` is the `l`-th limb of `Q` from `CheddarGPU_ParamsAttr`, and
+      term1 = 0                                                                        (no src2)
+            | src2[l - pad_start + src2_offset, x]                                     (src2, l in [pad_start, pad_end))
+            | MontMul(src2[l - pad_start + src2_offset, x], src2_padding[l - pad_start]) (src2_pad, l in [pad_start, pad_end))
+      and 0 outside [pad_start, pad_end).
+    `ntt_in` is in `coeff` form; `src2` and `out` are in `eval` form.
+  }];
+}
+
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPU_OPS_TD_

@@ -90,6 +90,16 @@ class NTTPrimeCounts : public OpTrait::TraitBase<ConcreteType, NTTPrimeCounts> {
     return verifyNTTPrimeCounts(op);
   }
 };
+LogicalResult verifyPadRangeWithinDest(Operation* op);
+
+template <typename ConcreteType>
+class PadRangeWithinDest
+    : public OpTrait::TraitBase<ConcreteType, PadRangeWithinDest> {
+ public:
+  static LogicalResult verifyTrait(Operation* op) {
+    return verifyPadRangeWithinDest(op);
+  }
+};
 }  // namespace mlir::heir::cheddar_gpu
 
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPUTRAITS_H_
