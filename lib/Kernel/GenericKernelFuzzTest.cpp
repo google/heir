@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <set>
 #include <string>
@@ -19,16 +20,18 @@
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/GenericKernel.h"
 #include "lib/Utils/Layout/IslConversion.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineExpr.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"       // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"         // from @llvm-project
+#include "mlir/include/mlir/AsmParser/AsmParser.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 // copybara hack: avoid reordering include
 #include "fuzztest/fuzztest.h"  // from @fuzztest
@@ -481,9 +484,205 @@ class RandomOpBuilder {
     return {map, *layout, numCts, std::move(tensor)};
   }
 
+ public:
+  // A strided window op: out[u, p] (+)= in[c, s * p + r] (* filter[u, c, r])
+  // over output-only dims u, paired dims p with strides s, and reductions c
+  // (read by the input only) and r (the window).
+  Op buildStrided() {
+    Op op;
+    // Every operand fits in one ciphertext, as the layout family requires.
+    op.numSlots = 512;
+    op.kind = GenericReductionKind::Add;
+    int64_t numPaired = 1 + pick(2);
+    bool outputOnly = coin(), channel = coin();
+    // Loops: [u], p..., [c], r...
+    int64_t numLoops = (outputOnly ? 1 : 0) + 2 * numPaired + (channel ? 1 : 0);
+    op.loopRanges.assign(numLoops, 1);
+    int64_t loop = 0;
+    SmallVector<AffineExpr> outputExprs, inputExprs, filterExprs;
+    std::vector<int64_t> outputShape, inputShape, filterShape;
+    if (outputOnly) {
+      op.loopRanges[loop] = 1 + pick(3);
+      outputExprs.push_back(getAffineDimExpr(loop, context));
+      outputShape.push_back(op.loopRanges[loop]);
+      filterExprs.push_back(getAffineDimExpr(loop, context));
+      filterShape.push_back(op.loopRanges[loop]);
+      ++loop;
+    }
+    int64_t firstPaired = loop;
+    loop += numPaired;
+    if (channel) {
+      op.loopRanges[loop] = 1 + pick(3);
+      inputExprs.push_back(getAffineDimExpr(loop, context));
+      inputShape.push_back(op.loopRanges[loop]);
+      filterExprs.push_back(getAffineDimExpr(loop, context));
+      filterShape.push_back(op.loopRanges[loop]);
+      ++loop;
+    }
+    for (int64_t i = 0; i < numPaired; ++i) {
+      int64_t p = firstPaired + i, r = loop + i;
+      int64_t stride = 1 + pick(3), window = 1 + pick(3);
+      op.loopRanges[p] = 1 + pick(4);
+      op.loopRanges[r] = window;
+      outputExprs.push_back(getAffineDimExpr(p, context));
+      outputShape.push_back(op.loopRanges[p]);
+      inputExprs.push_back(stride * getAffineDimExpr(p, context) +
+                           getAffineDimExpr(r, context));
+      inputShape.push_back(stride * (op.loopRanges[p] - 1) + window);
+      filterExprs.push_back(getAffineDimExpr(r, context));
+      filterShape.push_back(window);
+    }
+    op.inputs.push_back(
+        makeOperand(AffineMap::get(numLoops, 0, inputExprs, context),
+                    inputShape, randomTensor(inputShape, 4, false), op.numSlots,
+                    /*allowPadding=*/true));
+    if (coin()) {
+      Operand filter;
+      filter.map = AffineMap::get(numLoops, 0, filterExprs, context);
+      filter.tensor = randomTensor(filterShape, 4, false);
+      filter.cleartext = true;
+      op.inputs.push_back(std::move(filter));
+      op.body = Body::Product;
+    } else {
+      op.body = Body::First;
+    }
+    op.initKind = GenericInitKind::Neutral;
+    op.output = makeOperand(AffineMap::get(numLoops, 0, outputExprs, context),
+                            outputShape, Tensor(outputShape), op.numSlots,
+                            /*allowPadding=*/false);
+    return op;
+  }
+
+ private:
   std::mt19937_64 rng;
   MLIRContext* context;
 };
+
+// The number of ciphertexts a layout uses.
+int64_t numCiphertexts(const IntegerRelation& layout) {
+  PointPairCollector collector(layout.getNumDomainVars(), 2);
+  enumeratePoints(layout, collector);
+  int64_t numCts = 1;
+  for (const auto& [index, position] : collector.points)
+    numCts = std::max(numCts, position[0] + 1);
+  return numCts;
+}
+
+// The polyphase layout of the secret input of `op`, or the input's own
+// layout if it is aligned or no polyphase layout applies.
+std::optional<IntegerRelation> polyphaseLayout(const Op& op,
+                                               std::string& reason) {
+  const Operand& input = op.inputs.front();
+  FailureOr<std::optional<IntegerRelation>> layout = getPolyphaseInputLayout(
+      op.loopRanges, input.map, input.layout, op.output.map, op.output.layout,
+      op.output.tensor.shape, op.numSlots, reason);
+  if (failed(layout)) return std::nullopt;
+  return *layout;
+}
+
+size_t numGroups(const Op& op) {
+  GenericKernelSpec spec;
+  spec.loopRanges = op.loopRanges;
+  spec.numSlots = op.numSlots;
+  for (const Operand& input : op.inputs) {
+    spec.inputs.push_back({input.map, input.layout});
+    if (input.cleartext)
+      spec.inputs.back().cleartextShape = llvm::to_vector(input.tensor.shape);
+  }
+  spec.output = {op.output.map, op.output.layout};
+  std::string reason;
+  FailureOr<InstanceGroups> groups =
+      groupInstances(spec, op.output.numCts, op.kind, reason);
+  EXPECT_TRUE(succeeded(groups)) << reason;
+  size_t count = 0;
+  for (const auto& [key, slots] : groups->readsByKey) {
+    size_t perKey = 0;
+    for (const auto& [slot, reads] : slots)
+      perKey = std::max(perKey, reads.size());
+    count += perKey;
+  }
+  return count;
+}
+
+// A strided window op computes the same result with its input packed in the
+// polyphase layout, under which the input is aligned.
+void polyphaseLayoutMatchesNaive(uint64_t seed) {
+  MLIRContext context;
+  Op op = RandomOpBuilder(seed, &context).buildStrided();
+  std::string reason;
+  std::optional<IntegerRelation> polyphase = polyphaseLayout(op, reason);
+  if (!polyphase) return;
+  Operand& input = op.inputs.front();
+  input.layout = *polyphase;
+  input.numCts = numCiphertexts(*polyphase);
+  FailureOr<std::optional<IntegerRelation>> again = getPolyphaseInputLayout(
+      op.loopRanges, input.map, input.layout, op.output.map, op.output.layout,
+      op.output.tensor.shape, op.numSlots, reason);
+  ASSERT_TRUE(succeeded(again)) << reason;
+  EXPECT_FALSE(again->has_value()) << "the polyphase layout is not aligned";
+  FailureOr<NodePtr> dag = buildKernel(op, reason);
+  ASSERT_TRUE(succeeded(dag)) << reason;
+  checkKernel(op, *dag);
+}
+
+FUZZ_TEST(GenericKernelFuzzTest, polyphaseLayoutMatchesNaive)
+    .WithDomains(fuzztest::Arbitrary<uint64_t>());
+
+// A stride-2 3x3 convolution over a row-major input with "same" padding (the
+// halo is unplaced): the polyphase layout needs a few groups per filter tap
+// instead of a few per output position.
+TEST(GenericKernelTest, PolyphaseLayoutOfStridedConvolution) {
+  MLIRContext context;
+  auto parse = [&](StringRef str) {
+    return cast<AffineMapAttr>(parseAttribute(str, &context)).getValue();
+  };
+  Op op;
+  op.numSlots = 64;
+  op.kind = GenericReductionKind::Add;
+  op.body = Body::Product;
+  op.initKind = GenericInitKind::Neutral;
+  // (co, y, x, ci, ky, kx)
+  op.loopRanges = {2, 4, 4, 2, 3, 3};
+  Operand input;
+  input.map = parse(
+      "affine_map<(co, y, x, ci, ky, kx) -> (ci, 2 * y + ky, 2 * x + kx)>");
+  input.tensor = Tensor::iota({2, 10, 10});
+  for (auto [flat, v] : llvm::enumerate(input.tensor.data)) {
+    int64_t row = flat / 10 % 10, col = flat % 10;
+    if (row == 0 || row == 9 || col == 0 || col == 9) v = 0;
+  }
+  input.layout = *getIntegerRelationFromIslStr(
+      "{ [c, y, x] -> [ct, slot] : 64ct + slot = 64c + 8y + x - 9 and "
+      "0 <= slot <= 63 and 0 <= c <= 1 and 1 <= y <= 8 and 1 <= x <= 8 }");
+  input.numCts = 2;
+  op.inputs.push_back(input);
+  Operand filter;
+  filter.map = parse("affine_map<(co, y, x, ci, ky, kx) -> (co, ci, ky, kx)>");
+  filter.tensor = Tensor::iota({2, 2, 3, 3});
+  filter.cleartext = true;
+  op.inputs.push_back(filter);
+  op.output.map = parse("affine_map<(co, y, x, ci, ky, kx) -> (co, y, x)>");
+  op.output.tensor = Tensor({2, 4, 4});
+  op.output.layout = *getIntegerRelationFromIslStr(
+      "{ [c, y, x] -> [ct, slot] : ct = 0 and slot = 16c + 4y + x and "
+      "0 <= c <= 1 and 0 <= y <= 3 and 0 <= x <= 3 }");
+
+  size_t before = numGroups(op);
+  std::string reason;
+  std::optional<IntegerRelation> polyphase = polyphaseLayout(op, reason);
+  ASSERT_TRUE(polyphase.has_value()) << reason;
+  op.inputs.front().layout = *polyphase;
+  op.inputs.front().numCts = numCiphertexts(*polyphase);
+  EXPECT_LE(op.inputs.front().numCts, 2);
+  size_t after = numGroups(op);
+  // Two output channels times two input channels times nine taps, split at
+  // most once more where a slab of the input crosses a ciphertext.
+  EXPECT_LE(after, 2u * 2 * 9 * 2);
+  EXPECT_LT(after, before);
+  FailureOr<NodePtr> dag = buildKernel(op, reason);
+  ASSERT_TRUE(succeeded(dag)) << reason;
+  checkKernel(op, *dag);
+}
 
 void genericKernelMatchesNaive(uint64_t seed) {
   MLIRContext context;

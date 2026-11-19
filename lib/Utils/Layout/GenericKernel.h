@@ -102,6 +102,34 @@ FailureOr<presburger::IntegerRelation> inferInducedOutputLayout(
     const presburger::IntegerRelation& inputLayout, AffineMap outputMap,
     ArrayRef<int64_t> outputShape, bool reduceToLexmin, std::string& reason);
 
+// The number of ciphertexts a (bounded, nonempty) layout uses: one more than
+// its largest ciphertext index.
+int64_t getNumCiphertexts(const presburger::IntegerRelation& layout);
+
+// A layout for a secret input of a structured op, from loop indices
+// (`loopRanges`) through `inputMap` to its data, under which the rotation each
+// iteration needs, (flat_in(inputMap(d)) - flat_out(outputMap(d))) mod
+// `numSlots` with flat = ct * numSlots + slot, does not depend on the loops
+// the input pairs with output dims. A result of `inputMap` that reads one
+// output loop p with stride s is split into q = floor((i - o) / s), placed
+// with the output layout's pitch of that dim, and the residue (i - o) mod s.
+// The residues and the results that read only reductions number classes,
+// placed where the output layout puts the output dims the input does not read,
+// and beyond those in further copies of the output's span. The layout places
+// each element the op reads once, in no more ciphertexts than the input and
+// output layouts use.
+//
+// Returns std::nullopt when `inputLayout` already has this property, and fails
+// (with `reason`) when the op or the layouts do not have the required form:
+// linear input indices that each read at most one output loop, an output
+// layout whose flat position is affine in the output index, and inputs that
+// fit the output extents.
+FailureOr<std::optional<presburger::IntegerRelation>> getPolyphaseInputLayout(
+    ArrayRef<int64_t> loopRanges, AffineMap inputMap,
+    const presburger::IntegerRelation& inputLayout, AffineMap outputMap,
+    const presburger::IntegerRelation& outputLayout,
+    ArrayRef<int64_t> outputShape, int64_t numSlots, std::string& reason);
+
 }  // namespace heir
 }  // namespace mlir
 

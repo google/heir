@@ -217,6 +217,7 @@ cc_test(
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:GenericKernel",
         "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:AsmParser",

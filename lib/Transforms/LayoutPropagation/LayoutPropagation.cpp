@@ -305,6 +305,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(TransposeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(linalg::GenericOp op);
+  void convertToPolyphaseLayouts(linalg::GenericOp op, LayoutAttr resultLayout);
 
   // Whether the dedicated layout rule of `op` applies, with the reason if not.
   // The checks change no IR, so an op they reject is generalized as it is.
@@ -699,6 +700,54 @@ static bool placesEveryElement(const IntegerRelation& layout,
       presburger::PresburgerSet(layout.getDomainSet()));
 }
 
+// A secret input read with strides or pitches that differ from the result's
+// needs a rotation per output position. When its layout is free to choose, so
+// that layout optimization can fold the conversion into the producer (e.g. a
+// function argument), convert the operand to the polyphase layout, under which
+// the rotations depend only on the loops the input does not share with the
+// result.
+void LayoutPropagation::convertToPolyphaseLayouts(linalg::GenericOp op,
+                                                  LayoutAttr resultLayout) {
+  auto resultType = cast<RankedTensorType>(op.getResult(0).getType());
+  AffineMap outputMap = op.getMatchingIndexingMap(op.getDpsInitOperand(0));
+  IRRewriter builder(&getContext());
+  for (OpOperand* input : op.getDpsInputOperands()) {
+    Value value = input->get();
+    if (op.getMatchingBlockArgument(input).use_empty() ||
+        !assignedLayouts.contains(value) || !isSecret(value, solver) ||
+        !isLayoutFree(value, solver))
+      continue;
+    LayoutAttr layout = getComposedLayoutAttr(value);
+    std::string reason;
+    FailureOr<std::optional<IntegerRelation>> polyphase =
+        getPolyphaseInputLayout(op.getStaticLoopRanges(),
+                                op.getMatchingIndexingMap(input),
+                                layout.getIntegerRelation(), outputMap,
+                                resultLayout.getIntegerRelation(),
+                                resultType.getShape(), minSlotCount, reason);
+    LLVM_DEBUG(if (failed(polyphase)) llvm::dbgs()
+               << "No polyphase layout for operand "
+               << input->getOperandNumber() << ": " << reason << "\n");
+    if (failed(polyphase) || !*polyphase) continue;
+    // Only this operand reads the converted value; another operand may read
+    // the same value through another indexing map.
+    builder.setInsertionPoint(op);
+    LayoutAttr target =
+        LayoutAttr::getFromIntegerRelation(&getContext(), **polyphase);
+    ConvertLayoutOp convertOp =
+        ConvertLayoutOp::create(builder, op->getLoc(), value, layout, target);
+    solver->getOrCreateState<SecretnessLattice>(convertOp.getResult())
+        ->getValue()
+        .setSecretness(true);
+    assignedLayouts.insert({convertOp.getResult(), target});
+    debugAssignLayout(convertOp.getResult(), target);
+    setResultLayoutAttr(convertOp,
+                        findAttributeAssociatedWith(value, kKernelInfoAttrName)
+                            .value_or(Attribute()));
+    input->set(convertOp.getResult());
+  }
+}
+
 LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
   if (op->getNumResults() != 1 || op.hasDynamicShape()) {
     return op.emitError() << "the generic FHE kernel requires a single "
@@ -742,6 +791,21 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
         loopRanges, op.getMatchingIndexingMap(input),
         getComposedLayoutAttr(value).getIntegerRelation(), outputMap,
         resultType.getShape(), op.getNumReductionLoops() > 0, reason);
+    // A result spread over more ciphertexts than its dense default layout
+    // (e.g. at the strided positions of a strided window's input) costs
+    // memory here and in every op that keeps its layout; a strided input
+    // gets a polyphase layout below instead. A result smaller than a
+    // ciphertext is exempt: its default layout repeats it across the slots,
+    // and each copy would need its own rotations.
+    if (succeeded(induced) && resultType.getNumElements() >= minSlotCount) {
+      FailureOr<LayoutAttr> dense = defaultLayoutForType(resultType);
+      if (succeeded(dense) &&
+          getNumCiphertexts(*induced) >
+              getNumCiphertexts(dense->getIntegerRelation())) {
+        reason = "the induced layout uses more ciphertexts than the default";
+        induced = failure();
+      }
+    }
     if (succeeded(induced)) {
       resultLayout =
           LayoutAttr::getFromIntegerRelation(&getContext(), *induced);
@@ -759,6 +823,8 @@ LogicalResult LayoutPropagation::visitOperation(linalg::GenericOp op) {
     }
     resultLayout = *defaultLayout;
   }
+
+  convertToPolyphaseLayouts(op, resultLayout);
 
   Attribute kernelInfoAttr;
   for (Value operand : op->getOperands()) {
@@ -2937,6 +3003,7 @@ static std::unique_ptr<DataFlowSolver> runSecretnessAnalysis(Operation* root) {
   auto solver = std::make_unique<DataFlowSolver>();
   dataflow::loadBaselineAnalyses(*solver);
   solver->load<SecretnessAnalysis>();
+  solver->load<LayoutIsFreeAnalysis>();
   if (failed(solver->initializeAndRun(root))) return nullptr;
   return solver;
 }
