@@ -102,26 +102,13 @@ class CiphertextTypeConverter : public TypeConverter {
   }
 };
 
-// Returns the plaintext modulus T of `plaintextType`, as a scalar constant in
-// the coefficient space of `outputPolyTy`. We assume the plaintext coefficient
-// type is a mod arith type.
-static FailureOr<Value> getPlaintextModulusInCiphertextSpace(
-    ImplicitLocOpBuilder& builder, Operation* op,
-    lwe::LWEPlaintextType plaintextType,
+// Returns the plaintext modulus T of `plaintextModulusType`, as a scalar
+// constant in the coefficient space of `outputPolyTy`.
+static Value getPlaintextModulusInCiphertextSpace(
+    ImplicitLocOpBuilder& builder, mod_arith::ModArithType plaintextModulusType,
     polynomial::PolynomialType outputPolyTy) {
-  auto plaintextCoeffType =
-      plaintextType.getPlaintextSpace().getRing().getCoefficientType();
-  auto plaintextModArithType =
-      dyn_cast<mod_arith::ModArithType>(plaintextCoeffType);
-  if (!plaintextModArithType) {
-    op->emitError() << "Unsupported plaintext coefficient type: "
-                    << plaintextCoeffType;
-    return failure();
-  }
-
-  // create scalar constant T in the output coefficient space
   auto plaintextT = mod_arith::ConstantOp::create(
-      builder, plaintextModArithType, plaintextModArithType.getModulus());
+      builder, plaintextModulusType, plaintextModulusType.getModulus());
   return mod_arith::ModSwitchOp::create(
              builder, outputPolyTy.getRing().getCoefficientType(), plaintextT)
       .getResult();
@@ -223,7 +210,8 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     auto loc = op.getLoc();
     auto input = adaptor.getInput();
     auto key = adaptor.getKey();
-    auto outputT = cast<lwe::LWECiphertextType>(op.getOutput().getType());
+    lwe::LWEPlaintextType plaintextType = op.getInput().getType();
+    lwe::LWECiphertextType ciphertextType = op.getOutput().getType();
 
     auto isPublicKey =
         llvm::TypeSwitch<Type, bool>(op.getKey().getType())
@@ -235,20 +223,67 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
               return false;
             });
 
+    // All checks must happen before any IR is created: the pass disables
+    // pattern rollback, so IR created by a pattern that then fails is not
+    // removed.
+
     // TODO (#882): Add support for other encryption schemes besides BGV.
-    if (failed(
-            requireEncryptionType(op, outputT, lwe::LweEncryptionType::lsb))) {
+    if (failed(requireEncryptionType(op, ciphertextType,
+                                     lwe::LweEncryptionType::lsb))) {
       return rewriter.notifyMatchFailure(op, "unsupported encryption type");
+    }
+
+    // The encryption noise is scaled by the plaintext modulus t, so the
+    // plaintext coefficient type must be a mod arith type.
+    Type plaintextCoeffType =
+        plaintextType.getPlaintextSpace().getRing().getCoefficientType();
+    auto plaintextModulusType =
+        dyn_cast<mod_arith::ModArithType>(plaintextCoeffType);
+    if (!plaintextModulusType) {
+      op.emitError() << "Unsupported plaintext coefficient type: "
+                     << plaintextCoeffType;
+      return rewriter.notifyMatchFailure(
+          op, "unsupported plaintext coefficient type");
+    }
+
+    auto outputTy =
+        cast<RankedTensorType>(typeConverter->convertType(ciphertextType));
+    auto outputPolyTy =
+        cast<polynomial::PolynomialType>(outputTy.getElementType());
+
+    if (!isPublicKey) {
+      // We only support secret key encryption with a single polynomial (typical
+      // RLWE parameters, whereas CGGI may use a larger number of polynomials
+      // for the secret key).
+      if (cast<RankedTensorType>(key.getType()).getNumElements() != 1) {
+        op.emitError()
+            << "`lwe.rlwe_encrypt` only supports secret keys with a single "
+               "polynomial, got secret key type "
+            << key.getType();
+        return rewriter.notifyMatchFailure(
+            op, "secret key has more than one polynomial");
+      }
+
+      // The mask `a` is sampled uniformly from R_Q, which requires a modular
+      // coefficient type and an explicit ring modulus.
+      if (!isa<mod_arith::ModQTypeInterface>(
+              outputPolyTy.getRing().getCoefficientType()) ||
+          !outputPolyTy.getRing().getPolynomialModulus()) {
+        op.emitError() << "Unsupported ciphertext ring: "
+                       << outputPolyTy.getRing();
+        return rewriter.notifyMatchFailure(op, "unsupported ciphertext ring");
+      }
     }
 
     ImplicitLocOpBuilder builder(loc, rewriter);
 
     auto index0 = arith::ConstantIndexOp::create(builder, 0);
 
-    auto outputTy = cast<RankedTensorType>(
-        typeConverter->convertType(op.getOutput().getType()));
-    auto outputPolyTy =
-        cast<polynomial::PolynomialType>(outputTy.getElementType());
+    // cast from plaintext space to ciphertext space
+    auto castInput =
+        polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
+    Value constantT = getPlaintextModulusInCiphertextSpace(
+        builder, plaintextModulusType, outputPolyTy);
 
     // TODO (#881): Add pass options to change the seed (which is currently
     // hardcoded to 0 with index).
@@ -291,16 +326,6 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       tensor::ExtractOp publicKey1 =
           tensor::ExtractOp::create(builder, key, ValueRange{index1});
 
-      FailureOr<Value> constantT = getPlaintextModulusInCiphertextSpace(
-          builder, op,
-          cast<lwe::LWEPlaintextType>(
-              getElementTypeOrSelf(op.getInput().getType())),
-          outputPolyTy);
-      if (failed(constantT)) {
-        return rewriter.notifyMatchFailure(
-            op, "unsupported plaintext coefficient type");
-      }
-
       // generate random e0 polynomial from discrete gaussian distribution
       auto e0 = random::SampleOp::create(builder, outputPolyTy,
                                          discreteGaussianDistribution);
@@ -313,56 +338,25 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       // Computing ciphertext0 = publicKey0 * u + e0 *
       // constantT + cast(input)
       auto publicKey0U = polynomial::MulOp::create(builder, publicKey0, u);
-      auto tE0 = polynomial::MulScalarOp::create(builder, e0, *constantT);
+      auto tE0 = polynomial::MulScalarOp::create(builder, e0, constantT);
       auto pK0UtE0 = polynomial::AddOp::create(builder, publicKey0U, tE0);
-      // cast from plaintext space to ciphertext space
-      auto castInput =
-          polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
       auto ciphertext0 = polynomial::AddOp::create(builder, pK0UtE0, castInput);
 
       // Computing ciphertext1 = publicKey1 * u + e1 * constantT
       auto publicKey1U = polynomial::MulOp::create(builder, publicKey1, u);
-      auto tE1 = polynomial::MulScalarOp::create(builder, e1, *constantT);
+      auto tE1 = polynomial::MulScalarOp::create(builder, e1, constantT);
       auto ciphertext1 = polynomial::AddOp::create(builder, publicKey1U, tE1);
 
       // ciphertext = (ciphertext0, ciphertext1)
       ciphertext = tensor::FromElementsOp::create(
           builder, llvm::ArrayRef<Value>({ciphertext0, ciphertext1}));
     } else {  // secret key
-      // We only support secret key encryption with a single polynomial (typical
-      // RLWE parameters, whereas CGGI may use a larger number of polynomials
-      // for the secret key).
-      if (cast<RankedTensorType>(key.getType()).getNumElements() != 1) {
-        op.emitError()
-            << "`lwe.rlwe_encrypt` only supports secret keys with a single "
-               "polynomial, got secret key type "
-            << key.getType();
-        return rewriter.notifyMatchFailure(
-            op, "secret key has more than one polynomial");
-      }
-
-      FailureOr<Value> constantT = getPlaintextModulusInCiphertextSpace(
-          builder, op,
-          cast<lwe::LWEPlaintextType>(
-              getElementTypeOrSelf(op.getInput().getType())),
-          outputPolyTy);
-      if (failed(constantT)) {
-        return rewriter.notifyMatchFailure(
-            op, "unsupported plaintext coefficient type");
-      }
-
       // The mask `a` must be sampled uniformly at random from R_Q, so we
       // sample each of its coefficients uniformly modulo Q. For an RNS
       // ciphertext modulus Q, this samples each limb uniformly.
       Type ciphertextCoeffType = outputPolyTy.getRing().getCoefficientType();
       polynomial::IntPolynomialAttr polyModulus =
           outputPolyTy.getRing().getPolynomialModulus();
-      if (!isa<mod_arith::ModQTypeInterface>(ciphertextCoeffType) ||
-          !polyModulus) {
-        op.emitError() << "Unsupported ciphertext ring: "
-                       << outputPolyTy.getRing();
-        return rewriter.notifyMatchFailure(op, "unsupported ciphertext ring");
-      }
       auto coeffsType = RankedTensorType::get(
           {polyModulus.getPolynomial().getDegree()}, ciphertextCoeffType);
       auto aCoeffs = random::SampleModQOp::create(builder, coeffsType,
@@ -384,10 +378,7 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       auto keyPoly =
           tensor::ExtractOp::create(builder, key, ValueRange{index0});
       auto aTimesS = polynomial::MulOp::create(builder, a, keyPoly);
-      auto tTimesE = polynomial::MulScalarOp::create(builder, e, *constantT);
-      // cast from plaintext space to ciphertext space
-      auto castInput =
-          polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
+      auto tTimesE = polynomial::MulScalarOp::create(builder, e, constantT);
       auto mTE = polynomial::AddOp::create(builder, castInput, tTimesE);
       auto ciphertext0 = polynomial::SubOp::create(builder, mTE, aTimesS);
 
