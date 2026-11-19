@@ -8,6 +8,7 @@ include "lib/Dialect/CheddarGPU/IR/CheddarGPUConstraints.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/DestinationStyleOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
@@ -69,24 +70,18 @@ defvar CheddarGPU_BinaryBuilders = [
                  "::mlir::Value":$rhs,
                  "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
                  "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$lhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$rhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form), [{
       build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
+            /*num_aux=*/::mlir::IntegerAttr{});
   }]>,
   OpBuilder<(ins "::mlir::Value":$out,
                  "::mlir::Value":$lhs,
                  "::mlir::Value":$rhs,
                  "::mlir::heir::cheddar_gpu::Form":$lhs_form,
                  "::mlir::heir::cheddar_gpu::Form":$rhs_form,
-                 "::mlir::heir::cheddar_gpu::Form":$out_form,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$lhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$rhs_limb_range,
-                 CArg<"::mlir::DenseI64ArrayAttr", "{}">:$out_limb_range), [{
+                 "::mlir::heir::cheddar_gpu::Form":$out_form), [{
       build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            lhs_limb_range, rhs_limb_range, out_limb_range, /*num_aux=*/::mlir::IntegerAttr{});
+            /*num_aux=*/::mlir::IntegerAttr{});
   }]>
 ];
 
@@ -121,11 +116,6 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
                               bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "lhs", "rhs"]>,
-        CheddarGPU_LimbRanges<[{ {
-          {"out_limb_range", getOutLimbRange(), {getOut()}},
-          {"lhs_limb_range", getLhsLimbRange(), {getLhs()}},
-          {"rhs_limb_range", getRhsLimbRange(), {getRhs()}},
-        } }]>,
         CheddarGPU_NumAuxWithinOut
       ], traits)> {
   let arguments = !con(
@@ -135,7 +125,6 @@ class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
       Arg<CheddarGPU_PolyBuffer, "right-hand side operand", [MemRead]>:$rhs
     ),
     !if(hasForms, CheddarGPU_BinaryForms, (ins)),
-    CheddarGPU_BinaryLimbRanges,
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
   );
 
@@ -359,17 +348,104 @@ def CheddarGPU_CopyOp : CheddarGPU_Op<"copy", [
 // Binary and Unary Element-Wise Operations
 //===----------------------------------------------------------------------===//
 
-def CheddarGPU_AddOp : CheddarGPU_BinaryOpBase<"add", [
-    CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>]> {
-  let summary = "Pointwise modular addition of two polynomial buffers";
+def CheddarGPU_AddOp : CheddarGPU_Op<"add", [
+    AllTypesMatch<["out", "lhs", "rhs"]>,
+    CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>,
+    CheddarGPU_NumAuxWithinOut,
+    DestinationStyleOpInterface,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Pointwise modular addition of two polynomial buffers or tensors";
   let description = [{
     Mirrors Cheddar's `kernel::Sum` and `ElementWiseHandler::Add` in `ElementWise.cu`.
     Computes `out = lhs + rhs mod Q` limb-wise, where the limbs of `Q` are defined
     in `CheddarGPU_ParamsAttr`.
 
+    In tensor form, it implements DestinationStyleOpInterface where `$out` is the init
+    operand, and returns a single tensor result tied to `$out`. Memory effects are
+    operand-aware: no effects on tensor operands, MemWrite on `$out` memref, and MemRead
+    on input memrefs.
+
     Form contract:
     - Modular addition is valid in both `coeff` and `eval` domain.
     - Both operands must have matching form (`lhs_form == rhs_form == out_form`).
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyLike, "destination buffer or tensor init">:$out,
+      Arg<CheddarGPU_PolyLike, "left-hand side operand">:$lhs,
+      Arg<CheddarGPU_PolyLike, "right-hand side operand">:$rhs
+    ),
+    CheddarGPU_BinaryForms,
+    (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
+  );
+
+  let results = (outs Variadic<CheddarGPU_PolyTensor>:$result);
+
+  let builders = [
+    // Builder for buffer form (no results)
+    OpBuilder<(ins "::mlir::Value":$out,
+                   "::mlir::Value":$lhs,
+                   "::mlir::Value":$rhs,
+                   "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
+                   "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
+                   "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                   CArg<"::mlir::IntegerAttr", "{}">:$num_aux), [{
+      build($_builder, $_state, /*resultTypes=*/::mlir::TypeRange{},
+            out, lhs, rhs, lhs_form, rhs_form, out_form, num_aux);
+    }]>,
+    OpBuilder<(ins "::mlir::Value":$out,
+                   "::mlir::Value":$lhs,
+                   "::mlir::Value":$rhs,
+                   "::mlir::heir::cheddar_gpu::Form":$lhs_form,
+                   "::mlir::heir::cheddar_gpu::Form":$rhs_form,
+                   "::mlir::heir::cheddar_gpu::Form":$out_form,
+                   CArg<"::mlir::IntegerAttr", "{}">:$num_aux), [{
+      build($_builder, $_state, /*resultTypes=*/::mlir::TypeRange{},
+            out, lhs, rhs, lhs_form, rhs_form, out_form, num_aux);
+    }]>,
+    // Builder for tensor form (returns 1 result with type matching out)
+    OpBuilder<(ins "::mlir::Type":$resultType,
+                   "::mlir::Value":$out,
+                   "::mlir::Value":$lhs,
+                   "::mlir::Value":$rhs,
+                   "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
+                   "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
+                   "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                   CArg<"::mlir::IntegerAttr", "{}">:$num_aux), [{
+      build($_builder, $_state, resultType ? ::mlir::TypeRange{resultType} : ::mlir::TypeRange{},
+            out, lhs, rhs, lhs_form, rhs_form, out_form, num_aux);
+    }]>
+  ];
+
+  let assemblyFormat = [{
+    $out `,` $lhs `,` $rhs prop-dict attr-dict `:` type($out) (`->` type($result)^)?
+  }];
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() {
+      return getOutMutable();
+    }
+    static constexpr bool readsDpsInit() { return false; }
+  }];
+
+  let extraClassDefinition = [{
+    void $cppClass::getEffects(::llvm::SmallVectorImpl<
+        ::mlir::SideEffects::EffectInstance<::mlir::MemoryEffects::Effect>>
+            &effects) {
+      for (::mlir::OpOperand &operand : getOperation()->getOpOperands()) {
+        if (!::llvm::isa<::mlir::MemRefType>(operand.get().getType()))
+          continue;
+        bool isInit = isDpsInit(&operand);
+        if (!isInit || readsDpsInit())
+          effects.emplace_back(::mlir::MemoryEffects::Read::get(), &operand,
+                               ::mlir::SideEffects::DefaultResource::get());
+        if (isInit)
+          effects.emplace_back(::mlir::MemoryEffects::Write::get(), &operand,
+                               ::mlir::SideEffects::DefaultResource::get());
+      }
+    }
   }];
 }
 
@@ -848,7 +924,8 @@ def CheddarGPU_NTTOp : CheddarGPU_NTTOpBase<"ntt", [
     CheddarGPU_Requires<"skip_copy_src", "static_cast<bool>(getSkipRange())",
                         "'skip_copy_src' requires 'skip_range' to be set">,
     CheddarGPU_OptionalSameRingAs<"skip_copy_src", "out">,
-    CheddarGPU_SpanEndWithinDim0<"skip_range", "out">
+    CheddarGPU_SpanEndWithinDim0<"skip_range", "out">,
+    CheddarGPU_SkipCopySrcCoversSpan<"skip_copy_src", "skip_range", "skip_copy_in_offset">
   ]> {
   let summary = "Forward Number Theoretic Transform (NTT)";
   let description = [{
@@ -882,8 +959,6 @@ def CheddarGPU_NTTOp : CheddarGPU_NTTOpBase<"ntt", [
     (ins DefaultValuedAttr<CheddarGPU_NonNegI64Attr, "0">:$skip_copy_in_offset)
   );
 
-  let hasVerifier = 1;
-
   let assemblyFormat = [{
     $out `,` $in ( `,` `skip_copy_src` `(` $skip_copy_src^ `)` )? prop-dict attr-dict
     `:` functional-type(operands, results)
@@ -910,6 +985,10 @@ def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
     PredOpTrait<"'cst' is present iff epilogue is not 'none'",
       CPred<"static_cast<bool>(getCst()) == ($epilogue != ::mlir::heir::cheddar_gpu::INTTEpilogue::None)">>,
     CheddarGPU_OptionalElemTypeMatches<"cst", "out">,
+    CheddarGPU_OptionalDimEquals<"cst", 0, CheddarGPU_INTTLimbCount<"out">.result,
+                                 "'cst' (if present) length matches active limb count">,
+    CheddarGPU_InSplitWithinLimbCount<"out">,
+    CheddarGPU_InSplitFitsInput<"in", "out">,
   ]> {
   let summary = "Inverse Number Theoretic Transform (INTT) with optional epilogue";
   let description = [{
@@ -947,8 +1026,6 @@ def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
     CheddarGPU_NTTCommonAttrs,
     (ins OptionalAttr<CheddarGPU_InSplitAttr>:$in_split)
   );
-
-  let hasVerifier = 1;
 
   let assemblyFormat = [{
     $out `,` $in ( `,` `cst` `(` $cst^ `)` )? prop-dict attr-dict
@@ -1427,7 +1504,7 @@ def CheddarGPU_ModUpToMaxOp : CheddarGPU_Op<"mod_up_to_max", [
     Mirrors Cheddar's `ModUpToMax1` in `ElementWise.cu`.
     Computes `dst[l, x] = src[0, x] % Q_l` limb-wise, where `Q_l` is the `l`-th
     limb of `Q` from `CheddarGPU_ParamsAttr`.
-    Operates in coefficient (`coeff`) domain.
+    Operates in coefficient domain.
   }];
 
   let arguments = (ins

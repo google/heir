@@ -13,52 +13,6 @@ func.func @test_form_mismatch_add(%out: memref<4x65536xi32>, %lhs: memref<4x6553
 }
 
 // -----
-// Limb range invalid offset/count (offset < 0)
-
-func.func @test_limb_range_negative_offset(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
-  // expected-error @below {{failed to satisfy constraint: i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]}}
-  cheddar_gpu.add %out, %lhs, %rhs <{
-    lhs_form = #cheddar_gpu.form<eval>,
-    rhs_form = #cheddar_gpu.form<eval>,
-    out_form = #cheddar_gpu.form<eval>,
-    lhs_limb_range = array<i64: -1, 2>
-  }> : memref<4x65536xi32>
-  return
-}
-
-// -----
-// Limb range out of bounds (offset 2 + count 3 = 5 > 4)
-
-func.func @test_limb_range_oob(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
-  // expected-error @below {{limb range [2, 3] out of bounds for memref with 4 limbs}}
-  cheddar_gpu.add %out, %lhs, %rhs <{
-    lhs_form = #cheddar_gpu.form<eval>,
-    rhs_form = #cheddar_gpu.form<eval>,
-    out_form = #cheddar_gpu.form<eval>,
-    lhs_limb_range = array<i64: 2, 3>
-  }> : memref<4x65536xi32>
-  return
-}
-
-// -----
-// Limb range exceeds module params limb count
-
-module attributes {
-  cheddar_gpu.params = #cheddar_gpu.params<word = 32, log_n = 16, ter = [1000], main = [2000, 3000], aux = [4000], level_config = [[[2 : i32, 1 : i32]]], alpha = 1, dnum = 0>
-} {
-  func.func @test_limb_range_exceeds_module_params(%out: memref<6x65536xi32>, %lhs: memref<6x65536xi32>, %rhs: memref<6x65536xi32>) {
-    // expected-error @below {{limb range [0, 5] exceeds module params limb count (4)}}
-    cheddar_gpu.add %out, %lhs, %rhs <{
-      lhs_form = #cheddar_gpu.form<eval>,
-      rhs_form = #cheddar_gpu.form<eval>,
-      out_form = #cheddar_gpu.form<eval>,
-      lhs_limb_range = array<i64: 0, 5>
-    }> : memref<6x65536xi32>
-    return
-  }
-}
-
-// -----
 // num_aux out of bounds
 
 func.func @test_num_aux_oob(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
@@ -87,5 +41,50 @@ func.func @test_pair_add_out_range_oob(
     out_form = #cheddar_gpu.form<eval>,
     out_limb_range = array<i64: 3, 2>
   }> : memref<4x65536xi32>
+  return
+}
+// -----
+// Tensor-mode add with no result type
+
+#eval = #cheddar_gpu.form<eval>
+
+func.func @test_tensor_no_result(%out: tensor<4x65536xi32>, %lhs: tensor<4x65536xi32>, %rhs: tensor<4x65536xi32>) {
+  // expected-error @below {{expected the number of tensor results (0) to be equal to the number of output tensors (1)}}
+  cheddar_gpu.add %out, %lhs, %rhs <{
+    lhs_form = #eval,
+    rhs_form = #eval,
+    out_form = #eval
+  }> : tensor<4x65536xi32>
+  return
+}
+
+// -----
+// Mixed tensor and memref operands
+
+#eval = #cheddar_gpu.form<eval>
+
+// expected-note @below {{prior use here}}
+func.func @test_mixed_operands(%out: memref<4x65536xi32>, %lhs: tensor<4x65536xi32>, %rhs: memref<4x65536xi32>) {
+  // expected-error @below {{use of value '%lhs' expects different type than prior uses: 'memref<4x65536xi32>' vs 'tensor<4x65536xi32>'}}
+  cheddar_gpu.add %out, %lhs, %rhs <{
+    lhs_form = #eval,
+    rhs_form = #eval,
+    out_form = #eval
+  }> : memref<4x65536xi32>
+  return
+}
+
+// -----
+// Mixed tensor and memref operands (generic syntax)
+
+#eval = #cheddar_gpu.form<eval>
+
+func.func @test_mixed_operands_generic(%out: memref<4x65536xi32>, %lhs: tensor<4x65536xi32>, %rhs: memref<4x65536xi32>) {
+  // expected-error @below {{failed to verify that all of {out, lhs, rhs} have same type}}
+  "cheddar_gpu.add"(%out, %lhs, %rhs) <{
+    lhs_form = #eval,
+    rhs_form = #eval,
+    out_form = #eval
+  }> : (memref<4x65536xi32>, tensor<4x65536xi32>, memref<4x65536xi32>) -> ()
   return
 }

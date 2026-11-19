@@ -22,6 +22,22 @@ class CheddarGPU_StaticMemRefOfRank<list<Type> elems, int rank, string descr = "
 def CheddarGPU_PolyBuffer : CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
     "statically shaped 2D memref<L x N x iW> polynomial buffer (W = 32 or 64)">;
 
+// Statically shaped RankedTensor of a given rank.
+class CheddarGPU_StaticTensorOfRank<list<Type> elems, int rank, string descr = "",
+                                    list<Pred> extra = []>
+    : ConfinedType<TensorRankOf<elems, [rank]>, !listconcat([HasStaticShapePred], extra),
+                   !if(!empty(descr), descr, "statically shaped " # TensorRankOf<elems, [rank]>.summary),
+                   "::mlir::RankedTensorType">;
+
+// 2D statically shaped polynomial tensor of i32 or i64 elements.
+def CheddarGPU_PolyTensor : CheddarGPU_StaticTensorOfRank<[I32, I64], 2,
+    "statically shaped 2D tensor<L x N x iW> polynomial (W = 32 or 64)">;
+
+// 2D statically shaped polynomial buffer or tensor of i32 or i64 elements.
+def CheddarGPU_PolyLike : AnyTypeOf<
+    [CheddarGPU_PolyBuffer, CheddarGPU_PolyTensor],
+    "statically shaped 2D polynomial memref or tensor", "::mlir::ShapedType">;
+
 // 1D statically shaped per-limb constant vector of i32 or i64 elements.
 def CheddarGPU_LimbVector : CheddarGPU_StaticMemRefOfRank<[I32, I64], 1,
     "statically shaped 1D memref<L x iW> per-limb constant vector (W = 32 or 64)">;
@@ -48,11 +64,11 @@ def CheddarGPU_PolyBuffer64 : CheddarGPU_StaticMemRefOfRank<[I64], 2,
 //===----------------------------------------------------------------------===//
 
 class CheddarGPU_Dim<string v, int d>
-    : StrFunc<"::llvm::cast<::mlir::MemRefType>($" # v # ".getType()).getDimSize(" # d # ")">;
+    : StrFunc<"::llvm::cast<::mlir::ShapedType>($" # v # ".getType()).getDimSize(" # d # ")">;
 
 class CheddarGPU_SameDim<list<string> names, int d, string what>
     : AllMatchSameOperatorTrait<names,
-        "::llvm::cast<::mlir::MemRefType>($_self.getType()).getDimSize(" # d # ")", what>;
+        "::llvm::cast<::mlir::ShapedType>($_self.getType()).getDimSize(" # d # ")", what>;
 
 class CheddarGPU_SameDegree<list<string> n>
     : CheddarGPU_SameDim<n, 1, "polynomial degree (dim 1)">;
@@ -188,6 +204,39 @@ class CheddarGPU_OptionalArrayMatchesDim<string attrName, string v, int d>
         CPred<"!" # CheddarGPU_Getter<attrName>.call # " || static_cast<int64_t>("
               # CheddarGPU_Getter<attrName>.call # "->size()) == "
               # CheddarGPU_Dim<v, d>.result>>;
+
+class CheddarGPU_OptionalDimEquals<string opt, int d, string expr, string descr>
+    : PredOpTrait<descr,
+        CPred<"!" # CheddarGPU_Getter<opt>.call # " || "
+              # CheddarGPU_Dim<opt, d>.result # " == (" # expr # ")">>;
+
+class CheddarGPU_SkipCopySrcCoversSpan<string src, string span, string offsetAttr>
+    : PredOpTrait<
+        "'" # src # "' has enough limbs from '" # offsetAttr # "' for '" # span # "'",
+        CPred<"!" # CheddarGPU_Getter<span>.call # " || !" # CheddarGPU_Getter<src>.call
+              # " || " # CheddarGPU_SpanLen<span>.result # " <= "
+              # CheddarGPU_Dim<src, 0>.result # " - static_cast<int64_t>("
+              # CheddarGPU_Getter<offsetAttr>.call # ")">>;
+
+// Active limb count for INTT: out_limb_range[1] if set, else in_limb_range[1]
+// if set, else dim 0 of `out`.
+class CheddarGPU_INTTLimbCount<string out> {
+  string result = "(getOutLimbRange() ? (*getOutLimbRange())[1] : "
+                  # "(getInLimbRange() ? (*getInLimbRange())[1] : "
+                  # CheddarGPU_Dim<out, 0>.result # "))";
+}
+
+class CheddarGPU_InSplitWithinLimbCount<string out> : PredOpTrait<
+    "'in_split' split_count is in [0, active limb count]",
+    CPred<"!getInSplit() || (*getInSplit())[0] <= " # CheddarGPU_INTTLimbCount<out>.result>>;
+
+class CheddarGPU_InSplitFitsInput<string inBuf, string out> : PredOpTrait<
+    "'" # inBuf # "' has enough limbs for 'in_split' extent",
+    CPred<"!getInSplit() || " # CheddarGPU_Dim<inBuf, 0>.result # " >= "
+          # "(getInLimbRange() ? (*getInLimbRange())[0] : 0) + "
+          # CheddarGPU_INTTLimbCount<out>.result
+          # " + (((*getInSplit())[0] < " # CheddarGPU_INTTLimbCount<out>.result
+          # ") ? (*getInSplit())[1] : 0)">>;
 
 //===----------------------------------------------------------------------===//
 // Form Constraints
