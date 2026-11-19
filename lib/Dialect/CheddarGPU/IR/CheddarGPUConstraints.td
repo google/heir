@@ -31,6 +31,10 @@ def CheddarGPU_PolyOrLimbBuffer : AnyTypeOf<
     [CheddarGPU_PolyBuffer, CheddarGPU_LimbVector],
     "statically shaped polynomial buffer or per-limb constant vector", "::mlir::MemRefType">;
 
+// 2D statically shaped basis-conversion table of i32 or i64 elements.
+def CheddarGPU_BConvTable : CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
+    "statically shaped 2D memref<D x S x iW> basis-conversion table (W = 32 or 64)">;
+
 //===----------------------------------------------------------------------===//
 // Dimension Helpers and PredOpTraits
 //===----------------------------------------------------------------------===//
@@ -58,6 +62,15 @@ class CheddarGPU_OutCount<string out> {
   string result = "(getOutLimbRange() ? (*getOutLimbRange())[1] : "
                   # CheddarGPU_Dim<out, 0>.result # ")";
 }
+
+// Active limb count of the source: in_limb_range[1] if set, else dim 0.
+class CheddarGPU_InCount<string src> {
+  string result = "(getInLimbRange() ? (*getInLimbRange())[1] : "
+                  # CheddarGPU_Dim<src, 0>.result # ")";
+}
+
+class CheddarGPU_DimEquals<string v, int d, string expr, string descr>
+    : PredOpTrait<descr, CPred<CheddarGPU_Dim<v, d>.result # " == (" # expr # ")">>;
 
 class CheddarGPU_EachCoversOutCount<string v, string out, int onlyRank = 0> : PredOpTrait<
     "every " # !if(onlyRank, onlyRank # "D ", "") # "'" # v
@@ -121,6 +134,24 @@ class CheddarGPU_SpanEndWithinDim0<string span, string buf, bit optional = 1> : 
     CPred<!if(optional,
         "!" # CheddarGPU_Getter<span>.call # " || (*" # CheddarGPU_Getter<span>.call # ")[1] <= " # CheddarGPU_Dim<buf, 0>.result,
         CheddarGPU_Getter<span>.call # "[1] <= " # CheddarGPU_Dim<buf, 0>.result)>>;
+
+class CheddarGPU_SpanLen<string attrName> {
+  string result = "(" # CheddarGPU_Getter<attrName>.call # " ? ((*"
+                  # CheddarGPU_Getter<attrName>.call # ")[1] - (*"
+                  # CheddarGPU_Getter<attrName>.call # ")[0]) : 0)";
+}
+
+class CheddarGPU_SpanEndWithin<string attrName, string boundExpr, string descr>
+    : PredOpTrait<descr,
+        CPred<"!" # CheddarGPU_Getter<attrName>.call # " || (*"
+              # CheddarGPU_Getter<attrName>.call # ")[1] <= (" # boundExpr # ")">>;
+
+class CheddarGPU_OptionalArrayMatchesDim<string attrName, string v, int d>
+    : PredOpTrait<
+        "'" # attrName # "' (if present) length matches dim " # d # " of '" # v # "'",
+        CPred<"!" # CheddarGPU_Getter<attrName>.call # " || static_cast<int64_t>("
+              # CheddarGPU_Getter<attrName>.call # "->size()) == "
+              # CheddarGPU_Dim<v, d>.result>>;
 
 //===----------------------------------------------------------------------===//
 // Form Constraints

@@ -972,4 +972,64 @@ def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
   ];
 }
 
+//===----------------------------------------------------------------------===//
+// Basis Conversion Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_BConvOp : CheddarGPU_Op<"bconv", [
+    AllElementTypesMatch<["out", "in", "table"]>,
+    CheddarGPU_SameDegree<["out", "in"]>,
+    CheddarGPU_LimbRanges<[{{
+      {"out_limb_range", getOutLimbRange(), {getOut()}},
+      {"in_limb_range",  getInLimbRange(),  {getIn()}},
+    } }]>,
+    CheddarGPU_DimEquals<"table", 1, CheddarGPU_InCount<"in">.result,
+                         "'table' source length matches active limb count of 'in'">,
+    CheddarGPU_SpanEndWithin<"skip_range", CheddarGPU_OutCount<"out">.result,
+                             "end of 'skip_range' is within active limb count of 'out'">,
+    CheddarGPU_DimEquals<"table", 0,
+                         CheddarGPU_OutCount<"out">.result # " - " # CheddarGPU_SpanLen<"skip_range">.result,
+                         "'table' destination length matches active limb count of 'out' minus skipped limbs">,
+    CheddarGPU_OptionalArrayMatchesDim<"dst_primes", "table", 0>,
+  ]> {
+  let summary = "Approximate basis conversion (BConv) of polynomial buffers";
+  let description = [{
+    Mirrors Cheddar's `kernel::ModSwitchMatrixMult` in `ModSwitch.cu:24-170`.
+    Converts polynomial coefficients from a source modulus chain (`in`, with `src_len` limbs)
+    to a destination modulus chain (`out`, with `dst_len` computed limbs) via the approximate HPS
+    (Halevi-Polyakov-Smart) basis conversion formula:
+
+        out[m, x] = MontReduce(sum_{s=0}^{src_len-1} in[s, x] * table[m, s])
+
+    where `table[m, s] = Normalize((Q̂_s * R^2) mod p_m, p_m)` is the precomputed double-Montgomery
+    projection table, with `Q_s` being the `s`-th limb of `Q` from `CheddarGPU_ParamsAttr`.
+
+    Contract:
+
+    - Input form is `coeff_centered`, which can be produced by an INTT with
+      `mult_const_normalize` epilogue.
+    - Output form is `coeff`.
+    - `table` is a memref of shape `<DxSxiW>`, where `D` is the number of computed destination limbs
+      (`dst_len`) and `S` is the number of active source limbs (`src_len`).
+    - `skip_range = [skip_start, skip_end]`, when specified, causes destination
+      limbs `m` in `[0, dst_len)` to map to limb index `(m < skip_start) ? m : m + (skip_end - skip_start)`
+      in the destination buffer.
+    - `in_limb_range` and `out_limb_range` are optional `[offset, count]` ranges for slicing larger buffers.
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "source polynomial buffer", [MemRead]>:$in,
+      Arg<CheddarGPU_BConvTable, "precomputed bconv matrix table memref<DxSxiW>", [MemRead]>:$table
+    ),
+    (ins
+      OptionalAttr<CheddarGPU_SpanAttr>:$skip_range,
+      OptionalAttr<CheddarGPU_LimbRangeAttr>:$in_limb_range,
+      OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+      OptionalAttr<DenseI64ArrayAttr>:$dst_primes
+    )
+  );
+}
+
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPU_OPS_TD_
