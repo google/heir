@@ -18,6 +18,7 @@
 
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/Layout/GenericKernel.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
@@ -41,6 +42,14 @@
 // element that slot's iteration reads. The number of groups is the cost; a
 // matvec with a cleartext matrix and a row-major vector yields one all-ones
 // group per diagonal, i.e. the Halevi-Shoup kernel.
+//
+// When the output layout repeats with a slot period tau (a small result
+// replicated across a ciphertext), sums group only one copy of each output
+// element per class of slots congruent mod tau, which bounds the shift of
+// the first secret input by tau, and a rotate-and-reduce over the multiples
+// of tau fills in the other copies (see InstanceGroups). A reduction of a
+// large tensor into a replicated small result thus needs about tau groups per
+// pair of ciphertexts instead of one per output copy.
 namespace mlir {
 namespace heir {
 namespace kernel {
@@ -160,8 +169,9 @@ implementGenericKernel(const GenericKernelSpec& spec,
   const bool isIdempotent = config.kind == GenericReductionKind::Idempotent;
 
   FailureOr<InstanceGroups> groups =
-      groupInstances(spec, numCts, config.kind, reason);
+      groupInstancesByCost(spec, numCts, config.kind, reason);
   if (failed(groups)) return failure();
+  const int64_t period = groups->period;
   if (isIdempotent && config.initKind == GenericInitKind::Neutral &&
       llvm::is_contained(groups->writesPartially, true)) {
     reason =
@@ -324,6 +334,12 @@ implementGenericKernel(const GenericKernelSpec& spec,
         llvm::any_of(coverage[ct], [](int64_t c) { return c > 0; });
     NodePtr acc = isIdempotent ? idempotentAcc[ct]
                                : combineBalanced(std::move(terms[ct]), combine);
+    // Sum each class of slots into all of its slots, before the init is added.
+    if (acc && period < numSlots) {
+      acc = implementRotateAndReduceAccumulation<T>(
+          acc, period, numSlots / period,
+          [](NodePtr lhs, NodePtr rhs) { return NodeTy::add(lhs, rhs); });
+    }
     // Every term of a written ciphertext may have vanished.
     if (!acc && isWritten && !isIdempotent) acc = zero(config.elementType);
     if (!acc) {

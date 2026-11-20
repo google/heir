@@ -1,16 +1,18 @@
 // RUN: heir-opt %s --convert-to-ciphertext-semantics=min-slot-count=1024 | FileCheck %s
 
 // A reduction over two dimensions has no dedicated kernel, so the generic
-// kernel implements it. The input repeats every 64 slots and the result is
-// replicated in every slot, so each of the 64 distinct rotations is one
-// all-ones group.
+// kernel implements it. The result is replicated in every slot (slot period
+// 1), so the kernel masks one copy of each input element (the first 64 slots)
+// and sums all slots with a rotate-and-reduce: log2(1024) = 10 rotations,
+// instead of one rotation per distinct shift of the input (63).
 
 #in = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-8i0 - i1 + slot) mod 64 = 0 and 0 <= i0 <= 7 and 0 <= i1 <= 7 and 0 <= slot <= 1023 }">
 #out = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 
 // CHECK: func.func @sum_all
 // CHECK-NOT: linalg.reduce
-// CHECK-COUNT-63: tensor_ext.rotate
+// CHECK: arith.mulf
+// CHECK-COUNT-10: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate
 // CHECK-NOT: arith.mulf
 // CHECK: return

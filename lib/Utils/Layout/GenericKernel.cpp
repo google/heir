@@ -1,10 +1,13 @@
 #include "lib/Utils/Layout/GenericKernel.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -227,6 +230,9 @@ class SlotTable {
     return slots;
   }
 
+  // The table of the positions in slots below `bound`.
+  SlotTable restrictToSlotsBelow(int64_t bound) const;
+
  private:
   int64_t flatten(ArrayRef<int64_t> index) const;
 
@@ -281,20 +287,36 @@ std::pair<int64_t, int64_t> SlotTable::nearest(ArrayRef<int64_t> index,
   return {ct, first->second + numSlots - target};
 }
 
+SlotTable SlotTable::restrictToSlotsBelow(int64_t bound) const {
+  SlotTable table;
+  table.shape = shape;
+  table.slots.resize(slots.size());
+  for (auto [positions, restricted] : llvm::zip(slots, table.slots)) {
+    for (auto position : positions) {
+      if (position.second < bound) restricted.push_back(position);
+    }
+  }
+  return table;
+}
+
 int64_t SlotTable::flatten(ArrayRef<int64_t> index) const {
   int64_t flat = 0;
   for (auto [i, dim] : llvm::zip(index, shape)) flat = flat * dim + i;
   return flat;
 }
 
-FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
-                                         int64_t numCts,
-                                         GenericReductionKind kind,
-                                         std::string& reason) {
+FailureOr<std::optional<InstanceGroups>> groupInstances(
+    const GenericKernelSpec& spec, int64_t numCts, GenericReductionKind kind,
+    const GroupingOptions& options, std::string& reason) {
   if (failed(validateGenericKernelSpec(spec, reason))) return failure();
   const int64_t numSlots = spec.numSlots;
-  // Where each operand element lives.
+  const int64_t period = options.period;
+  assert(period > 0 && numSlots % period == 0 &&
+         "the period must divide the number of slots");
+  // Where each operand element lives. Under a period, the output copies in
+  // slots below it stand for their classes.
   SlotTable outputSlots = SlotTable::get(spec.output.layout);
+  SlotTable outputClasses = outputSlots.restrictToSlotsBelow(period);
   std::vector<std::optional<SlotTable>> inputSlots(spec.inputs.size());
   std::vector<SmallVector<int64_t>> strides(spec.inputs.size());
   for (auto [i, input] : llvm::enumerate(spec.inputs)) {
@@ -312,20 +334,39 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
   // collect the distinct cleartext reads (row-major indices) with their
   // multiplicities.
   InstanceGroups groups;
+  groups.period = period;
   auto& readsByKey = groups.readsByKey;
-  auto& coverage = groups.coverage;
+  // The distinct rotations (secret input, ct, shift) of the groups so far.
+  std::set<std::tuple<size_t, int64_t, int64_t>> rotations;
   const unsigned numLoops = spec.loopRanges.size();
   SmallVector<int64_t> d(numLoops, 0);
   for (bool done = llvm::is_contained(spec.loopRanges, 0); !done;) {
     SmallVector<int64_t> cleartextReads;
     std::vector<SmallVector<int64_t>> inputIndices(spec.inputs.size());
+    // The first position of the first secret input read from a placed
+    // element.
+    std::optional<int64_t> firstInputSlot;
     for (auto [i, input] : llvm::enumerate(spec.inputs)) {
       inputIndices[i] = evaluateAffineMap(input.indexingMap, d);
-      if (input.isCleartext())
+      if (input.isCleartext()) {
         cleartextReads.push_back(linearize(inputIndices[i], strides[i]));
+        continue;
+      }
+      ArrayRef<std::pair<int64_t, int64_t>> positions =
+          inputSlots[i]->lookup(inputIndices[i]);
+      if (!firstInputSlot && !positions.empty())
+        firstInputSlot = positions.front().second;
     }
-    for (auto [outputCt, outputSlot] :
-         outputSlots.lookup(evaluateAffineMap(spec.output.indexingMap, d))) {
+    for (auto [outputCt, outputClass] :
+         outputClasses.lookup(evaluateAffineMap(spec.output.indexingMap, d))) {
+      // The copy of the class at or before the first input position.
+      int64_t outputSlot = outputClass;
+      if (firstInputSlot) {
+        outputSlot =
+            positiveMod(*firstInputSlot -
+                            positiveMod(*firstInputSlot - outputClass, period),
+                        numSlots);
+      }
       std::vector<int64_t> key = {outputCt};
       for (auto [i, input] : llvm::enumerate(spec.inputs)) {
         if (input.isCleartext()) continue;
@@ -334,14 +375,24 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
         key.push_back(ct);
         key.push_back(shift);
       }
-      InstanceGroups::Reads& reads = readsByKey[key][outputSlot];
-      auto it = llvm::find_if(reads, [&](const auto& read) {
+      auto [it, inserted] = readsByKey.try_emplace(key);
+      if (inserted) {
+        for (size_t k = 1; k < key.size(); k += 2) {
+          if (key[k] >= 0 && key[k + 1] != 0)
+            rotations.insert({k / 2, key[k], key[k + 1]});
+        }
+        if (options.maxRotations &&
+            static_cast<int64_t>(rotations.size()) > *options.maxRotations)
+          return std::optional<InstanceGroups>();
+      }
+      InstanceGroups::Reads& reads = it->second[outputSlot];
+      auto read = llvm::find_if(reads, [&](const auto& read) {
         return read.first == cleartextReads;
       });
-      if (it == reads.end()) {
+      if (read == reads.end()) {
         reads.push_back({cleartextReads, 1});
       } else {
-        ++it->second;
+        ++read->second;
       }
     }
     // Advance the iteration in row-major order.
@@ -350,7 +401,10 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
     done = j < 0;
   }
 
-  coverage.assign(numCts, std::vector<int64_t>(numSlots, 0));
+  // The instances per slot, then summed over each class: the rotate-and-reduce
+  // adds a class's values into each of its slots.
+  std::vector<std::vector<int64_t>> instances(
+      numCts, std::vector<int64_t>(numSlots, 0));
   for (const auto& [key, slots] : readsByKey) {
     if (key[0] >= numCts) {
       reason =
@@ -359,19 +413,30 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
     }
     for (const auto& [slot, reads] : slots) {
       for (const auto& [read, count] : reads) {
-        coverage[key[0]][slot] += count;
+        instances[key[0]][slot] += count;
         if (kind == GenericReductionKind::Mul && count > 1) {
           reason =
               "a multiplicative reduction cannot repeat a factor in a slot";
           return failure();
         }
       }
-      if (kind == GenericReductionKind::None && coverage[key[0]][slot] > 1) {
-        reason =
-            "an output slot is written by several iterations of an op "
-            "without reductions";
-        return failure();
-      }
+    }
+  }
+  auto& coverage = groups.coverage;
+  coverage.assign(numCts, std::vector<int64_t>(numSlots, 0));
+  for (int64_t ct = 0; ct < numCts; ++ct) {
+    for (int64_t slot = 0; slot < numSlots; ++slot) {
+      coverage[ct][slot % period] += instances[ct][slot];
+    }
+    for (int64_t slot = period; slot < numSlots; ++slot) {
+      coverage[ct][slot] = coverage[ct][slot % period];
+    }
+    if (kind == GenericReductionKind::None &&
+        llvm::any_of(coverage[ct], [](int64_t c) { return c > 1; })) {
+      reason =
+          "an output slot is written by several iterations of an op "
+          "without reductions";
+      return failure();
     }
   }
   groups.writesPartially.assign(numCts, false);
@@ -381,7 +446,111 @@ FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
         groups.writesPartially[ct] = true;
     }
   }
-  return groups;
+  return std::optional<InstanceGroups>(std::move(groups));
+}
+
+int64_t getSlotPeriod(const IntegerRelation& layout, int64_t numSlots) {
+  if (layout.getNumRangeVars() != 2) return numSlots;
+  // Each slot's element (row-major index, -1 for none), per ciphertext used.
+  unsigned rank = layout.getNumDomainVars();
+  PointPairCollector collector(rank, 2);
+  enumeratePoints(layout, collector);
+  if (collector.points.empty()) return numSlots;
+  SmallVector<int64_t> shape(rank, 0);
+  for (const auto& [index, position] : collector.points) {
+    // A position outside the ciphertext has no period to speak of.
+    if (position[1] < 0 || position[1] >= numSlots) return numSlots;
+    for (unsigned i = 0; i < rank; ++i)
+      shape[i] = std::max(shape[i], index[i] + 1);
+  }
+  SmallVector<int64_t> strides = computeStrides(shape);
+  std::map<int64_t, std::vector<int64_t>> occupants;
+  for (const auto& [index, position] : collector.points) {
+    auto [it, inserted] = occupants.try_emplace(position[0]);
+    if (inserted) it->second.assign(numSlots, -1);
+    it->second[position[1]] = linearize(index, strides);
+  }
+  // Periods are the multiples of the least one, so dividing by each prime
+  // factor while the quotient stays a period ends at the least one.
+  auto isPeriod = [&](int64_t tau) {
+    for (const auto& [ct, row] : occupants) {
+      for (int64_t slot = 0; slot < numSlots; ++slot) {
+        if (row[slot] != row[(slot + tau) % numSlots]) return false;
+      }
+    }
+    return true;
+  };
+  int64_t period = numSlots;
+  for (int64_t p = 2; p <= period; ++p) {
+    if (numSlots % p != 0) continue;
+    while (period % p == 0 && isPeriod(period / p)) period /= p;
+  }
+  return period;
+}
+
+int64_t getRotateAndReduceRotations(int64_t steps) {
+  // Mirrors implementRotateAndReduceAccumulation.
+  int64_t rotations = 0;
+  int64_t offset = 0;
+  bool accumulated = false;
+  for (int64_t shiftSize = 1; shiftSize <= steps; shiftSize *= 2) {
+    if (steps & shiftSize) {
+      if (accumulated) ++rotations;
+      accumulated = true;
+      offset += shiftSize;
+      if (offset == steps) break;
+    }
+    ++rotations;
+  }
+  return rotations;
+}
+
+GroupCost getGroupCost(const InstanceGroups& groups, int64_t numSlots) {
+  GroupCost cost{0, 0};
+  std::set<std::tuple<size_t, int64_t, int64_t>> rotations;
+  std::set<int64_t> outputCts;
+  for (const auto& [key, slots] : groups.readsByKey) {
+    outputCts.insert(key[0]);
+    for (size_t k = 1; k < key.size(); k += 2) {
+      if (key[k] >= 0 && key[k + 1] != 0)
+        rotations.insert({k / 2, key[k], key[k + 1]});
+    }
+    size_t perKey = 0;
+    for (const auto& [slot, reads] : slots)
+      perKey = std::max(perKey, reads.size());
+    cost.groups += perKey;
+  }
+  cost.rotations = rotations.size();
+  if (groups.period < numSlots) {
+    cost.rotations += outputCts.size() *
+                      getRotateAndReduceRotations(numSlots / groups.period);
+  }
+  return cost;
+}
+
+FailureOr<InstanceGroups> groupInstancesByCost(const GenericKernelSpec& spec,
+                                               int64_t numCts,
+                                               GenericReductionKind kind,
+                                               std::string& reason) {
+  if (failed(validateGenericKernelSpec(spec, reason))) return failure();
+  const int64_t numSlots = spec.numSlots;
+  // A rotate-and-reduce sums the copies of a class; products and idempotent
+  // combinations of them would count a term several times.
+  int64_t period = numSlots;
+  if (kind == GenericReductionKind::None || kind == GenericReductionKind::Add)
+    period = getSlotPeriod(spec.output.layout, numSlots);
+  FailureOr<std::optional<InstanceGroups>> byClass =
+      groupInstances(spec, numCts, kind, {period, std::nullopt}, reason);
+  if (failed(byClass)) return failure();
+  if (period == numSlots) return std::move(**byClass);
+  // Walk the copies only as long as they need no more rotations.
+  GroupCost cost = getGroupCost(**byClass, numSlots);
+  FailureOr<std::optional<InstanceGroups>> byCopy =
+      groupInstances(spec, numCts, kind, {numSlots, cost.rotations}, reason);
+  if (failed(byCopy)) return failure();
+  if (*byCopy && getGroupCost(**byCopy, numSlots) <= cost)
+    return std::move(**byCopy);
+  return std::move(**byClass);
 }
 
 SmallVector<int64_t> evaluateAffineMap(AffineMap map, ArrayRef<int64_t> point) {

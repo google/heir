@@ -5,6 +5,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -58,25 +59,76 @@ enum class GenericReductionKind { None, Add, Mul, Idempotent };
 // lexicographically smallest (ct_i, shift_i), which keeps periodic replicas in
 // one group; ct_i = -1 marks an element the layout does not place (read as
 // zero).
+//
+// With a slot period `period` < numSlots of the output layout (see
+// getSlotPeriod), the output copies of an element in one ciphertext fall into
+// classes of slots congruent mod `period`, and only one copy per class is an
+// instance: the one at or before the first position of the first secret input
+// the iteration reads from a placed element, so that input's shift is below
+// `period`. The groups then hold each class's value in one of its slots, and
+// a rotate-and-reduce over the multiples of `period` completes the result.
 struct InstanceGroups {
   // The distinct cleartext reads (row-major indices, one per cleartext input)
   // of a key's instances at one output slot, with their multiplicities.
   using Reads = std::vector<std::pair<SmallVector<int64_t>, int64_t>>;
   std::map<std::vector<int64_t>, std::map<int64_t, Reads>> readsByKey;
-  // Per output ciphertext and slot: the number of instances writing it.
+  // The slot period the instances were taken with.
+  int64_t period;
+  // Per output ciphertext and slot: the number of instances writing it,
+  // counted after the rotate-and-reduce (in every copy of an element).
   std::vector<std::vector<int64_t>> coverage;
   // Per output ciphertext: whether it holds an output element no instance
   // writes.
   std::vector<bool> writesPartially;
 };
 
+struct GroupingOptions {
+  // A slot period of the output layout, or numSlots for one instance per
+  // output copy.
+  int64_t period;
+  // Stops the walk once the groups need more rotations of secret inputs.
+  std::optional<int64_t> maxRotations;
+};
+
 // Groups the instances of `spec` by walking its loop nest. Fails if the output
 // needs more than `numCts` ciphertexts or a slot is written more often than
-// `kind` allows.
-FailureOr<InstanceGroups> groupInstances(const GenericKernelSpec& spec,
-                                         int64_t numCts,
-                                         GenericReductionKind kind,
-                                         std::string& reason);
+// `kind` allows, and returns std::nullopt once the groups exceed
+// `options.maxRotations`.
+FailureOr<std::optional<InstanceGroups>> groupInstances(
+    const GenericKernelSpec& spec, int64_t numCts, GenericReductionKind kind,
+    const GroupingOptions& options, std::string& reason);
+
+// The least slot period of a layout: the least tau > 0 such that moving every
+// position (ct, slot) to (ct, (slot + tau) mod numSlots) maps the layout onto
+// itself, or numSlots if there is no smaller one. Divides numSlots.
+int64_t getSlotPeriod(const presburger::IntegerRelation& layout,
+                      int64_t numSlots);
+
+// What a kernel built from `groups` costs, compared lexicographically: the
+// rotations (of secret inputs, and of the rotate-and-reduce per output
+// ciphertext under a period), then the number of groups (plaintext products).
+struct GroupCost {
+  int64_t rotations;
+  int64_t groups;
+  bool operator<=(const GroupCost& other) const {
+    return std::tie(rotations, groups) <=
+           std::tie(other.rotations, other.groups);
+  }
+};
+GroupCost getGroupCost(const InstanceGroups& groups, int64_t numSlots);
+
+// The number of rotations of a rotate-and-reduce over `steps` multiples of a
+// period (see implementRotateAndReduceAccumulation).
+int64_t getRotateAndReduceRotations(int64_t steps);
+
+// Groups the instances of `spec` with one instance per output copy and, for
+// sums (`kind` None or Add) whose output layout has a slot period, with one
+// per class of copies, and returns the cheaper grouping. Fails as
+// groupInstances does.
+FailureOr<InstanceGroups> groupInstancesByCost(const GenericKernelSpec& spec,
+                                               int64_t numCts,
+                                               GenericReductionKind kind,
+                                               std::string& reason);
 
 // Evaluates a symbol-free affine map at a point.
 SmallVector<int64_t> evaluateAffineMap(AffineMap map, ArrayRef<int64_t> point);

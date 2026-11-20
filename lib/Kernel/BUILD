@@ -87,6 +87,7 @@ cc_library(
     deps = [
         ":AbstractValue",
         ":ArithmeticDag",
+        ":KernelImplementation",
         "@heir//lib/Utils/Layout:GenericKernel",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Support",

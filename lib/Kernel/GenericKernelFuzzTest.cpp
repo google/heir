@@ -403,7 +403,8 @@ class RandomOpBuilder {
 
   // A layout from the family: row-major order over a random permutation of
   // the dimensions, placed in one ciphertext at an offset and stride,
-  // reversed, split into ciphertexts of k slots, or replicated with a period.
+  // reversed, split into ciphertexts of k slots, replicated with a period, or
+  // replicated with two copies per period at an irregular distance.
   // With `allowPadding`, the layout may omit a border of the tensor, which
   // then holds zeros (as zero padding does).
   Operand makeOperand(AffineMap map, ArrayRef<int64_t> shape, Tensor tensor,
@@ -440,7 +441,15 @@ class RandomOpBuilder {
 
     int64_t numCts = 1;
     std::string placement;
-    switch (pick(4)) {
+    // The smallest power of two of at least `n`.
+    auto ceilPowerOfTwo = [](int64_t n) {
+      int64_t p = 1;
+      while (p < n) p *= 2;
+      return p;
+    };
+    int64_t kind = pick(5);
+    if (kind == 4 && ceilPowerOfTwo(2 * size + 1) > numSlots) kind = 3;
+    switch (kind) {
       case 0: {
         int64_t step = 2 * size <= numSlots && coin() ? 2 : 1;
         int64_t offset = pick(numSlots - step * (size - 1));
@@ -457,11 +466,19 @@ class RandomOpBuilder {
                     " and 0 <= slot <= " + std::to_string(k - 1);
         break;
       }
-      default: {
-        int64_t period = 1;
-        while (period < size) period *= 2;
+      case 3: {
+        int64_t period = ceilPowerOfTwo(size);
         placement = "ct = 0 and (slot " + linear(0, -1).substr(1) + ") mod " +
                     std::to_string(period) + " = 0";
+        break;
+      }
+      default: {
+        // Copies at flat and flat + distance in every period.
+        int64_t period = ceilPowerOfTwo(2 * size + 1);
+        int64_t distance = size + pick(period - 2 * size + 1);
+        placement = "ct = 0 and exists (q, b : slot = " + linear(0, 1) + " + " +
+                    std::to_string(period) + "q + " + std::to_string(distance) +
+                    "b and 0 <= b <= 1)";
         break;
       }
     }
@@ -580,7 +597,11 @@ std::optional<IntegerRelation> polyphaseLayout(const Op& op,
   return *layout;
 }
 
-size_t numGroups(const Op& op) {
+AffineMap parseMap(StringRef str, MLIRContext* context) {
+  return cast<AffineMapAttr>(parseAttribute(str, context)).getValue();
+}
+
+GenericKernelSpec getSpec(const Op& op) {
   GenericKernelSpec spec;
   spec.loopRanges = op.loopRanges;
   spec.numSlots = op.numSlots;
@@ -590,18 +611,20 @@ size_t numGroups(const Op& op) {
       spec.inputs.back().cleartextShape = llvm::to_vector(input.tensor.shape);
   }
   spec.output = {op.output.map, op.output.layout};
+  return spec;
+}
+
+// The groups the kernel uses for `op`.
+InstanceGroups getGroups(const Op& op) {
   std::string reason;
   FailureOr<InstanceGroups> groups =
-      groupInstances(spec, op.output.numCts, op.kind, reason);
+      groupInstancesByCost(getSpec(op), op.output.numCts, op.kind, reason);
   EXPECT_TRUE(succeeded(groups)) << reason;
-  size_t count = 0;
-  for (const auto& [key, slots] : groups->readsByKey) {
-    size_t perKey = 0;
-    for (const auto& [slot, reads] : slots)
-      perKey = std::max(perKey, reads.size());
-    count += perKey;
-  }
-  return count;
+  return *groups;
+}
+
+int64_t numGroups(const Op& op) {
+  return getGroupCost(getGroups(op), op.numSlots).groups;
 }
 
 // A strided window op computes the same result with its input packed in the
@@ -633,9 +656,7 @@ FUZZ_TEST(GenericKernelFuzzTest, polyphaseLayoutMatchesNaive)
 // instead of a few per output position.
 TEST(GenericKernelTest, PolyphaseLayoutOfStridedConvolution) {
   MLIRContext context;
-  auto parse = [&](StringRef str) {
-    return cast<AffineMapAttr>(parseAttribute(str, &context)).getValue();
-  };
+  auto parse = [&](StringRef str) { return parseMap(str, &context); };
   Op op;
   op.numSlots = 64;
   op.kind = GenericReductionKind::Add;
@@ -667,18 +688,97 @@ TEST(GenericKernelTest, PolyphaseLayoutOfStridedConvolution) {
       "{ [c, y, x] -> [ct, slot] : ct = 0 and slot = 16c + 4y + x and "
       "0 <= c <= 1 and 0 <= y <= 3 and 0 <= x <= 3 }");
 
-  size_t before = numGroups(op);
+  int64_t before = numGroups(op);
   std::string reason;
   std::optional<IntegerRelation> polyphase = polyphaseLayout(op, reason);
   ASSERT_TRUE(polyphase.has_value()) << reason;
   op.inputs.front().layout = *polyphase;
   op.inputs.front().numCts = numCiphertexts(*polyphase);
   EXPECT_LE(op.inputs.front().numCts, 2);
-  size_t after = numGroups(op);
+  int64_t after = numGroups(op);
   // Two output channels times two input channels times nine taps, split at
   // most once more where a slab of the input crosses a ciphertext.
-  EXPECT_LE(after, 2u * 2 * 9 * 2);
+  EXPECT_LE(after, 2 * 2 * 9 * 2);
   EXPECT_LT(after, before);
+  FailureOr<NodePtr> dag = buildKernel(op, reason);
+  ASSERT_TRUE(succeeded(dag)) << reason;
+  checkKernel(op, *dag);
+}
+
+// A squeeze-excite style reduction of a 4x16x16 input into 4 channels, out[co]
+// = sum W[co, ci] * x[ci, h, w], with the result repeated every 4 slots. One
+// output copy per class of slots mod 4 needs 4 groups (the shift of x mod 4)
+// and a rotate-and-reduce over the 256 copies; one group per output copy
+// would need 1024 rotations.
+TEST(GenericKernelTest, ReductionIntoReplicatedResult) {
+  MLIRContext context;
+  Op op;
+  op.numSlots = 1024;
+  op.kind = GenericReductionKind::Add;
+  op.body = Body::Product;
+  op.initKind = GenericInitKind::Neutral;
+  op.loopRanges = {4, 4, 16, 16};
+  Operand input;
+  input.map = parseMap("affine_map<(co, ci, h, w) -> (ci, h, w)>", &context);
+  input.tensor = Tensor::iota({4, 16, 16});
+  input.layout = *getIntegerRelationFromIslStr(
+      "{ [c, h, w] -> [ct, slot] : ct = 0 and slot = 256c + 16h + w and "
+      "0 <= c <= 3 and 0 <= h <= 15 and 0 <= w <= 15 }");
+  op.inputs.push_back(input);
+  Operand weights;
+  weights.map = parseMap("affine_map<(co, ci, h, w) -> (co, ci)>", &context);
+  weights.tensor = Tensor::iota({4, 4});
+  weights.cleartext = true;
+  op.inputs.push_back(weights);
+  op.output.map = parseMap("affine_map<(co, ci, h, w) -> (co)>", &context);
+  op.output.tensor = Tensor({4});
+  op.output.layout = *getIntegerRelationFromIslStr(
+      "{ [c] -> [ct, slot] : ct = 0 and (slot - c) mod 4 = 0 and "
+      "0 <= c <= 3 and 0 <= slot <= 1023 }");
+
+  EXPECT_EQ(getSlotPeriod(op.output.layout, op.numSlots), 4);
+  InstanceGroups groups = getGroups(op);
+  EXPECT_EQ(groups.period, 4);
+  GroupCost cost = getGroupCost(groups, op.numSlots);
+  EXPECT_EQ(cost.groups, 4);
+  // Three shifts of x and log2(256) rotations of the rotate-and-reduce.
+  EXPECT_EQ(cost.rotations, 3 + 8);
+  std::string reason;
+  FailureOr<NodePtr> dag = buildKernel(op, reason);
+  ASSERT_TRUE(succeeded(dag)) << reason;
+  checkKernel(op, *dag);
+}
+
+// An elementwise op on operands repeated like the result needs no rotation
+// with one group per output copy, so the kernel keeps that grouping.
+TEST(GenericKernelTest, ElementwiseOnReplicatedOperands) {
+  MLIRContext context;
+  Op op;
+  op.numSlots = 64;
+  op.kind = GenericReductionKind::None;
+  op.body = Body::Product;
+  op.initKind = GenericInitKind::Empty;
+  op.loopRanges = {4};
+  std::string layout =
+      "{ [c] -> [ct, slot] : ct = 0 and (slot - c) mod 4 = 0 and "
+      "0 <= c <= 3 and 0 <= slot <= 63 }";
+  for (int start : {1, 5}) {
+    Operand input;
+    input.map = parseMap("affine_map<(c) -> (c)>", &context);
+    input.tensor = Tensor::iota({4}, start);
+    input.layout = *getIntegerRelationFromIslStr(layout);
+    op.inputs.push_back(input);
+  }
+  op.output.map = parseMap("affine_map<(c) -> (c)>", &context);
+  op.output.tensor = Tensor({4});
+  op.output.layout = *getIntegerRelationFromIslStr(layout);
+
+  InstanceGroups groups = getGroups(op);
+  EXPECT_EQ(groups.period, op.numSlots);
+  GroupCost cost = getGroupCost(groups, op.numSlots);
+  EXPECT_EQ(cost.groups, 1);
+  EXPECT_EQ(cost.rotations, 0);
+  std::string reason;
   FailureOr<NodePtr> dag = buildKernel(op, reason);
   ASSERT_TRUE(succeeded(dag)) << reason;
   checkKernel(op, *dag);
