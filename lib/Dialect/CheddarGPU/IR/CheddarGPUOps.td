@@ -1211,4 +1211,202 @@ def CheddarGPU_NTTModDownOp : CheddarGPU_ModDownEpilogueOpBase<"ntt_mod_down",
   }];
 }
 
+//===----------------------------------------------------------------------===//
+// Key Switching Operations
+//===----------------------------------------------------------------------===//
+
+// Key switching base family (key_switch, hrot, hconj, relinearize,
+// relinearize_rescale, hrot_add, key_switch_no_mod_down).
+class CheddarGPU_KeySwitchOpBase<string mnemonic, dag inputOperands, dag extraAttrs = (ins),
+                                 list<Trait> traits = [], Attr levelAttr = I64Attr>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AttrSizedOperandSegments,
+        AllTypesMatch<["out_bx", "out_ax"]>,
+        CheddarGPU_NonEmpty<"evk_bx">,
+        CheddarGPU_SameCount<["evk_bx", "evk_ax"]>,
+        VariadicAllTypesMatch<"evk_bx">,
+        VariadicAllTypesMatch<"evk_ax">,
+        AllMatchSameOperatorTrait<["evk_bx", "evk_ax"],
+                                  "(*$_self.begin()).getType()", "type">,
+        CheddarGPU_EachSameRingAs<"evk_bx", "out_bx">,
+        CheddarGPU_EachSameRingAs<"evk_ax", "out_bx">,
+        CheddarGPU_EachDimAtLeast<"evk_bx", 0, "out_bx", 0>,
+        CheddarGPU_EachDimAtLeast<"evk_ax", 0, "out_bx", 0>,
+      ], traits)> {
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "destination out_bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_PolyBuffer, "destination out_ax buffer", [MemWrite]>:$out_ax
+    ),
+    inputOperands,
+    (ins
+      Arg<Variadic<CheddarGPU_PolyBuffer>, "evaluation key bx digits", [MemRead]>:$evk_bx,
+      Arg<Variadic<CheddarGPU_PolyBuffer>, "evaluation key ax digits", [MemRead]>:$evk_ax,
+      levelAttr:$level
+    ),
+    extraAttrs
+  );
+}
+
+// KeySwitch operations on degree-1 ciphertext (key_switch, hrot, hconj).
+class CheddarGPU_CiphertextKeySwitchOpBase<string mnemonic, dag extraAttrs = (ins),
+                                           list<Trait> traits = [], Attr levelAttr = CheddarGPU_NonNegI64Attr>
+    : CheddarGPU_KeySwitchOpBase<mnemonic,
+        /*inputOperands=*/(ins
+          Arg<CheddarGPU_PolyBuffer, "input in_bx buffer", [MemRead]>:$in_bx,
+          Arg<CheddarGPU_PolyBuffer, "input in_ax buffer", [MemRead]>:$in_ax
+        ),
+        /*extraAttrs=*/extraAttrs,
+        /*traits=*/!listconcat([AllTypesMatch<["out_bx", "in_bx", "in_ax"]>], traits),
+        /*levelAttr=*/levelAttr> {
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` $in_bx `,` $in_ax `,`
+    `evk_bx` `(` $evk_bx `)` `,` `evk_ax` `(` $evk_ax `)`
+    prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+// Relinearize operations on degree-2 ciphertext (relinearize, relinearize_rescale).
+class CheddarGPU_RelinearizeOpBase<string mnemonic, list<Trait> traits = [],
+                                   Attr levelAttr = CheddarGPU_NonNegI64Attr>
+    : CheddarGPU_KeySwitchOpBase<mnemonic,
+        /*inputOperands=*/(ins
+          Arg<CheddarGPU_PolyBuffer, "input in_bx buffer", [MemRead]>:$in_bx,
+          Arg<CheddarGPU_PolyBuffer, "input in_ax buffer", [MemRead]>:$in_ax,
+          Arg<CheddarGPU_PolyBuffer, "input in_rx (c2) buffer", [MemRead]>:$in_rx
+        ),
+        /*extraAttrs=*/(ins), /*traits=*/traits, /*levelAttr=*/levelAttr> {
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` $in_bx `,` $in_ax `,` $in_rx `,`
+    `evk_bx` `(` $evk_bx `)` `,` `evk_ax` `(` $evk_ax `)`
+    prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_KeySwitchNoModDownOp : CheddarGPU_KeySwitchOpBase<"key_switch_no_mod_down",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "input polynomial buffer to key switch", [MemRead]>:$in,
+      Arg<Optional<CheddarGPU_PolyBuffer>, "optional input in_bx to add", [MemRead]>:$in_bx,
+      Arg<Optional<CheddarGPU_PolyBuffer>, "optional input in_ax to add", [MemRead]>:$in_ax
+    ),
+    (ins),
+    [
+      AllElementTypesMatch<["out_bx", "in"]>,
+      CheddarGPU_SameDegree<["out_bx", "in"]>,
+      CheddarGPU_DimRel<"out_bx", 0, ">", "in", 0,
+          "'out_bx' has more limbs than 'in'">,
+      OptionalTypesMatchWith<"in_bx type matches in", "in", "in_bx", "$_self">,
+      OptionalTypesMatchWith<"in_ax type matches in", "in", "in_ax", "$_self">,
+      CheddarGPU_LevelOrSentinel<CheddarGPU_Dim<"out_bx", 0>.result # " == 2", "'out_bx' has 2 limbs">,
+    ],
+    I64Attr> {
+  let summary = "Key switch without ModDown: ModUp + CPAccum + p_prod addition";
+  let description = [{
+    Computes destination-passing KeySwitch without modulus down:
+      out_bx = sum_k (mod_up(in)_k * evk_bx_k) + (in_bx ? in_bx * p_prod : 0)
+      out_ax = sum_k (mod_up(in)_k * evk_ax_k) + (in_ax ? in_ax * p_prod : 0)
+    Operates in evaluation (`eval`) domain.
+    `level = -1` denotes the special base-level case where 'out_bx' has 2 limbs.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` $in `,`
+    ( `in_bx` `(` $in_bx^ `)` `,` )?
+    ( `in_ax` `(` $in_ax^ `)` `,` )?
+    `evk_bx` `(` $evk_bx `)` `,` `evk_ax` `(` $evk_ax `)` prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+}
+
+def CheddarGPU_KeySwitchOp
+    : CheddarGPU_CiphertextKeySwitchOpBase<"key_switch", (ins), [
+        CheddarGPU_LevelOrSentinel<CheddarGPU_Dim<"out_bx", 0>.result # " == 1", "'out_bx' has 1 limb">,
+      ], I64Attr> {
+  let summary = "KeySwitch with ModDown";
+  let description = [{
+    Performs key switching on input ciphertext `(in_bx, in_ax)` using evaluation key
+    `(evk_bx, evk_ax)` and produces output ciphertext `(out_bx, out_ax)` at the same level.
+    Operates in evaluation (`eval`) domain.
+    `level = -1` denotes the special base-level case where 'out_bx' has 1 limb.
+  }];
+}
+
+def CheddarGPU_RelinearizeOp
+    : CheddarGPU_RelinearizeOpBase<"relinearize", [
+        AllTypesMatch<["out_bx", "in_bx", "in_ax", "in_rx"]>,
+      ], CheddarGPU_NonNegI64Attr> {
+  let summary = "Relinearize degree-2 ciphertext";
+  let description = [{
+    Relinearizes degree-2 ciphertext `(in_bx, in_ax, in_rx)` using relinearization key
+    `(evk_bx, evk_ax)` producing degree-1 ciphertext `(out_bx, out_ax)` at the same level.
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_RelinearizeRescaleOp
+    : CheddarGPU_RelinearizeOpBase<"relinearize_rescale", [
+        AllTypesMatch<["in_bx", "in_ax", "in_rx"]>,
+        AllElementTypesMatch<["out_bx", "in_bx"]>,
+        CheddarGPU_SameDegree<["out_bx", "in_bx"]>,
+        CheddarGPU_DimRel<"out_bx", 0, "<", "in_bx", 0,
+            "'out_bx' has fewer limbs than 'in_bx'">,
+        CheddarGPU_EachDimAtLeast<"evk_bx", 0, "in_bx", 0>,
+        CheddarGPU_EachDimAtLeast<"evk_ax", 0, "in_bx", 0>,
+      ], CheddarGPU_PosI64Attr> {
+  let summary = "Combined Relinearize and Rescale";
+  let description = [{
+    Relinearizes degree-2 ciphertext `(in_bx, in_ax, in_rx)` at `level` and rescales down to `level - 1`.
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_HRotOp : CheddarGPU_CiphertextKeySwitchOpBase<"hrot",
+    (ins
+      I64Attr:$rot_dist,
+      OptionalAttr<I64Attr>:$galois
+    ), [], CheddarGPU_NonNegI64Attr> {
+  let summary = "Homomorphic slot rotation";
+  let description = [{
+    Rotates ciphertext `(in_bx, in_ax)` by `rot_dist` (or corresponding `galois` element) using
+    rotation evaluation key `(evk_bx, evk_ax)`.
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_HConjOp
+    : CheddarGPU_CiphertextKeySwitchOpBase<"hconj", (ins), [],
+          CheddarGPU_NonNegI64Attr> {
+  let summary = "Homomorphic complex conjugation";
+  let description = [{
+    Conjugates ciphertext `(in_bx, in_ax)` using conjugation evaluation key `(evk_bx, evk_ax)`.
+    Operates in evaluation (`eval`) domain.
+  }];
+}
+
+def CheddarGPU_HRotAddOp : CheddarGPU_KeySwitchOpBase<"hrot_add",
+    (ins
+      Arg<CheddarGPU_PolyBuffer, "input 1 in1_bx buffer", [MemRead]>:$in1_bx,
+      Arg<CheddarGPU_PolyBuffer, "input 1 in1_ax buffer", [MemRead]>:$in1_ax,
+      Arg<CheddarGPU_PolyBuffer, "input 2 in2_bx buffer", [MemRead]>:$in2_bx,
+      Arg<CheddarGPU_PolyBuffer, "input 2 in2_ax buffer", [MemRead]>:$in2_ax
+    ),
+    (ins
+      I64Attr:$rot_dist,
+      OptionalAttr<I64Attr>:$galois
+    ),
+    [AllTypesMatch<["out_bx", "in1_bx", "in1_ax", "in2_bx", "in2_ax"]>],
+    CheddarGPU_NonNegI64Attr> {
+  let summary = "Homomorphic rotation followed by ciphertext addition";
+  let description = [{
+    Rotates ciphertext `(in1_bx, in1_ax)` and adds `(in2_bx, in2_ax)` into `(out_bx, out_ax)`.
+    Operates in evaluation (`eval`) domain.
+  }];
+
+  let assemblyFormat = [{
+    $out_bx `,` $out_ax `,` $in1_bx `,` $in1_ax `,` $in2_bx `,` $in2_ax `,`
+    `evk_bx` `(` $evk_bx `)` `,` `evk_ax` `(` $evk_ax `)`
+    prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPU_OPS_TD_

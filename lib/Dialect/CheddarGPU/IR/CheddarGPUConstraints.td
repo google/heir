@@ -107,6 +107,12 @@ class CheddarGPU_EachSameRingAs<string v, string ref> : PredOpTrait<
           # ref # ".getType()); return m.getDimSize(1) == r.getDimSize(1) && "
           "m.getElementType() == r.getElementType(); })">>;
 
+class CheddarGPU_EachDimAtLeast<string v, int d, string ref, int rd> : PredOpTrait<
+    "every '" # v # "' has dim " # d # " >= dim " # rd # " of '" # ref # "'",
+    CPred<"::llvm::all_of($" # v # ".getTypes(), [&](::mlir::Type t) { return "
+          "::llvm::cast<::mlir::MemRefType>(t).getDimSize(" # d # ") >= "
+          # CheddarGPU_Dim<ref, rd>.result # "; })">>;
+
 class CheddarGPU_Getter<string n> { string call = "get" # snakeCaseToCamelCase<n>.ret # "()"; }
 
 class CheddarGPU_BothOrNeither<string a, string b> : PredOpTrait<
