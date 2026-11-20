@@ -7,9 +7,10 @@
 #include <optional>
 #include <utility>
 
-#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
@@ -138,14 +139,31 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
                                   ArrayRef<int64_t> dimsToReduce) {
   std::unique_ptr<presburger::IntegerRelation> clonedRelation =
       inputLayout.getIntegerRelation().clone();
-
   auto offset = clonedRelation->getVarKindOffset(presburger::VarKind::Domain);
+
+  // The rotate-and-reduce kernel leaves in each slot the sum of the n
+  // elements along the reduced dimension that start there, so the full sum is
+  // in the slots of index 0. Along the outermost dimension of a row-major
+  // tensor whose size is a power of two (so that it repeats without padding),
+  // the window wraps through the next copy and every slot holds it.
+  int64_t numElements = 1;
+  for (unsigned i = 0; i < clonedRelation->getNumDomainVars(); ++i) {
+    std::optional<int64_t> ub = clonedRelation->getConstantBound64(
+        presburger::BoundType::UB, offset + i);
+    numElements *= ub ? *ub + 1 : 0;
+  }
+  bool everySlot = dimsToReduce.size() == 1 && dimsToReduce[0] == 0 &&
+                   llvm::isPowerOf2_64(numElements);
+
   for (int dim : llvm::reverse(dimsToReduce)) {
-    // Project out the reduced dimension.
     auto dimIndex = offset + dim;
     assert(clonedRelation->getVarKindAt(dimIndex) ==
            presburger::VarKind::Domain);
-    clonedRelation->projectOut(dimIndex, 1);
+    if (everySlot) {
+      clonedRelation->projectOut(dimIndex, 1);
+    } else {
+      clonedRelation->setAndEliminate(dimIndex, ArrayRef<int64_t>{0});
+    }
   }
 
   MLIRContext* context = inputLayout.getContext();
