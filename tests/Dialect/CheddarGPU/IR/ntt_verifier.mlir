@@ -15,7 +15,7 @@ func.func @test_intt_epilogue_without_const(%out: memref<4x65536xi32>, %in: memr
 // INTT const buffer shape mismatch (5 != 4)
 
 func.func @test_intt_const_shape_mismatch(%out: memref<4x65536xi32>, %in: memref<4x65536xi32>, %cst: memref<5xi32>) {
-  // expected-error @below {{constant buffer size (5) must match limb count (4)}}
+  // expected-error @below {{failed to verify that 'cst' (if present) length matches active limb count}}
   cheddar_gpu.intt %out, %in, cst(%cst) <{
     montgomery_conversion = true,
     epilogue = #cheddar_gpu.intt_epilogue<mult_const>
@@ -51,7 +51,7 @@ func.func @test_intt_const_elem_type_mismatch(%out: memref<4x65536xi32>, %in: me
 // INTT in_split split_count exceeds limb_count
 
 func.func @test_intt_in_split_count_too_large(%out: memref<4x65536xi32>, %in: memref<4x65536xi32>) {
-  // expected-error @below {{in_split split_count must be in [0, limb_count]}}
+  // expected-error @below {{failed to verify that 'in_split' split_count is in [0, active limb count]}}
   cheddar_gpu.intt %out, %in <{
     montgomery_conversion = true,
     epilogue = #cheddar_gpu.intt_epilogue<none>,
@@ -64,7 +64,7 @@ func.func @test_intt_in_split_count_too_large(%out: memref<4x65536xi32>, %in: me
 // INTT in_split input buffer too small for extent
 
 func.func @test_intt_in_split_buffer_too_small(%out: memref<4x65536xi32>, %in: memref<4x65536xi32>) {
-  // expected-error @below {{input buffer too small for in_split extent}}
+  // expected-error @below {{failed to verify that 'in' has enough limbs for 'in_split' extent}}
   cheddar_gpu.intt %out, %in <{
     montgomery_conversion = true,
     epilogue = #cheddar_gpu.intt_epilogue<none>,
@@ -163,7 +163,7 @@ func.func @test_ntt_skip_copy_src_degree_mismatch(%out: memref<4x65536xi32>, %in
 // NTT skip_copy_src buffer too small
 
 func.func @test_ntt_skip_copy_src_too_small(%out: memref<4x65536xi32>, %in: memref<4x65536xi32>, %skip: memref<1x65536xi32>) {
-  // expected-error @+1 {{skip_copy_src buffer too small for skipped range}}
+  // expected-error @+1 {{failed to verify that 'skip_copy_src' has enough limbs from 'skip_copy_in_offset' for 'skip_range'}}
   cheddar_gpu.ntt %out, %in, skip_copy_src(%skip) <{
     montgomery_conversion = false,
     skip_range = array<i64: 1, 3>

@@ -15,6 +15,7 @@
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 
 #define GET_OP_CLASSES
