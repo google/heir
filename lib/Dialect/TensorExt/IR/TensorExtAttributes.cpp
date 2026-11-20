@@ -64,14 +64,23 @@ LayoutAttr LayoutAttr::getFromIntegerRelation(::mlir::MLIRContext* context,
 
 LayoutAttr LayoutAttr::composeLayouts(::mlir::ArrayAttr arrayAttr,
                                       ::mlir::MLIRContext* context) {
-  auto layoutAttrs = arrayAttr.getAsRange<LayoutAttr>();
-  auto it = layoutAttrs.begin();
-  IntegerRelation composedRel = (*it).getIntegerRelation();
-  ++it;
-  for (; it != layoutAttrs.end(); ++it) {
-    composedRel.compose((*it).getIntegerRelation());
+  // Compose in isl, which keeps the definitions of the divisions in each
+  // layout, so the intermediate coordinates are eliminated through them.
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* composed = nullptr;
+  for (LayoutAttr layout : arrayAttr.getAsRange<LayoutAttr>()) {
+    isl_basic_map* next =
+        isl_basic_map_read_from_str(ctx, layout.getLayoutStr().c_str());
+    composed = composed ? isl_basic_map_apply_range(composed, next) : next;
   }
-  return LayoutAttr::getFromIntegerRelation(context, composedRel);
+  composed = isl_basic_map_set_dim_name(composed, isl_dim_out, 0, "ct");
+  composed = isl_basic_map_set_dim_name(composed, isl_dim_out, 1, "slot");
+  char* resultStr = isl_basic_map_to_str(composed);
+  std::string layoutStr(resultStr);
+  free(resultStr);
+  isl_basic_map_free(composed);
+  isl_ctx_free(ctx);
+  return LayoutAttr::get(context, layoutStr);
 }
 
 }  // namespace tensor_ext

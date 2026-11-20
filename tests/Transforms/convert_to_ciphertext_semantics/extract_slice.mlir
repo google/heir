@@ -23,3 +23,26 @@ module {
     return %1 : !secret.secret<tensor<4x4xf32>>
   }
 }
+
+// -----
+
+#layout1 = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and ct = i1 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i1 <= 1 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 31 }">
+#slice = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and (-4i2 - i3 + slot) mod 16 = 0 and 0 <= i2 <= 3 and 0 <= i3 <= 3 and 0 <= slot <= 31 }">
+#layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-4i0 - i1 + slot) mod 16 = 0 and 0 <= i0 <= 3 and 0 <= i1 <= 3 and 0 <= slot <= 31 }">
+module {
+  // The slice keeps its data-semantic layout, which the collapse composes with.
+  // CHECK: func.func @slice_then_collapse
+  func.func @slice_then_collapse(%arg0: !secret.secret<tensor<1x2x4x4xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<4x4xf32>> {tensor_ext.layout = #layout}) {
+    %1 = secret.generic(%arg0: !secret.secret<tensor<1x2x4x4xf32>> {tensor_ext.layout = #layout1}) {
+    ^body(%input0: tensor<1x2x4x4xf32>):
+    // CHECK: %[[v1:.*]] = tensor_ext.remap
+    // CHECK-NEXT: %[[extracted:.*]] = tensor.extract_slice %[[v1]][0, 0] [1, 32] [1, 1]
+    // CHECK-NEXT: secret.yield %[[extracted]] : tensor<1x32xf32>
+      %extract_slice = tensor.extract_slice %input0 [0, 1, 0, 0] [1, 1, 4, 4] [1, 1, 1, 1] {tensor_ext.layout = #slice}
+           : tensor<1x2x4x4xf32> to tensor<1x1x4x4xf32>
+      %collapsed = tensor.collapse_shape %extract_slice [[0, 1, 2], [3]] {tensor_ext.layout = #layout} : tensor<1x1x4x4xf32> into tensor<4x4xf32>
+      secret.yield %collapsed : tensor<4x4xf32>
+    } -> (!secret.secret<tensor<4x4xf32>> {tensor_ext.layout = #layout})
+    return %1 : !secret.secret<tensor<4x4xf32>>
+  }
+}

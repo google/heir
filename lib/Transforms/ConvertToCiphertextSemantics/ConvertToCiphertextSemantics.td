@@ -44,6 +44,14 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
   not well-defined on ciphertext-semantic tensors, while their implementation
   as SIMD/rotation ops are not well-defined on tensor-semantic tensors.
 
+  A structured op without an applicable dedicated kernel is lowered by a kernel
+  derived from the layouts of its secret operands (see
+  lib/Kernel/GenericKernelImplementation.h). Cleartext inputs and
+  `linalg.index` need no layout. The body must be straight-line elementwise
+  ops, and reductions must accumulate with an addition, a multiplication, or an
+  idempotent op (max, min, and, or). The pass emits an error naming the reason
+  when no kernel exists.
+
   (* example filepath=tests/Transforms/convert_to_ciphertext_semantics/doctest.mlir *)
   }];
   let dependentDialects = [

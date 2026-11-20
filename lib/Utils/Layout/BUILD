@@ -50,6 +50,7 @@ cc_library(
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
     deps = [
+        ":Codegen",
         ":IslConversion",
         "@heir//lib/Utils:MathUtils",
         "@isl",
@@ -179,6 +180,23 @@ cc_test(
         "@googletest//:gtest_main",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "GenericKernel",
+    srcs = ["GenericKernel.cpp"],
+    hdrs = ["GenericKernel.h"],
+    deps = [
+        ":IslConversion",
+        ":Utils",
+        "@isl",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
