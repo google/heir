@@ -114,7 +114,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
   }
 
   template <typename NoiseModel>
-  void run(const NoiseModel& model) {
+  void run(const NoiseModel& noiseModel) {
     std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     // plaintext modulus from command line option
@@ -126,14 +126,15 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
                             << schemeParam << "\n");
 
     DataFlowSolver solver;
-    if (failed(runNoiseAnalysis(getOperation(), schemeParam, model, solver))) {
+    if (failed(runNoiseAnalysis(getOperation(), schemeParam, noiseModel,
+                                solver))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
     }
 
     // use previous analysis result to generate concrete scheme param
     auto concreteSchemeParam = generateParamByGap<NoiseAnalysis<NoiseModel>>(
-        &solver, schemeParam, model);
+        &solver, schemeParam, noiseModel);
 
     LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
                             << concreteSchemeParam << "\n");

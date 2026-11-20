@@ -364,10 +364,9 @@ class BlockRewrite : public IRRewrite {
   }
 
  protected:
-  BlockRewrite(Kind kind,
-               ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-               Block* block)
-      : IRRewrite(kind, rewriterImpl), block(block) {}
+  BlockRewrite(Kind rewriteKind,
+               ContextAwareConversionPatternRewriterImpl& impl, Block* block)
+      : IRRewrite(rewriteKind, impl), block(block) {}
 
   // The block that this rewrite operates on.
   Block* block;
@@ -378,9 +377,9 @@ class BlockRewrite : public IRRewrite {
 /// created block is erased.
 class CreateBlockRewrite : public BlockRewrite {
  public:
-  CreateBlockRewrite(ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-                     Block* block)
-      : BlockRewrite(Kind::CreateBlock, rewriterImpl, block) {}
+  CreateBlockRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                     Block* targetBlock)
+      : BlockRewrite(Kind::CreateBlock, impl, targetBlock) {}
 
   static bool classof(const IRRewrite* rewrite) {
     return rewrite->getKind() == Kind::CreateBlock;
@@ -412,11 +411,11 @@ class CreateBlockRewrite : public BlockRewrite {
 /// original location.
 class EraseBlockRewrite : public BlockRewrite {
  public:
-  EraseBlockRewrite(ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-                    Block* block)
-      : BlockRewrite(Kind::EraseBlock, rewriterImpl, block),
-        region(block->getParent()),
-        insertBeforeBlock(block->getNextNode()) {}
+  EraseBlockRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                    Block* targetBlock)
+      : BlockRewrite(Kind::EraseBlock, impl, targetBlock),
+        region(targetBlock->getParent()),
+        insertBeforeBlock(targetBlock->getNextNode()) {}
 
   static bool classof(const IRRewrite* rewrite) {
     return rewrite->getKind() == Kind::EraseBlock;
@@ -472,9 +471,10 @@ class EraseBlockRewrite : public BlockRewrite {
 /// erasure of the inlined block is a separate rewrite.
 class InlineBlockRewrite : public BlockRewrite {
  public:
-  InlineBlockRewrite(ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-                     Block* block, Block* sourceBlock, Block::iterator before)
-      : BlockRewrite(Kind::InlineBlock, rewriterImpl, block),
+  InlineBlockRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                     Block* targetBlock, Block* sourceBlock,
+                     Block::iterator before)
+      : BlockRewrite(Kind::InlineBlock, impl, targetBlock),
         sourceBlock(sourceBlock),
         firstInlinedInst(sourceBlock->empty() ? nullptr
                                               : &sourceBlock->front()),
@@ -518,9 +518,9 @@ class InlineBlockRewrite : public BlockRewrite {
 /// Moving of a block. This rewrite is immediately reflected in the IR.
 class MoveBlockRewrite : public BlockRewrite {
  public:
-  MoveBlockRewrite(ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-                   Block* block, Region* region, Block* insertBeforeBlock)
-      : BlockRewrite(Kind::MoveBlock, rewriterImpl, block),
+  MoveBlockRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                   Block* targetBlock, Region* region, Block* insertBeforeBlock)
+      : BlockRewrite(Kind::MoveBlock, impl, targetBlock),
         region(region),
         insertBeforeBlock(insertBeforeBlock) {}
 
@@ -558,10 +558,9 @@ class MoveBlockRewrite : public BlockRewrite {
 /// Block type conversion. This rewrite is partially reflected in the IR.
 class BlockTypeConversionRewrite : public BlockRewrite {
  public:
-  BlockTypeConversionRewrite(
-      ContextAwareConversionPatternRewriterImpl& rewriterImpl, Block* origBlock,
-      Block* newBlock)
-      : BlockRewrite(Kind::BlockTypeConversion, rewriterImpl, origBlock),
+  BlockTypeConversionRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                             Block* origBlock, Block* newBlock)
+      : BlockRewrite(Kind::BlockTypeConversion, impl, origBlock),
         newBlock(newBlock) {}
 
   static bool classof(const IRRewrite* rewrite) {
@@ -586,10 +585,10 @@ class BlockTypeConversionRewrite : public BlockRewrite {
 /// until the rewrite is committed.
 class ReplaceBlockArgRewrite : public BlockRewrite {
  public:
-  ReplaceBlockArgRewrite(
-      ContextAwareConversionPatternRewriterImpl& rewriterImpl, Block* block,
-      BlockArgument arg, const ContextAwareTypeConverter* converter)
-      : BlockRewrite(Kind::ReplaceBlockArg, rewriterImpl, block),
+  ReplaceBlockArgRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                         Block* targetBlock, BlockArgument arg,
+                         const ContextAwareTypeConverter* converter)
+      : BlockRewrite(Kind::ReplaceBlockArg, impl, targetBlock),
         arg(arg),
         converter(converter) {}
 
@@ -620,10 +619,10 @@ class OperationRewrite : public IRRewrite {
   }
 
  protected:
-  OperationRewrite(Kind kind,
-                   ContextAwareConversionPatternRewriterImpl& rewriterImpl,
+  OperationRewrite(Kind rewriteKind,
+                   ContextAwareConversionPatternRewriterImpl& impl,
                    Operation* op)
-      : IRRewrite(kind, rewriterImpl), op(op) {}
+      : IRRewrite(rewriteKind, impl), op(op) {}
 
   // The operation that this rewrite operates on.
   Operation* op;
@@ -632,9 +631,10 @@ class OperationRewrite : public IRRewrite {
 /// Moving of an operation. This rewrite is immediately reflected in the IR.
 class MoveOperationRewrite : public OperationRewrite {
  public:
-  MoveOperationRewrite(ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-                       Operation* op, Block* block, Operation* insertBeforeOp)
-      : OperationRewrite(Kind::MoveOperation, rewriterImpl, op),
+  MoveOperationRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                       Operation* targetOp, Block* block,
+                       Operation* insertBeforeOp)
+      : OperationRewrite(Kind::MoveOperation, impl, targetOp),
         block(block),
         insertBeforeOp(insertBeforeOp) {}
 
@@ -674,18 +674,18 @@ class MoveOperationRewrite : public OperationRewrite {
 /// the IR. The previous state of the operation is stored in this object.
 class ModifyOperationRewrite : public OperationRewrite {
  public:
-  ModifyOperationRewrite(
-      ContextAwareConversionPatternRewriterImpl& rewriterImpl, Operation* op)
-      : OperationRewrite(Kind::ModifyOperation, rewriterImpl, op),
-        name(op->getName()),
-        loc(op->getLoc()),
-        attrs(op->getAttrDictionary()),
-        operands(op->operand_begin(), op->operand_end()),
-        successors(op->successor_begin(), op->successor_end()) {
-    if (mlir::PropertyRef prop = op->getPropertiesStorage()) {
+  ModifyOperationRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                         Operation* targetOp)
+      : OperationRewrite(Kind::ModifyOperation, impl, targetOp),
+        name(targetOp->getName()),
+        loc(targetOp->getLoc()),
+        attrs(targetOp->getAttrDictionary()),
+        operands(targetOp->operand_begin(), targetOp->operand_end()),
+        successors(targetOp->successor_begin(), targetOp->successor_end()) {
+    if (mlir::PropertyRef prop = targetOp->getPropertiesStorage()) {
       propertiesTypeID = prop.getTypeID();
       // Make a copy of the properties.
-      propertiesStorage = operator new(op->getPropertiesStorageSize());
+      propertiesStorage = operator new(targetOp->getPropertiesStorageSize());
       mlir::PropertyRef propCopy(propertiesTypeID, propertiesStorage);
       name.initOpProperties(propCopy, /*init=*/prop);
     }
@@ -749,10 +749,10 @@ class ModifyOperationRewrite : public OperationRewrite {
 /// original op is not erased until the rewrite is committed.
 class ReplaceOperationRewrite : public OperationRewrite {
  public:
-  ReplaceOperationRewrite(
-      ContextAwareConversionPatternRewriterImpl& rewriterImpl, Operation* op,
-      const ContextAwareTypeConverter* converter)
-      : OperationRewrite(Kind::ReplaceOperation, rewriterImpl, op),
+  ReplaceOperationRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                          Operation* targetOp,
+                          const ContextAwareTypeConverter* converter)
+      : OperationRewrite(Kind::ReplaceOperation, impl, targetOp),
         converter(converter) {}
 
   static bool classof(const IRRewrite* rewrite) {
@@ -773,9 +773,9 @@ class ReplaceOperationRewrite : public OperationRewrite {
 
 class CreateOperationRewrite : public OperationRewrite {
  public:
-  CreateOperationRewrite(
-      ContextAwareConversionPatternRewriterImpl& rewriterImpl, Operation* op)
-      : OperationRewrite(Kind::CreateOperation, rewriterImpl, op) {}
+  CreateOperationRewrite(ContextAwareConversionPatternRewriterImpl& impl,
+                         Operation* targetOp)
+      : OperationRewrite(Kind::CreateOperation, impl, targetOp) {}
 
   static bool classof(const IRRewrite* rewrite) {
     return rewrite->getKind() == Kind::CreateOperation;
@@ -809,9 +809,11 @@ enum MaterializationKind {
 class UnresolvedMaterializationRewrite : public OperationRewrite {
  public:
   UnresolvedMaterializationRewrite(
-      ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-      UnrealizedConversionCastOp op, const ContextAwareTypeConverter* converter,
-      MaterializationKind kind, Type originalType, ValueVector mappedValues);
+      ContextAwareConversionPatternRewriterImpl& impl,
+      UnrealizedConversionCastOp targetOp,
+      const ContextAwareTypeConverter* converter,
+      MaterializationKind materializationKind, Type originalType,
+      ValueVector mappedValues);
 
   static bool classof(const IRRewrite* rewrite) {
     return rewrite->getKind() == Kind::UnresolvedMaterialization;
@@ -1010,8 +1012,8 @@ struct ContextAwareConversionPatternRewriterImpl
   /// no new IR is created between calls to `eraseOp`/`eraseBlock`.
   struct SingleEraseRewriter : public RewriterBase, RewriterBase::Listener {
    public:
-    SingleEraseRewriter(MLIRContext* context)
-        : RewriterBase(context, /*listener=*/this) {}
+    SingleEraseRewriter(MLIRContext* ctx)
+        : RewriterBase(ctx, /*listener=*/this) {}
 
     /// Erase the given op (unless it was already erased).
     void eraseOp(Operation* op) override {
@@ -1193,16 +1195,19 @@ void CreateOperationRewrite::rollback() {
 }
 
 UnresolvedMaterializationRewrite::UnresolvedMaterializationRewrite(
-    ContextAwareConversionPatternRewriterImpl& rewriterImpl,
-    UnrealizedConversionCastOp op, const ContextAwareTypeConverter* converter,
-    MaterializationKind kind, Type originalType, ValueVector mappedValues)
-    : OperationRewrite(Kind::UnresolvedMaterialization, rewriterImpl, op),
-      converterAndKind(converter, kind),
+    ContextAwareConversionPatternRewriterImpl& impl,
+    UnrealizedConversionCastOp targetOp,
+    const ContextAwareTypeConverter* converter,
+    MaterializationKind materializationKind, Type originalType,
+    ValueVector mappedValues)
+    : OperationRewrite(Kind::UnresolvedMaterialization, impl, targetOp),
+      converterAndKind(converter, materializationKind),
       originalType(originalType),
       mappedValues(std::move(mappedValues)) {
-  assert((!originalType || kind == MaterializationKind::Target) &&
-         "original type is valid only for target materializations");
-  rewriterImpl.unresolvedMaterializations[op] = this;
+  assert(
+      (!originalType || materializationKind == MaterializationKind::Target) &&
+      "original type is valid only for target materializations");
+  impl.unresolvedMaterializations[targetOp] = this;
 }
 
 void UnresolvedMaterializationRewrite::rollback() {

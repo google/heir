@@ -212,7 +212,7 @@ struct CommonEmptyOpPattern : public OpConversionPattern<EmptyOp> {
 struct CommonStoreOpPattern : public OpConversionPattern<StoreOp> {
   CommonStoreOpPattern(const SingleMemrefPreprocessingTypeConverter& tc,
                        MLIRContext* context)
-      : OpConversionPattern(tc, context), typeConverter(tc) {}
+      : OpConversionPattern(tc, context), preprocessingTypeConverter(tc) {}
 
   LogicalResult matchAndRewrite(
       StoreOp op, OpAdaptor adaptor,
@@ -220,7 +220,7 @@ struct CommonStoreOpPattern : public OpConversionPattern<StoreOp> {
     auto storageTy = cast<PreprocessingStorageType>(op.getStorage().getType());
 
     SmallVector<Value> flatIndices(adaptor.getIndices());
-    int64_t baseOffset = typeConverter.getFlatBaseOffset(
+    int64_t baseOffset = preprocessingTypeConverter.getFlatBaseOffset(
         storageTy, op.getElementType(), op.getSiteId());
 
     FailureOr<Value> index =
@@ -235,13 +235,13 @@ struct CommonStoreOpPattern : public OpConversionPattern<StoreOp> {
   }
 
  private:
-  const SingleMemrefPreprocessingTypeConverter& typeConverter;
+  const SingleMemrefPreprocessingTypeConverter& preprocessingTypeConverter;
 };
 
 struct CommonLoadOpPattern : public OpConversionPattern<LoadOp> {
   CommonLoadOpPattern(const SingleMemrefPreprocessingTypeConverter& tc,
                       MLIRContext* context)
-      : OpConversionPattern(tc, context), typeConverter(tc) {}
+      : OpConversionPattern(tc, context), preprocessingTypeConverter(tc) {}
 
   LogicalResult matchAndRewrite(
       LoadOp op, OpAdaptor adaptor,
@@ -249,7 +249,7 @@ struct CommonLoadOpPattern : public OpConversionPattern<LoadOp> {
     auto storageTy = cast<PreprocessingStorageType>(op.getStorage().getType());
 
     SmallVector<Value> flatIndices(adaptor.getIndices());
-    int64_t baseOffset = typeConverter.getFlatBaseOffset(
+    int64_t baseOffset = preprocessingTypeConverter.getFlatBaseOffset(
         storageTy, op.getElementType(), op.getSiteId());
 
     FailureOr<Value> index =
@@ -264,7 +264,7 @@ struct CommonLoadOpPattern : public OpConversionPattern<LoadOp> {
   }
 
  private:
-  const SingleMemrefPreprocessingTypeConverter& typeConverter;
+  const SingleMemrefPreprocessingTypeConverter& preprocessingTypeConverter;
 };
 
 struct ConvertStoreOp : public OpConversionPattern<StoreOp> {

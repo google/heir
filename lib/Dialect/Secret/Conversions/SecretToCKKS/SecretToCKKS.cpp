@@ -56,8 +56,8 @@ namespace mlir::heir {
 class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
-                            SmallVector<int32_t> moduliPerLevel)
-      : SecretToRlweTypeConverter(ctx, rlweRing, std::move(moduliPerLevel)) {}
+                            SmallVector<int32_t> moduli)
+      : SecretToRlweTypeConverter(ctx, rlweRing, std::move(moduli)) {}
 
   polynomial::RingAttr getPlaintextRing(MLIRContext* ctx) const override {
     // Note that slot number for CKKS is always half of the ring dimension.
@@ -80,11 +80,11 @@ class SecretToCKKSTypeConverter : public SecretToRlweTypeConverter {
 class SecretGenericPlaintextDivision
     : public SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp> {
  public:
-  SecretGenericPlaintextDivision(const RlweTypeConverterBase& typeConverter,
+  SecretGenericPlaintextDivision(const RlweTypeConverterBase& converter,
                                  MLIRContext* context)
-      : SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp>(
-            typeConverter, context),
-        rlweTypeConverter(typeConverter) {}
+      : SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp>(converter,
+                                                                   context),
+        rlweTypeConverter(converter) {}
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,

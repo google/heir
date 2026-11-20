@@ -43,7 +43,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   LogicalResult validateNoiseForValue(
       Value value, DataFlowSolver* solver,
       const typename NoiseAnalysis::SchemeParamType& schemeParam,
-      const typename NoiseAnalysis::NoiseModel& model) {
+      const typename NoiseAnalysis::NoiseModel& noiseModel) {
     using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
     using LocalParamType = typename NoiseAnalysis::LocalParamType;
 
@@ -66,15 +66,15 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto noiseState = noiseLattice->getValue();
     auto localParam = getLocalParam(value);
 
-    auto budget = model.toLogBudget(localParam, noiseState);
+    auto budget = noiseModel.toLogBudget(localParam, noiseState);
 
     auto boundString =
-        doubleToString2Prec(model.toLogBound(localParam, noiseState));
+        doubleToString2Prec(noiseModel.toLogBound(localParam, noiseState));
 
     LLVM_DEBUG({
       auto budgetString =
-          doubleToString2Prec(model.toLogBudget(localParam, noiseState));
-      auto totalString = doubleToString2Prec(model.toLogTotal(localParam));
+          doubleToString2Prec(noiseModel.toLogBudget(localParam, noiseState));
+      auto totalString = doubleToString2Prec(noiseModel.toLogTotal(localParam));
       llvm::dbgs() << "Noise Bound: " << boundString
                    << " Budget: " << budgetString << " Total: " << totalString
                    << " for value: " << value << " " << "\n";
@@ -118,14 +118,14 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   LogicalResult validate(
       DataFlowSolver* solver,
       const typename NoiseAnalysis::SchemeParamType& schemeParam,
-      const typename NoiseAnalysis::NoiseModel& model) {
+      const typename NoiseAnalysis::NoiseModel& noiseModel) {
     LogicalResult result = success();
     walkValues(getOperation(), [&](Value value) {
       if (shouldSkipValidation(value)) {
         return;
       }
-      if (failed(validateNoiseForValue<NoiseAnalysis>(value, solver,
-                                                      schemeParam, model))) {
+      if (failed(validateNoiseForValue<NoiseAnalysis>(
+              value, solver, schemeParam, noiseModel))) {
         result = failure();
       }
     });
@@ -133,7 +133,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   }
 
   template <typename NoiseModel>
-  void run(const NoiseModel& model) {
+  void run(const NoiseModel& noiseModel) {
     std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
@@ -163,15 +163,15 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     // NoiseAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
 
-    solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, model);
+    solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, noiseModel);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
     }
 
-    if (failed(
-            validate<NoiseAnalysis<NoiseModel>>(&solver, schemeParam, model))) {
+    if (failed(validate<NoiseAnalysis<NoiseModel>>(&solver, schemeParam,
+                                                   noiseModel))) {
       emitError(getOperation()->getLoc()) << "Noise validation failed.\n";
       signalPassFailure();
     }

@@ -71,10 +71,10 @@ class ContextAwareConversionPattern : public RewritePattern {
   /// Construct a conversion pattern with the given converter, and forward the
   /// remaining arguments to RewritePattern.
   template <typename... Args>
-  ContextAwareConversionPattern(const ContextAwareTypeConverter& typeConverter,
+  ContextAwareConversionPattern(const ContextAwareTypeConverter& converter,
                                 Args&&... args)
       : RewritePattern(std::forward<Args>(args)...),
-        typeConverter(&typeConverter) {}
+        typeConverter(&converter) {}
 
   /// Given an array of value ranges, which are the inputs to a 1:N adaptor,
   /// try to extract the single value of each range to construct a the inputs
@@ -104,11 +104,11 @@ class ContextAwareOpConversionPattern : public ContextAwareConversionPattern {
                                   PatternBenefit benefit = 1)
       : ContextAwareConversionPattern(SourceOp::getOperationName(), benefit,
                                       context) {}
-  ContextAwareOpConversionPattern(
-      const ContextAwareTypeConverter& typeConverter, MLIRContext* context,
-      PatternBenefit benefit = 1)
-      : ContextAwareConversionPattern(
-            typeConverter, SourceOp::getOperationName(), benefit, context) {}
+  ContextAwareOpConversionPattern(const ContextAwareTypeConverter& converter,
+                                  MLIRContext* context,
+                                  PatternBenefit benefit = 1)
+      : ContextAwareConversionPattern(converter, SourceOp::getOperationName(),
+                                      benefit, context) {}
 
   LogicalResult matchAndRewrite(
       Operation* op, ArrayRef<Value> operands,

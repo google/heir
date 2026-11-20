@@ -30,12 +30,11 @@ namespace heir {
 // TODO(#1875): support trivial encryptions
 struct ConvertClientConceal
     : public ContextAwareOpConversionPattern<secret::ConcealOp> {
-  ConvertClientConceal(const RlweTypeConverterBase& typeConverter,
+  ConvertClientConceal(const RlweTypeConverterBase& converter,
                        mlir::MLIRContext* context, bool usePublicKey,
                        polynomial::RingAttr ring)
-      : ContextAwareOpConversionPattern<secret::ConcealOp>(typeConverter,
-                                                           context),
-        rlweTypeConverter(typeConverter),
+      : ContextAwareOpConversionPattern<secret::ConcealOp>(converter, context),
+        rlweTypeConverter(converter),
         usePublicKey(usePublicKey),
         ring(ring) {}
 
@@ -58,11 +57,10 @@ struct ConvertClientConceal
 // material args.
 struct ConvertClientReveal
     : public ContextAwareOpConversionPattern<secret::RevealOp> {
-  ConvertClientReveal(const RlweTypeConverterBase& typeConverter,
+  ConvertClientReveal(const RlweTypeConverterBase& converter,
                       mlir::MLIRContext* context, polynomial::RingAttr ring)
-      : ContextAwareOpConversionPattern<secret::RevealOp>(typeConverter,
-                                                          context),
-        rlweTypeConverter(typeConverter),
+      : ContextAwareOpConversionPattern<secret::RevealOp>(converter, context),
+        rlweTypeConverter(converter),
         ring(ring) {}
 
   LogicalResult matchAndRewrite(

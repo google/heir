@@ -258,10 +258,10 @@ class SecretGenericOpCipherPlainConversion
   // Ciphertext-plaintext ops should take precedence over ciphertext-ciphertext
   // ops because the ops being converted (e.g., addi) don't have a plaintext
   // variant.
-  SecretGenericOpCipherPlainConversion(
-      const RlweTypeConverterBase& typeConverter, MLIRContext* context)
-      : SecretGenericOpConversion<T, Y>(typeConverter, context, /*benefit=*/2),
-        rlweTypeConverter(typeConverter) {}
+  SecretGenericOpCipherPlainConversion(const RlweTypeConverterBase& converter,
+                                       MLIRContext* context)
+      : SecretGenericOpConversion<T, Y>(converter, context, /*benefit=*/2),
+        rlweTypeConverter(converter) {}
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,

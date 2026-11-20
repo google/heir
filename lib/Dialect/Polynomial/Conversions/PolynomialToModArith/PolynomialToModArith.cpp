@@ -881,10 +881,9 @@ RankedTensorType polymulOutputTensorType(PolynomialType type) {
 // Lower polynomial multiplication to a 1D convolution, followed by with a
 // modulus reduction in the ring.
 struct ConvertMulCoeffForm : public OpConversionPattern<MulOp> {
-  ConvertMulCoeffForm(const TypeConverter& typeConverter,
+  ConvertMulCoeffForm(const TypeConverter& converter,
                       mlir::MLIRContext* context, GetFuncCallbackTy cb)
-      : OpConversionPattern<MulOp>(typeConverter, context),
-        getFuncOpCallback(cb) {}
+      : OpConversionPattern<MulOp>(converter, context), getFuncOpCallback(cb) {}
 
   using OpConversionPattern::OpConversionPattern;
 

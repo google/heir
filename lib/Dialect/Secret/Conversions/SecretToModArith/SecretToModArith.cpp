@@ -113,10 +113,9 @@ template <typename T, typename Y = T>
 class SecretGenericOpConversion
     : public OpConversionPattern<secret::GenericOp> {
  public:
-  SecretGenericOpConversion(const TypeConverter& typeConverter,
+  SecretGenericOpConversion(const TypeConverter& converter,
                             MLIRContext* context, PatternBenefit benefit = 1)
-      : OpConversionPattern<secret::GenericOp>(typeConverter, context,
-                                               benefit) {}
+      : OpConversionPattern<secret::GenericOp>(converter, context, benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
@@ -185,10 +184,9 @@ class SecretGenericOpConversion
 // type-converted operands and results of the outer generic op.
 class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
  public:
-  ConvertAnyNestedGeneric(const TypeConverter& typeConverter,
-                          MLIRContext* context, PatternBenefit benefit = 1)
-      : OpConversionPattern<secret::GenericOp>(typeConverter, context,
-                                               benefit) {}
+  ConvertAnyNestedGeneric(const TypeConverter& converter, MLIRContext* context,
+                          PatternBenefit benefit = 1)
+      : OpConversionPattern<secret::GenericOp>(converter, context, benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp outerOp, OpAdaptor adaptor,
@@ -274,10 +272,10 @@ static Value encodeCleartext(Value cleartext, Type resultType,
 }
 
 struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
-  ConvertConceal(const SecretToModArithTypeConverter& typeConverter,
+  ConvertConceal(const SecretToModArithTypeConverter& converter,
                  mlir::MLIRContext* context, PatternBenefit benefit)
       : OpConversionPattern<secret::ConcealOp>(context, benefit),
-        typeConv(typeConverter) {}
+        typeConv(converter) {}
 
   LogicalResult matchAndRewrite(
       secret::ConcealOp op, secret::ConcealOp::Adaptor adaptor,
@@ -305,10 +303,10 @@ struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
 };
 
 struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
-  ConvertReveal(const SecretToModArithTypeConverter& typeConverter,
+  ConvertReveal(const SecretToModArithTypeConverter& converter,
                 mlir::MLIRContext* context, PatternBenefit benefit)
-      : OpConversionPattern<secret::RevealOp>(typeConverter, context, benefit),
-        typeConv(typeConverter) {}
+      : OpConversionPattern<secret::RevealOp>(converter, context, benefit),
+        typeConv(converter) {}
 
   LogicalResult matchAndRewrite(
       secret::RevealOp op, secret::RevealOp::Adaptor adaptor,
@@ -368,10 +366,10 @@ class SecretGenericOpCipherPlainConversion
   // Ciphertext-plaintext ops should take precedence over ciphertext-ciphertext
   // ops because the ops being converted (e.g., addi) don't have a plaintext
   // variant.
-  SecretGenericOpCipherPlainConversion(const TypeConverter& typeConverter,
+  SecretGenericOpCipherPlainConversion(const TypeConverter& converter,
                                        MLIRContext* context,
                                        PatternBenefit benefit)
-      : SecretGenericOpConversion<T, Y>(typeConverter, context, benefit) {}
+      : SecretGenericOpConversion<T, Y>(converter, context, benefit) {}
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
@@ -403,10 +401,9 @@ class SecretGenericOpCipherPlainConversion
 // builder has a different API.
 class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
  public:
-  ConvertInsertSlice(const TypeConverter& typeConverter, MLIRContext* context,
+  ConvertInsertSlice(const TypeConverter& converter, MLIRContext* context,
                      PatternBenefit benefit = 1)
-      : OpConversionPattern<secret::GenericOp>(typeConverter, context,
-                                               benefit) {}
+      : OpConversionPattern<secret::GenericOp>(converter, context, benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,

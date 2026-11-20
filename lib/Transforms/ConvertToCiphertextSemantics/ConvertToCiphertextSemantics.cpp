@@ -368,11 +368,11 @@ struct ConvertAnyAddingMaterializedAttr : public ConvertAnyContextAware<> {
 class ConvertAssignLayout
     : public ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp> {
  public:
-  ConvertAssignLayout(const ContextAwareTypeConverter& typeConverter,
+  ConvertAssignLayout(const ContextAwareTypeConverter& converter,
                       mlir::MLIRContext* context, int64_t minSlotCount,
                       CodegenStrategy strategy)
-      : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(
-            typeConverter, context),
+      : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(converter,
+                                                                    context),
         minSlotCount(minSlotCount),
         strategy(strategy) {}
 
@@ -805,10 +805,10 @@ class ConvertBroadcastedReduce
     }
 
     // Get N (ciphertext size) from type converter
-    auto* typeConverter =
+    const auto* converter =
         static_cast<const LayoutMaterializationTypeConverter*>(
             getTypeConverter());
-    int64_t N = typeConverter->getCiphertextSize();
+    int64_t N = converter->getCiphertextSize();
 
     SSAValue vectorLeaf(adaptor.getTensor());
     kernel::DagType dagType = kernel::mlirTypeToDagType(inputType);
@@ -1203,8 +1203,8 @@ struct PreserveLinalgMatvecAsLinearTransform
   using ConversionBase<linalg::MatvecOp>::ConversionBase;
 
   PreserveLinalgMatvecAsLinearTransform(
-      const ContextAwareTypeConverter& typeConverter, MLIRContext* context)
-      : ConversionBase<linalg::MatvecOp>(typeConverter, context,
+      const ContextAwareTypeConverter& converter, MLIRContext* context)
+      : ConversionBase<linalg::MatvecOp>(converter, context,
                                          /*benefit=*/20) {}
 
   LogicalResult matchAndRewrite(

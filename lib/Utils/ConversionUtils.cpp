@@ -283,9 +283,9 @@ struct ConvertFromElements
 
 template <typename Op>
 struct ConvertOffsetSizeStrideOp : public OpConversionPattern<Op> {
-  ConvertOffsetSizeStrideOp(TypeConverter& typeConverter,
+  ConvertOffsetSizeStrideOp(TypeConverter& converter,
                             mlir::MLIRContext* context)
-      : OpConversionPattern<Op>(typeConverter, context, /*benefit=*/2) {}
+      : OpConversionPattern<Op>(converter, context, /*benefit=*/2) {}
 
   // Convert a tensor.extract_slice on tensor<...xSourceType> when SourceType
   // type-converts to tensor<...>. The slice metadata is extended with the full

@@ -14,23 +14,27 @@ namespace mlir {
 namespace heir {
 namespace bgv {
 
-SchemeParam SchemeParam::getConservativeSchemeParam(
-    int level, int64_t plaintextModulus, int minSlotCount, bool usePublicKey,
-    bool encryptionTechniqueExtended) {
+SchemeParam SchemeParam::getConservativeSchemeParam(int schemeLevel,
+                                                    int64_t plaintextModulus,
+                                                    int minSlotCount,
+                                                    bool isPublicKey,
+                                                    bool isExtendedEncryption) {
   // Use only half of the BGV slot number to make 1-dim vector.
   return SchemeParam(
       RLWESchemeParam::getConservativeRLWESchemeParam(
-          level, 2 * minSlotCount, usePublicKey, encryptionTechniqueExtended),
+          schemeLevel, 2 * minSlotCount, isPublicKey, isExtendedEncryption),
       plaintextModulus);
 }
 
-SchemeParam SchemeParam::getConcreteSchemeParam(
-    std::vector<double> logqi, int64_t plaintextModulus, int minSlotCount,
-    bool usePublicKey, bool encryptionTechniqueExtended) {
+SchemeParam SchemeParam::getConcreteSchemeParam(std::vector<double> qiSizes,
+                                                int64_t plaintextModulus,
+                                                int minSlotCount,
+                                                bool isPublicKey,
+                                                bool isExtendedEncryption) {
   // Use only half of the BGV slot number to make 1-dim vector.
   return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
-                         std::move(logqi), 2 * minSlotCount, usePublicKey,
-                         encryptionTechniqueExtended, plaintextModulus),
+                         std::move(qiSizes), 2 * minSlotCount, isPublicKey,
+                         isExtendedEncryption, plaintextModulus),
                      plaintextModulus);
 }
 

@@ -26,14 +26,16 @@ class SchemeParam : public RLWESchemeParam {
   int64_t getPlaintextModulus() const { return plaintextModulus; }
   void print(llvm::raw_ostream& os) const override;
 
-  static SchemeParam getConservativeSchemeParam(
-      int level, int64_t plaintextModulus, int minSlotCount, bool usePublicKey,
-      bool encryptionTechniqueExtended);
+  static SchemeParam getConservativeSchemeParam(int schemeLevel,
+                                                int64_t plaintextModulus,
+                                                int minSlotCount,
+                                                bool isPublicKey,
+                                                bool isExtendedEncryption);
 
-  static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
+  static SchemeParam getConcreteSchemeParam(std::vector<double> qiSizes,
                                             int64_t plaintextModulus,
-                                            int minSlotCount, bool usePublicKey,
-                                            bool encryptionTechniqueExtended);
+                                            int minSlotCount, bool isPublicKey,
+                                            bool isExtendedEncryption);
 
   static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };
