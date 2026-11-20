@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <map>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -781,6 +782,92 @@ TEST(GenericKernelTest, ElementwiseOnReplicatedOperands) {
   std::string reason;
   FailureOr<NodePtr> dag = buildKernel(op, reason);
   ASSERT_TRUE(succeeded(dag)) << reason;
+  checkKernel(op, *dag);
+}
+
+// The longest path through the additions, subtractions and products of `root`
+// (other nodes pass their operands' depth through). Iterative, so it also
+// measures DAGs too deep for the recursive visitors.
+int64_t arithmeticDepth(const NodePtr& root) {
+  auto operands = [](const NodePtr& node) {
+    std::vector<NodePtr> result;
+    std::visit(
+        [&](const auto& n) {
+          using N = std::decay_t<decltype(n)>;
+          if constexpr (std::is_same_v<N, AddNode<LiteralValue>> ||
+                        std::is_same_v<N, SubtractNode<LiteralValue>> ||
+                        std::is_same_v<N, MultiplyNode<LiteralValue>>) {
+            result = {n.left, n.right};
+          } else if constexpr (std::is_same_v<N,
+                                              LeftRotateNode<LiteralValue>> ||
+                               std::is_same_v<N, ExtractNode<LiteralValue>>) {
+            result = {n.operand};
+          } else if constexpr (std::is_same_v<N, InsertNode<LiteralValue>>) {
+            result = {n.scalar, n.dest};
+          }
+        },
+        node->node_variant);
+    return result;
+  };
+  auto isArithmetic = [](const NodePtr& node) {
+    return std::holds_alternative<AddNode<LiteralValue>>(node->node_variant) ||
+           std::holds_alternative<SubtractNode<LiteralValue>>(
+               node->node_variant) ||
+           std::holds_alternative<MultiplyNode<LiteralValue>>(
+               node->node_variant);
+  };
+  std::map<const NodeTy*, int64_t> depth;
+  std::vector<std::pair<NodePtr, bool>> stack = {{root, false}};
+  while (!stack.empty()) {
+    auto [node, expanded] = stack.back();
+    stack.pop_back();
+    if (depth.count(node.get())) continue;
+    if (!expanded) {
+      stack.push_back({node, true});
+      for (const NodePtr& operand : operands(node)) {
+        stack.push_back({operand, false});
+      }
+      continue;
+    }
+    int64_t result = 0;
+    for (const NodePtr& operand : operands(node)) {
+      result = std::max(result, depth[operand.get()]);
+    }
+    depth[node.get()] = result + (isArithmetic(node) ? 1 : 0);
+  }
+  return depth[root.get()];
+}
+
+// A 1-D max pool with stride 2 over a row-major input, out[i] = max_k x[2i +
+// k]: the shift of x depends on i, so there are hundreds of groups that each
+// write a few slots. The kernel merges them as a balanced tree; one chain of
+// merges per group would make the DAG deeper than the stack of the recursive
+// visitors for large pools.
+TEST(GenericKernelTest, IdempotentReductionOverManyGroups) {
+  MLIRContext context;
+  Op op;
+  op.numSlots = 1024;
+  op.kind = GenericReductionKind::Idempotent;
+  op.body = Body::First;
+  op.initKind = GenericInitKind::Neutral;
+  op.loopRanges = {500, 3};
+  Operand input;
+  input.map = parseMap("affine_map<(i, k) -> (2 * i + k)>", &context);
+  input.tensor = Tensor({1001});
+  for (int64_t j = 0; j < 1001; ++j) input.tensor.data[j] = j % 7 != 0;
+  input.layout = *getIntegerRelationFromIslStr(
+      "{ [j] -> [ct, slot] : ct = 0 and slot = j and 0 <= j <= 1000 }");
+  op.inputs.push_back(input);
+  op.output.map = parseMap("affine_map<(i, k) -> (i)>", &context);
+  op.output.tensor = Tensor({500}, 1);
+  op.output.layout = *getIntegerRelationFromIslStr(
+      "{ [i] -> [ct, slot] : ct = 0 and slot = i and 0 <= i <= 499 }");
+
+  EXPECT_GT(numGroups(op), 400);
+  std::string reason;
+  FailureOr<NodePtr> dag = buildKernel(op, reason);
+  ASSERT_TRUE(succeeded(dag)) << reason;
+  EXPECT_LT(arithmeticDepth(*dag), 64);
   checkKernel(op, *dag);
 }
 

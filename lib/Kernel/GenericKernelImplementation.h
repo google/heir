@@ -231,9 +231,68 @@ implementGenericKernel(const GenericKernelSpec& spec,
   // A key yields one group per r: group r reads the r-th distinct cleartext
   // read of every slot, so no slot needs two cleartext values at once.
   std::vector<std::vector<NodePtr>> terms(numCts);
-  std::map<int64_t, NodePtr> idempotentAcc;
-  // Per output ciphertext, the slots an idempotent reduction has written.
-  std::map<int64_t, std::vector<int64_t>> seenSlots;
+  // An idempotent reduction merges its groups pairwise into a balanced tree,
+  // which keeps the depth of the DAG logarithmic in the number of groups. A
+  // merge selects, by masks, the combination where both partials wrote and
+  // each partial where only it wrote; no slot subtracts, so no value is lost to
+  // cancellation. An infinite identity (as for max) is thus never read; any
+  // other init is a partial that wrote every slot.
+  struct Partial {
+    NodePtr value;
+    std::vector<int64_t> written;
+    // Whether `value` is zero outside `written`.
+    bool clean;
+    int64_t height = 0;
+  };
+  // `partial` in `slots` (a subset of its written slots), zero elsewhere.
+  auto restrictTo = [&](const Partial& partial,
+                        const std::vector<int64_t>& slots) -> NodePtr {
+    if (!llvm::is_contained(slots, 1)) return nullptr;
+    if (partial.clean && slots == partial.written) return partial.value;
+    return NodeTy::mul(partial.value, getMask(slots));
+  };
+  auto merge = [&](Partial lhs, Partial rhs) {
+    std::vector<int64_t> both(numSlots), lhsOnly(numSlots), rhsOnly(numSlots),
+        either(numSlots);
+    for (int64_t slot = 0; slot < numSlots; ++slot) {
+      int64_t l = lhs.written[slot], r = rhs.written[slot];
+      both[slot] = l & r;
+      lhsOnly[slot] = l & (1 - r);
+      rhsOnly[slot] = r & (1 - l);
+      either[slot] = l | r;
+    }
+    NodePtr value;
+    auto addTerm = [&](NodePtr term) {
+      if (term) value = value ? NodeTy::add(value, term) : term;
+    };
+    if (llvm::is_contained(both, 1)) {
+      Partial combined{idempotentCombine(lhs.value, rhs.value), both,
+                       !llvm::is_contained(both, 0)};
+      addTerm(restrictTo(combined, both));
+    }
+    addTerm(restrictTo(lhs, lhsOnly));
+    addTerm(restrictTo(rhs, rhsOnly));
+    return Partial{value, std::move(either), /*clean=*/true,
+                   std::max(lhs.height, rhs.height) + 1};
+  };
+  // Per output ciphertext, partials of strictly decreasing height (a binary
+  // counter), so only logarithmically many are alive at once.
+  std::map<int64_t, std::vector<Partial>> idempotentPartials;
+  auto mergeLastTwo = [&](std::vector<Partial>& partials) {
+    Partial rhs = std::move(partials.back());
+    partials.pop_back();
+    Partial lhs = std::move(partials.back());
+    partials.pop_back();
+    partials.push_back(merge(std::move(lhs), std::move(rhs)));
+  };
+  auto pushPartial = [&](int64_t ct, Partial partial) {
+    std::vector<Partial>& partials = idempotentPartials[ct];
+    partials.push_back(std::move(partial));
+    while (partials.size() >= 2 &&
+           partials[partials.size() - 2].height <= partials.back().height) {
+      mergeLastTwo(partials);
+    }
+  };
   for (const auto& [key, slots] : readsByKey) {
     const int64_t outputCt = key[0];
     size_t numGroups = 0;
@@ -274,38 +333,13 @@ implementGenericKernel(const GenericKernelSpec& spec,
       for (int64_t m : mask) written.push_back(m > 0 ? 1 : 0);
       const bool writesAll = !llvm::is_contained(written, 0);
       if (isIdempotent) {
-        // A group sets the slots it writes first and combines into the slots
-        // written before: acc + first * (term - acc) + later * (combine(acc,
-        // term) - acc). An infinite identity (as for max) is thus never read;
-        // any other init counts as written.
-        const bool readsInit = config.initKind == GenericInitKind::Other;
-        NodePtr& acc = idempotentAcc[outputCt];
-        auto [seen, unused] =
-            seenSlots.try_emplace(outputCt, numSlots, readsInit ? 1 : 0);
-        if (!acc && readsInit) acc = getInit(outputCt);
-        std::vector<int64_t> first(numSlots, 0), later(numSlots, 0);
-        for (int64_t slot = 0; slot < numSlots; ++slot) {
-          (seen->second[slot] ? later : first)[slot] = written[slot];
-          seen->second[slot] |= written[slot];
+        if (!idempotentPartials.count(outputCt) &&
+            config.initKind == GenericInitKind::Other) {
+          pushPartial(outputCt,
+                      {getInit(outputCt), std::vector<int64_t>(numSlots, 1),
+                       /*clean=*/true});
         }
-        if (!acc) {
-          acc = writesAll ? term : NodeTy::mul(term, getMask(first));
-          continue;
-        }
-        NodePtr next = acc;
-        if (llvm::is_contained(later, 1)) {
-          NodePtr combined = idempotentCombine(acc, term);
-          next =
-              !llvm::is_contained(later, 0)
-                  ? combined
-                  : NodeTy::add(next, NodeTy::mul(getMask(later),
-                                                  NodeTy::sub(combined, acc)));
-        }
-        if (llvm::is_contained(first, 1)) {
-          next = NodeTy::add(
-              next, NodeTy::mul(getMask(first), NodeTy::sub(term, acc)));
-        }
-        acc = next;
+        pushPartial(outputCt, {term, written, /*clean=*/writesAll});
         continue;
       }
       // Sums skip terms that are zero, e.g. products with zero padding.
@@ -332,8 +366,16 @@ implementGenericKernel(const GenericKernelSpec& spec,
   for (int64_t ct = 0; ct < numCts; ++ct) {
     const bool isWritten =
         llvm::any_of(coverage[ct], [](int64_t c) { return c > 0; });
-    NodePtr acc = isIdempotent ? idempotentAcc[ct]
-                               : combineBalanced(std::move(terms[ct]), combine);
+    NodePtr acc;
+    if (isIdempotent) {
+      std::vector<Partial>& partials = idempotentPartials[ct];
+      while (partials.size() >= 2) mergeLastTwo(partials);
+      if (!partials.empty()) {
+        acc = restrictTo(partials.front(), partials.front().written);
+      }
+    } else {
+      acc = combineBalanced(std::move(terms[ct]), combine);
+    }
     // Sum each class of slots into all of its slots, before the init is added.
     if (acc && period < numSlots) {
       acc = implementRotateAndReduceAccumulation<T>(
