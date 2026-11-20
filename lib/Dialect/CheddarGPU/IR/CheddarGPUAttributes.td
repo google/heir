@@ -22,6 +22,10 @@ def CheddarGPU_FormAttr : EnumAttr<CheddarGPU_Dialect, CheddarGPU_FormEnum, "for
 
 def CheddarGPU_INTTEpilogueAttr : EnumAttr<CheddarGPU_Dialect, CheddarGPU_INTTEpilogueEnum, "intt_epilogue">;
 
+// === Hoist Phase Kind Enum Attribute ===
+
+def CheddarGPU_HoistPhaseKindAttr : EnumAttr<CheddarGPU_Dialect, CheddarGPU_HoistPhaseKindEnum, "hoist_phase_kind">;
+
 // === Params Attribute ===
 
 def CheddarGPU_ParamsAttr : CheddarGPU_Attr<"Params", "params"> {

@@ -35,6 +35,14 @@ def CheddarGPU_PolyOrLimbBuffer : AnyTypeOf<
 def CheddarGPU_BConvTable : CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
     "statically shaped 2D memref<D x S x iW> basis-conversion table (W = 32 or 64)">;
 
+// 1D statically shaped byte slab of i8 bytes.
+def CheddarGPU_ByteSlab : CheddarGPU_StaticMemRefOfRank<[AnyI8], 1,
+    "statically shaped 1D memref of i8 bytes">;
+
+// 2D statically shaped polynomial buffer with i64 element type.
+def CheddarGPU_PolyBuffer64 : CheddarGPU_StaticMemRefOfRank<[I64], 2,
+    "statically shaped 2D memref<L x N x i64> polynomial buffer">;
+
 //===----------------------------------------------------------------------===//
 // Dimension Helpers and PredOpTraits
 //===----------------------------------------------------------------------===//
@@ -80,6 +88,19 @@ class CheddarGPU_EachCoversOutCount<string v, string out, int onlyRank = 0> : Pr
           # !if(onlyRank, "m.getRank() != " # onlyRank # " || ", "")
           # "m.getDimSize(0) >= " # CheddarGPU_OutCount<out>.result # "; })">>;
 
+class CheddarGPU_DimAtLeast<string v, int d, int n> : PredOpTrait<
+    "dim " # d # " of '" # v # "' is >= " # n,
+    CPred<CheddarGPU_Dim<v, d>.result # " >= " # n>>;
+
+class CheddarGPU_DimInRange<string v, int d, int lo, int hi> : PredOpTrait<
+    "dim " # d # " of '" # v # "' is in [" # lo # ", " # hi # "]",
+    CPred<CheddarGPU_Dim<v, d>.result # " >= " # lo # " && " # CheddarGPU_Dim<v, d>.result # " <= " # hi>>;
+
+class CheddarGPU_LimbCountEqualsNumQPlusNumAux<string outBx> : PredOpTrait<
+    "dim 0 of '" # outBx # "' is num_q + num_aux",
+    CPred<"::llvm::cast<::mlir::MemRefType>((*$" # outBx # ".begin()).getType()).getDimSize(0) >= static_cast<int64_t>($num_q) && "
+          "::llvm::cast<::mlir::MemRefType>((*$" # outBx # ".begin()).getType()).getDimSize(0) - static_cast<int64_t>($num_q) == static_cast<int64_t>($num_aux)">>;
+
 //===----------------------------------------------------------------------===//
 // Variadic and Optional Operand Groups
 //===----------------------------------------------------------------------===//
@@ -89,6 +110,10 @@ class CheddarGPU_SameCount<list<string> n>
 
 class CheddarGPU_NonEmpty<string v>
     : PredOpTrait<"'" # v # "' is non-empty", CPred<"!$" # v # ".empty()">>;
+
+class CheddarGPU_CountInRange<string v, int lo, int hi> : PredOpTrait<
+    "'" # v # "' has " # lo # " to " # hi # " entries",
+    CPred<"static_cast<int64_t>($" # v # ".size()) >= " # lo # " && static_cast<int64_t>($" # v # ".size()) <= " # hi>>;
 
 class CheddarGPU_EachTypeIs<string v, string ref> : PredOpTrait<
     "every '" # v # "' has the type of '" # ref # "'",
@@ -203,6 +228,23 @@ def CheddarGPU_PairAttr : ConfinedAttr<DenseI64ArrayAttr, [DenseArrayCount<2>]>;
 
 def CheddarGPU_InSplitAttr : ConfinedAttr<DenseI64ArrayAttr,
     [DenseArrayCount<2>, DenseArrayNonNegative<DenseI64ArrayAttr>]>;
+
+class CheddarGPU_IntMultipleOf<int n> : AttrConstraint<
+    CPred<"::llvm::cast<::mlir::IntegerAttr>($_self).getInt() % " # n # " == 0">,
+    "whose value is a multiple of " # n>;
+
+def CheddarGPU_PtWordOffsetsAttr : ConfinedAttr<DenseI64ArrayAttr, [
+    AttrConstraint<
+      CPred<"::llvm::all_of(::llvm::cast<::mlir::DenseI64ArrayAttr>($_self).asArrayRef(), [](int64_t v) { return v >= -1; })">,
+      "where all elements are >= -1">
+  ]>;
+
+def CheddarGPU_NumSlotsAttr : ConfinedAttr<I64Attr,
+    [IntPowerOf2, IntMinValue<256>, IntMaxValue<32768>]>;
+
+class CheddarGPU_NumSlotsFitDegree<string poly> : PredOpTrait<
+    "num_slots <= degree / 2",
+    CPred<"static_cast<int64_t>($num_slots) <= " # CheddarGPU_Dim<poly, 1>.result # " / 2">>;
 
 //===----------------------------------------------------------------------===//
 // Native Traits

@@ -994,7 +994,7 @@ def CheddarGPU_BConvOp : CheddarGPU_Op<"bconv", [
   ]> {
   let summary = "Approximate basis conversion (BConv) of polynomial buffers";
   let description = [{
-    Mirrors Cheddar's `kernel::ModSwitchMatrixMult` in `ModSwitch.cu:24-170`.
+    Mirrors Cheddar's `kernel::ModSwitchMatrixMult` in `ModSwitch.cu`.
     Converts polynomial coefficients from a source modulus chain (`in`, with `src_len` limbs)
     to a destination modulus chain (`out`, with `dst_len` computed limbs) via the approximate HPS
     (Halevi-Polyakov-Smart) basis conversion formula:
@@ -1050,7 +1050,7 @@ def CheddarGPU_PseudoModUpOp
     : CheddarGPU_ModSwitchOpBase<"pseudo_mod_up", I64Attr, [AllTypesMatch<["out", "in"]>]> {
   let summary = "Scales a polynomial buffer by p_prod = prod(P) mod Q";
   let description = [{
-    Mirrors Cheddar's `ModSwitchHandler::PseudoModUp` in `ModSwitch.cu:303-317`.
+    Mirrors Cheddar's `ModSwitchHandler::PseudoModUp` in `ModSwitch.cu`.
     Computes `out[l][i] = in[l][i] * p_prod[l] mod Q_l` limb-wise, where `Q_l` is the
     `l`-th limb of `Q` from `CheddarGPU_ParamsAttr`.
     Operates in evaluation (`eval`) domain.
@@ -1068,7 +1068,7 @@ def CheddarGPU_ModUpOp : CheddarGPU_Op<"mod_up", [
   ]> {
   let summary = "ModUp basis extension: expands polynomial across beta destination buffers";
   let description = [{
-    Mirrors Cheddar's `ModSwitchHandler::ModUp` in `ModSwitch.cu:318-398`.
+    Mirrors Cheddar's `ModSwitchHandler::ModUp` in `ModSwitch.cu`.
     Expands input `in` (with `num_q` limbs) into `beta` destination buffers `outs`
     (each having `num_q + num_aux` limbs).
     Operates in evaluation (`eval`) domain.
@@ -1092,7 +1092,7 @@ def CheddarGPU_ModDownOp : CheddarGPU_ModSwitchOpBase<"mod_down", I64Attr, [
   ]> {
   let summary = "ModDown modulus switching: drops auxiliary primes P";
   let description = [{
-    Mirrors Cheddar's `ModSwitchHandler::ModDown` in `ModSwitch.cu:400-416`.
+    Mirrors Cheddar's `ModSwitchHandler::ModDown` in `ModSwitch.cu`.
     Shrinks input `in` (with `num_q + num_aux` limbs) down to `out` (with `num_q` limbs).
     Operates in evaluation (`eval`) domain.
   }];
@@ -1103,7 +1103,7 @@ def CheddarGPU_RescaleOp : CheddarGPU_ModSwitchOpBase<"rescale", CheddarGPU_PosI
   ]> {
   let summary = "Rescale modulus switching: drops terminal/main prime(s) from level to level - 1";
   let description = [{
-    Mirrors Cheddar's `ModSwitchHandler::Rescale` in `ModSwitch.cu:418-435`.
+    Mirrors Cheddar's `ModSwitchHandler::Rescale` in `ModSwitch.cu`.
     Shrinks input `in` (at `level`) down to `out` (at `level - 1`).
     Operates in evaluation (`eval`) domain.
   }];
@@ -1114,7 +1114,7 @@ def CheddarGPU_ModDownRescaleOp : CheddarGPU_ModSwitchOpBase<"mod_down_rescale",
   ]> {
   let summary = "Combined ModDown and Rescale modulus switching";
   let description = [{
-    Mirrors Cheddar's `ModSwitchHandler::ModDownAndRescale` in `ModSwitch.cu:437-453`.
+    Mirrors Cheddar's `ModSwitchHandler::ModDownAndRescale` in `ModSwitch.cu`.
     Shrinks input `in` (with `num_q(level) + num_aux` limbs) down to `out` (at `level - 1`).
     Operates in evaluation (`eval`) domain.
   }];
@@ -1169,7 +1169,7 @@ def CheddarGPU_ModDownEpilogueOp : CheddarGPU_ModDownEpilogueOpBase<"mod_down_ep
     ]> {
   let summary = "Fused epilogue for ModDown, Rescale, and ModDownAndRescale";
   let description = [{
-    Mirrors Cheddar's `NTTPhase2ForModDown` fused epilogue in `NTT.cu:457-601`.
+    Mirrors Cheddar's `NTTPhase2ForModDown` fused epilogue in `NTT.cu`.
     Computes:
       out[l, i] = ((src2_exists ? (src2[l - pad_start, i] * src2_padding[l - pad_start]) : 0)
                    - ntt_bconv[l, i]) * inv_prime_prod[l] mod Q_l,
@@ -1199,7 +1199,7 @@ def CheddarGPU_NTTModDownOp : CheddarGPU_ModDownEpilogueOpBase<"ntt_mod_down",
     "$src2_offset"> {
   let summary = "Fused Forward NTT and ModDown epilogue";
   let description = [{
-    Mirrors Cheddar's `NTTPhase2ForModDown` in `NTT.cu:457-601`.
+    Mirrors Cheddar's `NTTPhase2ForModDown` in `NTT.cu`.
     Computes forward NTT on `ntt_in` followed by fused ModDown epilogue:
       out[l, x] = MontMul(ModSub(term1, NTT(ntt_in)[l, x]), inv_prime_prod[l]) mod Q_l
     where `Q_l` is the `l`-th limb of `Q` from `CheddarGPU_ParamsAttr`, and
@@ -1407,6 +1407,274 @@ def CheddarGPU_HRotAddOp : CheddarGPU_KeySwitchOpBase<"hrot_add",
     `evk_bx` `(` $evk_bx `)` `,` `evk_ax` `(` $evk_ax `)`
     prop-dict attr-dict `:` functional-type(operands, results)
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// Utility and Pad Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_ModUpToMaxOp : CheddarGPU_Op<"mod_up_to_max", [
+    AllElementTypesMatch<["out", "in"]>,
+    CheddarGPU_SameDegree<["out", "in"]>,
+    CheddarGPU_DimAtLeast<"in", 0, 1>,
+    CheddarGPU_LimbRanges<[{ {
+      {"out_limb_range", getOutLimbRange(), {getOut()}},
+    } }]>,
+    CheddarGPU_NumAuxWithinOut,
+  ]> {
+  let summary = "Broadcast and reduce polynomial limb across primes without centering";
+  let description = [{
+    Mirrors Cheddar's `ModUpToMax1` in `ElementWise.cu`.
+    Computes `dst[l, x] = src[0, x] % Q_l` limb-wise, where `Q_l` is the `l`-th
+    limb of `Q` from `CheddarGPU_ParamsAttr`.
+    Operates in coefficient (`coeff`) domain.
+  }];
+
+  let arguments = (ins
+      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+      Arg<CheddarGPU_PolyBuffer, "source polynomial buffer", [MemRead]>:$in,
+      OptionalAttr<CheddarGPU_LimbRangeAttr>:$out_limb_range,
+      OptionalAttr<I64Attr>:$prime_offset,
+      OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux
+  );
+}
+
+def CheddarGPU_ZeroPadOp : CheddarGPU_Op<"zero_pad", [
+    CheddarGPU_SpanEndWithinDim0<"limb_range", "out", 0>,
+  ]> {
+  let summary = "Zero-fill limb range [start, end) of a buffer";
+  let description = [{
+    Zero-fills limbs in `[start, end)` of the destination buffer.
+  }];
+
+  let arguments = (ins
+    Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
+    CheddarGPU_SpanAttr:$limb_range
+  );
+}
+
+//===----------------------------------------------------------------------===//
+// Hoisted BSGS and Bootstrapping Base Classes
+//===----------------------------------------------------------------------===//
+
+// Hoisted and bootstrapping operations base class (boot, hoist_phase).
+class CheddarGPU_BootOpBase<string mnemonic, Type polyBufferType = CheddarGPU_PolyBuffer,
+                            list<Trait> traits = []>
+    : CheddarGPU_Op<mnemonic, !listconcat([
+        AllTypesMatch<["out_bx", "out_ax"]>,
+        AllTypesMatch<["in_bx", "in_ax"]>,
+        CheddarGPU_SameDegree<["out_bx", "in_bx"]>,
+        CheddarGPU_NumSlotsFitDegree<"out_bx">,
+      ], traits)> {
+  dag baseArguments = (ins
+    Arg<polyBufferType, "destination out_bx buffer", [MemWrite]>:$out_bx,
+    Arg<polyBufferType, "destination out_ax buffer", [MemWrite]>:$out_ax,
+    Arg<polyBufferType, "input in_bx buffer", [MemRead]>:$in_bx,
+    Arg<polyBufferType, "input in_ax buffer", [MemRead]>:$in_ax,
+    Arg<CheddarGPU_ByteSlab, "plaintext constants byte slab", [MemRead]>:$consts_slab,
+    Arg<CheddarGPU_ByteSlab, "evaluation key byte slab", [MemRead]>:$evk_slab
+  );
+  let arguments = baseArguments;
+
+  let assemblyFormat = [{
+    `ins` `(` $in_bx `,` $in_ax `,` $consts_slab `,` $evk_slab `:`
+              type($in_bx) `,` type($in_ax) `,` type($consts_slab) `,` type($evk_slab) `)`
+    `outs` `(` $out_bx `,` $out_ax `:` type($out_bx) `,` type($out_ax) `)`
+    prop-dict attr-dict
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// Hoisted BSGS and Bootstrapping Operations
+//===----------------------------------------------------------------------===//
+
+def CheddarGPU_HoistBSFusedOp : CheddarGPU_Op<"hoist_bs_fused", [
+    AttrSizedOperandSegments,
+    CheddarGPU_SameCount<["out_bx", "out_ax", "galois_factors", "evk_num_q"]>,
+    CheddarGPU_CountInRange<"out_bx", 1, 8>,
+    CheddarGPU_CountInRange<"mod_up", 1, 8>,
+    CheddarGPU_LimbCountEqualsNumQPlusNumAux<"out_bx">,
+    PredOpTrait<"dim 0 of 'in_bx_pseudo_modup' is >= num_q",
+      CPred<CheddarGPU_Dim<"in_bx_pseudo_modup", 0>.result # " >= static_cast<int64_t>($num_q)">>,
+    PredOpTrait<"all elements of 'evk_num_q' are >= num_q",
+      CPred<"::llvm::all_of($evk_num_q, [&](int64_t v) { return v >= static_cast<int64_t>($num_q); })">>,
+    VariadicAllTypesMatch<"out_bx">,
+    VariadicAllTypesMatch<"out_ax">,
+    VariadicAllTypesMatch<"mod_up">,
+    AllMatchSameOperatorTrait<["out_bx", "out_ax", "mod_up"],
+                              "(*$_self.begin()).getType()", "type">,
+    CheddarGPU_EachSameRingAs<"out_bx", "in_bx_pseudo_modup">,
+  ]> {
+  let summary = "Fused baby-step key multiplication, accumulation, and Galois automorphism";
+  let description = [{
+    Mirrors Cheddar's `BSFusedKernel` in `Hoist.cu`.
+    Computes `R` rotated baby-step ciphertexts from mod-up digits and EVK slab.
+  }];
+
+  let arguments = (ins
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "destination bx polynomial buffers", [MemWrite]>:$out_bx,
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "destination ax polynomial buffers", [MemWrite]>:$out_ax,
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "mod-up digits of input ax", [MemRead]>:$mod_up,
+    Arg<CheddarGPU_ByteSlab, "EVK slab buffer", [MemRead]>:$evk_slab,
+    Arg<CheddarGPU_PolyBuffer, "pseudo-modup input bx", [MemRead]>:$in_bx_pseudo_modup,
+    DenseI64ArrayAttr:$galois_factors,
+    DenseI64ArrayAttr:$evk_byte_offsets,
+    DenseI64ArrayAttr:$evk_num_q,
+    CheddarGPU_PosI64Attr:$num_q,
+    CheddarGPU_NonNegI64Attr:$num_aux,
+    CheddarGPU_NonNegI64Attr:$prime_offset
+  );
+
+  let assemblyFormat = [{
+    `out_bx` `(` $out_bx `)` `,` `out_ax` `(` $out_ax `)` `,` `mod_up` `(` $mod_up `)` `,`
+    $evk_slab `,` $in_bx_pseudo_modup prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+
+  let hasVerifier = 1;
+}
+
+def CheddarGPU_HoistGSFusedOp : CheddarGPU_Op<"hoist_gs_fused", [
+    AttrSizedOperandSegments,
+    CheddarGPU_SameCount<["out_bx", "out_ax"]>,
+    CheddarGPU_SameCount<["in_bx", "in_ax"]>,
+    CheddarGPU_CountInRange<"out_bx", 1, 8>,
+    CheddarGPU_CountInRange<"in_bx", 1, 8>,
+    CheddarGPU_LimbCountEqualsNumQPlusNumAux<"out_bx">,
+    VariadicAllTypesMatch<"out_bx">,
+    VariadicAllTypesMatch<"out_ax">,
+    VariadicAllTypesMatch<"in_bx">,
+    VariadicAllTypesMatch<"in_ax">,
+    AllMatchSameOperatorTrait<["out_bx", "out_ax", "in_bx", "in_ax"],
+                              "(*$_self.begin()).getType()", "type">,
+  ]> {
+  let summary = "Fused giant-step plaintext multiplication and accumulation";
+  let description = [{
+    Mirrors Cheddar's `GSFusedKernel` in `Hoist.cu`.
+    Computes `G` giant-step ciphertexts from `B` baby-step ciphertexts and plaintext constants slab.
+  }];
+
+  let arguments = (ins
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "destination bx polynomial buffers", [MemWrite]>:$out_bx,
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "destination ax polynomial buffers", [MemWrite]>:$out_ax,
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "input bx baby-step ciphertexts", [MemRead]>:$in_bx,
+    Arg<Variadic<CheddarGPU_PolyBuffer>, "input ax baby-step ciphertexts", [MemRead]>:$in_ax,
+    Arg<CheddarGPU_ByteSlab, "plaintext constants slab buffer", [MemRead]>:$consts_slab,
+    CheddarGPU_PtWordOffsetsAttr:$pt_word_offsets,
+    CheddarGPU_PosI64Attr:$num_q,
+    CheddarGPU_NonNegI64Attr:$num_aux,
+    CheddarGPU_NonNegI64Attr:$prime_offset,
+    I64Attr:$pt_limbs
+  );
+
+  let assemblyFormat = [{
+    `out_bx` `(` $out_bx `)` `,` `out_ax` `(` $out_ax `)` `,` `in_bx` `(` $in_bx `)` `,`
+    `in_ax` `(` $in_ax `)` `,` $consts_slab prop-dict attr-dict
+    `:` functional-type(operands, results)
+  }];
+
+  let hasVerifier = 1;
+}
+
+// Bootstrapping EvalMod limb counts (level 21 input -> level 13 output).
+defvar CheddarGPU_EvalModInLimbs = 22;
+defvar CheddarGPU_EvalModOutLimbs = 14;
+
+def CheddarGPU_EvalModOp : CheddarGPU_Op<"eval_mod", [
+    AllTypesMatch<["out_bx", "out_ax"]>,
+    AllTypesMatch<["in_bx", "in_ax"]>,
+    AllElementTypesMatch<["out_bx", "in_bx"]>,
+    CheddarGPU_SameDegree<["out_bx", "in_bx"]>,
+    PredOpTrait<"'relin_evk_byte_offset' is within 'evk_slab'",
+      CPred<"$relin_evk_byte_offset < " # CheddarGPU_Dim<"evk_slab", 0>.result>>,
+  ]> {
+  let summary = "Homomorphic modular reduction for CKKS bootstrapping";
+  let description = [{
+    Evaluates modular reduction polynomial on ciphertext `(in_bx, in_ax)`.
+
+    The input ciphertext must be at level 21, and this op produces an output
+    ciphertext at level 13. Uses multiplication key slice from `evk_slab`.
+    Operates in the `eval` domain.
+  }];
+
+  let arguments = !con(
+    (ins
+      Arg<CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
+              "statically shaped 2D polynomial buffer",
+              [IsNthDimSizeIsOneOfPred<0, [CheddarGPU_EvalModOutLimbs]>]>,
+          "destination out_bx buffer", [MemWrite]>:$out_bx,
+      Arg<CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
+              "statically shaped 2D polynomial buffer",
+              [IsNthDimSizeIsOneOfPred<0, [CheddarGPU_EvalModOutLimbs]>]>,
+          "destination out_ax buffer", [MemWrite]>:$out_ax,
+      Arg<CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
+              "statically shaped 2D polynomial buffer",
+              [IsNthDimSizeIsOneOfPred<0, [CheddarGPU_EvalModInLimbs]>]>,
+          "input in_bx buffer", [MemRead]>:$in_bx,
+      Arg<CheddarGPU_StaticMemRefOfRank<[I32, I64], 2,
+              "statically shaped 2D polynomial buffer",
+              [IsNthDimSizeIsOneOfPred<0, [CheddarGPU_EvalModInLimbs]>]>,
+          "input in_ax buffer", [MemRead]>:$in_ax,
+      Arg<CheddarGPU_ByteSlab, "evaluation key byte slab", [MemRead]>:$evk_slab,
+      ConfinedAttr<I64Attr, [IntNonNegative, CheddarGPU_IntMultipleOf<8>]>:$relin_evk_byte_offset,
+      ConfinedAttr<I64Attr, [IntMinValue<CheddarGPU_EvalModInLimbs>]>:$relin_evk_num_q,
+      CheddarGPU_PosI64Attr:$relin_evk_beta
+    ),
+    (ins OptionalAttr<CheddarGPU_ParamsAttr>:$params)
+  );
+
+  let assemblyFormat = [{
+    `ins` `(` $in_bx `,` $in_ax `,` $evk_slab `:`
+              type($in_bx) `,` type($in_ax) `,` type($evk_slab) `)`
+    `outs` `(` $out_bx `,` $out_ax `:` type($out_bx) `,` type($out_ax) `)`
+    prop-dict attr-dict
+  }];
+}
+
+def CheddarGPU_HoistPhaseOp : CheddarGPU_BootOpBase<"hoist_phase",
+    CheddarGPU_PolyBuffer,
+    [AllElementTypesMatch<["out_bx", "in_bx"]>]> {
+  let summary = "High-level hoisted linear transform phase for CKKS bootstrapping";
+  let description = [{
+    Represents one phase of CoeffToSlot or SlotToCoeff hoisted BSGS linear transform.
+    Expanded by `--cheddar-gpu-expand-hoist` into fused BSGS kernels and giant-step reduction.
+  }];
+
+  let arguments = !con(
+    baseArguments,
+    (ins
+      CheddarGPU_HoistPhaseKindAttr:$kind,
+      I64Attr:$phase,
+      CheddarGPU_NumSlotsAttr:$num_slots,
+      OptionalAttr<CheddarGPU_ParamsAttr>:$params
+    )
+  );
+
+  let hasVerifier = 1;
+}
+
+defvar CheddarGPU_BootMaxOutLimbs = 11;
+defvar CheddarGPU_BootMaxInLimbs = 14;
+
+def CheddarGPU_BootOp : CheddarGPU_BootOpBase<"boot",
+    CheddarGPU_PolyBuffer64,
+    [
+      CheddarGPU_DimInRange<"out_bx", 0, 1, CheddarGPU_BootMaxOutLimbs>,
+      CheddarGPU_DimInRange<"in_bx", 0, 1, CheddarGPU_BootMaxInLimbs>,
+    ]> {
+  let summary = "High-level bootstrapping operation for CKKS ciphertext";
+  let description = [{
+    Performs full bootstrapping on ciphertext `(in_bx, in_ax)` using `consts_slab`
+    and `evk_slab`, producing refreshed ciphertext `(out_bx, out_ax)`.
+    All ciphertext operands are in `eval` form.
+  }];
+
+  let arguments = !con(
+    baseArguments,
+    (ins
+      CheddarGPU_NumSlotsAttr:$num_slots,
+      OptionalAttr<CheddarGPU_ParamsAttr>:$params
+    )
+  );
 }
 
 #endif  // LIB_DIALECT_CHEDDARGPU_IR_CHEDDARGPU_OPS_TD_
