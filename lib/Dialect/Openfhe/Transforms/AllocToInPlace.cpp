@@ -1,6 +1,7 @@
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 
 #include <cassert>
+#include <type_traits>
 #include <utility>
 
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -76,9 +77,13 @@ struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
           "operand is still live");
     }
 
-    auto inplaceOp =
-        InPlaceOp::create(rewriter, op.getLoc(), op.getResult().getType(),
-                          op->getOperands(), op->getAttrs());
+    typename InPlaceOp::Properties props;
+    if constexpr (std::is_same_v<InPlaceOp, LevelReduceInPlaceOp>) {
+      props.levelToDrop = op.getLevelToDropAttr();
+    }
+    auto inplaceOp = InPlaceOp::create(
+        rewriter, op.getLoc(), op.getResult().getType(), op->getOperands(),
+        props, op->getDiscardableAttrDictionary().getValue());
 
     storageInfo->replaceAllocWithInPlace(op, inplaceOp);
     rewriter.replaceOp(op, inplaceOp);

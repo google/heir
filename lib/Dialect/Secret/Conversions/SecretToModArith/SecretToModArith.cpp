@@ -175,7 +175,9 @@ class SecretGenericOpConversion
   virtual FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ConversionPatternRewriter& rewriter) const {
-    return Y::create(rewriter, op.getLoc(), outputTypes, inputs).getOperation();
+    return Y::create(rewriter, op.getLoc(), outputTypes, inputs,
+                     typename Y::Properties{})
+        .getOperation();
   }
 };
 

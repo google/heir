@@ -416,9 +416,11 @@ struct ConvertAllocOp : public OpConversionPattern<mlir::memref::AllocOp> {
                       mlir::StringAttr::get(userOp->getContext(), "LWE"));
     }
 
-    auto lweType = getTypeConverter()->convertType(op.getType());
-    auto allocOp =
-        memref::AllocOp::create(b, op.getLoc(), lweType, op.getOperands());
+    auto lweType =
+        cast<MemRefType>(getTypeConverter()->convertType(op.getType()));
+    auto allocOp = memref::AllocOp::create(
+        b, op.getLoc(), lweType, adaptor.getDynamicSizes(),
+        adaptor.getSymbolOperands(), op.getAlignmentAttr());
     rewriter.replaceOp(op, allocOp);
     return success();
   }
