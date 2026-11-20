@@ -965,6 +965,9 @@ using ConvertBGVSubPlainOp =
 using ConvertBGVMulPlainOp =
     ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RMulPlainOp,
                                   lattigo::BGVMulNewOp>;
+using ConvertBGVNegateOp =
+    ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, lwe::RNegateOp,
+                       lattigo::RLWENegateNewOp>;
 
 using ConvertBGVRelinOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::RelinearizeOp,
@@ -1012,6 +1015,9 @@ using ConvertCKKSSubPlainOp =
 using ConvertCKKSMulPlainOp =
     ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RMulPlainOp,
                                   lattigo::CKKSMulNewOp>;
+using ConvertCKKSNegateOp =
+    ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, lwe::RNegateOp,
+                       lattigo::RLWENegateNewOp>;
 
 using ConvertCKKSRelinOp =
     ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, ckks::RelinearizeOp,
@@ -1277,7 +1283,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     if (moduleIsBGVOrBFV(module)) {
       patterns.add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
                    ConvertBGVAddPlainOp, ConvertBGVSubPlainOp,
-                   ConvertBGVMulPlainOp, ConvertBGVRelinOp,
+                   ConvertBGVMulPlainOp, ConvertBGVNegateOp, ConvertBGVRelinOp,
                    ConvertBGVModulusSwitchOp, ConvertBGVRotateColumnsOp,
                    ConvertBGVEncryptOp, ConvertBGVDecryptOp, ConvertBGVEncodeOp,
                    ConvertBGVDecodeOp, ConvertBGVLevelReduceOp>(typeConverter,
@@ -1287,9 +1293,9 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
       patterns.add<
           ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
           ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
-          ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
-          ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
-          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
+          ConvertCKKSNegateOp, ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp,
+          ConvertCKKSRotateOp, ConvertCKKSEncryptOp, ConvertCKKSDecryptOp,
+          ConvertCKKSEncodeOp, ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
           ConvertCKKSBootstrappingOp, ConvertOrionLinearTransformOp,
           ConvertOrionChebyshevOp, ConvertKernelEvalChebyshevOp,
           ConvertKernelPrepareLinearTransformOp,
