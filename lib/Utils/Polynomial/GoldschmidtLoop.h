@@ -34,12 +34,14 @@ GoldschmidtLevelSplit splitGoldschmidtLevels(int64_t levels);
 ChebyshevPolynomial goldschmidtInitialApproximation(double lower, double upper,
                                                     int64_t degree);
 
-// Constructs an ArithmeticDag for the Goldschmidt loop.
+// Constructs an ArithmeticDag for the Goldschmidt loop. If `unroll` is true,
+// every iteration is emitted inline; otherwise all but the last iteration are
+// emitted as a loop.
 template <typename T>
 std::shared_ptr<kernel::ArithmeticDagNode<T>> goldschmidtLoop(
     std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
     std::shared_ptr<kernel::ArithmeticDagNode<T>> y0, int64_t numIterations,
-    kernel::DagType coeffType) {
+    kernel::DagType coeffType, bool unroll = false) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   using NodePtr = std::shared_ptr<NodeTy>;
   bool isTensorType = coeffType.type_variant.index() >= 2;
@@ -54,7 +56,13 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> goldschmidtLoop(
   NodePtr y = y0;
   NodePtr e = e0;
 
-  if (numIterations > 1) {  // Don't do last iter
+  if (unroll) {
+    for (int64_t i = 0; i < numIterations - 1; ++i) {
+      NodePtr nextY = NodeTy::mul(y, NodeTy::add(one, e));
+      e = NodeTy::mul(e, e);
+      y = nextY;
+    }
+  } else if (numIterations > 1) {  // Don't do last iter
     auto loopNode = NodeTy::loop(
         {y0, e0}, {coeffType, coeffType}, 0,
         static_cast<int32_t>(numIterations - 1), 1,

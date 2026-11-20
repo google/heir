@@ -88,6 +88,20 @@ TEST(GoldschmidtLoopTest, MatchesUnrolledReference) {
   }
 }
 
+TEST(GoldschmidtLoopTest, UnrolledMatchesReference) {
+  for (int64_t numIterations = 1; numIterations <= 4; ++numIterations) {
+    for (double x : {0.3, 0.5, 1.0, 1.7}) {
+      double y0 = 1.0 / x + 0.1;  // A deliberately poor initial guess.
+      auto result = goldschmidtLoop<LiteralDouble>(
+          NodeTy::leaf(LiteralDouble(x)), NodeTy::leaf(LiteralDouble(y0)),
+          numIterations, kernel::DagType::floatTy(64), /*unroll=*/true);
+      EXPECT_NEAR(evaluate(result), goldschmidtReference(x, y0, numIterations),
+                  1e-12)
+          << "x=" << x << ", numIterations=" << numIterations;
+    }
+  }
+}
+
 TEST(GoldschmidtLoopTest, ApproximatesInverseOnDefaultDomain) {
   double lower = 0.1;
   double upper = 2.0;
