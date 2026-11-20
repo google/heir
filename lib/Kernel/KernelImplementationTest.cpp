@@ -65,6 +65,22 @@ TEST_P(KernelImplementationTest, TestHaleviShoupMatvec) {
   EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
+TEST(KernelImplementationTest, GatherReadsSourceInRowMajorOrder) {
+  using NodeTy = ArithmeticDagNode<LiteralValue>;
+  auto source =
+      NodeTy::leaf(LiteralValue(std::vector<std::vector<int>>{{1, 2}, {3, 4}}));
+  auto dag = NodeTy::gather(source, {3, -1, 0, 2}, {1, 4});
+  EXPECT_EQ(std::get<std::vector<int>>(evalKernel(dag)[0].get()),
+            (std::vector<int>{4, 0, 1, 3}));
+}
+
+TEST(KernelImplementationTest, GatherWithoutSourceGivesIndices) {
+  using NodeTy = ArithmeticDagNode<LiteralValue>;
+  auto dag = NodeTy::gather(nullptr, {2, -1, 5}, {1, 3});
+  EXPECT_EQ(std::get<std::vector<int>>(evalKernel(dag)[0].get()),
+            (std::vector<int>{2, 0, 5}));
+}
+
 TEST(KernelImplementationTest, TestHaleviShoupMatvecZeroDiagonals) {
   std::vector<int> vector = {0, 1, 2, 3};
   // Pre-packed diagonally

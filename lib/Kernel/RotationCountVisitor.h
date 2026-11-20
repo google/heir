@@ -47,6 +47,8 @@ class RotationCountVisitor {
   int64_t operator()(const ForLoopNode<SymbolicValue>& node);
   int64_t operator()(const SplatNode& node);
   int64_t operator()(const EmptyNode& node);
+  int64_t operator()(const ElementwiseOpNode<SymbolicValue>& node);
+  int64_t operator()(const GatherNode<SymbolicValue>& node);
 
  private:
   std::unordered_set<const NodeTy*> visitedNodes;
