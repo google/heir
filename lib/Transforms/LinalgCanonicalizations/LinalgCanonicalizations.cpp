@@ -1445,6 +1445,29 @@ struct UndilateConv2DNchwFchw
   }
 };
 
+/// Rewrites a conv_2d_nchw_fchw whose filter and output both have a size-1
+/// spatial dimension as a conv_1d_ncw_fcw.
+///
+/// This arises because torch-mlir lowers a 1D pool as a 2D pool over an
+/// expanded unit dimension (with strides [1, s]), which RewriteAvgPoolAsConv2D
+/// turns into a conv_2d. This pattern is applied to the conv rather than the
+/// pool so that RewriteAvgPoolAsConv2D can first fold the trailing average
+/// pooling division into the kernel.
+struct DownscaleSizeOneWindowedConv2D
+    : public OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
+ public:
+  DownscaleSizeOneWindowedConv2D(MLIRContext* context)
+      : OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::Conv2DNchwFchwOp convOp,
+                                PatternRewriter& rewriter) const override {
+    return linalg::downscaleSizeOneWindowedConvolution(
+        rewriter, cast<linalg::LinalgOp>(convOp.getOperation()));
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -1453,9 +1476,10 @@ struct LinalgCanonicalizations
 
     RewritePatternSet patterns(context);
     patterns.add<
-        BroadcastToExpandShape, DropCfAssertInLinalg, FoldBroadcastExtractSlice,
-        FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
-        FuseConv2DPooling, LinalgGenericToElementwise, LinalgMapToElementwise,
+        BroadcastToExpandShape, DownscaleSizeOneWindowedConv2D,
+        DropCfAssertInLinalg, FoldBroadcastExtractSlice, FoldConstantBroadcast,
+        FoldConstantFill, FoldConstantLinalgTranspose, FuseConv2DPooling,
+        LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
         RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
         UndilateConv2DNchwFchw, ZeroPadNonNegativeMaxPoolInput>(context);
