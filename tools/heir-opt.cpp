@@ -21,7 +21,9 @@
 #include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Cheddar/Transforms/CheddarBufferize.h"
 #include "lib/Dialect/Cheddar/Transforms/FuseOps.h"
+#include "lib/Dialect/CheddarGPU/Conversions/CheddarGPUToGPU/CheddarGPUToGPU.h"
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
+#include "lib/Dialect/CheddarGPU/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Debug/Transforms/Passes.h"
@@ -507,6 +509,7 @@ int main(int argc, char** argv) {
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();
+  cheddar_gpu::registerCheddarGPUToGPUPasses();
   lwe::registerLWEToJaxiteWordPasses();
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
@@ -546,6 +549,7 @@ int main(int argc, char** argv) {
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   cheddar::registerBufferizableOpInterfaceExternalModels(registry);
+  cheddar_gpu::registerBufferizableOpInterfaceExternalModels(registry);
   preprocessing::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);

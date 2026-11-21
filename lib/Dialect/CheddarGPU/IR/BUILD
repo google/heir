@@ -28,6 +28,7 @@ cc_library(
         ":enums_inc_gen",
         ":ops_inc_gen",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
@@ -46,6 +47,7 @@ td_library(
     includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:DestinationStyleOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
     ],
