@@ -1,5 +1,6 @@
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -7,20 +8,26 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Random/IR/RandomEnums.h"
 #include "lib/Dialect/Random/IR/RandomOps.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
+#include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
+#include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
 #include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -429,6 +436,329 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
   }
 };
 
+//===----------------------------------------------------------------------===//
+// Key generation
+//===----------------------------------------------------------------------===//
+
+// The sources of randomness used to generate keys.
+struct KeyGenRandomness {
+  Value prng;
+  // Discrete Gaussian distribution for the noise.
+  Value gaussian;
+};
+
+// Creates the randomness used to generate keys, with the same parameters as
+// the lowering of `lwe.rlwe_encrypt`.
+static KeyGenRandomness createKeyGenRandomness(ImplicitLocOpBuilder& b) {
+  MLIRContext* ctx = b.getContext();
+  // TODO(#881): Add pass options to set the seed (hardcoded to 0) and the
+  // standard deviation of the noise (hardcoded to 5). With a fixed seed, every
+  // key generation op samples the same random stream.
+  // TODO(#873): Clean up the usage of num_bits (hardcoded to 32).
+  auto seed = arith::ConstantIndexOp::create(b, 0);
+  Value prng = random::InitOp::create(b, seed, b.getI32IntegerAttr(32));
+  Value gaussian = random::DiscreteGaussianDistributionOp::create(
+      b, random::DistributionType::get(ctx, random::Distribution::gaussian),
+      prng, b.getI32IntegerAttr(0), b.getI32IntegerAttr(5));
+  return {prng, gaussian};
+}
+
+// Returns success() if polynomials of type `polyTy` can be sampled uniformly
+// with `random.sample_modq`, and emits an error on `op` otherwise.
+static LogicalResult verifyUniformlySampleable(
+    Operation* op, polynomial::PolynomialType polyTy) {
+  polynomial::RingAttr ring = polyTy.getRing();
+  auto coeffType =
+      dyn_cast<mod_arith::ModQTypeInterface>(ring.getCoefficientType());
+  if (!coeffType || !ring.getPolynomialModulus()) {
+    return op->emitOpError()
+           << "expected a ring with modular (e.g., RNS) coefficients and a "
+              "polynomial modulus, got "
+           << ring;
+  }
+  for (unsigned i = 0; i < coeffType.getNumResidues(); ++i) {
+    if (!isa<mod_arith::ModArithType>(coeffType.getResidueType(i))) {
+      return op->emitOpError()
+             << "expected each residue of the coefficient type to be a "
+                "mod_arith type, got "
+             << coeffType;
+    }
+  }
+  return success();
+}
+
+// Returns the mod_arith type of each residue of `coeffType`. Requires that
+// verifyUniformlySampleable succeeded.
+static SmallVector<mod_arith::ModArithType> getResidueTypes(Type coeffType) {
+  auto modQType = cast<mod_arith::ModQTypeInterface>(coeffType);
+  SmallVector<mod_arith::ModArithType> residueTypes;
+  for (unsigned i = 0; i < modQType.getNumResidues(); ++i) {
+    residueTypes.push_back(
+        cast<mod_arith::ModArithType>(modQType.getResidueType(i)));
+  }
+  return residueTypes;
+}
+
+// Creates a constant of the (mod_arith or RNS) type `coeffType`, whose residue
+// modulo the i-th residue modulus q_i is `residues[i]`, which must be in
+// [0, q_i).
+static Value createModularConstant(ImplicitLocOpBuilder& b, Type coeffType,
+                                   ArrayRef<APInt> residues) {
+  SmallVector<mod_arith::ModArithType> residueTypes =
+      getResidueTypes(coeffType);
+  if (auto modArithType = dyn_cast<mod_arith::ModArithType>(coeffType)) {
+    return mod_arith::ConstantOp::create(
+        b, modArithType,
+        IntegerAttr::get(modArithType.getModulus().getType(), residues[0]));
+  }
+  SmallVector<Attribute> residueAttrs;
+  for (auto [residueType, residue] : llvm::zip_equal(residueTypes, residues)) {
+    residueAttrs.push_back(mod_arith::ModArithAttr::get(
+        b.getContext(), residueType,
+        IntegerAttr::get(residueType.getModulus().getType(), residue)));
+  }
+  auto rnsType = cast<rns::RNSType>(coeffType);
+  return rns::ConstantOp::create(b, rnsType,
+                                 rns::RNSAttr::get(rnsType, residueAttrs));
+}
+
+// Returns `value mod modulus`, at the bit width of `modulus`.
+static APInt reduce(const APInt& value, const APInt& modulus) {
+  unsigned width = std::max(value.getBitWidth(), modulus.getBitWidth());
+  return value.zext(width)
+      .urem(modulus.zext(width))
+      .trunc(modulus.getBitWidth());
+}
+
+// Samples a polynomial of type `polyTy` uniformly at random from R_Q, by
+// sampling each coefficient uniformly modulo Q (each RNS limb uniformly).
+static Value sampleUniformPolynomial(ImplicitLocOpBuilder& b, Value prng,
+                                     polynomial::PolynomialType polyTy) {
+  polynomial::RingAttr ring = polyTy.getRing();
+  auto coeffsType = RankedTensorType::get(
+      {ring.getPolynomialModulus().getPolynomial().getDegree()},
+      ring.getCoefficientType());
+  auto coeffs = random::SampleModQOp::create(b, coeffsType, prng);
+  return polynomial::FromTensorOp::create(b, polyTy, coeffs);
+}
+
+// Returns an RLWE encryption `(-a * s + e + message, a)` of `message` under
+// the secret key polynomial `s`, as a pair (c_0, c_1). `noiseScale` (which may
+// be null) scales the noise `e`, and `message` may be null for an encryption
+// of zero.
+static std::pair<Value, Value> encryptUnderSecretKey(
+    ImplicitLocOpBuilder& b, const KeyGenRandomness& randomness, Value s,
+    Value message, Value noiseScale) {
+  auto polyTy = cast<polynomial::PolynomialType>(s.getType());
+  Value a = sampleUniformPolynomial(b, randomness.prng, polyTy);
+  Value e = random::SampleOp::create(b, polyTy, randomness.gaussian);
+  if (noiseScale) e = polynomial::MulScalarOp::create(b, e, noiseScale);
+  if (message) e = polynomial::AddOp::create(b, e, message);
+  Value aTimesS = polynomial::MulOp::create(b, a, s);
+  Value c0 = polynomial::SubOp::create(b, e, aTimesS);
+  return {c0, a};
+}
+
+// Converts the polynomial `s`, whose coefficients must be ternary (in
+// {-1, 0, 1}), to a polynomial of type `targetPolyTy` with the same
+// coefficients. `s` and `targetPolyTy` must have RNS coefficient types.
+//
+// This conversion is exact because `s` is ternary: each coefficient is
+// recovered from its first RNS residue by a centered lift, and then reduced
+// modulo each modulus of the target basis. A general basis conversion (e.g.,
+// `rns.convert_basis`) would instead introduce an error that is a multiple of
+// the source modulus.
+static Value liftTernaryPolynomial(ImplicitLocOpBuilder& b, Value s,
+                                   polynomial::PolynomialType targetPolyTy) {
+  auto sourceRNSType =
+      cast<rns::RNSType>(cast<polynomial::PolynomialType>(s.getType())
+                             .getRing()
+                             .getCoefficientType());
+  auto firstResidueType =
+      cast<mod_arith::ModArithType>(sourceRNSType.getBasisTypes()[0]);
+  auto liftedType = cast<IntegerType>(firstResidueType.getModulus().getType());
+  SmallVector<mod_arith::ModArithType> targetResidueTypes =
+      getResidueTypes(targetPolyTy.getRing().getCoefficientType());
+
+  return polynomial::ApplyCoefficientwiseOp::create(
+      b, s, targetPolyTy,
+      [&](ImplicitLocOpBuilder& nb, Value coeff, Value /*index*/) -> Value {
+        Value firstResidue = rns::ExtractResidueOp::create(
+            nb, firstResidueType, coeff, nb.getIndexAttr(0));
+        // A signed integer in {-1, 0, 1}.
+        Value lifted = mod_arith::LiftOp::create(nb, liftedType, firstResidue,
+                                                 mod_arith::LiftType::CENTERED);
+
+        SmallVector<Value> residues;
+        for (mod_arith::ModArithType residueType : targetResidueTypes) {
+          IntegerAttr modulus = residueType.getModulus();
+          auto storageType = cast<IntegerType>(modulus.getType());
+          Value x = lifted;
+          if (storageType.getWidth() > liftedType.getWidth()) {
+            x = arith::ExtSIOp::create(nb, storageType, x);
+          } else if (storageType.getWidth() < liftedType.getWidth()) {
+            x = arith::TruncIOp::create(nb, storageType, x);
+          }
+          // Map -1 to modulus - 1.
+          Value zero = arith::ConstantOp::create(
+              nb, storageType, IntegerAttr::get(storageType, 0));
+          Value modulusValue =
+              arith::ConstantOp::create(nb, storageType, modulus);
+          Value isNegative =
+              arith::CmpIOp::create(nb, arith::CmpIPredicate::slt, x, zero);
+          Value xPlusModulus = arith::AddIOp::create(nb, x, modulusValue);
+          Value reduced =
+              arith::SelectOp::create(nb, isNegative, xPlusModulus, x);
+          residues.push_back(
+              mod_arith::EncapsulateOp::create(nb, residueType, reduced));
+        }
+        return rns::PackOp::create(nb, residues);
+      });
+}
+
+struct ConvertGenSecretKey : public OpConversionPattern<GenSecretKeyOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      GenSecretKeyOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto keyType = cast<RankedTensorType>(
+        typeConverter->convertType(op.getOutput().getType()));
+    auto polyTy = cast<polynomial::PolynomialType>(keyType.getElementType());
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    KeyGenRandomness randomness = createKeyGenRandomness(b);
+    // TODO(#2515): Support other secret key distributions, e.g., sparse
+    // ternary keys with a fixed Hamming weight.
+    Value ternary = random::DiscreteUniformDistributionOp::create(
+        b,
+        random::DistributionType::get(getContext(),
+                                      random::Distribution::uniform),
+        randomness.prng, b.getI32IntegerAttr(-1), b.getI32IntegerAttr(2));
+    Value s = random::SampleOp::create(b, polyTy, ternary);
+    rewriter.replaceOp(op, tensor::FromElementsOp::create(b, keyType, s));
+    return success();
+  }
+};
+
+struct ConvertGenPublicKey : public OpConversionPattern<GenPublicKeyOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      GenPublicKeyOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto keyType = cast<RankedTensorType>(
+        typeConverter->convertType(op.getOutput().getType()));
+    auto polyTy = cast<polynomial::PolynomialType>(keyType.getElementType());
+
+    // All checks must happen before any IR is created: the pass disables
+    // pattern rollback.
+    if (failed(verifyUniformlySampleable(op, polyTy))) {
+      return rewriter.notifyMatchFailure(op, "unsupported ring");
+    }
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // For BGV, the noise is a multiple of the plaintext modulus t.
+    Value noiseScale;
+    if (std::optional<uint64_t> t = op.getPlaintextModulus()) {
+      Type coeffType = polyTy.getRing().getCoefficientType();
+      SmallVector<APInt> residues;
+      for (mod_arith::ModArithType residueType : getResidueTypes(coeffType)) {
+        residues.push_back(
+            reduce(APInt(64, *t), residueType.getModulus().getValue()));
+      }
+      noiseScale = createModularConstant(b, coeffType, residues);
+    }
+
+    KeyGenRandomness randomness = createKeyGenRandomness(b);
+    Value s = tensor::ExtractOp::create(
+        b, adaptor.getSecretKey(),
+        ValueRange{arith::ConstantIndexOp::create(b, 0)});
+    // The public key (b, a) = (-a * s + e, a) is an encryption of zero.
+    auto [c0, c1] = encryptUnderSecretKey(b, randomness, s,
+                                          /*message=*/Value(), noiseScale);
+    rewriter.replaceOp(
+        op, tensor::FromElementsOp::create(b, keyType, ValueRange{c0, c1}));
+    return success();
+  }
+};
+
+struct ConvertGenRelinKey : public OpConversionPattern<GenRelinKeyOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      GenRelinKeyOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    // tensor<numDigits x 2 x !polynomial.polynomial<R_QP>>
+    auto keyType = cast<RankedTensorType>(
+        typeConverter->convertType(op.getOutput().getType()));
+    auto polyQPTy = cast<polynomial::PolynomialType>(keyType.getElementType());
+    int64_t numDigits = keyType.getDimSize(0);
+
+    // All checks must happen before any IR is created: the pass disables
+    // pattern rollback. The op verifier checks the RNS bases.
+    if (failed(verifyUniformlySampleable(op, polyQPTy))) {
+      return rewriter.notifyMatchFailure(op, "unsupported ring");
+    }
+
+    auto qBasis =
+        cast<rns::RNSType>(
+            op.getSecretKey().getType().getRing().getCoefficientType())
+            .getBasisTypes();
+    SmallVector<mod_arith::ModArithType> qpResidueTypes =
+        getResidueTypes(polyQPTy.getRing().getCoefficientType());
+    int64_t numQ = qBasis.size();
+    int64_t numP = qpResidueTypes.size() - numQ;
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    KeyGenRandomness randomness = createKeyGenRandomness(b);
+
+    Value sQ = tensor::ExtractOp::create(
+        b, adaptor.getSecretKey(),
+        ValueRange{arith::ConstantIndexOp::create(b, 0)});
+    Value s = liftTernaryPolynomial(b, sQ, polyQPTy);
+    Value sSquared = polynomial::MulOp::create(b, s, s);
+
+    // The i-th key is an encryption of P * g_i * s^2, where
+    // g_i = Q_i * (Q_i^{-1} mod D_i) for the product D_i of the primes of
+    // digit i, and Q_i = Q / D_i. Modulo a prime q_j of digit i, g_i is 1;
+    // modulo any other prime of Q, Q_i and hence g_i is 0; and modulo the
+    // primes of P, P is 0. So the residues of P * g_i are P mod q_j for the
+    // primes q_j of digit i, and 0 otherwise.
+    SmallVector<Value> keyPolys;
+    for (int64_t digit = 0; digit < numDigits; ++digit) {
+      int64_t digitStart = digit * numP;
+      int64_t digitEnd = std::min(digitStart + numP, numQ);
+      SmallVector<APInt> residues;
+      for (int64_t j = 0; j < static_cast<int64_t>(qpResidueTypes.size());
+           ++j) {
+        APInt qj = qpResidueTypes[j].getModulus().getValue();
+        APInt residue = APInt::getZero(qj.getBitWidth());
+        if (j >= digitStart && j < digitEnd) {
+          residue = APInt(qj.getBitWidth(), 1);
+          for (int64_t k = numQ; k < numQ + numP; ++k) {
+            APInt pk = qpResidueTypes[k].getModulus().getValue();
+            residue = modularMultiplication(residue, reduce(pk, qj), qj);
+          }
+        }
+        residues.push_back(residue);
+      }
+      Value gadget = createModularConstant(
+          b, polyQPTy.getRing().getCoefficientType(), residues);
+      Value message = polynomial::MulScalarOp::create(b, sSquared, gadget);
+      auto [c0, c1] = encryptUnderSecretKey(b, randomness, s, message,
+                                            /*noiseScale=*/Value());
+      keyPolys.push_back(c0);
+      keyPolys.push_back(c1);
+    }
+
+    rewriter.replaceOp(op,
+                       tensor::FromElementsOp::create(b, keyType, keyPolys));
+    return success();
+  }
+};
+
 struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
   ConvertRNegate(mlir::MLIRContext* context)
       : OpConversionPattern<RNegateOp>(context) {}
@@ -721,12 +1051,14 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
                  ConvertBinOp<RAddPlainOp, polynomial::AddOp>,
                  ConvertBinOp<RSubPlainOp, polynomial::SubOp>, ConvertRMulPlain,
                  ConvertRMulRingElt, ConvertExtractCoeff, ConvertFromCoeffs,
-                 ConvertExtractSlice, ConvertConvertBasis>(typeConverter,
-                                                           context);
+                 ConvertExtractSlice, ConvertConvertBasis, ConvertGenSecretKey,
+                 ConvertGenPublicKey, ConvertGenRelinKey>(typeConverter,
+                                                          context);
     target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
                         MulScalarOp, RMulOp, RMulRingEltOp, RAddPlainOp,
                         RSubPlainOp, RMulPlainOp, ExtractCoeffOp, FromCoeffsOp,
-                        ExtractSliceOp, ConvertBasisOp>();
+                        ExtractSliceOp, ConvertBasisOp, GenSecretKeyOp,
+                        GenPublicKeyOp, GenRelinKeyOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
     // This helps handle tensors of ciphertexts,

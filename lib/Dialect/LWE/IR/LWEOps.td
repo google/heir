@@ -57,6 +57,17 @@ class KeyAndCiphertextMatch<
   >;
 
 
+class KeyRingsMatch<
+  string v1, string ty1, string v2, string ty2
+> : PredOpTrait<
+    "the keys' rings match",
+    CPred<
+      "::llvm::cast<lwe::" # ty1 # ">($" # v1 # ".getType()).getRing() == " #
+      "::llvm::cast<lwe::" # ty2 # ">($" # v2 # ".getType()).getRing()"
+    >
+  >;
+
+
 // LWE Operations are always Pure by design
 class LWE_Op<string mnemonic, list<Trait> traits = []> :
         Op<LWE_Dialect, mnemonic,  traits # [Pure]> {
@@ -275,6 +286,102 @@ def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [
     LWESecretKey:$secret_key
   );
   let results = (outs LWEPlaintext:$output);
+}
+
+// Key generation ops sample fresh randomness, so unlike other LWE ops they are
+// not Pure: two identical key generation ops must not be merged by CSE. Their
+// results are marked as allocated so that an unused key can still be removed
+// as dead code.
+class LWE_KeyGenOp<string mnemonic, list<Trait> traits = []> :
+        Op<LWE_Dialect, mnemonic, traits> {
+  let cppNamespace = "::mlir::heir::lwe";
+  let assemblyFormat = [{
+    operands attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+def LWE_GenSecretKeyOp : LWE_KeyGenOp<"gen_secret_key"> {
+  let summary = "Generate an RLWE secret key";
+  let description = [{
+    Generates a secret key `s`, a polynomial in the ring of the result type
+    whose coefficients are sampled uniformly from `{-1, 0, 1}`.
+
+    Example:
+
+    ```mlir
+    %sk = lwe.gen_secret_key : () -> !sk
+    ```
+  }];
+
+  let arguments = (ins);
+  let results = (outs Res<LWESecretKey, "", [MemAlloc]>:$output);
+  let assemblyFormat = "attr-dict `:` functional-type(operands, results)";
+}
+
+def LWE_GenPublicKeyOp : LWE_KeyGenOp<"gen_public_key", [
+    KeyRingsMatch<"secret_key", "LWESecretKeyType", "output", "LWEPublicKeyType">]> {
+  let summary = "Generate an RLWE public key from a secret key";
+  let description = [{
+    Generates a public key `(b, a) = (-a * s + e, a)` for the secret key `s`,
+    where `a` is sampled uniformly from the ring `R_Q` and `e` is sampled from
+    a discrete Gaussian distribution. This is a secret-key encryption of zero.
+
+    For BGV (`lsb` encryption), the noise must be a multiple of the plaintext
+    modulus `t`, so that encrypting with the public key yields noise that is a
+    multiple of `t`. Set `plaintext_modulus` to `t` to generate
+    `(-a * s + t * e, a)`. For CKKS, omit it.
+
+    Example:
+
+    ```mlir
+    %pk = lwe.gen_public_key %sk : (!sk) -> !pk
+    %pk_bgv = lwe.gen_public_key %sk <plaintext_modulus = 65537> : (!sk) -> !pk
+    ```
+  }];
+
+  let arguments = (ins
+    LWESecretKey:$secret_key,
+    OptionalAttr<I64Attr>:$plaintext_modulus
+  );
+  let results = (outs Res<LWEPublicKey, "", [MemAlloc]>:$output);
+  let assemblyFormat = [{
+    operands prop-dict attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+def LWE_GenRelinKeyOp : LWE_KeyGenOp<"gen_relin_key"> {
+  let summary = "Generate a relinearization key from a secret key";
+  let description = [{
+    Generates a relinearization key for the secret key `s`: a key-switching
+    key that encrypts `s^2` under `s`, for use as the `keySwitchingKey` of
+    `ckks.relinearize` and `lwe.key_switch_inner`.
+
+    The key uses hybrid key switching. Let the secret key's ring have RNS
+    basis `Q = q_0 * ... * q_{l-1}`, and let the result's ciphertexts have RNS
+    basis `QP`, which is `Q` followed by the key-switching primes
+    `P = p_0 * ... * p_{k-1}`. `Q` is partitioned into `d = ceil(l / k)` digits
+    of `k` consecutive primes each (the last digit may be shorter), matching
+    the decomposition in the lowering of `lwe.key_switch_inner`. The `i`-th
+    element of the result is
+
+    ```
+    (-a_i * s + e_i + P * g_i * s^2, a_i)  mod QP
+    ```
+
+    where `a_i` is sampled uniformly from `R_QP`, `e_i` is sampled from a
+    discrete Gaussian distribution, and `g_i = Q_i * (Q_i^{-1} mod D_i)` for
+    the product `D_i` of the primes in digit `i` and `Q_i = Q / D_i`.
+
+    Example:
+
+    ```mlir
+    %rlk = lwe.gen_relin_key %sk : (!sk) -> tensor<2x!ksk_ct>
+    ```
+  }];
+
+  let arguments = (ins LWESecretKey:$secret_key);
+  let results = (outs Res<RankedTensorOf<[LWECiphertext]>, "", [MemAlloc]>:$output);
+  let hasVerifier = 1;
 }
 
 def LWE_ExtractCoeffOp : LWE_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
