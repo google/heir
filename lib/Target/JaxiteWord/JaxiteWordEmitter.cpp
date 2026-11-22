@@ -85,10 +85,8 @@ static int getMaxCurrentInModule(Operation* op) {
   return maxCurrent;
 }
 
-static std::string getCrossLevelExpr(Value ct, StringRef ctxName, Operation* op,
-                                     int extraOffset = 1) {
-  auto ctType = cast<lwe::LWECiphertextType>(ct.getType());
-  int current = ctType.getModulusChain().getCurrent();
+static std::string getCrossLevelExpr(int current, StringRef ctxName,
+                                     Operation* op, int extraOffset = 1) {
   int maxCurrent = getMaxCurrentInModule(op);
   int rescalesFromFresh = maxCurrent - current;
   int totalOffset = rescalesFromFresh + extraOffset;
@@ -99,6 +97,13 @@ static std::string getCrossLevelExpr(Value ct, StringRef ctxName, Operation* op,
     return (ctxName + ".max_level - 1").str();
   }
   return (ctxName + ".max_level - " + Twine(totalOffset)).str();
+}
+
+static std::string getCrossLevelExpr(Value ct, StringRef ctxName, Operation* op,
+                                     int extraOffset = 1) {
+  auto ctType = cast<lwe::LWECiphertextType>(ct.getType());
+  int current = ctType.getModulusChain().getCurrent();
+  return getCrossLevelExpr(current, ctxName, op, extraOffset);
 }
 
 static FailureOr<std::string> getConstantAsString(Value value) {
@@ -323,8 +328,16 @@ LogicalResult JaxiteWordEmitter::printMulOpHelper(
 
 LogicalResult JaxiteWordEmitter::printOperation(EncodeOp op) {
   emitAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getCryptoContext()) << ".encode("
-     << variableNames->getNameForValue(op.getInput()) << ")\n";
+  auto ctxName = variableNames->getNameForValue(op.getCryptoContext());
+  auto inputName = variableNames->getNameForValue(op.getInput());
+  if (auto rescaleLevel = op.getRescaleLevel()) {
+    auto level = getCrossLevelExpr(rescaleLevel.value(), ctxName, op,
+                                   /*extraOffset=*/0);
+    os << ctxName << ".encode_at_level(" << inputName << ", " << level
+       << ", scale=_rescale_divisor(" << ctxName << ", " << level << "))\n";
+  } else {
+    os << ctxName << ".encode(" << inputName << ")\n";
+  }
   return success();
 }
 

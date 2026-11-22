@@ -150,7 +150,8 @@ def EncodeOp : JaxiteWord_Op<"encode", [Pure, PlaintextEncodeOpInterface]> {
   let summary = "Encode a real tensor into a plaintext";
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,
-    AnyTypeOf<[AnyShaped, AnyFloat]>:$input
+    AnyTypeOf<[AnyShaped, AnyFloat]>:$input,
+    OptionalAttr<I64Attr>:$rescaleLevel
   );
   let results = (outs LWEPlaintext:$plaintext);
 }

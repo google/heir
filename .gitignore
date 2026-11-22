@@ -63,3 +63,9 @@ scripts/torch_ci/failure_logs
 scripts/torch_ci/models/*.mlir
 openfhe-install/
 openfhe-development/
+
+# local benchmark artifacts (do not commit)
+benchmark-results/
+.tpu-bundles/
+.tpu-latency-experiment.env
+*.docx
