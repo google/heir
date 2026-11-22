@@ -9,10 +9,7 @@ def executable_attr(label):
         default = Label(label),
         allow_single_file = True,
         executable = True,
-        # commenting this out breaks cross-compilation, but this should not be a problem
-        # for developer builds
-        # cfg = "exec",
-        cfg = "target",
+        cfg = "exec",
     )
 
 _HEIR_TRANSLATE = "@heir//tools:heir-translate"
