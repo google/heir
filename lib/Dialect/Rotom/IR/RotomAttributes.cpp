@@ -338,7 +338,7 @@ static LogicalResult verifyLayoutRolls(
     // A roll may not shift an index by an argument on its own axis: an axis
     // FROM rewrites every piece of the axis, including the one the by
     // argument reads,
-    // and a piece FROM taking a by on the same axis is a self-shear no
+    // and a piece FROM taking a by on the same axis is a self-roll no
     // packing needs. Gap and replication by arguments name no axis, so they
     // never collide.
     if (fromAxis == byAxis) {
