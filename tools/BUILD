@@ -67,6 +67,7 @@ cc_binary(
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
+        "@heir//lib/Dialect/LWE/Conversions/LWEToStableHLO",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
