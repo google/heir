@@ -57,7 +57,8 @@ module {
   // CHECK-SAME: (%{{[^:]*}}: !jaxiteword.crypto_context<>, %{{[^:]*}}: !jaxiteword.eval_key<>
   func.func @test_encode_encrypt(%input: tensor<1024xi16>, %pk: !pkey_L1_) -> !ct_L1_ {
     // CHECK: jaxiteword.encode
-    %pt = lwe.rlwe_encode %input <encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x1024_> : tensor<1024xi16> -> !pt_
+    // CHECK-SAME: rescaleLevel = 1 : i64
+    %pt = lwe.rlwe_encode %input <encoding = #full_crt_packing_encoding, level = 1, ring = #ring_Z65537_i64_1_x1024_> : tensor<1024xi16> -> !pt_
     // CHECK: jaxiteword.encrypt
     %ct = lwe.rlwe_encrypt %pt, %pk : (!pt_, !pkey_L1_) -> !ct_L1_
     return %ct : !ct_L1_

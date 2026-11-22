@@ -231,7 +231,7 @@ struct ConvertRelinOp : public OpConversionPattern<ckks::RelinearizeOp> {
   }
 };
 
-template <typename SourceOp>
+template <typename SourceOp, typename TargetOp>
 struct ConvertModSwitchOp : public OpConversionPattern<SourceOp> {
   using OpConversionPattern<SourceOp>::OpConversionPattern;
 
@@ -241,9 +241,11 @@ struct ConvertModSwitchOp : public OpConversionPattern<SourceOp> {
     FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
     if (failed(ctx)) return failure();
 
-    rewriter.replaceOpWithNewOp<jaxiteword::ModReduceOp>(
-        op, this->getTypeConverter()->convertType(op.getOutput().getType()),
+    auto newOp = TargetOp::create(
+        rewriter, op.getLoc(),
+        this->getTypeConverter()->convertType(op.getOutput().getType()),
         ctx.value(), adaptor.getInput());
+    rewriter.replaceOp(op, newOp);
     return success();
   }
 };
@@ -260,7 +262,7 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
     auto newOp = jaxiteword::EncodeOp::create(
         rewriter, op.getLoc(),
         this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getInput());
+        ctx.value(), adaptor.getInput(), op.getLevelAttr());
     rewriter.replaceOp(op, newOp.getResult());
     return success();
   }
@@ -381,9 +383,10 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
         typeConverter, context);
     patterns.add<ConvertRotateOp>(typeConverter, context);
     patterns.add<ConvertRelinOp>(typeConverter, context);
-    patterns.add<ConvertModSwitchOp<ckks::RescaleOp>>(typeConverter, context);
-    patterns.add<ConvertModSwitchOp<ckks::LevelReduceOp>>(typeConverter,
-                                                          context);
+    patterns.add<
+        ConvertModSwitchOp<ckks::RescaleOp, jaxiteword::ModReduceOp>,
+        ConvertModSwitchOp<ckks::LevelReduceOp, jaxiteword::LevelReduceOp>>(
+        typeConverter, context);
     patterns.add<ConvertEncodeOp>(typeConverter, context);
     patterns.add<ConvertEncryptOp>(typeConverter, context);
     patterns.add<ConvertDecryptOp>(typeConverter, context);

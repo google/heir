@@ -11,11 +11,13 @@
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordOps.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordTypes.h"
+#include "lib/Dialect/JaxiteWord/IR/LevelUtils.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Target/JaxiteWord/JaxiteWordTemplates.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Format.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
@@ -35,8 +37,9 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace mlir {
@@ -64,34 +67,9 @@ LogicalResult translateToJaxiteWord(Operation* op, llvm::raw_ostream& os) {
   return emitter.translate(*op);
 }
 
-static int getMaxCurrentInModule(Operation* op) {
-  auto module = op->getParentOfType<ModuleOp>();
-  if (!module) return 0;
-  int maxCurrent = 0;
-  module.walk([&](Operation* inner) {
-    for (auto result : inner->getResults()) {
-      if (auto ctType = dyn_cast<lwe::LWECiphertextType>(result.getType())) {
-        maxCurrent =
-            std::max(maxCurrent, ctType.getModulusChain().getCurrent());
-      }
-    }
-    for (auto operand : inner->getOperands()) {
-      if (auto ctType = dyn_cast<lwe::LWECiphertextType>(operand.getType())) {
-        maxCurrent =
-            std::max(maxCurrent, ctType.getModulusChain().getCurrent());
-      }
-    }
-  });
-  return maxCurrent;
-}
-
-static std::string getCrossLevelExpr(Value ct, StringRef ctxName, Operation* op,
-                                     int extraOffset = 1) {
-  auto ctType = cast<lwe::LWECiphertextType>(ct.getType());
-  int current = ctType.getModulusChain().getCurrent();
-  int maxCurrent = getMaxCurrentInModule(op);
-  int rescalesFromFresh = maxCurrent - current;
-  int totalOffset = rescalesFromFresh + extraOffset;
+static std::string getCrossLevelExpr(int current, StringRef ctxName,
+                                     Operation* op, int extraOffset = 1) {
+  int64_t totalOffset = getCrossLevelOffset(current, op, extraOffset);
   if (totalOffset == 0) {
     return (ctxName + ".max_level").str();
   }
@@ -99,6 +77,13 @@ static std::string getCrossLevelExpr(Value ct, StringRef ctxName, Operation* op,
     return (ctxName + ".max_level - 1").str();
   }
   return (ctxName + ".max_level - " + Twine(totalOffset)).str();
+}
+
+static std::string getCrossLevelExpr(Value ct, StringRef ctxName, Operation* op,
+                                     int extraOffset = 1) {
+  auto ctType = cast<lwe::LWECiphertextType>(ct.getType());
+  int current = ctType.getModulusChain().getCurrent();
+  return getCrossLevelExpr(current, ctxName, op, extraOffset);
 }
 
 static FailureOr<std::string> getConstantAsString(Value value) {
@@ -119,10 +104,10 @@ LogicalResult JaxiteWordEmitter::translate(Operation& op) {
           .Case<func::FuncOp, func::CallOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           .Case<AddOp, AddPlainOp, SubOp, SquareOp, MulOp, MulNoRelinOp,
-                ModReduceOp, RotOp, RelinOp, MulPlainOp, AddInPlaceOp,
-                SubInPlaceOp, EncodeOp, DecodeOp, EncryptOp, DecryptOp,
-                GenParamsOp, GenKeyPairOp, GenMulKeyOp, GenRotKeyOp,
-                ProgramInitializationOp>(
+                ModReduceOp, LevelReduceOp, RotOp, RelinOp, MulPlainOp,
+                AddInPlaceOp, SubInPlaceOp, EncodeOp, DecodeOp, EncryptOp,
+                DecryptOp, GenParamsOp, GenKeyPairOp, GenMulKeyOp, GenRotKeyOp,
+                ProgramInitializationOp, CompiledRegionOp>(
               [&](auto op) { return printOperation(op); })
           .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::EmptyOp,
                 tensor::InsertOp, tensor::ExtractSliceOp,
@@ -208,6 +193,204 @@ LogicalResult JaxiteWordEmitter::printOperation(func::FuncOp funcOp) {
 
   os.unindent();
   os << "\n";
+
+  bool hasCompiledRegion = false;
+  funcOp.walk([&](CompiledRegionOp) { hasCompiledRegion = true; });
+  if (hasCompiledRegion) {
+    SmallVector<unsigned> ciphertextArguments;
+    SmallVector<unsigned> preprocessedArguments;
+    for (auto [index, argument] : llvm::enumerate(funcOp.getArguments())) {
+      Type type = argument.getType();
+      if (isa<CryptoContextType>(type)) continue;
+      if (isa<EvalKeyType>(type)) {
+        continue;
+      }
+      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(type))) {
+        ciphertextArguments.push_back(index);
+      } else {
+        preprocessedArguments.push_back(index);
+      }
+    }
+
+    // Recognize the complete single-input/output graph used by the CNN demos.
+    // Other signatures retain generated orchestration until explicit bindings
+    // for their public container structure are available.
+    SmallVector<CompiledRegionOp> regions;
+    funcOp.walk([&](CompiledRegionOp region) { regions.push_back(region); });
+    bool directDispatch = funcOp.getBody().hasOneBlock() &&
+                          ciphertextArguments.size() == 1 &&
+                          regions.size() == 1;
+    bool inputIsList = false;
+    bool outputIsList = false;
+    auto isSingleton = [](Type type) {
+      auto tensor = dyn_cast<RankedTensorType>(type);
+      return tensor && tensor.hasStaticShape() && tensor.getRank() == 1 &&
+             tensor.getNumElements() == 1;
+    };
+    auto isZeroIndex = [](ValueRange indices) {
+      if (indices.size() != 1) return false;
+      auto constant = indices.front().getDefiningOp<arith::ConstantOp>();
+      if (!constant) return false;
+      auto integer = dyn_cast<IntegerAttr>(constant.getValue());
+      return integer && integer.getValue().isZero();
+    };
+    if (directDispatch) {
+      CompiledRegionOp region = regions.front();
+      SmallVector<Value> inputs;
+      for (Value input : region.getInputs()) {
+        if (isa<lwe::LWECiphertextType>(input.getType()))
+          inputs.push_back(input);
+      }
+      directDispatch = inputs.size() == 1 && region.getOutputs().size() == 1;
+      if (directDispatch) {
+        Value input = inputs.front();
+        Value publicInput = funcOp.getArgument(ciphertextArguments.front());
+        if (auto extract = input.getDefiningOp<tensor::ExtractOp>()) {
+          inputIsList = true;
+          directDispatch = extract.getTensor() == publicInput &&
+                           isSingleton(publicInput.getType()) &&
+                           isZeroIndex(extract.getIndices());
+        } else {
+          directDispatch = input == publicInput;
+        }
+      }
+      auto returned =
+          dyn_cast<func::ReturnOp>(funcOp.getBody().front().getTerminator());
+      directDispatch &= returned && returned.getNumOperands() == 1;
+      if (directDispatch) {
+        Value output = returned.getOperand(0);
+        if (auto insert = output.getDefiningOp<tensor::InsertOp>()) {
+          outputIsList = true;
+          directDispatch =
+              insert.getScalar() == region.getOutputs().front() &&
+              isSingleton(output.getType()) &&
+              isZeroIndex(insert.getIndices()) &&
+              bool(insert.getDest().getDefiningOp<tensor::EmptyOp>());
+        } else {
+          directDispatch = output == region.getOutputs().front();
+        }
+      }
+      for (Operation& operation : funcOp.getBody().front()) {
+        if (auto call = dyn_cast<func::CallOp>(operation)) {
+          auto callee =
+              funcOp->getParentOfType<ModuleOp>().lookupSymbol<func::FuncOp>(
+                  call.getCallee());
+          bool deadPureCall =
+              callee && !callee.isExternal() &&
+              callee.getBody().hasOneBlock() &&
+              llvm::all_of(call.getResults(),
+                           [](Value result) { return result.use_empty(); }) &&
+              llvm::all_of(callee.getBody().front(), [](Operation& inner) {
+                return isMemoryEffectFree(&inner);
+              });
+          if (!deadPureCall) directDispatch = false;
+          continue;
+        }
+        if (!isa<CompiledRegionOp, arith::ConstantOp, memref::LoadOp,
+                 tensor::ExtractOp, tensor::InsertOp, tensor::EmptyOp,
+                 func::ReturnOp>(operation)) {
+          directDispatch = false;
+        }
+        if (auto insert = dyn_cast<tensor::InsertOp>(operation)) {
+          if (!returned || returned.getNumOperands() != 1 ||
+              returned.getOperand(0) != insert.getResult()) {
+            directDispatch = false;
+          }
+        }
+        if (auto extract = dyn_cast<tensor::ExtractOp>(operation)) {
+          if (inputs.size() != 1 || extract.getResult() != inputs.front()) {
+            directDispatch = false;
+          }
+        }
+      }
+    }
+
+    os << "def " << funcOp.getName()
+       << "__prepare_compiled(ctx, preprocessed_args, input_specs, "
+          "device=None):\n";
+    os.indent();
+    os << "_preprocessed_args = tuple(preprocessed_args)\n";
+    os << "_input_specs = tuple(input_specs)\n";
+    os << "if len(_input_specs) != " << ciphertextArguments.size() << ":\n";
+    os.indent();
+    os << "raise ValueError(\"compiled plan input count mismatch\")\n";
+    os.unindent();
+    os << "if len(_preprocessed_args) != " << preprocessedArguments.size()
+       << ":\n";
+    os.indent();
+    os << "raise ValueError(\"compiled plan preprocessing count mismatch\")\n";
+    os.unindent();
+    os << "def _execute(_encrypted_args):\n";
+    os.indent();
+    os << "return " << funcOp.getName() << "(";
+    unsigned ciphertextIndex = 0;
+    unsigned preprocessedIndex = 0;
+    for (auto [index, argument] : llvm::enumerate(funcOp.getArguments())) {
+      if (index != 0) os << ", ";
+      Type type = argument.getType();
+      if (isa<CryptoContextType>(type)) {
+        os << "ctx";
+      } else if (isa<EvalKeyType>(type)) {
+        os << "{}";
+      } else if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(type))) {
+        os << "_encrypted_args[" << ciphertextIndex++ << "]";
+      } else {
+        os << "_preprocessed_args[" << preprocessedIndex++ << "]";
+      }
+    }
+    os << ")\n";
+    os.unindent();
+    os << "global _compiled_prepare_only\n";
+    os << "_compiled_prepare_only = True\n";
+    os << "try:\n";
+    os.indent();
+    os << "_execute(_input_specs)\n";
+    os << "raise RuntimeError(\"compiled preparation reached execution\")\n";
+    os.unindent();
+    os << "except _CompiledPlanPrepared as _prepared:\n";
+    os.indent();
+    os << "_prepared_key = _prepared.args[0]\n";
+    os.unindent();
+    os << "finally:\n";
+    os.indent();
+    os << "_compiled_prepare_only = False\n";
+    os.unindent();
+    if (directDispatch) {
+      os << "_regions = (_compiled_region_cache[_prepared_key],)\n";
+    } else {
+      os << "_regions = tuple(_compiled_region_cache[key] for key in "
+            "_compiled_region_cache if key[0] == \""
+         << funcOp.getName() << "\" and key[2] == id(ctx))\n";
+    }
+    os << "return _CompiledExecutionPlan(ctx, _execute, _regions, "
+          "_input_specs, (";
+    for (unsigned index : ciphertextArguments) {
+      auto type = cast<lwe::LWECiphertextType>(
+          getElementTypeOrSelf(funcOp.getArgument(index).getType()));
+      os << getCrossLevelExpr(type.getModulusChain().getCurrent(), "ctx",
+                              funcOp, /*extraOffset=*/0)
+         << ", ";
+    }
+    os << ")";
+    if (directDispatch) {
+      os << ", raw_input_path=(0," << (inputIsList ? " 0," : "")
+         << "), raw_output_kind=\""
+         << (outputIsList ? "singleton_list" : "scalar") << "\"";
+    }
+    os << ")\n";
+    os.unindent();
+    os << "\n";
+    os << "def " << funcOp.getName()
+       << "__execute_compiled(plan, encrypted_args):\n";
+    os.indent();
+    os << "if not isinstance(plan, _CompiledExecutionPlan):\n";
+    os.indent();
+    os << "raise TypeError(\"expected a prepared compiled execution plan\")\n";
+    os.unindent();
+    os << "return plan.execute(encrypted_args)\n";
+    os.unindent();
+    os << "\n";
+  }
   return success();
 }
 
@@ -323,8 +506,16 @@ LogicalResult JaxiteWordEmitter::printMulOpHelper(
 
 LogicalResult JaxiteWordEmitter::printOperation(EncodeOp op) {
   emitAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getCryptoContext()) << ".encode("
-     << variableNames->getNameForValue(op.getInput()) << ")\n";
+  auto ctxName = variableNames->getNameForValue(op.getCryptoContext());
+  auto inputName = variableNames->getNameForValue(op.getInput());
+  if (auto rescaleLevel = op.getRescaleLevel()) {
+    auto level = getCrossLevelExpr(rescaleLevel.value(), ctxName, op,
+                                   /*extraOffset=*/0);
+    os << ctxName << ".encode_at_level(" << inputName << ", " << level
+       << ", scale=_rescale_divisor(" << ctxName << ", " << level << "))\n";
+  } else {
+    os << ctxName << ".encode(" << inputName << ")\n";
+  }
   return success();
 }
 
@@ -383,6 +574,22 @@ LogicalResult JaxiteWordEmitter::printOperation(ModReduceOp op) {
   }
   os << result << " = " << ctx << ".he_rescale[" << srcLevel << ", " << dstLevel
      << "].rescale(" << ct << ")\n";
+  return success();
+}
+
+LogicalResult JaxiteWordEmitter::printOperation(LevelReduceOp op) {
+  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
+  auto ct = variableNames->getNameForValue(op.getCiphertext());
+  auto result = variableNames->getNameForValue(op.getResult());
+  auto srcLevel =
+      getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/0);
+  auto dstLevel = getCrossLevelExpr(op.getResult(), ctx, op, /*extraOffset=*/0);
+  if (srcLevel == dstLevel) {
+    os << result << " = " << ct << "\n";
+    return success();
+  }
+  os << result << " = " << ctx << ".he_level_reduce[" << srcLevel << ", "
+     << dstLevel << "].level_reduce(" << ct << ")\n";
   return success();
 }
 
@@ -572,8 +779,474 @@ LogicalResult JaxiteWordEmitter::printOperation(ProgramInitializationOp op) {
   os << "r=" << op.getR() << ", ";
   os << "c=" << op.getC() << ", ";
   os << "batch=" << op.getBatch();
+  os << ", cache_rotation_keys=False";
   os << ")\n";
 
+  auto requirementIndices = op.getRotationRequirementIndices();
+  auto levelOffsets = op.getRotationLevelOffsets();
+  for (auto [levelOffset, rotIndex] :
+       llvm::zip(levelOffsets, requirementIndices)) {
+    os << ctx << ".he_rot[" << ctx << ".max_level";
+    if (levelOffset != 0) os << " - " << levelOffset;
+    os << ", " << rotIndex << "]\n";
+  }
+
+  return success();
+}
+
+LogicalResult JaxiteWordEmitter::printOperation(CompiledRegionOp op) {
+  Block& body = op.getBody().front();
+  auto yield = cast<CompiledRegionYieldOp>(body.getTerminator());
+  int64_t regionId = op.getRegionId();
+
+  DenseMap<Value, std::string> outerNames;
+  DenseMap<Value, std::string> rawNames;
+  Value contextInput;
+  Value templateInput;
+  unsigned nextValue = 0;
+  for (auto [input, argument] :
+       llvm::zip(op.getInputs(), body.getArguments())) {
+    std::string outer = variableNames->getNameForValue(input);
+    outerNames[argument] = outer;
+    if (isa<CryptoContextType>(argument.getType())) {
+      contextInput = argument;
+      rawNames[argument] = outer;
+      continue;
+    }
+    if (isa<lwe::LWECiphertextType>(argument.getType()) && !templateInput) {
+      templateInput = argument;
+    }
+    rawNames[argument] =
+        (Twine("_region_") + Twine(regionId) + "_arg_" + Twine(nextValue++))
+            .str();
+  }
+  if (!contextInput || !templateInput) {
+    return op.emitOpError(
+        "compiled region requires context and ciphertext inputs");
+  }
+  std::string ctx = outerNames.lookup(contextInput);
+
+  DenseMap<Value, std::string> scaleExpressions;
+  std::function<std::string(Value)> scaleOf = [&](Value value) -> std::string {
+    auto found = scaleExpressions.find(value);
+    if (found != scaleExpressions.end()) return found->second;
+    std::string expression;
+    if (auto argument = dyn_cast<BlockArgument>(value)) {
+      expression = (Twine("getattr(") + outerNames.lookup(argument) +
+                    ", \"_ckks_scale\", None)")
+                       .str();
+    } else if (auto mul = value.getDefiningOp<MulPlainOp>()) {
+      expression =
+          (Twine("_compiled_scale_mul(") + scaleOf(mul.getCiphertext()) +
+           ", getattr(" + outerNames.lookup(mul.getPlaintext()) +
+           ", \"_ckks_scale\", None))")
+              .str();
+    } else if (auto add = value.getDefiningOp<AddOp>()) {
+      expression = scaleOf(add.getLhs());
+    } else if (auto mul = value.getDefiningOp<MulNoRelinOp>()) {
+      expression = "_compiled_scale_mul(" + scaleOf(mul.getLhs()) + ", " +
+                   scaleOf(mul.getRhs()) + ")";
+    } else if (auto relin = value.getDefiningOp<RelinOp>()) {
+      expression = scaleOf(relin.getCiphertext());
+    } else if (auto mul = value.getDefiningOp<MulOp>()) {
+      expression = "_compiled_scale_rescale(_compiled_scale_mul(" +
+                   scaleOf(mul.getLhs()) + ", " + scaleOf(mul.getRhs()) +
+                   ", \"jaxiteword.mul\", " +
+                   getCrossLevelExpr(mul.getLhs(), ctx, mul, 0) + "), " + ctx +
+                   ", " + getCrossLevelExpr(mul.getLhs(), ctx, mul, 0) + ", " +
+                   getCrossLevelExpr(value, ctx, mul, 0) + ")";
+    } else if (auto square = value.getDefiningOp<SquareOp>()) {
+      expression = "_compiled_scale_rescale(_compiled_scale_mul(" +
+                   scaleOf(square.getCiphertext()) + ", " +
+                   scaleOf(square.getCiphertext()) +
+                   ", \"jaxiteword.square\", " +
+                   getCrossLevelExpr(square.getCiphertext(), ctx, square, 0) +
+                   "), " + ctx + ", " +
+                   getCrossLevelExpr(square.getCiphertext(), ctx, square, 0) +
+                   ", " + getCrossLevelExpr(value, ctx, square, 0) + ")";
+    } else if (auto addPlain = value.getDefiningOp<AddPlainOp>()) {
+      expression = scaleOf(addPlain.getCiphertext());
+    } else if (auto rot = value.getDefiningOp<RotOp>()) {
+      expression = scaleOf(rot.getCiphertext());
+    } else if (auto reduce = value.getDefiningOp<ModReduceOp>()) {
+      std::string src = getCrossLevelExpr(reduce.getCiphertext(), ctx, reduce,
+                                          /*extraOffset=*/0);
+      std::string dst = getCrossLevelExpr(reduce.getResult(), ctx, reduce,
+                                          /*extraOffset=*/0);
+      expression =
+          (Twine("_compiled_scale_rescale(") + scaleOf(reduce.getCiphertext()) +
+           ", " + ctx + ", " + src + ", " + dst + ")")
+              .str();
+    } else if (auto reduce = value.getDefiningOp<LevelReduceOp>()) {
+      expression = scaleOf(reduce.getCiphertext());
+    } else {
+      expression = "None";
+    }
+    if (Operation* defining = value.getDefiningOp()) {
+      if (isa<MulPlainOp, MulNoRelinOp>(defining)) {
+        expression.pop_back();
+        expression += ", \"" + defining->getName().getStringRef().str() +
+                      "\", " + getCrossLevelExpr(value, ctx, defining, 0) + ")";
+      }
+    }
+    scaleExpressions[value] = expression;
+    return expression;
+  };
+
+  DenseMap<Value, std::string> nsdExpressions;
+  std::function<std::string(Value)> nsdOf = [&](Value value) -> std::string {
+    auto found = nsdExpressions.find(value);
+    if (found != nsdExpressions.end()) return found->second;
+    std::string expression;
+    if (auto argument = dyn_cast<BlockArgument>(value)) {
+      expression = (Twine("getattr(") + outerNames.lookup(argument) +
+                    ", \"_ckks_nsd\", 1)")
+                       .str();
+    } else if (auto mul = value.getDefiningOp<MulPlainOp>()) {
+      expression = (Twine("(") + nsdOf(mul.getCiphertext()) + " + 1)").str();
+    } else if (auto mul = value.getDefiningOp<MulNoRelinOp>()) {
+      expression =
+          "(" + nsdOf(mul.getLhs()) + " + " + nsdOf(mul.getRhs()) + ")";
+    } else if (isa_and_nonnull<MulOp, SquareOp>(value.getDefiningOp())) {
+      expression = "1";
+    } else if (Operation* defining = value.getDefiningOp()) {
+      Value source;
+      if (auto add = dyn_cast<AddOp>(defining)) source = add.getLhs();
+      if (auto addPlain = dyn_cast<AddPlainOp>(defining))
+        source = addPlain.getCiphertext();
+      if (auto rot = dyn_cast<RotOp>(defining)) source = rot.getCiphertext();
+      if (auto reduce = dyn_cast<ModReduceOp>(defining))
+        source = reduce.getCiphertext();
+      if (auto reduce = dyn_cast<LevelReduceOp>(defining))
+        source = reduce.getCiphertext();
+      if (auto relin = dyn_cast<RelinOp>(defining))
+        source = relin.getCiphertext();
+      expression = source ? nsdOf(source) : "1";
+    } else {
+      expression = "1";
+    }
+    nsdExpressions[value] = expression;
+    return expression;
+  };
+
+  DenseMap<Value, int64_t> elementCounts;
+  std::function<FailureOr<int64_t>(Value)> elementsOf =
+      [&](Value value) -> FailureOr<int64_t> {
+    auto found = elementCounts.find(value);
+    if (found != elementCounts.end()) return found->second;
+    int64_t elements = 2;
+    if (auto mul = value.getDefiningOp<MulNoRelinOp>()) {
+      auto lhs = elementsOf(mul.getLhs());
+      auto rhs = elementsOf(mul.getRhs());
+      if (failed(lhs) || failed(rhs) || *lhs != 2 || *rhs != 2) {
+        return failure();
+      }
+      elements = 3;
+    } else if (auto relin = value.getDefiningOp<RelinOp>()) {
+      auto input = elementsOf(relin.getCiphertext());
+      if (failed(input) || *input != 3) return failure();
+      elements = 2;
+    } else if (isa_and_nonnull<MulOp, SquareOp>(value.getDefiningOp())) {
+      elements = 2;
+    } else if (Operation* defining = value.getDefiningOp()) {
+      Value source;
+      if (auto mul = dyn_cast<MulPlainOp>(defining))
+        source = mul.getCiphertext();
+      if (auto add = dyn_cast<AddOp>(defining)) source = add.getLhs();
+      if (auto addPlain = dyn_cast<AddPlainOp>(defining))
+        source = addPlain.getCiphertext();
+      if (auto rot = dyn_cast<RotOp>(defining)) source = rot.getCiphertext();
+      if (auto reduce = dyn_cast<ModReduceOp>(defining))
+        source = reduce.getCiphertext();
+      if (auto reduce = dyn_cast<LevelReduceOp>(defining))
+        source = reduce.getCiphertext();
+      if (source) {
+        auto input = elementsOf(source);
+        if (failed(input)) return failure();
+        elements = *input;
+      }
+    }
+    elementCounts[value] = elements;
+    return elements;
+  };
+
+  // Bind every evaluator outside the traced function. Large rotation keys and
+  // plaintexts are explicit dynamic arguments rather than XLA constants.
+  std::string cacheKey =
+      (Twine("_region_") + Twine(regionId) + "_cache_key").str();
+  os << cacheKey << " = (\"" << op->getParentOfType<func::FuncOp>().getName()
+     << "\", " << regionId << ", id(" << ctx << ")";
+  for (BlockArgument argument : body.getArguments()) {
+    if (isa<CryptoContextType, EvalKeyType>(argument.getType())) continue;
+    if (isa<lwe::LWECiphertextType>(argument.getType())) {
+      os << ", _compiled_ciphertext_fingerprint(" << ctx << ", "
+         << outerNames.lookup(argument) << ", "
+         << getCrossLevelExpr(argument, ctx, op, /*extraOffset=*/0) << ")";
+    } else {
+      os << ", _compiled_plaintext_fingerprint(" << outerNames.lookup(argument)
+         << ")";
+    }
+  }
+  os << ")\n";
+  os << "if " << cacheKey << " not in _compiled_region_cache:\n";
+  os.indent();
+
+  DenseMap<Operation*, std::string> evaluators;
+  DenseMap<Operation*, std::string> preparedPlaintexts;
+  SmallVector<std::string> runtimeArguments;
+  SmallVector<std::string> staticArgumentNames;
+  SmallVector<std::string> callArguments;
+  SmallVector<bool> staticCallArguments;
+  for (BlockArgument argument : body.getArguments()) {
+    if (isa<CryptoContextType, EvalKeyType>(argument.getType())) continue;
+    std::string raw = rawNames.lookup(argument);
+    if (isa<lwe::LWECiphertextType>(argument.getType())) {
+      runtimeArguments.push_back(raw);
+      callArguments.push_back(outerNames.lookup(argument) + ".polynomial");
+      staticCallArguments.push_back(false);
+      continue;
+    }
+    if (argument.use_empty()) {
+      return op.emitOpError("unused non-ciphertext compiled-region input");
+    }
+    for (Operation* user : argument.getUsers()) {
+      if (!isa<MulPlainOp, AddPlainOp>(user)) {
+        return op.emitOpError("plaintext region input has an unsupported user");
+      }
+      Value ciphertext = isa<MulPlainOp>(user)
+                             ? cast<MulPlainOp>(user).getCiphertext()
+                             : cast<AddPlainOp>(user).getCiphertext();
+      std::string level =
+          getCrossLevelExpr(ciphertext, ctx, user, /*extraOffset=*/0);
+      std::string prepared = (Twine("_region_") + Twine(regionId) +
+                              "_prepared_" + Twine(preparedPlaintexts.size()))
+                                 .str();
+      preparedPlaintexts[user] = prepared;
+      os << prepared << " = ";
+      if (isa<AddPlainOp>(user)) {
+        os << "_prepare_compiled_add_plain(" << ctx << ", "
+           << outerNames.lookup(argument) << ", " << level << ", "
+           << scaleOf(ciphertext) << ")\n";
+      } else {
+        os << "_prepare_compiled_plaintext(" << ctx << ", "
+           << outerNames.lookup(argument) << ", " << level << ")\n";
+      }
+      staticArgumentNames.push_back(prepared);
+      callArguments.push_back(prepared);
+      staticCallArguments.push_back(true);
+    }
+  }
+
+  unsigned operationIndex = 0;
+  for (Operation& operation : body.without_terminator()) {
+    std::string evaluator = (Twine("_region_") + Twine(regionId) +
+                             "_evaluator_" + Twine(operationIndex++))
+                                .str();
+    evaluators[&operation] = evaluator;
+    if (auto mul = dyn_cast<MulPlainOp>(operation)) {
+      os << evaluator << " = " << ctx << ".ptct_mul["
+         << getCrossLevelExpr(mul.getCiphertext(), ctx, mul,
+                              /*extraOffset=*/0)
+         << "]\n";
+    } else if (auto add = dyn_cast<AddOp>(operation)) {
+      os << "_compiled_validate_add(" << scaleOf(add.getLhs()) << ", "
+         << nsdOf(add.getLhs()) << ", " << scaleOf(add.getRhs()) << ", "
+         << nsdOf(add.getRhs()) << ")\n";
+      os << evaluator << " = " << ctx << ".he_add["
+         << getCrossLevelExpr(add.getLhs(), ctx, add, /*extraOffset=*/0)
+         << "]\n";
+    } else if (auto addPlain = dyn_cast<AddPlainOp>(operation)) {
+      os << evaluator << " = " << ctx << ".he_add["
+         << getCrossLevelExpr(addPlain.getCiphertext(), ctx, addPlain,
+                              /*extraOffset=*/0)
+         << "]\n";
+    } else if (auto rot = dyn_cast<RotOp>(operation)) {
+      os << evaluator << " = " << ctx << ".he_rot["
+         << getCrossLevelExpr(rot.getCiphertext(), ctx, rot,
+                              /*extraOffset=*/0)
+         << ", " << rot.getIndex() << "]\n";
+      for (unsigned i = 0; i < 3; ++i) {
+        std::string state = evaluator + "_state_" + std::to_string(i);
+        staticArgumentNames.push_back(state);
+        callArguments.push_back(evaluator + "._rotation_state()[" +
+                                std::to_string(i) + "]");
+        staticCallArguments.push_back(true);
+      }
+    } else if (isa<MulNoRelinOp, RelinOp, MulOp, SquareOp>(operation)) {
+      Value input = operation.getOperand(1);
+      os << evaluator << " = " << ctx << ".he_mul["
+         << getCrossLevelExpr(input, ctx, &operation, 1) << "]\n";
+    } else if (auto reduce = dyn_cast<ModReduceOp>(operation)) {
+      os << evaluator << " = " << ctx << ".he_rescale["
+         << getCrossLevelExpr(reduce.getCiphertext(), ctx, reduce,
+                              /*extraOffset=*/0)
+         << ", "
+         << getCrossLevelExpr(reduce.getResult(), ctx, reduce,
+                              /*extraOffset=*/0)
+         << "]\n";
+    } else if (auto reduce = dyn_cast<LevelReduceOp>(operation)) {
+      os << evaluator << " = " << ctx << ".he_level_reduce["
+         << getCrossLevelExpr(reduce.getCiphertext(), ctx, reduce,
+                              /*extraOffset=*/0)
+         << ", "
+         << getCrossLevelExpr(reduce.getResult(), ctx, reduce,
+                              /*extraOffset=*/0)
+         << "]\n";
+    }
+  }
+
+  std::string functionName =
+      (Twine("_compiled_region_") + Twine(regionId) + "_raw").str();
+  os << "def " << functionName << "(";
+  llvm::interleaveComma(runtimeArguments, os);
+  if (!runtimeArguments.empty()) os << ", ";
+  os << "_region_" << regionId << "_static_args_in";
+  os << "):\n";
+  os.indent();
+  for (auto [index, name] : llvm::enumerate(staticArgumentNames)) {
+    os << name << " = _region_" << regionId << "_static_args_in[" << index
+       << "]\n";
+  }
+  for (Operation& operation : body.without_terminator()) {
+    std::string result =
+        (Twine("_region_") + Twine(regionId) + "_value_" + Twine(nextValue++))
+            .str();
+    rawNames[operation.getResult(0)] = result;
+    std::string evaluator = evaluators.lookup(&operation);
+    if (auto mul = dyn_cast<MulPlainOp>(operation)) {
+      os << result << " = " << evaluator << "._mul_array("
+         << rawNames.lookup(mul.getCiphertext()) << ", "
+         << preparedPlaintexts.lookup(&operation) << ")\n";
+    } else if (auto add = dyn_cast<AddOp>(operation)) {
+      os << result << " = " << evaluator << "._add_array("
+         << rawNames.lookup(add.getLhs()) << ", "
+         << rawNames.lookup(add.getRhs()) << ")\n";
+    } else if (auto addPlain = dyn_cast<AddPlainOp>(operation)) {
+      os << result << " = " << evaluator << "._add_plain_array("
+         << rawNames.lookup(addPlain.getCiphertext()) << ", "
+         << preparedPlaintexts.lookup(&operation) << ")\n";
+    } else if (auto rot = dyn_cast<RotOp>(operation)) {
+      os << result << " = " << evaluator << "._rotate_array("
+         << rawNames.lookup(rot.getCiphertext());
+      for (unsigned i = 0; i < 3; ++i)
+        os << ", " << evaluator << "_state_" << i;
+      os << ")\n";
+    } else if (auto mul = dyn_cast<MulNoRelinOp>(operation)) {
+      os << result << " = " << evaluator
+         << "._hemul._hemul_no_relin_array(jnp.concatenate(("
+         << rawNames.lookup(mul.getLhs()) << ", "
+         << rawNames.lookup(mul.getRhs()) << "), axis=1))\n";
+    } else if (auto relin = dyn_cast<RelinOp>(operation)) {
+      os << result << " = " << evaluator << "._hemul._relinearize_array("
+         << rawNames.lookup(relin.getCiphertext()) << ")\n";
+    } else if (auto mul = dyn_cast<MulOp>(operation)) {
+      os << result << " = " << evaluator << "._mul_array("
+         << rawNames.lookup(mul.getLhs()) << ", "
+         << rawNames.lookup(mul.getRhs()) << ")\n";
+    } else if (auto square = dyn_cast<SquareOp>(operation)) {
+      os << result << " = " << evaluator << "._square_array("
+         << rawNames.lookup(square.getCiphertext()) << ")\n";
+    } else if (auto reduce = dyn_cast<ModReduceOp>(operation)) {
+      os << result << " = " << evaluator << "._rescale_array("
+         << rawNames.lookup(reduce.getCiphertext()) << ")\n";
+    } else if (auto reduce = dyn_cast<LevelReduceOp>(operation)) {
+      os << result << " = " << evaluator << "._level_reduce_array("
+         << rawNames.lookup(reduce.getCiphertext()) << ")\n";
+    }
+  }
+  os << "return (";
+  llvm::interleaveComma(yield.getValues(), os,
+                        [&](Value value) { os << rawNames.lookup(value); });
+  if (yield.getValues().size() == 1) os << ",";
+  os << ")\n";
+  os.unindent();
+
+  std::string jitDeviceArgument;
+  for (auto [argument, isStatic] :
+       llvm::zip(callArguments, staticCallArguments)) {
+    if (!isStatic) {
+      jitDeviceArgument = argument;
+      break;
+    }
+  }
+  if (jitDeviceArgument.empty()) {
+    return op.emitOpError("compiled region requires a runtime array input");
+  }
+  os << "_compiled_region_cache[" << cacheKey << "] = (jax.jit(" << functionName
+     << ", device=_compiled_array_device(" << jitDeviceArgument << ")).lower(";
+  bool emittedRuntime = false;
+  for (auto [argument, isStatic] :
+       llvm::zip(callArguments, staticCallArguments)) {
+    if (isStatic) continue;
+    if (emittedRuntime) os << ", ";
+    os << argument;
+    emittedRuntime = true;
+  }
+  if (emittedRuntime) os << ", ";
+  os << "(";
+  bool emittedStatic = false;
+  for (auto [argument, isStatic] :
+       llvm::zip(callArguments, staticCallArguments)) {
+    if (!isStatic) continue;
+    if (emittedStatic) os << ", ";
+    os << argument;
+    emittedStatic = true;
+  }
+  if (emittedStatic) os << ",";
+  os << ")).compile(), (";
+  emittedStatic = false;
+  for (auto [argument, isStatic] :
+       llvm::zip(callArguments, staticCallArguments)) {
+    if (!isStatic) continue;
+    if (emittedStatic) os << ", ";
+    os << argument;
+    emittedStatic = true;
+  }
+  if (emittedStatic) os << ",";
+  os << "), (";
+  for (auto [index, output] : llvm::enumerate(op.getOutputs())) {
+    Value yielded = yield.getValues()[index];
+    auto elements = elementsOf(yielded);
+    if (failed(elements)) {
+      return op.emitOpError(
+          "compiled region has incompatible ciphertext element counts");
+    }
+    if (index != 0) os << ", ";
+    os << "_prepare_compiled_output_template(" << ctx << ", "
+       << outerNames.lookup(templateInput) << ", "
+       << getCrossLevelExpr(output, ctx, op, /*extraOffset=*/0) << ", "
+       << *elements << ", " << scaleOf(yielded) << ", " << nsdOf(yielded)
+       << ")";
+  }
+  if (op.getOutputs().size() == 1) os << ",";
+  os << "))\n";
+  os.unindent();
+  os << "_region_" << regionId << "_compiled, _region_" << regionId
+     << "_static_args, _region_" << regionId
+     << "_output_templates = _compiled_region_cache[" << cacheKey << "]\n";
+  os << "if _compiled_prepare_only:\n";
+  os.indent();
+  os << "raise _CompiledPlanPrepared(" << cacheKey << ")\n";
+  os.unindent();
+  os << "_region_" << regionId << "_outputs = _region_" << regionId
+     << "_compiled(";
+  emittedRuntime = false;
+  for (auto [argument, isStatic] :
+       llvm::zip(callArguments, staticCallArguments)) {
+    if (isStatic) continue;
+    if (emittedRuntime) os << ", ";
+    os << argument;
+    emittedRuntime = true;
+  }
+  if (emittedRuntime) os << ", ";
+  os << "_region_" << regionId << "_static_args";
+  os << ")\n";
+
+  for (auto [index, output] : llvm::enumerate(op.getOutputs())) {
+    os << variableNames->getNameForValue(output) << " = _region_" << regionId
+       << "_output_templates[" << index << "]._clone_with_payload(_region_"
+       << regionId << "_outputs[" << index << "])\n";
+  }
   return success();
 }
 

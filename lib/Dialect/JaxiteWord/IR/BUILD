@@ -11,7 +11,10 @@ package(
 
 cc_library(
     name = "Dialect",
-    srcs = ["JaxiteWordDialect.cpp"],
+    srcs = [
+        "JaxiteWordDialect.cpp",
+        "JaxiteWordOps.cpp",
+    ],
     hdrs = [
         "JaxiteWordDialect.h",
         "JaxiteWordOps.h",
@@ -26,6 +29,16 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "LevelUtils",
+    srcs = ["LevelUtils.cpp"],
+    hdrs = ["LevelUtils.h"],
+    deps = [
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//mlir:IR",
     ],
 )
 

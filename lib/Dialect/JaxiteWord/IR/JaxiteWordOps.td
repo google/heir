@@ -139,18 +139,48 @@ def ProgramInitializationOp : JaxiteWord_Op<"program_initialization"> {
     JaxiteWord_PrivateKey:$secretKey,
     JaxiteWord_EvalKey:$evaluationKey,
     DenseI64ArrayAttr:$totalRotationIndices,
+    DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$rotationRequirementIndices,
+    DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$rotationLevelOffsets,
     I32Attr:$dnum,
     I32Attr:$r,
     I32Attr:$c,
     I32Attr:$batch
   );
+  let hasVerifier = 1;
+}
+
+def CompiledRegionYieldOp : JaxiteWord_Op<"compiled_region_yield", [
+    Pure, Terminator, HasParent<"CompiledRegionOp">
+  ]> {
+  let summary = "Yield raw-array region results";
+  let arguments = (ins Variadic<AnyType>:$values);
+  let assemblyFormat = "$values attr-dict `:` type($values)";
+}
+
+def CompiledRegionOp : JaxiteWord_Op<"compiled_region", [Pure, SingleBlock]> {
+  let summary = "A bounded encrypted region compiled as one JAX function";
+  let description = [{
+    Contains an unchanged sequence of JaxiteWord ciphertext operations whose
+    CROSS raw-array implementations may be traced and compiled together. The
+    operands are every SSA value defined outside the region, and the results
+    are every region value used outside it. The operation is opt-in and is
+    introduced only by `jaxiteword-outline-compiled-regions`.
+  }];
+  let arguments = (ins Variadic<AnyType>:$inputs, I64Attr:$regionId);
+  let results = (outs Variadic<AnyType>:$outputs);
+  let regions = (region AnyRegion:$body);
+  let assemblyFormat = [{
+    $inputs attr-dict `:` functional-type($inputs, $outputs) $body
+  }];
+  let hasVerifier = 1;
 }
 
 def EncodeOp : JaxiteWord_Op<"encode", [Pure, PlaintextEncodeOpInterface]> {
   let summary = "Encode a real tensor into a plaintext";
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,
-    AnyTypeOf<[AnyShaped, AnyFloat]>:$input
+    AnyTypeOf<[AnyShaped, AnyFloat]>:$input,
+    OptionalAttr<I64Attr>:$rescaleLevel
   );
   let results = (outs LWEPlaintext:$plaintext);
 }
@@ -232,6 +262,10 @@ def RelinOp : JaxiteWord_Op<"relin", [Pure]> {
 
 def ModReduceOp : JaxiteWord_UnaryTypeSwitchOp<"mod_reduce"> {
   let summary = "Rescale/modulus reduce a ciphertext (CKKS)";
+}
+
+def LevelReduceOp : JaxiteWord_UnaryTypeSwitchOp<"level_reduce"> {
+  let summary = "Drop ciphertext modulus limbs without changing CKKS scale";
 }
 
 def RotOp : JaxiteWord_Op<"rot", [Pure, AllTypesMatch<["ciphertext", "output"]>]> {
