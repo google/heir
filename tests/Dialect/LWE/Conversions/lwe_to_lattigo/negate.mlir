@@ -8,7 +8,7 @@
 #ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
 !rns_L1 = !rns.rns<!Z36028797018652673_i64, !Z35184372121601_i64>
 #ring_rns_L1_1_x1024 = #polynomial.ring<coefficientType = !rns_L1, polynomialModulus = <1 + x**1024>>
-#ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = mix>
+#ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = ckks>
 !ct_L1 = !lwe.lwe_ciphertext<encoding = #inverse_canonical_encoding, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
 // CHECK: func.func @negate(%[[ev:.*]]: !evaluator, {{.*}}, %[[ct:.*]]: !ct)

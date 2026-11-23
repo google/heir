@@ -269,9 +269,22 @@ def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
 def LWE_EncryptionTypeEnum : I32EnumAttr<"LweEncryptionType", "An enum attribute representing an encryption method", [
   I32EnumAttrCase<"msb", 0>,
   I32EnumAttrCase<"lsb", 1>,
-  I32EnumAttrCase<"mix", 2>
+  I32EnumAttrCase<"ckks", 2>
 ]> {
     let cppNamespace = "::mlir::heir::lwe";
+    let description = [{
+      Describes how the (already encoded) plaintext polynomial `m` and the
+      encryption noise `e` are combined in a ciphertext, i.e., what
+      `c_0 + c_1 * s` decrypts to:
+
+      - `lsb` (BGV): `m + t * e`, the message is in the least significant
+        bits and the noise is scaled by the plaintext modulus `t`.
+      - `msb` (BFV): `floor(Q/t) * m + e`, the message is scaled to the most
+        significant bits at encryption time and the noise is unscaled.
+      - `ckks` (CKKS): `m + e`, neither is scaled at encryption time. The
+        message is scaled by the CKKS scaling factor during encoding, so the
+        noise sits in the least significant bits below it.
+    }];
 }
 
 def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace", [OpAsmAttrInterface]> {
@@ -318,8 +331,8 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace", [OpAsmAttr
       "The ring that the ciphertext elements belong to; its coefficient type "
       "describes the semantics of the ciphertext coefficients.">:$ring,
     AttrParameter<"::mlir::heir::lwe::LweEncryptionType",
-      "Describes how the plaintext data is encoded into the ciphertext (in the "
-      "MSB, LSB, or mixed).">:$encryption_type,
+      "Describes how the plaintext data is encoded into the ciphertext (see "
+      "`LweEncryptionType`).">:$encryption_type,
     DefaultValuedParameter<"unsigned", "2",
       "The number of polynomials comprising the ciphertext. This is typically 2 "
       "for RLWE ciphertexts that are made up of an $(a, b)$ pair and greater "
