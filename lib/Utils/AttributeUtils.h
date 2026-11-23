@@ -3,6 +3,8 @@
 
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
@@ -56,6 +58,17 @@ void copyDialectAttributes(Value from, Value to);
 // directly without wrapping them in array attrs
 void convertArrayOfDicts(ArrayAttr arrayOfDicts,
                          SmallVector<NamedAttribute>& result);
+
+/// Returns the attribute of type AttrT with a given name from the nearest
+/// enclosing ModuleOp, or null if there is no enclosing ModuleOp or the
+/// attribute is not found / has a different type.
+template <typename AttrT>
+AttrT getAttrFromEnclosingModule(Operation* op, StringRef name) {
+  if (!op) return nullptr;
+  auto mod = op->getParentOfType<ModuleOp>();
+  if (!mod) return nullptr;
+  return mod->getAttrOfType<AttrT>(name);
+}
 
 }  // namespace heir
 }  // namespace mlir
