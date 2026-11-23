@@ -67,7 +67,7 @@ void annotateMgmtAttr(Operation* top) {
   // Function declarations have no values and must be handled manually
   top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
     if (!funcOp.isExternal()) return;
-    for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
+    for (unsigned i = 0; i != funcOp.getNumArguments(); ++i) {
       auto argumentTy = funcOp.getFunctionType().getInput(i);
       if (isa<secret::SecretType>(argumentTy)) {
         funcOp.setArgAttr(i, MgmtDialect::kArgMgmtAttrName,

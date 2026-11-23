@@ -74,7 +74,7 @@ void interpolateChebyshev(ArrayRef<APFloat> chebEvalPoints,
                  chebEvalPoints.rbegin());
 
   bool isOdd = true;
-  for (int i = 0; i < n / 2; ++i) {
+  for (size_t i = 0; i < n / 2; ++i) {
     if (chebEvalPoints[i] != -chebEvalPoints[(n - 1) - i]) {
       isOdd = false;
       break;
@@ -122,7 +122,7 @@ void interpolateChebyshev(ArrayRef<APFloat> chebEvalPoints,
   // Due to the endpoint behavior of Chebyshev polynomials and the properties
   // of the DCT, the non-endpoint coefficients of the DCT are the Chebyshev
   // coefficients scaled by 2.
-  for (int i = 1; i < n - 1; ++i) {
+  for (size_t i = 1; i < n - 1; ++i) {
     outputChebCoeffs[i] = outputChebCoeffs[i] * APFloat(2.0);
   }
 
@@ -182,7 +182,7 @@ size_t standardChop(SmallVector<APFloat> coeffs, double tol) {
   if (envelope[0].isZero()) return 1;
 
   // Normalize the envelope.
-  for (int i = 0; i < envelope.size(); ++i) {
+  for (size_t i = 0; i < envelope.size(); ++i) {
     envelope[i] = envelope[i] / envelope[0];
   }
 
@@ -298,10 +298,10 @@ void interpolateChebyshevWithSmartDegreeSelection(
     interpolateChebyshev(chebEvalPts, chebCoeffs);
 
     size_t cutoff = standardChop(chebCoeffs, tolerance);
-    if (cutoff < deg) {
+    if (cutoff < static_cast<size_t>(deg)) {
       outputChebCoeffs.reserve(cutoff);
       // Copy the coefficients up to the cutoff point.
-      for (int i = 0; i < cutoff; ++i) {
+      for (size_t i = 0; i < cutoff; ++i) {
         outputChebCoeffs.push_back(chebCoeffs[i]);
       }
       return;

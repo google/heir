@@ -4,6 +4,7 @@
 #include <mlir/IR/AffineMap.h>
 
 #include <cassert>
+#include <cstddef>
 #include <utility>
 
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
@@ -57,7 +58,7 @@ struct GenericToReduce : public OpRewritePattern<mlir::linalg::GenericOp> {
 
     // make sure we need to reduce and collect dimensions
     mlir::SmallVector<int64_t> dimensions = {};
-    for (int i = 0; i < genericOp.getIteratorTypesArray().size(); i++) {
+    for (size_t i = 0; i < genericOp.getIteratorTypesArray().size(); i++) {
       auto itType = genericOp.getIteratorTypesArray()[i];
       if (itType == utils::IteratorType::reduction) {
         dimensions.push_back(i);
@@ -77,7 +78,7 @@ struct GenericToReduce : public OpRewritePattern<mlir::linalg::GenericOp> {
     }
 
     // check all affine maps
-    for (int i = 0; i < genericOp.getIndexingMaps().size(); i++) {
+    for (size_t i = 0; i < genericOp.getIndexingMaps().size(); i++) {
       if (i < genericOp.getInputs().size()) {  // input maps
         if (!llvm::cast<AffineMapAttr>(genericOp.getIndexingMaps()[i])
                  .getAffineMap()

@@ -281,19 +281,19 @@ void clearAttrs(Operation* op, StringRef attrName) {
   op->walk([&](Operation* op) {
     llvm::TypeSwitch<Operation*>(op)
         .Case<FunctionOpInterface>([&](auto op) {
-          for (auto i = 0; i != op.getNumArguments(); ++i) {
+          for (unsigned i = 0; i != op.getNumArguments(); ++i) {
             op.removeArgAttr(i, attrName);
           }
-          for (auto i = 0; i != op.getNumResults(); ++i) {
+          for (unsigned i = 0; i != op.getNumResults(); ++i) {
             op.removeResultAttr(i, StringAttr::get(op->getContext(), attrName));
           }
           op->removeAttr(attrName);
         })
         .Case<OperandAndResultAttrInterface>([&](auto op) {
-          for (auto i = 0; i != op->getNumOperands(); ++i) {
+          for (unsigned i = 0; i != op->getNumOperands(); ++i) {
             op.removeOperandAttr(i, attrName);
           }
-          for (auto i = 0; i != op->getNumResults(); ++i) {
+          for (unsigned i = 0; i != op->getNumResults(); ++i) {
             op.removeResultAttr(i, attrName);
           }
           op->removeAttr(attrName);

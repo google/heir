@@ -54,10 +54,10 @@ struct GatheredFuncInfo {
   // A list of zero args discovered
   SmallVector<ZeroArgInfo> zeroArgs;
 
-  int minZeroArgIndex() const {
+  unsigned minZeroArgIndex() const {
     return *llvm::min_element(llvm::map_range(
         zeroArgs,
-        [](const ZeroArgInfo& z) -> int { return z.originalArgNum; }));
+        [](const ZeroArgInfo& z) -> unsigned { return z.originalArgNum; }));
   }
 };
 
@@ -114,7 +114,7 @@ struct GatherZeroEncryptions
 
   // Update the function type for the merged function
   void updateFunctionType(func::FuncOp func, MemRefType memrefType,
-                          int newArgIndex) {
+                          unsigned newArgIndex) {
     SmallVector<Type> newArgTypes;
     SmallVector<DictionaryAttr> newArgAttrs;
     auto* ctx = func.getContext();
@@ -171,7 +171,7 @@ struct GatherZeroEncryptions
     int64_t n = info.zeroArgs.size();
     Type ctTy = info.zeroArgs[0].arg.getType();
     MemRefType memrefType = MemRefType::get({n}, ctTy);
-    int firstZeroArgIdx = info.minZeroArgIndex();
+    unsigned firstZeroArgIdx = info.minZeroArgIndex();
 
     updateFunctionType(func, memrefType,
                        /*newArgIndex=*/firstZeroArgIdx);
@@ -220,7 +220,7 @@ struct GatherZeroEncryptions
 
     OpBuilder builder(callOp);
     SmallVector<Value> newOperands;
-    int firstZeroArgIdx = calleeInfo.minZeroArgIndex();
+    unsigned firstZeroArgIdx = calleeInfo.minZeroArgIndex();
     for (unsigned i = 0; i < callOp.getNumOperands(); ++i) {
       bool isZeroArg = llvm::any_of(
           calleeInfo.zeroArgs,

@@ -51,7 +51,7 @@ void forwardPropagateAnnotation(Operation* root, StringRef attrName,
 
       // An op like `return %0, %1` propagates multiple attributes forward to
       // the parent's multiple result attrs.
-      for (int i = 0; i < op->getNumOperands(); ++i) {
+      for (unsigned i = 0; i < op->getNumOperands(); ++i) {
         auto operand = op->getOperand(i);
         FailureOr<Attribute> attr =
             findAttributeAssociatedWith(operand, attrName);
@@ -166,7 +166,7 @@ void backwardPropagateAnnotation(Operation* root, StringRef attrName,
 
       // An op like `return %0, %1` can inherit multiple attributes from the
       // parent's multiple result attrs.
-      for (int i = 0; i < op->getNumOperands(); ++i) {
+      for (unsigned i = 0; i < op->getNumOperands(); ++i) {
         Attribute attr =
             llvm::TypeSwitch<Operation*, Attribute>(parentOp)
                 .Case<FunctionOpInterface, OperandAndResultAttrInterface>(

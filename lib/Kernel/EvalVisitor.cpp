@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -28,10 +29,10 @@ EvalResults EvalVisitor::operator()(const LeafNode<LiteralValue>& node) {
   const auto* vecVal = std::get_if<std::vector<int>>(&nodeVal);
   const auto* matVal = std::get_if<std::vector<std::vector<int>>>(&nodeVal);
   if (vecVal) {
-    assert(vecVal->size() == node.value.getShape()[0]);
+    assert(std::cmp_equal(vecVal->size(), node.value.getShape()[0]));
   }
   if (matVal) {
-    assert(matVal->size() == node.value.getShape()[0]);
+    assert(std::cmp_equal(matVal->size(), node.value.getShape()[0]));
   }
 
   return {node.value.get()};
@@ -61,7 +62,7 @@ EvalResults EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
   if (lVec && rVec) {
     assert(left.getShape() == right.getShape() && "disagreeing shapes");
     std::vector<int> result(dim);
-    for (size_t i = 0; i < dim; ++i) {
+    for (int64_t i = 0; i < dim; ++i) {
       result[i] = (*lVec)[i] + (*rVec)[i];
     }
     return {result};
@@ -92,7 +93,7 @@ EvalResults EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
   if (lVec && rVec) {
     assert(left.getShape() == right.getShape() && "disagreeing shapes");
     std::vector<int> result(dim);
-    for (size_t i = 0; i < dim; ++i) {
+    for (int64_t i = 0; i < dim; ++i) {
       result[i] = (*lVec)[i] - (*rVec)[i];
     }
     return {result};
@@ -124,7 +125,7 @@ EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
     LDBG() << "rVec shape: " << rVec->size();
     assert(left.getShape() == right.getShape() && "disagreeing shapes");
     std::vector<int> result(dim);
-    for (size_t i = 0; i < dim; ++i) {
+    for (int64_t i = 0; i < dim; ++i) {
       result[i] = (*lVec)[i] * (*rVec)[i];
     }
     return {result};
@@ -148,7 +149,7 @@ EvalResults EvalVisitor::operator()(const FloorDivNode<LiteralValue>& node) {
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   assert(lVec && "unsupported floorDiv operands");
   std::vector<int> result(dim);
-  for (size_t i = 0; i < dim; ++i) {
+  for (int64_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] / node.divisor;
   }
   return {result};
@@ -166,7 +167,7 @@ EvalResults EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   const auto& oVal = operand.get();
   if (const auto* oVec = std::get_if<std::vector<int>>(&oVal)) {
     std::vector<int> result(dim);
-    for (size_t i = 0; i < dim; ++i) {
+    for (int64_t i = 0; i < dim; ++i) {
       result[i] = (*oVec)[(i + amount) % oVec->size()];
     }
     return {result};

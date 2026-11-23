@@ -1,6 +1,7 @@
 #include "lib/Dialect/Cheddar/IR/CheddarOps.h"
 
 #include <algorithm>
+#include <cstddef>
 
 #include "lib/Dialect/Cheddar/IR/CheddarTypes.h"
 #include "lib/Utils/RotationUtils.h"
@@ -46,8 +47,9 @@ LogicalResult LinearTransformOp::verify() {
   if (diagonalsType.getRank() != 2) {
     return emitOpError("diagonals must be a 2D tensor or memref");
   }
-  if (diagonalsType.getShape()[0] !=
-      getDiagonalIndicesAttr().asArrayRef().size()) {
+  if (diagonalsType.getShape()[0] < 0 ||
+      static_cast<size_t>(diagonalsType.getShape()[0]) !=
+          getDiagonalIndicesAttr().asArrayRef().size()) {
     return emitOpError(
         "number of diagonals must match number of diagonal indices");
   }

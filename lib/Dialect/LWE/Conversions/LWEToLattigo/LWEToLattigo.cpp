@@ -229,7 +229,7 @@ struct RemoveKeyArg : public OpRewritePattern<func::FuncOp> {
                                 PatternRewriter& rewriter) const override {
     ::llvm::BitVector argsToErase(op.getNumArguments());
 
-    for (auto i = 0; i != op.getNumArguments(); ++i) {
+    for (unsigned i = 0; i != op.getNumArguments(); ++i) {
       if (mlir::isa<KeyType>(op.getArgumentTypes()[i])) {
         argsToErase.set(i);
       }

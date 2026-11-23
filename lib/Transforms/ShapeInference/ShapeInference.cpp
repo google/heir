@@ -2,6 +2,9 @@
 
 #include <llvm/Support/Debug.h>
 
+#include <cstddef>
+#include <utility>
+
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -31,7 +34,7 @@ FailureOr<SmallVector<int64_t>> getShapeFromArrayAttr(ArrayAttr shapeAttr,
                        "only IntegerAttr)");
   }
 
-  if (shape.size() != shapedType.getRank())
+  if (std::cmp_not_equal(shape.size(), shapedType.getRank()))
     return emitError(
         loc, llvm::formatv("Shape annotation has wrong number of elements "
                            "(expected {0}, got {1}).",
@@ -405,10 +408,10 @@ struct InferShape : public OpRewritePattern<func::FuncOp> {
     // Also remove the attribute argument from the signature
     // (primarily for better readability of the IR after shape inference).
     // N.B.: these fail gracefully/silently if there's no such attribute
-    for (int i = 0; i < inferredInputTypes.size(); ++i) {
+    for (size_t i = 0; i < inferredInputTypes.size(); ++i) {
       funcOp.removeArgAttr(i, "shape.shape");
     }
-    for (int i = 0; i < inferredReturnTypes.size(); ++i) {
+    for (size_t i = 0; i < inferredReturnTypes.size(); ++i) {
       funcOp.removeResultAttr(i, "shape.shape");
     }
 

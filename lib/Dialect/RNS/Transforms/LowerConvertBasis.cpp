@@ -139,7 +139,7 @@ struct LowerConvertBasisOp : public OpRewritePattern<ConvertBasisOp> {
 
     SmallVector<Value> outputLimbs;
     outputLimbs.reserve(targetBasisTypes.size());
-    for (int i = 0; i < targetBasisTypes.size(); i++) {
+    for (size_t i = 0; i < targetBasisTypes.size(); i++) {
       mod_arith::ModArithType targetLimbTy = maTargetBasisTys[i];
       APInt targetModulusValue = targetLimbTy.getModulus().getValue();
       // This short-circuit optimization may not be optimal on all backends;

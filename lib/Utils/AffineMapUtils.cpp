@@ -51,7 +51,8 @@ LogicalResult makeExplicit1DMapping(AffineMap map, unsigned rank,
 bool isPermutation(ArrayRef<int64_t> materializedMapping) {
   DenseSet<int64_t> seen;
   for (int64_t i : materializedMapping) {
-    if (i < 0 || i >= materializedMapping.size()) return false;
+    if (i < 0 || static_cast<size_t>(i) >= materializedMapping.size())
+      return false;
     if (!seen.insert(i).second) return false;
   }
   return true;

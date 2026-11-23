@@ -1,6 +1,7 @@
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -567,14 +568,14 @@ struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
       auto intConst = getInteger(&b, integerType);
       auto bigModulusConst = intConst(bigModulus);
       Value sum = intConst(APInt::getZero(width));
-      for (int64_t i = 0; i < inputRNS.getBasisTypes().size(); i++) {
+      for (size_t i = 0; i < inputRNS.getBasisTypes().size(); i++) {
         auto modArithType = cast<ModArithType>(inputRNS.getBasisTypes()[i]);
         auto modulus = modArithType.getModulus().getValue();
         modulus = modulus.zext(width);
         auto tmp = bigModulus.udiv(modulus);
         auto coeffConst =
             intConst(tmp * multiplicativeInverse(tmp.urem(modulus), modulus));
-        auto index = arith::ConstantIndexOp::create(b, i);
+        auto index = arith::ConstantIndexOp::create(b, static_cast<int64_t>(i));
         auto extract =
             tensor::ExtractOp::create(b, adaptor.getInput(), ValueRange{index});
         auto extui = arith::ExtUIOp::create(b, integerType, extract);

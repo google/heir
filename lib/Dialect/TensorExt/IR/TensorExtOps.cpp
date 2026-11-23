@@ -1,7 +1,9 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Utils/RotationUtils.h"
@@ -40,7 +42,7 @@ template <typename T>
 static SmallVector<T> rotateAttrValues(SmallVector<T> elts, int64_t shift) {
   SmallVector<T> newElts;
   newElts.reserve(elts.size());
-  for (int i = 0; i < elts.size(); ++i) {
+  for (size_t i = 0; i < elts.size(); ++i) {
     int64_t source = (i + shift + elts.size()) % elts.size();
     newElts.push_back(elts[source]);
   }
@@ -376,7 +378,7 @@ LogicalResult RotateAndReduceOp::verify() {
     }
   }
   // Final dimension is the number of slots
-  if (numSteps > x.getDimSize(x.getRank() - 1)) {
+  if (std::cmp_greater(numSteps, x.getDimSize(x.getRank() - 1))) {
     return emitOpError()
            << "requires steps to be less than or equal "
               "to the input tensor's dimension, but found reductions="
@@ -386,7 +388,7 @@ LogicalResult RotateAndReduceOp::verify() {
 
   if (getPlaintexts()) {
     auto numPlaintexts = getPlaintexts().getType().getDimSize(0);
-    if (numPlaintexts != numSteps) {
+    if (std::cmp_not_equal(numPlaintexts, numSteps)) {
       return emitOpError()
              << "requires plaintext tensor to have the same number of "
                 "elements as steps, but found numPlaintexts="
@@ -395,7 +397,7 @@ LogicalResult RotateAndReduceOp::verify() {
   }
 
   auto period = getPeriod().getZExtValue();
-  if (period <= 0 || period > x.getNumElements()) {
+  if (period <= 0 || std::cmp_greater(period, x.getNumElements())) {
     return emitOpError() << "requires period to be within the range of the "
                             "tensor, but found period "
                          << period << " and tensor with " << x.getNumElements()

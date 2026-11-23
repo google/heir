@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <ios>
 #include <memory>
@@ -325,7 +326,7 @@ class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
     for (const auto& init : node.inits) {
       results.push_back(this->process(init)[0]);
     }
-    for (size_t i = node.lower; i < node.upper; i += node.step) {
+    for (int64_t i = node.lower; i < node.upper; i += node.step) {
       // Set the induction variable value
       auto& inductionVarNode =
           std::get<VariableNode<double>>(node.inductionVar->node_variant);

@@ -1,9 +1,11 @@
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <utility>
 
 #include "Eigen/Core"         // from @eigen
 #include "Eigen/Dense"        // from @eigen
@@ -30,7 +32,8 @@ ChebyshevPolynomial caratheodoryFejerApproximationUnitInterval(
   SmallVector<APFloat> chebCoeffs;
   interpolateChebyshevWithSmartDegreeSelection(func, chebCoeffs);
   size_t chebDegree = chebCoeffs.size() - 1;
-  if (chebDegree <= degree) return ChebyshevPolynomial(chebCoeffs);
+  if (std::cmp_less_equal(chebDegree, degree))
+    return ChebyshevPolynomial(chebCoeffs);
   for (const auto& c : chebCoeffs) {
     if (!c.isFinite()) return ChebyshevPolynomial(chebCoeffs);
   }
@@ -89,8 +92,8 @@ ChebyshevPolynomial caratheodoryFejerApproximationUnitInterval(
     SmallVector<APFloat> sliceB(b.begin(), b.begin() + t);
 
     APFloat sum = APFloat(0.0);
-    for (int32_t j = 0; j < sliceB.size(); ++j) {
-      double vvVal = vv(j);
+    for (size_t j = 0; j < sliceB.size(); ++j) {
+      double vvVal = vv(static_cast<Eigen::Index>(j));
       sum = sum + sliceB[j] * APFloat(vvVal);
     }
 
@@ -102,13 +105,13 @@ ChebyshevPolynomial caratheodoryFejerApproximationUnitInterval(
   }
 
   SmallVector<APFloat> bb(b.begin() + degree, b.begin() + (2 * degree + 1));
-  for (int32_t i = 1; i < bb.size(); ++i) {
+  for (int32_t i = 1; std::cmp_less(i, bb.size()); ++i) {
     bb[i] = bb[i] + b[degree - 1 - (i - 1)];
   }
 
   SmallVector<APFloat> pk;
   pk.reserve(bb.size());
-  for (int32_t i = 0; i < bb.size(); ++i) {
+  for (size_t i = 0; i < bb.size(); ++i) {
     pk.push_back(chebCoeffs[i] - bb[i]);
   }
 

@@ -572,19 +572,19 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
     }
 
     if (auto arrayAttr = dyn_cast<ArrayAttr>(op.getValue())) {
-      auto maxBitWidhtArray = 0;
+      unsigned maxBitWidthArray = 0;
 
       for (auto attr : arrayAttr.getValue()) {
         if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
           auto bitWidth = intAttr.getValue().getBitWidth();
-          if (bitWidth > maxBitWidhtArray) {
-            maxBitWidhtArray = bitWidth;
+          if (bitWidth > maxBitWidthArray) {
+            maxBitWidthArray = bitWidth;
           }
         }
       }
 
       auto outputElementType =
-          encryptedUIntTypeFromWidth(getContext(), maxBitWidhtArray);
+          encryptedUIntTypeFromWidth(getContext(), maxBitWidthArray);
 
       auto rankedTensorTy =
           dyn_cast<RankedTensorType>(op.getResult().getType());

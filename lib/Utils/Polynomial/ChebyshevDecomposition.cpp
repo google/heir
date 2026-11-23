@@ -1,5 +1,6 @@
 #include "lib/Utils/Polynomial/ChebyshevDecomposition.h"
 
+#include <cstddef>
 #include <cstdlib>
 #include <utility>
 
@@ -13,7 +14,7 @@ namespace {
 // p = q*T_k + r.
 std::pair<ChebyshevBasisPolynomial, ChebyshevBasisPolynomial> dividePolynomials(
     ChebyshevBasisPolynomial p, int k) {
-  if (k >= p.size()) {
+  if (k < 0 || static_cast<size_t>(k) >= p.size()) {
     return {{}, p};
   }
   ChebyshevBasisPolynomial q(p.size() - k, 0.0);

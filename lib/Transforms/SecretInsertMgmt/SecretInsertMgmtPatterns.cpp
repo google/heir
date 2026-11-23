@@ -1,6 +1,7 @@
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
@@ -318,7 +319,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
 
   // for one operand being mulResult and another not,
   // we should match their scale by adding one adjust scale op
-  for (auto i = 0; i < secretOperands.size(); i++) {
+  for (size_t i = 0; i < secretOperands.size(); i++) {
     auto* operand = secretOperands[i];
     auto mulDepth = mulDepths[i];
     if (!mulDepth) {

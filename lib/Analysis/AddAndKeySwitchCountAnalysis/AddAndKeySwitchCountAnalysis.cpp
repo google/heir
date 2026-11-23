@@ -148,7 +148,7 @@ void annotateCount(Operation* top, DataFlowSolver* solver) {
   };
 
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-    for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
+    for (unsigned i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
       auto blockArg = genericOp.getBody()->getArgument(i);
       [[maybe_unused]] auto [addCount, keySwitchCount] = getCount(blockArg);
       // only annotate each Value when debugging

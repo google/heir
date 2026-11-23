@@ -811,7 +811,7 @@ LogicalResult JaxiteWordEmitter::printOperation(tensor::InsertSliceOp op) {
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(scf::ForOp op) {
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+  for (unsigned i = 0; i < op.getNumRegionIterArgs(); ++i) {
     Value result = op.getResults()[i];
     Value operand = op.getInitArgs()[i];
     Value iterArg = op.getRegionIterArgs()[i];
@@ -867,7 +867,7 @@ LogicalResult JaxiteWordEmitter::printOperation(scf::ForOp op) {
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(scf::IfOp op) {
-  for (auto i = 0; i < op.getNumResults(); ++i) {
+  for (unsigned i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
     Value thenYielded = op.thenYield().getResults()[i];
     Value elseYielded = op.elseYield().getResults()[i];
@@ -911,7 +911,7 @@ LogicalResult JaxiteWordEmitter::printOperation(scf::IfOp op) {
 
 LogicalResult JaxiteWordEmitter::printOperation(scf::YieldOp op) {
   if (auto ifOp = dyn_cast<scf::IfOp>(op->getParentOp())) {
-    for (auto i = 0; i < op.getNumOperands(); ++i) {
+    for (unsigned i = 0; i < op.getNumOperands(); ++i) {
       Value operand = op.getOperands()[i];
       Value result = ifOp.getResults()[i];
       if (!isa<ShapedType>(result.getType())) {

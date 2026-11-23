@@ -41,7 +41,7 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
   int64_t numLimbs = rnsTy.getBasisTypes().size();
   // qInvProds is the partial products of all moduli: q0, q0*q1, q0*q1*q2, ...,
   // excluding the product of all the moduli, hence numLimbs-1.
-  if (qInvProds.size() != numLimbs - 1) {
+  if (numLimbs < 1 || qInvProds.size() != static_cast<size_t>(numLimbs - 1)) {
     emitError(b.getLoc()) << "expected " << numLimbs - 1
                           << " qInvProds for an RNS basis with " << numLimbs
                           << " limbs, got " << qInvProds.size();

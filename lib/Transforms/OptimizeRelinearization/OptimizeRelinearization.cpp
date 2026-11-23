@@ -91,7 +91,7 @@ struct OptimizeRelinearization
       // inherit mulDepth information from existing mgmt attr.
       mgmt::MgmtAttr mgmtAttr = nullptr;
       getOperation()->walk([&](secret::GenericOp op) {
-        for (auto i = 0; i != op->getBlock()->getNumArguments(); ++i) {
+        for (unsigned i = 0; i != op->getBlock()->getNumArguments(); ++i) {
           if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(op.getOperandAttr(
                    i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
             break;

@@ -381,7 +381,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
     return emitError(op.getLoc(), "Only constant bounds are supported");
   }
 
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+  for (unsigned i = 0; i < op.getNumRegionIterArgs(); ++i) {
     // Assign the loop's results to use as initial iter args. We must use
     // non-const types so that the loop body can modify them.
     Value result = op.getResults()[i];
@@ -437,7 +437,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
   // necessary in such cases as the iter_arg being the result of inserting
   // a value into an empty tensor (defined outside the loop) which is then
   // passed as an iter_arg.
-  for (auto i = 0; i < op.getNumOperands(); ++i) {
+  for (unsigned i = 0; i < op.getNumOperands(); ++i) {
     affine::AffineForOp loop = op->getParentOfType<affine::AffineForOp>();
     Value operand = op->getOperand(i);
     Value iterArg = loop.getRegionIterArgs()[i];
@@ -462,7 +462,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(cf::AssertOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
-  for (auto i = 0; i < op.getNumResults(); ++i) {
+  for (unsigned i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
     if (!isa<ShapedType>(result.getType())) {
       if (failed(emitType(result.getType(), op.getLoc(),
@@ -500,7 +500,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
 
   // Map ShapedType results at the end, after they have been translated and got
   // their final names
-  for (auto i = 0; i < op.getNumResults(); ++i) {
+  for (unsigned i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
     if (isa<ShapedType>(result.getType())) {
       Value thenYieldedValue = op.thenYield().getOperands()[i];
@@ -514,7 +514,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+  for (unsigned i = 0; i < op.getNumRegionIterArgs(); ++i) {
     // Assign the loop's results to use as initial iter args. We must use
     // non-const types so that the loop body can modify them.
     Value result = op.getResults()[i];
@@ -625,7 +625,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::InParallelOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(scf::YieldOp op) {
   // Assume all yielded loop values have already been assigned.
   if (auto ifOp = dyn_cast<scf::IfOp>(op->getParentOp())) {
-    for (auto i = 0; i < op.getNumOperands(); ++i) {
+    for (unsigned i = 0; i < op.getNumOperands(); ++i) {
       Value operand = op.getOperands()[i];
       Value result = ifOp.getResults()[i];
       if (!isa<ShapedType>(result.getType())) {
@@ -1570,7 +1570,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   // Loop nest to copy the right values
   SmallVector<std::string> sourceIndexNames;
   SmallVector<std::string> destIndexNames;
-  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
+  for (size_t nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
     std::string sourceIndexName = sourceName + "_" + std::to_string(nestLevel);
     std::string destIndexName = destName + "_" + std::to_string(nestLevel);
     sourceIndexNames.push_back(sourceIndexName);

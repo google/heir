@@ -280,7 +280,7 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
       if (auto branchOp = dyn_cast<RegionBranchOpInterface>(op)) {
         mlir::RegionBranchInverseSuccessorMapping inverseMapping;
         branchOp.getSuccessorInputOperandMapping(inverseMapping);
-        for (int i = 0; i < branchOp->getNumResults(); ++i) {
+        for (unsigned i = 0; i < branchOp->getNumResults(); ++i) {
           Value result = branchOp->getResult(i);
           if (!isSecret(result, &solver)) continue;
 

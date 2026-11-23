@@ -595,7 +595,7 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
   std::vector<std::string> currentLayer;
   currentLayer.reserve(op.getNumOperands());
 
-  for (int i = 0; i < op.getNumOperands(); i++) {
+  for (unsigned i = 0; i < op.getNumOperands(); i++) {
     std::string val;
     if (isLevelledOp(op.getOperand(i).getDefiningOp()) && useLevels) {
       val = llvm::formatv("temp_nodes[&{0}].clone()",

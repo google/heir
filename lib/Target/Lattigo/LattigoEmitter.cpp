@@ -511,7 +511,7 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
     return emitError(op.getLoc(), "Only constant bounds are supported");
   }
 
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+  for (unsigned i = 0; i < op.getNumRegionIterArgs(); ++i) {
     Value result = op.getResults()[i];
     Value init = op.getOperands()[i];
     Value iterArg = op.getRegionIterArgs()[i];
@@ -542,7 +542,7 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
   os << "}\n";
 
   // Finally, forward the iter_arg to the op results.
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+  for (unsigned i = 0; i < op.getNumRegionIterArgs(); ++i) {
     Value opResult = op.getResult(i);
     Value iterArg = op.getRegionIterArgs()[i];
     std::string resultName = getName(opResult);
@@ -556,7 +556,7 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(affine::AffineIfOp op) {
-  for (auto i = 0; i < op.getNumResults(); ++i) {
+  for (unsigned i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
     declareVariable(result, op.getLoc());
   }
@@ -649,7 +649,7 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineYieldOp op) {
     return failure();
   }
 
-  for (int i = 0; i < op.getNumOperands(); ++i) {
+  for (unsigned i = 0; i < op.getNumOperands(); ++i) {
     Value dest = destValues.value()[i];
     Value yieldedValue = op.getOperand(i);
     os << getName(dest) << " = " << getName(yieldedValue) << "\n";
@@ -1177,7 +1177,7 @@ LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
   // } else {
   //   result = blah
   // }
-  for (auto i = 0; i < op.getNumResults(); ++i) {
+  for (unsigned i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
     declareVariable(result, op.getLoc());
   }
@@ -1210,7 +1210,7 @@ LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+  for (unsigned i = 0; i < op.getNumRegionIterArgs(); ++i) {
     Value result = op.getResults()[i];
     Value init = op.getInitArgs()[i];
     Value iterArg = op.getRegionIterArgs()[i];
@@ -1246,7 +1246,7 @@ LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
   os << "}\n";
 
   // Finally, forward the iter_arg to the op results.
-  for (int i = 0; i < op.getNumResults(); ++i) {
+  for (unsigned i = 0; i < op.getNumResults(); ++i) {
     Value opResult = op.getResult(i);
     Value iterArg = op.getRegionIterArg(i);
     std::string resultName = getName(opResult);
@@ -1276,7 +1276,7 @@ LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
           .Case<scf::IfOp>([&](auto ifOp) { return ifOp.getResults(); })
           .Default([&](auto op) { return ValueRange{}; }));
 
-  for (int i = 0; i < op.getNumOperands(); ++i) {
+  for (unsigned i = 0; i < op.getNumOperands(); ++i) {
     Value dest = destValues[i];
     Value yieldedValue = op.getOperand(i);
     os << getName(dest) << " = " << getName(yieldedValue) << "\n";
@@ -1472,7 +1472,7 @@ LogicalResult LattigoEmitter::printOperation(memref::SubViewOp op) {
       contiguous = true;
     } else {
       contiguous = true;
-      for (size_t i = 1; i < srcType.getRank(); ++i) {
+      for (int64_t i = 1; i < srcType.getRank(); ++i) {
         auto size = getConstantIntValue(sizes[i]);
         if (!size || *size != srcType.getShape()[i]) {
           contiguous = false;

@@ -1,6 +1,7 @@
 #include "lib/Transforms/Halo/Patterns.h"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -43,7 +44,7 @@ using affine::loopUnrollByFactor;
 // function, but it doesn't hurt to support it.
 static bool hasMismatch(ArrayRef<Value> inits, ArrayRef<Value> yieldedValues,
                         DataFlowSolver* solver) {
-  for (int i = 0; i < inits.size(); ++i) {
+  for (size_t i = 0; i < inits.size(); ++i) {
     Value init = inits[i];
     Value yield = yieldedValues[i];
 
@@ -388,7 +389,10 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                 rewriter.modifyOpInPlace(clonedOp, [&]() {
                   clonedOp->setAttr("halo.remove", builder.getUnitAttr());
                 });
-              } else if (index < chosenUnrollFactor - 1 &&
+              } else if (index <
+                             // The enclosing branch guarantees
+                             // chosenUnrollFactor > 1, so this cast is safe.
+                             static_cast<unsigned>(chosenUnrollFactor - 1) &&
                          isa<mgmt::LevelReduceMinOp>(clonedOp)) {
                 LDBG(2) << "Marking op " << *clonedOp
                         << " with halo.remove so it can be removed";
@@ -463,7 +467,7 @@ LogicalResult RegionBranchOpLevelInvariancePattern::matchAndRewrite(
 
   // For each result of the op, check if the levels of all yielding branches
   // are invariant.
-  for (int i = 0; i < op->getNumResults(); ++i) {
+  for (unsigned i = 0; i < op->getNumResults(); ++i) {
     Value result = op->getResult(i);
     if (!isSecret(result, solver)) continue;
 
@@ -492,7 +496,7 @@ LogicalResult RegionBranchOpLevelInvariancePattern::matchAndRewrite(
       // The context LevelAnalysis is only a forward analysis, which does
       // levels from 0 ... L, since the absolute max level is not yet known.
       int64_t maxLevel = *llvm::max_element(levels);
-      for (int j = 0; j < yieldingOperands.size(); ++j) {
+      for (size_t j = 0; j < yieldingOperands.size(); ++j) {
         if (levels[j] < maxLevel) {
           int64_t diff = maxLevel - levels[j];
           rewriter.setInsertionPoint(yieldingOperands[j]->getOwner());
@@ -516,7 +520,7 @@ LogicalResult RegionBranchOpScaleInvariancePattern::matchAndRewrite(
 
   mlir::RegionBranchInverseSuccessorMapping inverseMapping;
   op.getSuccessorInputOperandMapping(inverseMapping);
-  for (int i = 0; i < op->getNumResults(); ++i) {
+  for (unsigned i = 0; i < op->getNumResults(); ++i) {
     Value result = op->getResult(i);
     if (!isSecret(result, solver)) continue;
 
@@ -538,7 +542,7 @@ LogicalResult RegionBranchOpScaleInvariancePattern::matchAndRewrite(
     // Reconcile mul depths if we have all of them.
     if (mulDepths.size() == yieldingOperands.size()) {
       int64_t maxMulDepth = *llvm::max_element(mulDepths);
-      for (int j = 0; j < yieldingOperands.size(); ++j) {
+      for (size_t j = 0; j < yieldingOperands.size(); ++j) {
         if (mulDepths[j] < maxMulDepth) {
           rewriter.setInsertionPoint(yieldingOperands[j]->getOwner());
           auto adjustScaleOp = mgmt::AdjustScaleOp::create(

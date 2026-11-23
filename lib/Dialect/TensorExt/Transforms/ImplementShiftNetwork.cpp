@@ -102,7 +102,8 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
   for (const auto& entry : coloring) {
     CtSlot source = entry.first;
     int64_t color = entry.second;
-    if (color >= resultRotationGroups.size()) {
+    assert(color >= 0 && "expected non-negative color");
+    if (std::cmp_greater_equal(color, resultRotationGroups.size())) {
       resultRotationGroups.resize(color + 1);
     }
     resultRotationGroups[color].insert(source);
@@ -110,7 +111,7 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
 
   LLVM_DEBUG({
     llvm::dbgs() << "Splitting mapping into rotation groups:\n";
-    for (int i = 0; i < resultRotationGroups.size(); i++) {
+    for (size_t i = 0; i < resultRotationGroups.size(); i++) {
       llvm::dbgs() << "Group " << i << ": ";
       llvm::SmallVector<CtSlot> group = llvm::SmallVector<CtSlot>(
           resultRotationGroups[i].begin(), resultRotationGroups[i].end());

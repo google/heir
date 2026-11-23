@@ -127,8 +127,8 @@ void rotateAndReduceWithZeroDiagonalsPlaintexts(
     zeroDiagonalsMap[diagonal] = true;
   }
   std::vector<std::vector<int>> zeroedPlaintexts = plaintexts;
-  for (int i = 0; i < zeroedPlaintexts.size(); ++i) {
-    for (int j = 0; j < zeroedPlaintexts[i].size(); ++j) {
+  for (size_t i = 0; i < zeroedPlaintexts.size(); ++i) {
+    for (size_t j = 0; j < zeroedPlaintexts[i].size(); ++j) {
       if (zeroDiagonalsMap.contains(i)) {
         zeroedPlaintexts[i][j] = 0;
       } else {

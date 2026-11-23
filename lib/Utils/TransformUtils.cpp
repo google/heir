@@ -1,6 +1,7 @@
 #include "lib/Utils/TransformUtils.h"
 
 #include <cassert>
+#include <cstddef>
 #include <numeric>
 #include <set>
 #include <string>
@@ -140,8 +141,8 @@ int64_t getMinUnusedTarget(llvm::ArrayRef<int64_t> perm) {
 }
 
 int64_t getMinUnusedInput(llvm::ArrayRef<int64_t> perm) {
-  for (int64_t i = 0; i < perm.size(); ++i) {
-    if (perm[i] == kUnset) return i;
+  for (size_t i = 0; i < perm.size(); ++i) {
+    if (perm[i] == kUnset) return static_cast<int64_t>(i);
   }
   return -1;
 }

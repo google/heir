@@ -252,6 +252,15 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "TransformUtilsTest",
+    srcs = ["TransformUtilsTest.cpp"],
+    deps = [
+        ":TransformUtils",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "AllocToInPlaceUtils",
     # avoid http://go/cpp-features#layering_check with an empty cpp file

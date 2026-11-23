@@ -1,6 +1,7 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -302,7 +303,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
     // original type of the tensor was and how it was encoded.
     rewriter.modifyOpInPlace(op, [&] {
       setMaterializedAttr(op);
-      for (int i = 0; i < op.getNumArguments(); ++i) {
+      for (unsigned i = 0; i < op.getNumArguments(); ++i) {
         auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
         if (!layoutAttr || !isa<LayoutAttr, ArrayAttr>(layoutAttr)) {
           continue;
@@ -314,7 +315,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
                           layoutAttr));
       }
 
-      for (int i = 0; i < op.getNumResults(); ++i) {
+      for (unsigned i = 0; i < op.getNumResults(); ++i) {
         auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
         if (!layoutAttr || !isa<LayoutAttr, ArrayAttr>(layoutAttr)) {
           continue;
@@ -588,8 +589,8 @@ class ConvertConvertLayout
 std::optional<int64_t> tryDetectPartialRotation(
     ::llvm::ArrayRef<int64_t> perm) {
   std::optional<int64_t> rotation = std::nullopt;
-  for (int64_t i = 0; i < perm.size(); ++i) {
-    int64_t input = i;
+  for (size_t i = 0; i < perm.size(); ++i) {
+    int64_t input = static_cast<int64_t>(i);
     int64_t output = perm[i];
     if (output == kUnset) continue;
     // We rotate left in this codebase, so invert normal output - input
@@ -613,9 +614,9 @@ void extendPermutationGreedily(::llvm::MutableArrayRef<int64_t> perm) {
   std::set<int64_t> unmappedOutputs(unmappedOutputsVector.begin(),
                                     unmappedOutputsVector.end());
 
-  for (int64_t i = 0; i < perm.size(); ++i) {
+  for (size_t i = 0; i < perm.size(); ++i) {
     if (perm[i] == kUnset) {
-      unmappedInputs.insert(i);
+      unmappedInputs.insert(static_cast<int64_t>(i));
     } else {
       unmappedOutputs.erase(perm[i]);
     }
@@ -645,10 +646,11 @@ void extendPartialPermutation(MutableArrayRef<int64_t> partialPermutation) {
   if (rotation.has_value()) {
     LLVM_DEBUG(llvm::dbgs() << "Detected partial rotation of offset "
                             << rotation.value() << "\n");
-    for (int64_t i = 0; i < partialPermutation.size(); ++i) {
+    const auto n = static_cast<int64_t>(partialPermutation.size());
+    for (int64_t i = 0; i < n; ++i) {
       if (partialPermutation[i] == kUnset) {
         int64_t target = i - rotation.value();
-        if (target < 0) target += partialPermutation.size();
+        if (target < 0) target += n;
         partialPermutation[i] = target;
       }
     }
@@ -2017,7 +2019,7 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
       [&](OpBuilder& builder, Location loc, ValueRange exprs,
           ValueRange iterArgs) {
         SmallVector<Value> indices;
-        for (int i = relation.getVarKindOffset(VarKind::Range);
+        for (unsigned i = relation.getVarKindOffset(VarKind::Range);
              i < relation.getVarKindOffset(VarKind::Range) +
                      relation.getNumRangeVars();
              ++i) {
@@ -2031,9 +2033,9 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
 
         // conjunction over all exprs[i] == indices[i] where i is a domain
         // variable.
-        int domainStart = relation.getVarKindOffset(VarKind::Domain);
-        for (int i = domainStart; i < domainStart + relation.getNumDomainVars();
-             ++i) {
+        unsigned domainStart = relation.getVarKindOffset(VarKind::Domain);
+        for (unsigned i = domainStart;
+             i < domainStart + relation.getNumDomainVars(); ++i) {
           auto eqOp = arith::CmpIOp::create(
               b, arith::CmpIPredicate::eq,
               arith::IndexCastOp::create(builder, loc, builder.getIndexType(),

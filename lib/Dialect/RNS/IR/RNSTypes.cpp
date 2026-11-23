@@ -36,8 +36,8 @@ LogicalResult RNSType::verify(
   };
 
   size_t numTypes = basisTypes.size();
-  for (auto i = 0; i != numTypes; ++i) {
-    for (auto j = i + 1; j != numTypes; ++j) {
+  for (size_t i = 0; i != numTypes; ++i) {
+    for (size_t j = i + 1; j != numTypes; ++j) {
       auto resI = getInterface(basisTypes[i]);
       if (failed(resI)) {
         return resI;

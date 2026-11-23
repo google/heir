@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
@@ -24,7 +25,7 @@ FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat>& coefficients) {
   ChebyshevPolynomial::getChebyshevPolynomials(coefficients.size(), chebPolys);
 
   FloatPolynomial result = FloatPolynomial::zero();
-  for (int64_t i = 0; i < coefficients.size(); ++i) {
+  for (size_t i = 0; i < coefficients.size(); ++i) {
     result = result.add(chebPolys[i].scale(coefficients[i]));
   }
 
@@ -180,7 +181,7 @@ ChebyshevPolynomial ChebyshevPolynomial::compose(
     d_k[0] = d_k[0] + c[k];
 
     // Subtract d_{k+2}
-    for (int m = 0; m < d_kplus2.size(); ++m) {
+    for (size_t m = 0; m < d_kplus2.size(); ++m) {
       d_k[m] = d_k[m] - d_kplus2[m];
     }
 
@@ -197,7 +198,8 @@ ChebyshevPolynomial ChebyshevPolynomial::compose(
   APFloat half(0.5);
   for (int i = 0; i <= n; ++i) {
     APFloat d_0_i = d_kplus1[i];
-    APFloat d_2_i = (i < d_2_coeffs.size()) ? d_2_coeffs[i] : APFloat(0.0);
+    APFloat d_2_i =
+        std::cmp_less(i, d_2_coeffs.size()) ? d_2_coeffs[i] : APFloat(0.0);
     resultCoeffs[i] = ((d_0_i - d_2_i) * half).convertToDouble();
   }
 

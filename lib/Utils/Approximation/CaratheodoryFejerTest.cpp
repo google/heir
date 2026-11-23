@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstddef>
 
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
@@ -139,6 +140,24 @@ TEST(CaratheodoryFejerTest, ApproximateReluDegree14) {
               DoubleNear(-1.195396993539409e-13, EPSILON));
   EXPECT_THAT(terms[14].getCoefficient().convertToDouble(),
               DoubleNear(87.41796048301983, EPSILON));
+}
+
+TEST(CaratheodoryFejerTest, RequestedDegreeExceedsInterpolantDegree) {
+  // x^2 = (T_0 + T_2) / 2 is interpolated exactly by a degree-2 Chebyshev
+  // polynomial, so requesting a higher degree returns the interpolant as is.
+  auto square = [](const APFloat& x) { return x * x; };
+  polynomial::ChebyshevPolynomial actual =
+      caratheodoryFejerApproximation(square, 5);
+
+  auto terms = actual.getTerms();
+  ASSERT_GE(terms.size(), 3);
+  ASSERT_LE(terms.size(), 6);
+  EXPECT_THAT(terms[0].convertToDouble(), DoubleNear(0.5, EPSILON));
+  EXPECT_THAT(terms[1].convertToDouble(), DoubleNear(0.0, EPSILON));
+  EXPECT_THAT(terms[2].convertToDouble(), DoubleNear(0.5, EPSILON));
+  for (size_t i = 3; i < terms.size(); ++i) {
+    EXPECT_THAT(terms[i].convertToDouble(), DoubleNear(0.0, EPSILON));
+  }
 }
 
 TEST(CaratheodoryFejerTest, ReluDegree3) {

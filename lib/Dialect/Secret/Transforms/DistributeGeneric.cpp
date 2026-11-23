@@ -784,7 +784,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 // should be called right before all splitting
 void moveDialectAttrsToFuncArgument(Operation* top) {
   top->walk([&](secret::GenericOp genericOp) {
-    for (auto i = 0; i != genericOp->getNumOperands(); ++i) {
+    for (unsigned i = 0; i != genericOp->getNumOperands(); ++i) {
       auto operand = genericOp.getOperand(i);
       auto funcBlockArg = dyn_cast<BlockArgument>(operand);
       if (isa<SecretType>(operand.getType()) && funcBlockArg) {

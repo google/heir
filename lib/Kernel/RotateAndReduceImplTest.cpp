@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -46,7 +47,7 @@ std::vector<int> runNaive(const std::vector<int>& vec,
   std::vector<int> result(vec.size(), 0);
   for (int64_t i = 0; i < n; ++i) {
     std::vector<int> rotated = rotate(vec, period * i);
-    for (int64_t j = 0; j < vec.size(); ++j) {
+    for (size_t j = 0; j < vec.size(); ++j) {
       result[j] += plaintexts[i][j] * rotated[j];
     }
   }

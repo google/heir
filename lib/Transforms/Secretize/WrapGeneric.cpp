@@ -124,7 +124,7 @@ struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
     SmallVector<Value> newOperands;
     auto funcResultTypes = llvm::to_vector(callee.getResultTypes());
 
-    for (auto i = 0; i != op->getNumOperands(); ++i) {
+    for (unsigned i = 0; i != op->getNumOperands(); ++i) {
       auto operand = op.getOperand(i);
       auto funcArgType = callee.getArgumentTypes()[i];
       if (mlir::isa<secret::SecretType>(funcArgType)) {
@@ -141,7 +141,7 @@ struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
                                       funcResultTypes, newOperands);
     newOp->setAttrs(op->getAttrs());
 
-    for (auto i = 0; i != newOp->getNumResults(); ++i) {
+    for (unsigned i = 0; i != newOp->getNumResults(); ++i) {
       auto result = op.getResult(i);
       auto newResult = newOp.getResult(i);
       if (mlir::isa<secret::SecretType>(newResult.getType())) {

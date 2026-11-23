@@ -3,6 +3,7 @@
 #include <mlir/Support/LLVM.h>
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <iterator>
@@ -319,7 +320,7 @@ LogicalResult TfheRustHLEmitter::printOperation(CreateTrivialOp op) {
         }
       }
 
-      for (auto i = 0; i < resultType.getShape().size(); i++) {
+      for (size_t i = 0; i < resultType.getShape().size(); i++) {
         res = llvm::formatv("[{0}]", res);
       }
 
@@ -709,7 +710,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
 
   std::string valueList;
 
-  for (int i = 0; i < op.getNumOperands(); i++) {
+  for (unsigned i = 0; i < op.getNumOperands(); i++) {
     valueList = llvm::formatv("{0}{1}.clone()", valueList,
                               variableNames->getNameForValue(op.getOperand(i)));
 
@@ -718,7 +719,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
     }
   }
 
-  for (int i = 0; i < op.getResult().getType().getShape().size(); i++) {
+  for (size_t i = 0; i < op.getResult().getType().getShape().size(); i++) {
     valueList = llvm::formatv("[{0}]", valueList);
   }
 

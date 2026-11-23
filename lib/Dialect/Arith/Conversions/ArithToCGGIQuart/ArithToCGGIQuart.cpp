@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -357,7 +358,7 @@ struct ConvertQuartAddI final : OpConversionPattern<mlir::arith::AddIOp> {
     SmallVector<Value> carries;
     SmallVector<Value> outputs;
 
-    for (int i = 0; i < splitLhs.size(); ++i) {
+    for (size_t i = 0; i < splitLhs.size(); ++i) {
       auto lowSum = cggi::AddOp::create(b, elemType, splitLhs[i], splitRhs[i]);
       auto outputLsb = cggi::CastOp::create(b, op.getLoc(), realTy, lowSum);
       auto outputLsbHigh =

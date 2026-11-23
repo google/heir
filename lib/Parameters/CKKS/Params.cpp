@@ -106,7 +106,7 @@ static std::vector<int64_t> moduliQGenerationReducedError(int logFirstMod,
           while (hasSameMod) {
             hasSameMod = false;
             qPrev = lbcrypto::PreviousPrime(qPrev, cyclOrder);
-            for (size_t j = i + 1; j < numLevel; j++) {
+            for (size_t j = i + 1; j < static_cast<size_t>(numLevel); j++) {
               if (qPrev == moduliQ[j]) {
                 hasSameMod = true;
                 break;
@@ -120,7 +120,7 @@ static std::vector<int64_t> moduliQGenerationReducedError(int logFirstMod,
           while (hasSameMod) {
             hasSameMod = false;
             qNext = lbcrypto::NextPrime(qNext, cyclOrder);
-            for (size_t j = i + 1; j < numLevel; j++) {
+            for (size_t j = i + 1; j < static_cast<size_t>(numLevel); j++) {
               if (qNext == moduliQ[j]) {
                 hasSameMod = true;
                 break;

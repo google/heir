@@ -1,6 +1,7 @@
 #include "lib/Utils/Layout/Hoisting.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 
@@ -120,8 +121,8 @@ FailureOr<presburger::IntegerRelation> pushSliceLayoutThroughInsertSlice(
   // slice layout has fewer dimensions than the insert slice sizes (indicating
   // the layout doesn't describe all dimensions of the slice).
   if (sliceLayout.getNumDomainVars() < insertSliceSizes.size()) {
-    for (int i = 0; i < resultShape.size(); ++i) {
-      if (llvm::is_contained(unitDims, i)) {
+    for (size_t i = 0; i < resultShape.size(); ++i) {
+      if (llvm::is_contained(unitDims, static_cast<int64_t>(i))) {
         auto domainVar = resultLayout->insertVar(VarKind::Domain, i, 1);
         addBounds(*resultLayout, domainVar, 0, resultShape[i] - 1);
       }

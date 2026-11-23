@@ -85,7 +85,7 @@ unsigned int addModConstraint(IntegerRelation& result, ArrayRef<int64_t> exprs,
   // Add equality: mod = expr - q * c
   auto modIndex = result.appendVar(VarKind::Local);
   SmallVector<int64_t> modCoeffs(result.getNumCols(), 0);
-  for (int i = 0; i < result.getVarKindOffset(VarKind::Local); ++i) {
+  for (unsigned int i = 0; i < result.getVarKindOffset(VarKind::Local); ++i) {
     modCoeffs[i] = exprs[i];
   }
   modCoeffs.back() = exprs.back();
@@ -160,7 +160,7 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
   // First, we need to insert a new local variable (q) into the row major
   // constraint.
   SmallVector<int64_t> flattenedCoeffs(result.getNumCols(), 0);
-  for (int i = 0; i < rowMajorCoeffs.size(); i++) {
+  for (size_t i = 0; i < rowMajorCoeffs.size(); i++) {
     flattenedCoeffs[i] = rowMajorCoeffs[i];
   }
   // flattened_expr mod numSlots = b
@@ -1199,7 +1199,7 @@ presburger::IntegerRelation getPaddingRelation(RankedTensorType paddedType,
   auto rank = paddedType.getRank();
   assert(rank == unpaddedType.getRank() &&
          "padded and unpadded types must have the same rank");
-  assert(lowPadding.size() == rank &&
+  assert(std::cmp_equal(lowPadding.size(), rank) &&
          "lowPadding must have the same size as the rank");
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
@@ -1393,7 +1393,7 @@ bool isDenseLayout(const presburger::IntegerRelation& relation,
 
   // The number of type dimensions should match the range variables
   unsigned numDims = type.getRank();
-  if (isl_set_dim(imageSet, isl_dim_set) != numDims) {
+  if (std::cmp_not_equal(isl_set_dim(imageSet, isl_dim_set), numDims)) {
     isl_set_free(imageSet);
     isl_ctx_free(ctx);
     return false;

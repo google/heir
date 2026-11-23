@@ -1,5 +1,6 @@
 #include "lib/Dialect/Secret/Transforms/ImportExecutionResult.h"
 
+#include <cstddef>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -36,7 +37,7 @@ LogicalResult annotateResult(secret::GenericOp op,
     return ArrayAttr::get(op.getContext(), elements);
   };
 
-  int lineCount = 0;
+  size_t lineCount = 0;
   auto tryGetLine = [&]() -> Attribute {
     if (lineCount >= data.size()) {
       return Attribute();
@@ -45,7 +46,7 @@ LogicalResult annotateResult(secret::GenericOp op,
   };
 
   // insert for each argument
-  for (auto i = 0; i != op.getBody()->getNumArguments(); ++i) {
+  for (unsigned i = 0; i != op.getBody()->getNumArguments(); ++i) {
     if (!isSecret(op.getBody()->getArgument(i), &solver)) {
       continue;
     }

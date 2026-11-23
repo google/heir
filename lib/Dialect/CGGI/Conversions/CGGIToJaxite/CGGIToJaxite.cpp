@@ -1,5 +1,6 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -167,13 +168,13 @@ struct ConvertCGGIToJaxitePmapLut3Op
     auto C = op.getC();
     auto truthTableValues = op.getLookupTables();
     SmallVector<Value> lut3_args;
-    for (int i = 0; i < truthTableValues.size(); ++i) {
+    for (size_t i = 0; i < truthTableValues.size(); ++i) {
       uint8_t truthTableValue = static_cast<uint8_t>(
           cast<IntegerAttr>(truthTableValues[i]).getUInt());
       auto tt = arith::ConstantOp::create(
           b, op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
-      auto extractionIndex =
-          arith::ConstantOp::create(b, op->getLoc(), b.getIndexAttr(i));
+      auto extractionIndex = arith::ConstantOp::create(
+          b, op->getLoc(), b.getIndexAttr(static_cast<int64_t>(i)));
       auto extractOpA = tensor::ExtractOp::create(b, op->getLoc(), A,
                                                   extractionIndex.getResult());
       auto extractOpB = tensor::ExtractOp::create(b, op->getLoc(), B,

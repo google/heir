@@ -21,10 +21,10 @@ std::string PrintVisitor::operator()(const LeafNode<LiteralValue>& node) {
   const auto* vecVal = std::get_if<std::vector<int>>(&nodeVal);
   const auto* matVal = std::get_if<std::vector<std::vector<int>>>(&nodeVal);
   if (vecVal) {
-    assert(vecVal->size() == node.value.getShape()[0]);
+    assert(static_cast<int64_t>(vecVal->size()) == node.value.getShape()[0]);
   }
   if (matVal) {
-    assert(matVal->size() == node.value.getShape()[0]);
+    assert(static_cast<int64_t>(matVal->size()) == node.value.getShape()[0]);
   }
 
   // just give a name to the vec

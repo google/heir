@@ -617,7 +617,7 @@ struct ConvertSecretConcealOp
                                   b.getIndexAttr(plaintextBits)))};
       }
       SmallVector<Value> elementValues;
-      for (auto i = 0; i < valueType.getWidth(); ++i) {
+      for (unsigned i = 0; i < valueType.getWidth(); ++i) {
         auto one = arith::ConstantOp::create(
             b, valueType, rewriter.getIntegerAttr(valueType, 1));
         auto shiftAmount = arith::ConstantOp::create(
@@ -663,7 +663,7 @@ struct ConvertSecretConcealOp
         auto singleValue = cast<TypedValue<IntegerType>>(valueToStore);
         elementValues = encodeElement(singleValue);
       }
-      assert(elementValues.size() == tensorTy.getNumElements());
+      assert(std::cmp_equal(elementValues.size(), tensorTy.getNumElements()));
       resultValue = tensor::FromElementsOp::create(b, tensorTy, elementValues);
     } else {
       auto typedValue = dyn_cast<TypedValue<IntegerType>>(valueToStore);

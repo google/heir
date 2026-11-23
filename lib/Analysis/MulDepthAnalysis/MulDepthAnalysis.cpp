@@ -68,7 +68,7 @@ LogicalResult MulDepthAnalysis::visitOperation(
   llvm::TypeSwitch<Operation&>(*op)
       .Case<secret::GenericOp>([&](auto genericOp) {
         Block* body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
+        for (unsigned i = 0; i != body->getNumArguments(); ++i) {
           auto blockArg = body->getArgument(i);
           propagate(blockArg, MulDepthState(0));
         }

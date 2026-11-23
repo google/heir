@@ -279,7 +279,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
              << minHoistingCost->hoistResult.newOutputLayout << "\n");
 
   builder.setInsertionPoint(op);
-  for (auto i = 0; i < op->getNumOperands(); ++i) {
+  for (unsigned i = 0; i < op->getNumOperands(); ++i) {
     // Convert each operand layout given the result.
     auto operand = op->getOperand(i);
     auto originalLayout = findAttributeAssociatedWith(operand, kLayoutAttrName);

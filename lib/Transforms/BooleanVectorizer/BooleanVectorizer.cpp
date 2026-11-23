@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "lib/Dialect/HEIRInterfaces.h"
@@ -101,7 +102,7 @@ buildCompatibleOps(std::vector<mlir::Operation*> level, int parallelism) {
     for (auto& [key, buckets] : compatibleOps) {
       if (cast<BatchVectorizableOpInterface>(key).isBatchCompatible(op)) {
         if (parallelism == 0 ||
-            compatibleOps[key].back().size() < parallelism) {
+            std::cmp_less(compatibleOps[key].back().size(), parallelism)) {
           compatibleOps[key].back().push_back(op);
         } else {
           SmallVector<Operation*> newBucket;
