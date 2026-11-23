@@ -4193,16 +4193,13 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Modular addition is valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain.&lt;/li>
 &lt;li>Both operands must have matching form (&lt;code>lhs_form == rhs_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>rhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>lhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>rhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
@@ -5379,13 +5376,10 @@ Computes the Montgomery form multiplication of &lt;code>lhs&lt;/code> and &lt;co
 &lt;code>(a * R) * (b * R) * R^-1 = (a * b) * R mod Q&lt;/code>.&lt;/li>
 &lt;li>All operands are in &lt;code>eval&lt;/code> form.&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>&lt;/p>
 &lt;h4 id="attributes-25">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>lhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>rhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-25">Operands:&lt;/h4>
@@ -6062,16 +6056,13 @@ in &lt;code>CheddarGPU_ParamsAttr&lt;/code>.&lt;/p>
 &lt;li>Modular subtraction is valid in both &lt;code>coeff&lt;/code> and &lt;code>eval&lt;/code> domain.&lt;/li>
 &lt;li>Both operands must have matching form (&lt;code>lhs_form == rhs_form == out_form&lt;/code>).&lt;/li>
 &lt;/ul>
-&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>&lt;/p>
 &lt;h4 id="attributes-40">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>rhs_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>out_form&lt;/code>&lt;/td>&lt;td>::mlir::heir::cheddar_gpu::FormAttr&lt;/td>&lt;td>Cheddar polynomial representation form&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>lhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>rhs_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>out_limb_range&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute with exactly 2 elements of the form [offset >= 0, count > 0]&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>num_aux&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute whose value is non-negative&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-40">Operands:&lt;/h4>
