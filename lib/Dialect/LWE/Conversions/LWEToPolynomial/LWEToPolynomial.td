@@ -17,8 +17,8 @@ def LWEToPolynomial : Pass<"lwe-to-polynomial"> {
       Tensors of ciphertexts become higher-dimensional tensors of polynomials.
     - Plaintexts and ring elements become a single polynomial over their ring.
     - Secret keys become a tensor of one polynomial `s`, and public keys a
-      tensor of two polynomials `(b, a) = (-a * s + t * e, a)`, where `t` is
-      the plaintext modulus.
+      tensor of two polynomials `(b, a) = (-a * s + e, a)`, where the noise
+      `e` must be a multiple of the plaintext modulus for BGV.
 
     (* example filepath=tests/Dialect/LWE/Conversions/lwe_to_polynomial/doctest.mlir *)
   }];
