@@ -205,6 +205,52 @@ class CheddarGPU_OptionalArrayMatchesDim<string attrName, string v, int d>
               # CheddarGPU_Getter<attrName>.call # "->size()) == "
               # CheddarGPU_Dim<v, d>.result>>;
 
+class CheddarGPU_OptionalDimEquals<string opt, int d, string expr, string descr>
+    : PredOpTrait<descr,
+        CPred<"!" # CheddarGPU_Getter<opt>.call # " || "
+              # CheddarGPU_Dim<opt, d>.result # " == (" # expr # ")">>;
+
+class CheddarGPU_SkipCopySrcCoversSpan<string src, string span, string offsetAttr>
+    : PredOpTrait<
+        "'" # src # "' has enough limbs from '" # offsetAttr # "' for '" # span # "'",
+        CPred<"!" # CheddarGPU_Getter<span>.call # " || !" # CheddarGPU_Getter<src>.call
+              # " || " # CheddarGPU_SpanLen<span>.result # " <= "
+              # CheddarGPU_Dim<src, 0>.result # " - static_cast<int64_t>("
+              # CheddarGPU_Getter<offsetAttr>.call # ")">>;
+
+// Active limb count for INTT: out_limb_range[1] if set, else in_limb_range[1]
+// if set, else dim 0 of `out`.
+class CheddarGPU_INTTLimbCount<string out> {
+  string result = "(getOutLimbRange() ? (*getOutLimbRange())[1] : "
+                  # "(getInLimbRange() ? (*getInLimbRange())[1] : "
+                  # CheddarGPU_Dim<out, 0>.result # "))";
+}
+
+class CheddarGPU_InSplitWithinLimbCount<string out> : PredOpTrait<
+    "'in_split' split_count is in [0, active limb count]",
+    CPred<"!getInSplit() || (*getInSplit())[0] <= " # CheddarGPU_INTTLimbCount<out>.result>>;
+
+// Limbs of `inBuf` from the start of in_limb_range (or 0) to the end of the
+// buffer.
+class CheddarGPU_INTTInLimbsAvailable<string inBuf> {
+  string result = "(" # CheddarGPU_Dim<inBuf, 0>.result
+                  # " - (getInLimbRange() ? (*getInLimbRange())[0] : 0))";
+}
+
+// Checks that offset + limb count + extent fits in dim 0 of `inBuf`, where the
+// extent only counts when split_count is below the limb count. Written with
+// subtractions so that large attribute values cannot overflow int64_t and wrap
+// past the bound.
+class CheddarGPU_InSplitFitsInput<string inBuf, string out> : PredOpTrait<
+    "'" # inBuf # "' has enough limbs for 'in_split' extent",
+    CPred<"!getInSplit() || ("
+          # CheddarGPU_INTTInLimbsAvailable<inBuf>.result # " >= "
+          # CheddarGPU_INTTLimbCount<out>.result
+          # " && ((*getInSplit())[0] >= " # CheddarGPU_INTTLimbCount<out>.result
+          # " || (*getInSplit())[1] <= "
+          # CheddarGPU_INTTInLimbsAvailable<inBuf>.result # " - "
+          # CheddarGPU_INTTLimbCount<out>.result # "))">>;
+
 //===----------------------------------------------------------------------===//
 // Form Constraints
 //===----------------------------------------------------------------------===//

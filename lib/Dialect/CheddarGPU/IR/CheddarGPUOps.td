@@ -881,7 +881,8 @@ def CheddarGPU_NTTOp : CheddarGPU_NTTOpBase<"ntt", [
     CheddarGPU_Requires<"skip_copy_src", "static_cast<bool>(getSkipRange())",
                         "'skip_copy_src' requires 'skip_range' to be set">,
     CheddarGPU_OptionalSameRingAs<"skip_copy_src", "out">,
-    CheddarGPU_SpanEndWithinDim0<"skip_range", "out">
+    CheddarGPU_SpanEndWithinDim0<"skip_range", "out">,
+    CheddarGPU_SkipCopySrcCoversSpan<"skip_copy_src", "skip_range", "skip_copy_in_offset">
   ]> {
   let summary = "Forward Number Theoretic Transform (NTT)";
   let description = [{
@@ -915,8 +916,6 @@ def CheddarGPU_NTTOp : CheddarGPU_NTTOpBase<"ntt", [
     (ins DefaultValuedAttr<CheddarGPU_NonNegI64Attr, "0">:$skip_copy_in_offset)
   );
 
-  let hasVerifier = 1;
-
   let assemblyFormat = [{
     $out `,` $in ( `,` `skip_copy_src` `(` $skip_copy_src^ `)` )? prop-dict attr-dict
     `:` functional-type(operands, results)
@@ -943,6 +942,10 @@ def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
     PredOpTrait<"'cst' is present iff epilogue is not 'none'",
       CPred<"static_cast<bool>(getCst()) == ($epilogue != ::mlir::heir::cheddar_gpu::INTTEpilogue::None)">>,
     CheddarGPU_OptionalElemTypeMatches<"cst", "out">,
+    CheddarGPU_OptionalDimEquals<"cst", 0, CheddarGPU_INTTLimbCount<"out">.result,
+                                 "'cst' (if present) length matches active limb count">,
+    CheddarGPU_InSplitWithinLimbCount<"out">,
+    CheddarGPU_InSplitFitsInput<"in", "out">,
   ]> {
   let summary = "Inverse Number Theoretic Transform (INTT) with optional epilogue";
   let description = [{
@@ -980,8 +983,6 @@ def CheddarGPU_INTTOp : CheddarGPU_NTTOpBase<"intt", [
     CheddarGPU_NTTCommonAttrs,
     (ins OptionalAttr<CheddarGPU_InSplitAttr>:$in_split)
   );
-
-  let hasVerifier = 1;
 
   let assemblyFormat = [{
     $out `,` $in ( `,` `cst` `(` $cst^ `)` )? prop-dict attr-dict
@@ -1460,7 +1461,7 @@ def CheddarGPU_ModUpToMaxOp : CheddarGPU_Op<"mod_up_to_max", [
     Mirrors Cheddar's `ModUpToMax1` in `ElementWise.cu`.
     Computes `dst[l, x] = src[0, x] % Q_l` limb-wise, where `Q_l` is the `l`-th
     limb of `Q` from `CheddarGPU_ParamsAttr`.
-    Operates in coefficient (`coeff`) domain.
+    Operates in coefficient domain.
   }];
 
   let arguments = (ins
