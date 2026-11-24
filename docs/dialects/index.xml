@@ -13470,7 +13470,7 @@ and may use a native integer type for its coefficient modulus.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">encryption_type&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::LweEncryptionType&lt;/code>&lt;/td>
-&lt;td>Describes how the plaintext data is encoded into the ciphertext (in the MSB, LSB, or mixed).&lt;/td>
+&lt;td>Describes how the plaintext data is encoded into the ciphertext (see &lt;code>LweEncryptionType&lt;/code>).&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">size&lt;/td>
@@ -14912,9 +14912,9 @@ back to the top level of the modulus chain.&lt;/p>
 &lt;td>lsb&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">mix&lt;/td>
+&lt;td style="text-align:center">ckks&lt;/td>
 &lt;td style="text-align:center">&lt;code>2&lt;/code>&lt;/td>
-&lt;td>mix&lt;/td>
+&lt;td>ckks&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: MathExt</title><link>https://heir.dev/docs/dialects/mathext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/mathext/</guid><description>
