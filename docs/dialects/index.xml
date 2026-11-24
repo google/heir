@@ -4127,6 +4127,9 @@ uint32_t, # alpha
 uint32_t # dnum
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Module-level attribute encoding scheme parameters and modulus chain info.&lt;/p>
+&lt;p>Every prime in &lt;code>ter&lt;/code>, &lt;code>main&lt;/code>, and &lt;code>aux&lt;/code> must lie in the open interval
+(0, 2^(word - 1)), which leaves the top bit of each word free as headroom
+for modular arithmetic.&lt;/p>
 &lt;h4 id="parameters-3">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
