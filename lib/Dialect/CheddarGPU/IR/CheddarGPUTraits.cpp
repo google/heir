@@ -67,12 +67,12 @@ LogicalResult verifyNumAux(Operation* op, std::optional<int64_t> numAux,
 
 LogicalResult verifyInOutCountsMatch(Operation* op) {
   if (op->getNumOperands() < 2) return success();
-  auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
-  auto inType = ::llvm::dyn_cast<MemRefType>(op->getOperand(1).getType());
+  auto outType = ::llvm::dyn_cast<ShapedType>(op->getOperand(0).getType());
+  auto inType = ::llvm::dyn_cast<ShapedType>(op->getOperand(1).getType());
   if (!outType || !inType || outType.getRank() < 1 || inType.getRank() < 1)
     return success();
 
-  auto getLimbCount = [&](StringRef attrName, MemRefType type) {
+  auto getLimbCount = [&](StringRef attrName, ShapedType type) {
     if (auto range = op->getAttrOfType<DenseI64ArrayAttr>(attrName)) {
       assert(range.size() == 2 && "guaranteed by CheddarGPU_LimbRangeAttr");
       return range.asArrayRef()[1];

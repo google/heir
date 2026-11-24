@@ -17,6 +17,17 @@ module attributes {
     return
   }
 
+  // CHECK: @test_add_tensor
+  func.func @test_add_tensor(%out: tensor<4x65536xi32>, %lhs: tensor<4x65536xi32>, %rhs: tensor<4x65536xi32>) -> tensor<4x65536xi32> {
+    // CHECK: %{{.*}} = cheddar_gpu.add %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}> : tensor<4x65536xi32> -> tensor<4x65536xi32>
+    %res = cheddar_gpu.add %out, %lhs, %rhs <{
+      lhs_form = #cheddar_gpu.form<eval>,
+      rhs_form = #cheddar_gpu.form<eval>,
+      out_form = #cheddar_gpu.form<eval>
+    }> : tensor<4x65536xi32> -> tensor<4x65536xi32>
+    return %res : tensor<4x65536xi32>
+  }
+
   // CHECK: @test_sub
   func.func @test_sub(%out: memref<4x65536xi32>, %lhs: memref<4x65536xi32>, %rhs: memref<4x65536xi32>) {
     // CHECK: cheddar_gpu.sub %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}> : memref<4x65536xi32>
@@ -33,6 +44,24 @@ module attributes {
     // CHECK: cheddar_gpu.mul %{{.*}}, %{{.*}}, %{{.*}} : memref<4x65536xi32>
     cheddar_gpu.mul %out, %lhs, %rhs : memref<4x65536xi32>
     return
+  }
+
+  // CHECK: @test_sub_tensor
+  func.func @test_sub_tensor(%out: tensor<4x65536xi32>, %lhs: tensor<4x65536xi32>, %rhs: tensor<4x65536xi32>) -> tensor<4x65536xi32> {
+    // CHECK: %{{.*}} = cheddar_gpu.sub %{{.*}}, %{{.*}}, %{{.*}} <{{.*}}lhs_form = eval{{.*}}> : tensor<4x65536xi32> -> tensor<4x65536xi32>
+    %res = cheddar_gpu.sub %out, %lhs, %rhs <{
+      lhs_form = #cheddar_gpu.form<eval>,
+      rhs_form = #cheddar_gpu.form<eval>,
+      out_form = #cheddar_gpu.form<eval>
+    }> : tensor<4x65536xi32> -> tensor<4x65536xi32>
+    return %res : tensor<4x65536xi32>
+  }
+
+  // CHECK: @test_mul_tensor
+  func.func @test_mul_tensor(%out: tensor<4x65536xi32>, %lhs: tensor<4x65536xi32>, %rhs: tensor<4x65536xi32>) -> tensor<4x65536xi32> {
+    // CHECK: %{{.*}} = cheddar_gpu.mul %{{.*}}, %{{.*}}, %{{.*}} : tensor<4x65536xi32> -> tensor<4x65536xi32>
+    %res = cheddar_gpu.mul %out, %lhs, %rhs : tensor<4x65536xi32> -> tensor<4x65536xi32>
+    return %res : tensor<4x65536xi32>
   }
 
 }

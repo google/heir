@@ -54,6 +54,7 @@ cc_binary(
         "@heir//lib/Dialect/Cheddar/Transforms:FuseOps",
         "@heir//lib/Dialect/CheddarGPU/Conversions/CheddarGPUToGPU",
         "@heir//lib/Dialect/CheddarGPU/IR:Dialect",
+        "@heir//lib/Dialect/CheddarGPU/Transforms:BufferizableOpInterfaceImpl",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/Debug/Transforms",

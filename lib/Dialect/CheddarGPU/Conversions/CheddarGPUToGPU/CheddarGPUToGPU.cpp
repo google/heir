@@ -29,9 +29,10 @@
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -52,6 +53,18 @@ static LogicalResult rewriteBinaryElementwiseOp(
     llvm::function_ref<Value(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
                              Value q)>
         computeFn) {
+  auto dstOp = dyn_cast<DestinationStyleOpInterface>(op.getOperation());
+  if (!dstOp) {
+    return op.emitOpError(
+        "All cheddar_gpu elementwise binary ops must implement "
+        "DestinationStyleOpInterface");
+  }
+  if (!dstOp.hasPureBufferSemantics()) {
+    return op.emitOpError(
+        "requires buffer operands; run --one-shot-bufferize before "
+        "--cheddar-gpu-to-gpu");
+  }
+
   auto modParams = getModuleParams(op);
   if (!modParams) return op.emitOpError("missing cheddar_gpu.params on module");
 

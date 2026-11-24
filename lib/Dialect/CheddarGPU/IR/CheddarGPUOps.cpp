@@ -3,13 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
@@ -185,6 +189,27 @@ LogicalResult HoistPhaseOp::verify() {
   }
 
   return success();
+}
+
+// === Shared interface implementations ===
+
+void getDpsMemoryEffects(
+    Operation* op, bool readsDpsInit,
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>&
+        effects) {
+  auto dpsOp = ::llvm::cast<DestinationStyleOpInterface>(op);
+  for (OpOperand& operand : op->getOpOperands()) {
+    if (!::llvm::isa<MemRefType>(operand.get().getType())) continue;
+    bool isInit = dpsOp.isDpsInit(&operand);
+    if (!isInit || readsDpsInit) {
+      effects.emplace_back(MemoryEffects::Read::get(), &operand,
+                           SideEffects::DefaultResource::get());
+    }
+    if (isInit) {
+      effects.emplace_back(MemoryEffects::Write::get(), &operand,
+                           SideEffects::DefaultResource::get());
+    }
+  }
 }
 
 }  // namespace mlir::heir::cheddar_gpu

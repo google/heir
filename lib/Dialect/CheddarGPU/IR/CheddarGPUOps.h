@@ -5,6 +5,7 @@
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUEnums.h"
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUTraits.h"
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Bytecode/BytecodeOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
@@ -15,7 +16,21 @@
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+
+namespace mlir::heir::cheddar_gpu {
+
+// Appends the memory effects of the destination-style op `op` to `effects`.
+// Only memref operands have effects: each input is read and each init is
+// written. An init is also read when `readsDpsInit` is set. Tensor operands
+// have no memory effects.
+void getDpsMemoryEffects(
+    Operation* op, bool readsDpsInit,
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>&
+        effects);
+
+}  // namespace mlir::heir::cheddar_gpu
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUOps.h.inc"

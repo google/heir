@@ -4,15 +4,16 @@
 #include <cstdint>
 #include <optional>
 
-#include "llvm/include/llvm/ADT/ArrayRef.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir::heir::cheddar_gpu {
 
@@ -55,8 +56,9 @@ class NumAuxWithinOut
  public:
   static LogicalResult verifyTrait(Operation* op) {
     if (auto numAuxAttr = op->getAttrOfType<IntegerAttr>("num_aux")) {
-      auto outType = ::llvm::dyn_cast<MemRefType>(op->getOperand(0).getType());
-      if (outType && outType.getRank() >= 1) {
+      // ShapedType covers both the buffer (memref) and tensor forms of `out`.
+      auto outType = ::llvm::dyn_cast<ShapedType>(op->getOperand(0).getType());
+      if (outType && outType.hasRank() && outType.getRank() >= 1) {
         return verifyNumAux(op, numAuxAttr.getInt(), outType.getDimSize(0));
       }
     }

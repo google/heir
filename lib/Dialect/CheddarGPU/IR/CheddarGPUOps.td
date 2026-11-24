@@ -8,6 +8,7 @@ include "lib/Dialect/CheddarGPU/IR/CheddarGPUConstraints.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/DestinationStyleOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
@@ -64,23 +65,41 @@ defvar CheddarGPU_PermuteAccumCommonAttrs = (ins
 );
 
 defvar CheddarGPU_BinaryBuilders = [
+  // Builder for buffer form (no results)
   OpBuilder<(ins "::mlir::Value":$out,
                  "::mlir::Value":$lhs,
                  "::mlir::Value":$rhs,
                  "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
                  "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
-                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form), [{
-      build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            /*num_aux=*/::mlir::IntegerAttr{});
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                 CArg<"::mlir::IntegerAttr", "{}">:$num_aux), [{
+      build($_builder, $_state, /*resultTypes=*/::mlir::TypeRange{},
+            out, lhs, rhs, lhs_form, rhs_form, out_form, num_aux);
   }]>,
   OpBuilder<(ins "::mlir::Value":$out,
                  "::mlir::Value":$lhs,
                  "::mlir::Value":$rhs,
                  "::mlir::heir::cheddar_gpu::Form":$lhs_form,
                  "::mlir::heir::cheddar_gpu::Form":$rhs_form,
-                 "::mlir::heir::cheddar_gpu::Form":$out_form), [{
-      build($_builder, $_state, out, lhs, rhs, lhs_form, rhs_form, out_form,
-            /*num_aux=*/::mlir::IntegerAttr{});
+                 "::mlir::heir::cheddar_gpu::Form":$out_form,
+                 CArg<"std::optional<int64_t>", "std::nullopt">:$num_aux), [{
+      build($_builder, $_state, /*resultTypes=*/::mlir::TypeRange{},
+            out, lhs, rhs, lhs_form, rhs_form, out_form,
+            num_aux ? $_builder.getI64IntegerAttr(*num_aux)
+                    : ::mlir::IntegerAttr{});
+  }]>,
+  // Builder for tensor form (returns 1 result with type matching out)
+  OpBuilder<(ins "::mlir::Type":$resultType,
+                 "::mlir::Value":$out,
+                 "::mlir::Value":$lhs,
+                 "::mlir::Value":$rhs,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$lhs_form,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$rhs_form,
+                 "::mlir::heir::cheddar_gpu::FormAttr":$out_form,
+                 CArg<"::mlir::IntegerAttr", "{}">:$num_aux), [{
+      build($_builder, $_state,
+            resultType ? ::mlir::TypeRange{resultType} : ::mlir::TypeRange{},
+            out, lhs, rhs, lhs_form, rhs_form, out_form, num_aux);
   }]>
 ];
 
@@ -109,28 +128,54 @@ defvar CheddarGPU_UnaryBuilders = [
 // Operation Families
 //===----------------------------------------------------------------------===//
 
-// Binary element-wise operations on single polynomial buffers (add, sub, mul).
+// Binary element-wise operations on single polynomial buffers or tensors
+// (add, sub, mul).
 // Ops that accept only one form set `hasForms = 0`; their forms are implied.
+//
+// In tensor form, these ops implement DestinationStyleOpInterface where `$out`
+// is the init operand and return a single tensor result tied to `$out`. Memory
+// effects are operand-aware: no effects on tensor operands, MemWrite on `$out`
+// memref, and MemRead on input memrefs.
 class CheddarGPU_BinaryOpBase<string mnemonic, list<Trait> traits = [],
                               bit hasForms = 1>
     : CheddarGPU_Op<mnemonic, !listconcat([
         AllTypesMatch<["out", "lhs", "rhs"]>,
-        CheddarGPU_NumAuxWithinOut
+        CheddarGPU_NumAuxWithinOut,
+        DestinationStyleOpInterface,
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
       ], traits)> {
   let arguments = !con(
     (ins
-      Arg<CheddarGPU_PolyBuffer, "destination buffer", [MemWrite]>:$out,
-      Arg<CheddarGPU_PolyBuffer, "left-hand side operand", [MemRead]>:$lhs,
-      Arg<CheddarGPU_PolyBuffer, "right-hand side operand", [MemRead]>:$rhs
+      Arg<CheddarGPU_PolyLike, "destination buffer or tensor init">:$out,
+      Arg<CheddarGPU_PolyLike, "left-hand side operand">:$lhs,
+      Arg<CheddarGPU_PolyLike, "right-hand side operand">:$rhs
     ),
     !if(hasForms, CheddarGPU_BinaryForms, (ins)),
     (ins OptionalAttr<CheddarGPU_NonNegI64Attr>:$num_aux)
   );
 
+  let results = (outs Variadic<CheddarGPU_PolyTensor>:$result);
+
   let builders = !if(hasForms, CheddarGPU_BinaryBuilders, []);
 
   let assemblyFormat = [{
-    $out `,` $lhs `,` $rhs prop-dict attr-dict `:` type($out)
+    $out `,` $lhs `,` $rhs prop-dict attr-dict `:` type($out) (`->` type($result)^)?
+  }];
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() {
+      return getOutMutable();
+    }
+    static constexpr bool readsDpsInit() { return false; }
+  }];
+
+  let extraClassDefinition = [{
+    void $cppClass::getEffects(::llvm::SmallVectorImpl<
+        ::mlir::SideEffects::EffectInstance<::mlir::MemoryEffects::Effect>>
+            &effects) {
+      ::mlir::heir::cheddar_gpu::getDpsMemoryEffects(
+          getOperation(), readsDpsInit(), effects);
+    }
   }];
 }
 
@@ -349,7 +394,7 @@ def CheddarGPU_CopyOp : CheddarGPU_Op<"copy", [
 
 def CheddarGPU_AddOp : CheddarGPU_BinaryOpBase<"add", [
     CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>]> {
-  let summary = "Pointwise modular addition of two polynomial buffers";
+  let summary = "Pointwise modular addition of two RNS polynomials";
   let description = [{
     Mirrors Cheddar's `kernel::Sum` and `ElementWiseHandler::Add` in `ElementWise.cu`.
     Computes `out = lhs + rhs mod Q` limb-wise, where the limbs of `Q` are defined
@@ -363,7 +408,7 @@ def CheddarGPU_AddOp : CheddarGPU_BinaryOpBase<"add", [
 
 def CheddarGPU_SubOp : CheddarGPU_BinaryOpBase<"sub", [
     CheddarGPU_FormsMatch<["lhs_form", "rhs_form", "out_form"]>]> {
-  let summary = "Pointwise modular subtraction of two polynomial buffers";
+  let summary = "Pointwise modular subtraction of two RNS polynomials";
   let description = [{
     Mirrors Cheddar's `kernel::Sub` and `ElementWiseHandler::Sub` in `ElementWise.cu`.
     Computes `out = lhs - rhs mod Q` limb-wise, where the limbs of `Q` are defined
@@ -435,7 +480,7 @@ def CheddarGPU_SubOppositeConstOp : CheddarGPU_ConstOpBase<"sub_opposite_const",
 }
 
 def CheddarGPU_MulOp : CheddarGPU_BinaryOpBase<"mul", hasForms = 0> {
-  let summary = "Pointwise Montgomery modular multiplication";
+  let summary = "Pointwise Montgomery modular multiplication of two RNS polynomials";
   let description = [{
     Mirrors Cheddar's `kernel::Mult` and `ElementWiseHandler::Mult` in `ElementWise.cu`.
     Computes the Montgomery form multiplication of `lhs` and `rhs` mod `Q`.
