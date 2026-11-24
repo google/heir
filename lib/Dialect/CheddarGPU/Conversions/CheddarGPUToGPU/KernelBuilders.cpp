@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.h"
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
 #include "lib/Dialect/CheddarGPU/Utils/ConstantTables.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"               // from @llvm-project
@@ -33,8 +34,8 @@ namespace heir {
 namespace cheddar_gpu {
 
 std::optional<ModuleParams> getModuleParams(Operation* op) {
-  auto params =
-      getAttrFromEnclosingModule<ParamsAttr>(op, "cheddar_gpu.params");
+  auto params = getAttrFromEnclosingModule<ParamsAttr>(
+      op, CheddarGPUDialect::kCheddarGpuParamsAttr);
   if (!params) return std::nullopt;
   uint32_t logN = params.getLogN();
   if (logN >= 63) return std::nullopt;

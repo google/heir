@@ -18,13 +18,14 @@ module attributes {cheddar_gpu.params = #params} {
 // -----
 
 // The kernels and the prime table are emitted into the nearest enclosing
-// module, which is the one whose params the op is lowered against.
+// module, which is the one whose params the op is lowered against. The params
+// attribute is removed from that module as well as from the top-level one.
 
 #eval = #cheddar_gpu.form<eval>
 #params = #cheddar_gpu.params<word = 32, log_n = 8, ter = [17], main = [97], aux = [257], level_config = [[[1 : i32, 1 : i32]]], alpha = 1, dnum = 0>
 
 // CHECK: {{^}}module {
-// CHECK-NEXT: module attributes {{[{].*}}gpu.container_module} {
+// CHECK-NEXT: module attributes {gpu.container_module} {
 // CHECK-NEXT: gpu.module @cheddar_kernels
 // CHECK-NEXT: memref.global "private" constant @__cheddar_primes : memref<3xi32> = dense<[17, 97, 257]>
 // CHECK-NEXT: gpu.func @cheddar_gpu_add_w32_deg256
