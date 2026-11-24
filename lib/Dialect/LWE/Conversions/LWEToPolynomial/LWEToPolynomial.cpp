@@ -30,7 +30,6 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -114,22 +113,59 @@ static Value getPlaintextModulusInCiphertextSpace(
       .getResult();
 }
 
-// Returns success() if the ciphertextType is encoded using the given
-// LweEncryptionType. Otherwise returns failure and emits an error.
-static LogicalResult requireEncryptionType(
-    Operation* op, Type ciphertextType, lwe::LweEncryptionType expectedType) {
-  lwe::LweEncryptionType actualType =
-      cast<LWECiphertextType>(getElementTypeOrSelf(ciphertextType))
-          .getCiphertextSpace()
-          .getEncryptionType();
-  if (actualType != expectedType) {
-    op->emitError() << "only " << lwe::stringifyLweEncryptionType(expectedType)
-                    << " encryption is supported, got "
-                       "encryption type "
-                    << lwe::stringifyLweEncryptionType(actualType);
-    return failure();
+// Verifies that `lwe.rlwe_encrypt` and `lwe.rlwe_decrypt` can be lowered for
+// the encryption type of `ciphertextType` (see `LweEncryptionType`), and emits
+// an error on `op` otherwise. Creates no IR.
+static LogicalResult verifySupportedEncryption(
+    Operation* op, lwe::LWEPlaintextType plaintextType,
+    lwe::LWECiphertextType ciphertextType) {
+  lwe::CiphertextSpaceAttr ciphertextSpace =
+      ciphertextType.getCiphertextSpace();
+  switch (ciphertextSpace.getEncryptionType()) {
+    case lwe::LweEncryptionType::lsb: {
+      // BGV encryption scales the noise by the plaintext modulus t, and
+      // decryption reduces modulo t, so the plaintext coefficient type must be
+      // a mod_arith type with modulus t.
+      Type plaintextCoeffType =
+          plaintextType.getPlaintextSpace().getRing().getCoefficientType();
+      if (!isa<mod_arith::ModArithType>(plaintextCoeffType)) {
+        return op->emitOpError()
+               << "expected plaintext to have mod_arith polynomial "
+                  "coefficients, got "
+               << plaintextCoeffType;
+      }
+      return success();
+    }
+    case lwe::LweEncryptionType::ckks: {
+      // A CKKS plaintext is a polynomial holding the encoded (already scaled)
+      // message, in the same ring as its ciphertext.
+      polynomial::RingAttr plaintextRing =
+          plaintextType.getPlaintextSpace().getRing();
+      polynomial::RingAttr ciphertextRing = ciphertextSpace.getRing();
+      if (!isa<mod_arith::ModQTypeInterface>(
+              plaintextRing.getCoefficientType())) {
+        return op->emitOpError()
+               << "expected plaintext to have modular (e.g., RNS) polynomial "
+                  "coefficients, got "
+               << plaintextRing.getCoefficientType();
+      }
+      if (plaintextRing != ciphertextRing) {
+        return op->emitOpError() << "expected plaintext and ciphertext to have "
+                                    "the same ring, got "
+                                 << plaintextRing << " and " << ciphertextRing;
+      }
+      return success();
+    }
+    case lwe::LweEncryptionType::msb:
+      // TODO(#882): Support `msb` (BFV) encryption and decryption, which
+      // scale the message by floor(Q/t).
+      return op->emitOpError()
+             << "only lsb and ckks encryption are supported, got encryption "
+                "type "
+             << lwe::stringifyLweEncryptionType(
+                    ciphertextSpace.getEncryptionType());
   }
-  return success();
+  llvm_unreachable("unknown LweEncryptionType");
 }
 
 struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
@@ -144,12 +180,11 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
     auto loc = op.getLoc();
     auto input = adaptor.getInput();
     auto secretKey = adaptor.getSecretKey();
+    lwe::LWEPlaintextType plaintextType = op.getOutput().getType();
+    lwe::LWECiphertextType ciphertextType = op.getInput().getType();
 
-    // TODO(#882): Support `msb` (BFV) and `ckks` decryption, which
-    // differ from BGV in how the plaintext is recovered from c_0 + c_1 * s.
-    if (failed(requireEncryptionType(op, op.getInput().getType(),
-                                     lwe::LweEncryptionType::lsb))) {
-      return rewriter.notifyMatchFailure(op, "unsupported encryption type");
+    if (failed(verifySupportedEncryption(op, plaintextType, ciphertextType))) {
+      return rewriter.notifyMatchFailure(op, "unsupported encryption");
     }
 
     auto inputDimension = cast<RankedTensorType>(input.getType()).getShape();
@@ -185,15 +220,20 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
         tensor::ExtractOp::create(builder, secretKey, ValueRange{index0});
     auto c1TimesSk =
         polynomial::MulOp::create(builder, extractOp1, extractSecretKeyOp);
-    auto plaintext = polynomial::AddOp::create(builder, extractOp0, c1TimesSk);
+    Value plaintext = polynomial::AddOp::create(builder, extractOp0, c1TimesSk);
 
-    // Cast to the plaintext space types.
-    auto plaintextPolyType = cast<polynomial::PolynomialType>(
-        typeConverter->convertType(op.getOutput().getType()));
-    auto plaintextMod =
-        polynomial::ModSwitchOp::create(builder, plaintextPolyType, plaintext);
+    // For BGV this is m + t * e in the ciphertext ring, and casting it to the
+    // plaintext ring reduces it modulo t. For CKKS it is m + e, which is
+    // already in the plaintext ring; the noise is removed when it is decoded.
+    if (ciphertextType.getCiphertextSpace().getEncryptionType() ==
+        lwe::LweEncryptionType::lsb) {
+      auto plaintextPolyType = cast<polynomial::PolynomialType>(
+          typeConverter->convertType(plaintextType));
+      plaintext = polynomial::ModSwitchOp::create(builder, plaintextPolyType,
+                                                  plaintext);
+    }
 
-    rewriter.replaceOp(op, plaintextMod);
+    rewriter.replaceOp(op, plaintext);
     return success();
   }
 };
@@ -212,6 +252,8 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     auto key = adaptor.getKey();
     lwe::LWEPlaintextType plaintextType = op.getInput().getType();
     lwe::LWECiphertextType ciphertextType = op.getOutput().getType();
+    lwe::LweEncryptionType encryptionType =
+        ciphertextType.getCiphertextSpace().getEncryptionType();
 
     auto isPublicKey =
         llvm::TypeSwitch<Type, bool>(op.getKey().getType())
@@ -227,23 +269,8 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     // pattern rollback, so IR created by a pattern that then fails is not
     // removed.
 
-    // TODO (#882): Add support for other encryption schemes besides BGV.
-    if (failed(requireEncryptionType(op, ciphertextType,
-                                     lwe::LweEncryptionType::lsb))) {
-      return rewriter.notifyMatchFailure(op, "unsupported encryption type");
-    }
-
-    // The encryption noise is scaled by the plaintext modulus t, so the
-    // plaintext coefficient type must be a mod arith type.
-    Type plaintextCoeffType =
-        plaintextType.getPlaintextSpace().getRing().getCoefficientType();
-    auto plaintextModulusType =
-        dyn_cast<mod_arith::ModArithType>(plaintextCoeffType);
-    if (!plaintextModulusType) {
-      op.emitError() << "Unsupported plaintext coefficient type: "
-                     << plaintextCoeffType;
-      return rewriter.notifyMatchFailure(
-          op, "unsupported plaintext coefficient type");
+    if (failed(verifySupportedEncryption(op, plaintextType, ciphertextType))) {
+      return rewriter.notifyMatchFailure(op, "unsupported encryption");
     }
 
     auto outputTy =
@@ -279,11 +306,23 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
 
     auto index0 = arith::ConstantIndexOp::create(builder, 0);
 
-    // cast from plaintext space to ciphertext space
-    auto castInput =
-        polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
-    Value constantT = getPlaintextModulusInCiphertextSpace(
-        builder, plaintextModulusType, outputPolyTy);
+    // The ciphertext is built so that c_0 + c_1 * s decrypts to
+    //   lsb (BGV): m + t * e, with m cast from the plaintext ring into R_Q
+    //   ckks:      m + e,     with m already in R_Q
+    Value message = input;
+    Value noiseScale;  // null: the noise is not scaled
+    if (encryptionType == lwe::LweEncryptionType::lsb) {
+      // verifySupportedEncryption checked that this is a mod_arith type.
+      auto plaintextModulusType = cast<mod_arith::ModArithType>(
+          plaintextType.getPlaintextSpace().getRing().getCoefficientType());
+      message = polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
+      noiseScale = getPlaintextModulusInCiphertextSpace(
+          builder, plaintextModulusType, outputPolyTy);
+    }
+    auto scaleNoise = [&](Value e) -> Value {
+      if (!noiseScale) return e;
+      return polynomial::MulScalarOp::create(builder, e, noiseScale);
+    };
 
     // TODO (#881): Add pass options to change the seed (which is currently
     // hardcoded to 0 with index).
@@ -333,19 +372,20 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       auto e1 = random::SampleOp::create(builder, outputPolyTy,
                                          discreteGaussianDistribution);
 
-      // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
-      // noise or key differently. Add support for those cases.
-      // Computing ciphertext0 = publicKey0 * u + e0 *
-      // constantT + cast(input)
+      // Computing
+      //   ciphertext0 = publicKey0 * u + scaleNoise(e0) + message
+      //   ciphertext1 = publicKey1 * u + scaleNoise(e1)
       auto publicKey0U = polynomial::MulOp::create(builder, publicKey0, u);
-      auto tE0 = polynomial::MulScalarOp::create(builder, e0, constantT);
-      auto pK0UtE0 = polynomial::AddOp::create(builder, publicKey0U, tE0);
-      auto ciphertext0 = polynomial::AddOp::create(builder, pK0UtE0, castInput);
+      Value scaledE0 = scaleNoise(e0);
+      auto pK0UPlusE0 =
+          polynomial::AddOp::create(builder, publicKey0U, scaledE0);
+      auto ciphertext0 =
+          polynomial::AddOp::create(builder, pK0UPlusE0, message);
 
-      // Computing ciphertext1 = publicKey1 * u + e1 * constantT
       auto publicKey1U = polynomial::MulOp::create(builder, publicKey1, u);
-      auto tE1 = polynomial::MulScalarOp::create(builder, e1, constantT);
-      auto ciphertext1 = polynomial::AddOp::create(builder, publicKey1U, tE1);
+      Value scaledE1 = scaleNoise(e1);
+      auto ciphertext1 =
+          polynomial::AddOp::create(builder, publicKey1U, scaledE1);
 
       // ciphertext = (ciphertext0, ciphertext1)
       ciphertext = tensor::FromElementsOp::create(
@@ -368,19 +408,17 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       auto e = random::SampleOp::create(builder, outputPolyTy,
                                         discreteGaussianDistribution);
 
-      // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
-      // noise or key differently. Add support for those cases.
       // Computing
-      //   ciphertext0 = -a * s + e * constantT + cast(input)
+      //   ciphertext0 = -a * s + scaleNoise(e) + message
       //   ciphertext1 = a
-      // so that ciphertext0 + ciphertext1 * s = cast(input) + e * constantT,
+      // so that ciphertext0 + ciphertext1 * s = message + scaleNoise(e),
       // matching the lowering of `lwe.rlwe_decrypt`.
       auto keyPoly =
           tensor::ExtractOp::create(builder, key, ValueRange{index0});
       auto aTimesS = polynomial::MulOp::create(builder, a, keyPoly);
-      auto tTimesE = polynomial::MulScalarOp::create(builder, e, constantT);
-      auto mTE = polynomial::AddOp::create(builder, castInput, tTimesE);
-      auto ciphertext0 = polynomial::SubOp::create(builder, mTE, aTimesS);
+      Value scaledE = scaleNoise(e);
+      auto mPlusE = polynomial::AddOp::create(builder, message, scaledE);
+      auto ciphertext0 = polynomial::SubOp::create(builder, mPlusE, aTimesS);
 
       // ciphertext = (ciphertext0, a)
       ciphertext = tensor::FromElementsOp::create(
