@@ -32,6 +32,10 @@ def CheddarGPU_ParamsAttr : CheddarGPU_Attr<"Params", "params"> {
   let summary = "Cheddar GPU scheme parameters";
   let description = [{
     Module-level attribute encoding scheme parameters and modulus chain info.
+
+    Every prime in `ter`, `main`, and `aux` must lie in the open interval
+    (0, 2^(word - 1)), which leaves the top bit of each word free as headroom
+    for modular arithmetic.
   }];
 
   let parameters = (ins
