@@ -5355,7 +5355,7 @@ Operates in evaluation (&lt;code>eval&lt;/code>) domain.
 &lt;/code>&lt;/pre>&lt;p>Mirrors Cheddar&amp;rsquo;s &lt;code>ModUpToMax1&lt;/code> in &lt;code>ElementWise.cu&lt;/code>.
 Computes &lt;code>dst[l, x] = src[0, x] % Q_l&lt;/code> limb-wise, where &lt;code>Q_l&lt;/code> is the &lt;code>l&lt;/code>-th
 limb of &lt;code>Q&lt;/code> from &lt;code>CheddarGPU_ParamsAttr&lt;/code>.
-Operates in coefficient (&lt;code>coeff&lt;/code>) domain.&lt;/p>
+Operates in coefficient domain.&lt;/p>
 &lt;p>Traits: &lt;code>CheddarGPU_NumAuxWithinOut&lt;/code>, &lt;code>LimbRangesWithin&lt;/code>&lt;/p>
 &lt;h4 id="attributes-24">Attributes:&lt;/h4>
 &lt;table>
