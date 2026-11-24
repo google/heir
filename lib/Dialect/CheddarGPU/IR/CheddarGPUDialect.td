@@ -30,6 +30,13 @@ def CheddarGPU_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::cheddar_gpu";
 
+  let extraClassDeclaration = [{
+    /// Name of the module attribute that holds the scheme parameters, a
+    /// `ParamsAttr`.
+    static constexpr ::llvm::StringLiteral kCheddarGpuParamsAttr =
+        "cheddar_gpu.params";
+  }];
+
   let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
 }

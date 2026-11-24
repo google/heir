@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.h"
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
@@ -32,7 +33,8 @@ LogicalResult verifyLimbRange(Operation* op,
   }
 
   if (auto mod = op->getParentOfType<ModuleOp>()) {
-    if (auto params = mod->getAttrOfType<ParamsAttr>("cheddar_gpu.params")) {
+    if (auto params = mod->getAttrOfType<ParamsAttr>(
+            CheddarGPUDialect::kCheddarGpuParamsAttr)) {
       int64_t paramsLimbs = static_cast<int64_t>(params.getNumLimbs());
       if (count > paramsLimbs - offset) {
         return op->emitOpError()

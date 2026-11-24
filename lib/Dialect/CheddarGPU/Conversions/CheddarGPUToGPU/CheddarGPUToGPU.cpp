@@ -10,6 +10,7 @@
 
 #include "lib/Dialect/CheddarGPU/Conversions/CheddarGPUToGPU/KernelBuilders.h"
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.h"
+#include "lib/Dialect/CheddarGPU/IR/CheddarGPUDialect.h"
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUOps.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
@@ -320,6 +321,10 @@ struct CheddarGPUToGPU : public impl::CheddarGPUToGPUBase<CheddarGPUToGPU> {
       signalPassFailure();
       return;
     }
+    // Modules nested in this one can carry params of their own.
+    module->walk([](ModuleOp m) {
+      m->removeAttr(CheddarGPUDialect::kCheddarGpuParamsAttr);
+    });
   }
 };
 
