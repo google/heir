@@ -38,6 +38,7 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
+#include "lib/Dialect/LWE/Conversions/LWEToStableHLO/LWEToStableHLO.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
@@ -514,6 +515,7 @@ int main(int argc, char** argv) {
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
   lwe::registerLWEToPolynomialPasses();
+  lwe::registerLWEToStableHLOPasses();
   mlir::heir::arith::registerArithToCGGIPasses();
   mlir::heir::arith::registerArithToCGGIQuartPasses();
   mlir::heir::arith::registerArithToModArithPasses();
