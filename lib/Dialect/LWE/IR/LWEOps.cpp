@@ -1,5 +1,6 @@
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <optional>
@@ -10,6 +11,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
@@ -275,6 +277,63 @@ LogicalResult KeySwitchInnerOp::verify() {
     return emitOpError()
            << "KeySwitchingKey must be a rank-1 tensor, but it has rank  "
            << kskRank;
+  }
+
+  return success();
+}
+
+LogicalResult GenRelinKeyOp::verify() {
+  // ODS has already checked that the key is a statically shaped 1D tensor.
+  RankedTensorType keyTensorType = getOutput().getType();
+  auto ctType = cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  if (ctType.getCiphertextSpace().getSize() != 2) {
+    return emitOpError()
+           << "expected relinearization key ciphertexts of size 2, got size "
+           << ctType.getCiphertextSpace().getSize();
+  }
+
+  polynomial::RingAttr secretKeyRing = getSecretKey().getType().getRing();
+  polynomial::RingAttr keyRing = ctType.getCiphertextSpace().getRing();
+  if (secretKeyRing.getPolynomialModulus() != keyRing.getPolynomialModulus()) {
+    return emitOpError() << "expected the secret key and relinearization key "
+                            "rings to have the same polynomial modulus, got "
+                         << secretKeyRing << " and " << keyRing;
+  }
+
+  auto secretKeyRNSType =
+      dyn_cast<rns::RNSType>(secretKeyRing.getCoefficientType());
+  auto keyRNSType = dyn_cast<rns::RNSType>(keyRing.getCoefficientType());
+  if (!secretKeyRNSType || !keyRNSType) {
+    return emitOpError() << "expected the secret key and relinearization key "
+                            "rings to have RNS coefficient types, got "
+                         << secretKeyRing.getCoefficientType() << " and "
+                         << keyRing.getCoefficientType();
+  }
+
+  // The key's basis must be the secret key's basis Q followed by at least one
+  // key-switching prime.
+  ArrayRef<Type> qBasis = secretKeyRNSType.getBasisTypes();
+  ArrayRef<Type> qpBasis = keyRNSType.getBasisTypes();
+  if (qpBasis.size() <= qBasis.size() ||
+      !std::equal(qBasis.begin(), qBasis.end(), qpBasis.begin())) {
+    return emitOpError()
+           << "expected the relinearization key's RNS basis to be the secret "
+              "key's RNS basis followed by at least one key-switching prime, "
+              "got "
+           << keyRNSType << " for secret key basis " << secretKeyRNSType;
+  }
+
+  // Q is partitioned into ceil(|Q| / |P|) digits, as in the lowering of
+  // lwe.key_switch_inner.
+  int64_t numQ = qBasis.size();
+  int64_t numP = qpBasis.size() - numQ;
+  int64_t numDigits = (numQ + numP - 1) / numP;
+  if (keyTensorType.getDimSize(0) != numDigits) {
+    return emitOpError() << "expected " << numDigits
+                         << " key-switching key ciphertexts (one per digit of "
+                         << numQ << " RNS limbs split into groups of " << numP
+                         << " key-switching primes), got "
+                         << keyTensorType.getDimSize(0);
   }
 
   return success();

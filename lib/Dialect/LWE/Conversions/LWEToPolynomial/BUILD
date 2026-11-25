@@ -20,6 +20,7 @@ cc_library(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/Random/IR:Dialect",
+        "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:ConversionUtils",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",

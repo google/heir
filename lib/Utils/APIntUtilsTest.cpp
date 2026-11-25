@@ -1,8 +1,9 @@
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/APIntUtils.h"
-#include "llvm/include/llvm/ADT/APInt.h"     // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -70,6 +71,28 @@ TEST(APIntUtilsTest, FactorizePrime) {
   auto factors = factorize(APInt(64, 53));
   ASSERT_EQ(factors.size(), 1);
   EXPECT_EQ(factors[0], 53);
+}
+
+TEST(APIntUtilsTest, ProductModulo) {
+  // P = 97 * 113 = 10961, the same values as the gadget residues in
+  // tests/Dialect/LWE/Conversions/lwe_to_polynomial/keygen.mlir.
+  SmallVector<APInt> primes = {APInt(64, 97), APInt(64, 113)};
+  EXPECT_EQ(productModulo(primes, APInt(64, 17)), 13);  // 10961 mod 17
+  EXPECT_EQ(productModulo(primes, APInt(64, 41)), 14);  // 10961 mod 41
+  EXPECT_EQ(productModulo(primes, APInt(64, 73)), 11);  // 10961 mod 73
+}
+
+TEST(APIntUtilsTest, ProductModuloMixedWidths) {
+  // Factors wider than the modulus are reduced first; the result has the
+  // modulus's bit width.
+  SmallVector<APInt> factors = {APInt(64, 1000), APInt(16, 7)};
+  APInt result = productModulo(factors, APInt(8, 13));
+  EXPECT_EQ(result.getBitWidth(), 8);
+  EXPECT_EQ(result, 6);  // 7000 mod 13
+}
+
+TEST(APIntUtilsTest, ProductModuloEmpty) {
+  EXPECT_EQ(productModulo({}, APInt(64, 17)), 1);
 }
 
 }  // namespace
