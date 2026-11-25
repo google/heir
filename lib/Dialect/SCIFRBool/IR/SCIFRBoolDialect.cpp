@@ -23,8 +23,6 @@
 #include "mlir/include/mlir/Support/TypeID.h"          // from @llvm-project
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/SCIFRBool/IR/SCIFRBoolTypes.cpp.inc"
-#define GET_OP_CLASSES
-#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolOps.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // SCIFRBool dialect.

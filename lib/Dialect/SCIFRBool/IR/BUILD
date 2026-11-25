@@ -11,6 +11,7 @@ cc_library(
     name = "Dialect",
     srcs = [
         "SCIFRBoolDialect.cpp",
+        "SCIFRBoolOps.cpp",
     ],
     hdrs = [
         "SCIFRBoolDialect.h",
@@ -25,30 +26,12 @@ cc_library(
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:BytecodeOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Parser",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
-    name = "scifr_bool_ops",
-    srcs = ["SCIFRBoolOps.cpp"],
-    hdrs = ["SCIFRBoolOps.h"],
-    deps = [
-        ":Dialect",
-        ":ops_inc_gen",
-        "@heir//lib/Dialect:HEIRInterfaces",
-        "@heir//lib/Dialect/CGGI/IR:Dialect",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@llvm-project//mlir:BytecodeOpInterface",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:InferTypeOpInterface",
-        "@llvm-project//mlir:SideEffectInterfaces",
     ],
 )
 
