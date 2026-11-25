@@ -17,6 +17,7 @@ def Jaxite_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::jaxite";
 
   let useDefaultTypePrinterParser = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_JAXITE_IR_JAXITEDIALECT_H_

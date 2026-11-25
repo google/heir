@@ -36,11 +36,6 @@ void LattigoDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.cpp.inc"
       >();
-
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Lattigo/IR/LattigoOps.cpp.inc"
-      >();
 }
 
 }  // namespace lattigo

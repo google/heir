@@ -38,10 +38,6 @@ void ModArithDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
-      >();
 }
 
 }  // namespace mod_arith

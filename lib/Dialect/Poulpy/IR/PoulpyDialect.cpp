@@ -23,11 +23,6 @@ void PoulpyDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.cpp.inc"
       >();
-
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Poulpy/IR/PoulpyOps.cpp.inc"
-      >();
 }
 
 }  // namespace poulpy

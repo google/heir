@@ -34,10 +34,6 @@ void TensorExtDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
-      >();
 }
 
 }  // namespace tensor_ext

@@ -11,18 +11,3 @@
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/Orion/IR/OrionOps.cpp.inc"
-
-namespace mlir {
-namespace heir {
-namespace orion {
-
-void OrionDialect::initialize() {
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Orion/IR/OrionOps.cpp.inc"
-      >();
-}
-
-}  // namespace orion
-}  // namespace heir
-}  // namespace mlir

@@ -28,10 +28,6 @@ void CGGIDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/CGGI/IR/CGGIAttributes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/CGGI/IR/CGGIOps.cpp.inc"
-      >();
 
   getContext()->getOrLoadDialect("lwe");
 }

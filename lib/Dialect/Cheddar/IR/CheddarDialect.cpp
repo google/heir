@@ -36,11 +36,6 @@ void CheddarDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Cheddar/IR/CheddarTypes.cpp.inc"
       >();
-
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Cheddar/IR/CheddarOps.cpp.inc"
-      >();
 }
 
 }  // namespace cheddar

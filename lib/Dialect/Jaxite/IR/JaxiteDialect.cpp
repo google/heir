@@ -21,10 +21,6 @@ void JaxiteDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Jaxite/IR/JaxiteTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Jaxite/IR/JaxiteOps.cpp.inc"
-      >();
 }
 
 }  // namespace jaxite

@@ -13,6 +13,7 @@ def Random_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::random";
   let useDefaultTypePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_RANDOM_IR_RANDOMDIALECT_TD_

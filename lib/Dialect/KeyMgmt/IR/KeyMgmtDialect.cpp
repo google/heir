@@ -18,10 +18,6 @@ void KeyMgmtDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/KeyMgmt/IR/KeyMgmtOps.cpp.inc"
-      >();
 }
 
 }  // namespace key_mgmt

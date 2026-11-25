@@ -21,6 +21,7 @@ def SCIFRBool_Dialect : Dialect {
     let summary = "Cornami SCIFR Boolean dialect for FHE Applications.";
     let cppNamespace = "::mlir::cornami::scifrbool";
     let useDefaultTypePrinterParser = 1;
+    let useDefaultOperationRegistration = 1;
 }
 
 

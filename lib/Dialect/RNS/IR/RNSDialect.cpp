@@ -34,11 +34,6 @@ void RNSDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/RNS/IR/RNSTypes.cpp.inc"
       >();
-
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/RNS/IR/RNSOps.cpp.inc"
-      >();
 }
 
 Operation* RNSDialect::materializeConstant(OpBuilder& builder, Attribute value,

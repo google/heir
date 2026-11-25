@@ -26,10 +26,6 @@ void OpenfheDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Openfhe/IR/OpenfheOps.cpp.inc"
-      >();
   declarePromisedInterface<ConvertToEmitCPatternInterface, OpenfheDialect>();
 }
 

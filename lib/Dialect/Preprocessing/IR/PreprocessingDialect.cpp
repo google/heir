@@ -22,10 +22,6 @@ void PreprocessingDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.cpp.inc"
-      >();
 }
 
 }  // namespace preprocessing

@@ -22,10 +22,6 @@ void KernelDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Kernel/IR/KernelTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Kernel/IR/KernelOps.cpp.inc"
-      >();
 }
 
 }  // namespace kernel

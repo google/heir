@@ -28,6 +28,7 @@ def Mgmt_Dialect : Dialect {
 
   let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_MGMT_IR_MGMTDIALECT_TD_

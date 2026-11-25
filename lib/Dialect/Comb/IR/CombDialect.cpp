@@ -14,26 +14,6 @@
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
 
-namespace mlir {
-namespace heir {
-namespace comb {
-
-//===----------------------------------------------------------------------===//
-// Dialect specification.
-//===----------------------------------------------------------------------===//
-
-void CombDialect::initialize() {
-  // Register operations.
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Comb/IR/Comb.cpp.inc"
-      >();
-}
-
-}  // namespace comb
-}  // namespace heir
-}  // namespace mlir
-
 // Provide implementations for the enums we use.
 #include "lib/Dialect/Comb/IR/CombDialect.cpp.inc"
 #include "lib/Dialect/Comb/IR/CombEnums.cpp.inc"

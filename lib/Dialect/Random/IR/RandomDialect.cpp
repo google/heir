@@ -28,10 +28,6 @@ namespace heir {
 namespace random {
 
 void RandomDialect::initialize() {
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Random/IR/RandomOps.cpp.inc"
-      >();
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Random/IR/RandomTypes.cpp.inc"

@@ -11,18 +11,3 @@
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/MathExt/IR/MathExtOps.cpp.inc"
-
-namespace mlir {
-namespace heir {
-namespace math_ext {
-
-void MathExtDialect::initialize() {
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/MathExt/IR/MathExtOps.cpp.inc"
-      >();
-}
-
-}  // namespace math_ext
-}  // namespace heir
-}  // namespace mlir
