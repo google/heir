@@ -54,10 +54,6 @@ void LWEDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/LWE/IR/LWETypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/LWE/IR/LWEOps.cpp.inc"
-      >();
 
   RMulPlainOp::attachInterface<
       LweCiphertextPlaintextOpPlaintextOperandImpl<RMulPlainOp>>(*getContext());

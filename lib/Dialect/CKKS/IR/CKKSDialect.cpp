@@ -53,10 +53,6 @@ void CKKSDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/CKKS/IR/CKKSOps.cpp.inc"
-      >();
 
   AddPlainOp::attachInterface<
       CkksCiphertextPlaintextOpPlaintextOperandImpl<AddPlainOp>>(*getContext());

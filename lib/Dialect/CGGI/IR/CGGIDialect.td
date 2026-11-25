@@ -11,6 +11,7 @@ def CGGI_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::cggi";
   let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_

@@ -25,10 +25,6 @@ void CheddarGPUDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/CheddarGPU/IR/CheddarGPUAttributes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/CheddarGPU/IR/CheddarGPUOps.cpp.inc"
-      >();
 }
 
 }  // namespace cheddar_gpu

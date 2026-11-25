@@ -29,6 +29,7 @@ def BGV_Dialect : Dialect {
 
   let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_BGV_IR_BGVDIALECT_TD_

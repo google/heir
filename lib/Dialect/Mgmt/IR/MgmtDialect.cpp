@@ -26,10 +26,6 @@ void MgmtDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Mgmt/IR/MgmtOps.cpp.inc"
-      >();
 }
 
 }  // namespace mgmt

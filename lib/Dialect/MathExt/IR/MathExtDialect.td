@@ -12,6 +12,8 @@ def MathExt_Dialect : Dialect {
   }];
 
   let cppNamespace = "::mlir::heir::math_ext";
+  let useDefaultOperationRegistration = 1;
+  let hasInitializer = 0;
 }
 
 #endif  // LIB_DIALECT_MATHEXT_IR_MATHEXTDIALECT_TD_

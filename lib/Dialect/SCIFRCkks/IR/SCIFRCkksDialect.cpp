@@ -29,8 +29,6 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/SCIFRCkks/IR/SCIFRCkksTypes.cpp.inc"
-#define GET_OP_CLASSES
-#include "lib/Dialect/SCIFRCkks/IR/SCIFRCkksOps.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // SCIFRCkks dialect.
@@ -43,10 +41,6 @@ void SCIFRCkksDialect::initialize() {
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/SCIFRCkks/IR/SCIFRCkksTypes.cpp.inc"
-      >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/SCIFRCkks/IR/SCIFRCkksOps.cpp.inc"
       >();
 }
 }  // namespace scifrckks

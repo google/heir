@@ -30,10 +30,6 @@ void TfheRustBoolDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.cpp.inc"
-      >();
 }
 
 }  // namespace tfhe_rust_bool

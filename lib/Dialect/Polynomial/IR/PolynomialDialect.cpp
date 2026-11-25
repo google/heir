@@ -44,10 +44,6 @@ void PolynomialDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/Polynomial/IR/PolynomialOps.cpp.inc"
-      >();
 }
 
 Operation* PolynomialDialect::materializeConstant(OpBuilder& builder,

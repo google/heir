@@ -28,10 +28,6 @@ void TfheRustDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/TfheRust/IR/TfheRustOps.cpp.inc"
-      >();
 }
 
 void GenerateLookupTableOp::getCanonicalizationPatterns(

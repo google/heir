@@ -28,6 +28,8 @@ def CombDialect : Dialect {
   }];
   let cppNamespace = "::mlir::heir::comb";
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
+  let hasInitializer = 0;
 }
 
 // Base class for the operation in this dialect.

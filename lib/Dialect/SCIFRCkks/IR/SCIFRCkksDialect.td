@@ -27,6 +27,7 @@ MLIR Dialect for Cornami SCIFR CKKS Dialect
     }];
     let cppNamespace = "::mlir::scifrckks";
     let useDefaultTypePrinterParser = 1;
+    let useDefaultOperationRegistration = 1;
 }
 
 //===----------------------------------------------------------------------===//

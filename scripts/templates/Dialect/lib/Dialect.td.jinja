@@ -12,6 +12,12 @@ def {{ dialect_name }}_Dialect : Dialect {
   }];
 
   let cppNamespace = "::mlir::heir::{{ dialect_namespace }}";
+{% if enable_ops %}
+  let useDefaultOperationRegistration = 1;
+{% endif %}
+{% if not enable_attributes and not enable_types %}
+  let hasInitializer = 0;
+{% endif %}
 }
 
 #endif  // LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_

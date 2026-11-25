@@ -56,10 +56,6 @@ void BGVDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "lib/Dialect/BGV/IR/BGVAttributes.cpp.inc"
       >();
-  addOperations<
-#define GET_OP_LIST
-#include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"
-      >();
 
   AddPlainOp::attachInterface<
       BgvCiphertextPlaintextOpPlaintextOperandImpl<AddPlainOp>>(*getContext());

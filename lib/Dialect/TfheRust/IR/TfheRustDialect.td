@@ -18,6 +18,7 @@ def TfheRust_Dialect : Dialect {
 
   let useDefaultTypePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_TFHERUST_IR_TFHERUSTDIALECT_TD_

@@ -16,6 +16,8 @@ def Debug_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::debug";
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
+  let hasInitializer = 0;
 }
 
 #endif  // LIB_DIALECT_DEBUG_IR_DEBUGDIALECT_TD_

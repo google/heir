@@ -18,6 +18,7 @@ def TfheRustBool_Dialect : Dialect {
   let useDefaultAttributePrinterParser = 1;
   let useDefaultTypePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLDIALECT_TD_

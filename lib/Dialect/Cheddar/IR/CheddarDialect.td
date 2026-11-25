@@ -21,6 +21,7 @@ def Cheddar_Dialect : Dialect {
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_CHEDDAR_IR_CHEDDARDIALECT_TD_

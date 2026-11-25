@@ -25,6 +25,7 @@ def KeyMgmt_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::key_mgmt";
   let useDefaultTypePrinterParser = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif // LIB_DIALECT_KEYMGMT_IR_KEYMGMTDIALECT_TD_

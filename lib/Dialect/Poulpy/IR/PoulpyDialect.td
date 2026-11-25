@@ -17,6 +17,7 @@ def Poulpy_Dialect : Dialect {
   let useDefaultTypePrinterParser = 1;
   // let useDefaultAttributePrinterParser = 1;
   let useStrictPropertiesInAssemblyFormat = 1;
+  let useDefaultOperationRegistration = 1;
 }
 
 #endif  // LIB_DIALECT_POULPY_IR_POULPYDIALECT_TD_
