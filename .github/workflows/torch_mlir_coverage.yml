@@ -28,13 +28,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Install python dependencies
         run: |
           pip install --pre torch-mlir torchvision \
-            --extra-index-url https://download.pytorch.org/whl/nightly/cpu \
-            -f https://github.com/llvm/torch-mlir-release/releases/expanded_assets/dev-wheels
+            --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 
       - name: Build heir-opt
         run: |
