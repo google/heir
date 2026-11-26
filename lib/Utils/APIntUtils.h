@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "llvm/include/llvm/ADT/APInt.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
@@ -22,6 +23,12 @@ inline APInt modularMultiplication(const APInt& a, const APInt& b,
 
 APInt modularExponentiation(const APInt& base, const APInt& exponent,
                             const APInt& modulus);
+
+// Returns the product of `factors` modulo `modulus`, with the bit width of
+// `modulus`. The factors may have any bit widths and need not be reduced. For
+// example, given the key-switching primes p_0, ..., p_{k-1} as factors, returns
+// P mod q for P = p_0 * ... * p_{k-1}.
+APInt productModulo(ArrayRef<APInt> factors, const APInt& modulus);
 
 bool isPrime(const APInt& n);
 

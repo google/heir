@@ -13,6 +13,9 @@
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
+#include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -38,6 +41,11 @@ FailureOr<Value> createPInvModQConstant(
   SmallVector<Attribute> pInvModQResidues;
   pInvModQResidues.reserve(inputRNSType.getBasisTypes().size());
 
+  SmallVector<APInt> keySwitchPrimes = llvm::map_to_vector(
+      keySwitchPrimeTypes, [](mod_arith::ModArithType pjTy) {
+        return pjTy.getModulus().getValue();
+      });
+
   for (Type ty : inputRNSType.getBasisTypes()) {
     auto qiTy = dyn_cast<mod_arith::ModArithType>(ty);
     if (!qiTy) {
@@ -47,15 +55,7 @@ FailureOr<Value> createPInvModQConstant(
     }
 
     APInt qi = qiTy.getModulus().getValue();
-    APInt pModQi(qi.getBitWidth(), 1);
-    for (mod_arith::ModArithType pjTy : keySwitchPrimeTypes) {
-      APInt pj = pjTy.getModulus().getValue();
-      unsigned reductionWidth = std::max(qi.getBitWidth(), pj.getBitWidth());
-      APInt pjModQi = pj.zextOrTrunc(reductionWidth)
-                          .urem(qi.zextOrTrunc(reductionWidth))
-                          .zextOrTrunc(qi.getBitWidth());
-      pModQi = modularMultiplication(pModQi, pjModQi, qi);
-    }
+    APInt pModQi = productModulo(keySwitchPrimes, qi);
 
     APInt pInvModQi = multiplicativeInverse(pModQi, qi);
     if (pInvModQi.isZero()) {

@@ -1,11 +1,13 @@
 #include "lib/Utils/APIntUtils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
 #include "llvm/include/llvm/ADT/APInt.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
@@ -75,6 +77,19 @@ APInt modularExponentiation(const APInt& base, const APInt& exponent,
     e = e.lshr(1);
   }
   return res;
+}
+
+APInt productModulo(ArrayRef<APInt> factors, const APInt& modulus) {
+  unsigned width = modulus.getBitWidth();
+  APInt result(width, 1);
+  for (const APInt& factor : factors) {
+    unsigned reductionWidth = std::max(width, factor.getBitWidth());
+    APInt reduced = factor.zext(reductionWidth)
+                        .urem(modulus.zext(reductionWidth))
+                        .trunc(width);
+    result = modularMultiplication(result, reduced, modulus);
+  }
+  return result.urem(modulus);
 }
 
 bool isPrime(const APInt& n) {
