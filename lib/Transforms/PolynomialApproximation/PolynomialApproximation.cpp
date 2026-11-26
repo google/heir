@@ -819,6 +819,36 @@ struct DecomposeBinaryMinMax : public OpRewritePattern<OpTy> {
   DataFlowSolver* solver;
 };
 
+// Rewrites a / p to a * (1 / p) when the dividend a is secret and the divisor
+// p is not, so that the division is a ciphertext-plaintext multiplication that
+// the rest of the pipeline (management, scale analysis, and lowering) handles
+// like any other. The reciprocal is cleartext, and folds away when p is a
+// constant (e.g., torch's GELU divides by sqrt(2)). Ops in a linalg body are
+// left alone, as in DecomposeBinaryMinMax.
+struct DividePlaintextAsMultiply : public OpRewritePattern<arith::DivFOp> {
+  DividePlaintextAsMultiply(MLIRContext* context, DataFlowSolver* solver)
+      : OpRewritePattern<arith::DivFOp>(context), solver(solver) {}
+
+  LogicalResult matchAndRewrite(arith::DivFOp op,
+                                PatternRewriter& rewriter) const override {
+    if (op->getParentOfType<linalg::LinalgOp>()) return failure();
+    if (!mlir::heir::isSecret(op.getLhs(), solver) ||
+        mlir::heir::isSecret(op.getRhs(), solver))
+      return rewriter.notifyMatchFailure(
+          op, "requires a secret dividend and a plaintext divisor");
+
+    Location loc = op.getLoc();
+    Value one = arith::ConstantOp::create(
+        rewriter, loc, cast<TypedAttr>(rewriter.getOneAttr(op.getType())));
+    Value reciprocal = arith::DivFOp::create(rewriter, loc, one, op.getRhs());
+    rewriter.replaceOpWithNewOp<arith::MulFOp>(op, op.getLhs(), reciprocal);
+    return success();
+  }
+
+ private:
+  DataFlowSolver* solver;
+};
+
 struct PolynomialApproximation
     : impl::PolynomialApproximationBase<PolynomialApproximation> {
   using PolynomialApproximationBase::PolynomialApproximationBase;
@@ -842,6 +872,7 @@ struct PolynomialApproximation
                          DecomposeBinaryMinMax<arith::MinimumFOp, false>,
                          DecomposeBinaryMinMax<arith::MinNumFOp, false>>(
           context, &solver);
+      decompositions.add<DividePlaintextAsMultiply>(context, &solver);
       (void)applyPatternsGreedily(getOperation(), std::move(decompositions));
     }
 
