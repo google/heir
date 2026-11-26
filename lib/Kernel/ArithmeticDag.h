@@ -16,6 +16,8 @@
 #include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 
 namespace mlir {
+class Operation;
+
 namespace heir {
 namespace kernel {
 
@@ -222,6 +224,28 @@ struct ResultAtNode {
   size_t index;
 };
 
+// An elementwise op the DAG does not model (a comparison, a select, a math
+// function, a cast, ...), applied slot-wise to its operands. `op` is a scalar
+// op used as a template: IRMaterializingVisitor clones it with operands and
+// results of the operands' tensor shape. Visitors that evaluate the DAG do not
+// interpret it.
+template <typename T>
+struct ElementwiseOpNode {
+  ::mlir::Operation* op;
+  std::vector<std::shared_ptr<ArithmeticDagNode<T>>> operands;
+};
+
+// Reads elements of `source`, in row-major order, into a tensor of `shape`:
+// element i is source[indices[i]], or zero where indices[i] is negative (e.g.
+// a slot that a packed operand leaves empty). The result has the source's
+// element type. Without a source, element i is indices[i] itself (an index).
+template <typename T>
+struct GatherNode {
+  std::shared_ptr<ArithmeticDagNode<T>> source;
+  std::vector<int64_t> indices;
+  std::vector<int64_t> shape;
+};
+
 // A For loop with static bounds
 template <typename T>
 struct ForLoopNode {
@@ -245,7 +269,7 @@ struct ArithmeticDagNode {
                LeftRotateNode<T>, LeftRotateBulkNode<T>, ExtractNode<T>,
                InsertNode<T>, ComparisonNode<T>, IfElseNode<T>, VariableNode<T>,
                ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode,
-               EmptyNode>
+               EmptyNode, ElementwiseOpNode<T>, GatherNode<T>>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -478,6 +502,23 @@ struct ArithmeticDagNode {
     return node;
   }
 
+  static NodePtr elementwise(::mlir::Operation* op,
+                             std::vector<NodePtr> operands) {
+    assert(op && "invalid elementwise op");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ElementwiseOpNode<T>>(
+        ElementwiseOpNode<T>{op, std::move(operands)});
+    return node;
+  }
+
+  static NodePtr gather(NodePtr source, std::vector<int64_t> indices,
+                        std::vector<int64_t> shape) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<GatherNode<T>>(
+        GatherNode<T>{std::move(source), std::move(indices), std::move(shape)});
+    return node;
+  }
+
   static NodePtr resultAt(NodePtr value, size_t index) {
     auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ResultAtNode<T>>(
@@ -663,6 +704,17 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const ElementwiseOpNode<T>& node,
+                                ExtraArgs... args) {
+    assert(false && "Visit logic for ElementwiseOpNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const GatherNode<T>& node, ExtraArgs... args) {
+    assert(false && "Visit logic for GatherNode is not implemented.");
+    return ResultType();
+  }
+
  protected:
   void clearCache() { cache.clear(); }
 
@@ -724,6 +776,12 @@ class CachingVisitor {
             for (const auto& element : n.elements) {
               clearSubtreeCache(element);
             }
+          } else if constexpr (std::is_same_v<NodeType, ElementwiseOpNode<T>>) {
+            for (const auto& operand : n.operands) {
+              clearSubtreeCache(operand);
+            }
+          } else if constexpr (std::is_same_v<NodeType, GatherNode<T>>) {
+            if (n.source) clearSubtreeCache(n.source);
           } else if constexpr (std::is_same_v<NodeType, EmptyNode>) {
             // No subtrees
           }

@@ -90,6 +90,10 @@ class IRMaterializingVisitor
                                 ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const ResultAtNode<SSAValue>& node,
                                 ImplicitLocOpBuilder& builder) override;
+  std::vector<Value> operator()(const ElementwiseOpNode<SSAValue>& node,
+                                ImplicitLocOpBuilder& builder) override;
+  std::vector<Value> operator()(const GatherNode<SSAValue>& node,
+                                ImplicitLocOpBuilder& builder) override;
 
  private:
   Type evaluatedType;
