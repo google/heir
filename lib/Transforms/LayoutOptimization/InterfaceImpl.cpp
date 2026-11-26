@@ -64,8 +64,7 @@ struct CollapseShapeHoistingImpl
     std::vector<Hoister> hoisters;
     tensor::CollapseShapeOp collapseShapeOp = cast<tensor::CollapseShapeOp>(op);
 
-    // Hoist layout conversion through trivial rank-reducing collapse_shape
-    // operations.
+    // Hoist layout conversion through collapse_shape operations.
 
     if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
       LLVM_DEBUG(llvm::dbgs()
@@ -74,6 +73,26 @@ struct CollapseShapeHoistingImpl
     }
 
     hoisters.push_back(createCollapseShapeHoister(collapseShapeOp));
+
+    return hoisters;
+  }
+};
+
+struct ExpandShapeHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          ExpandShapeHoistingImpl, tensor::ExpandShapeOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+    tensor::ExpandShapeOp expandShapeOp = cast<tensor::ExpandShapeOp>(op);
+
+    if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Layout attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    hoisters.push_back(createExpandShapeHoister(expandShapeOp));
 
     return hoisters;
   }
@@ -214,61 +233,16 @@ Hoister createTrivialHoister(Operation* op) {
   };
 }
 
-static bool isTrivialRankReduction(tensor::CollapseShapeOp op) {
-  auto srcType = op.getSrcType();
-  for (const auto& reassociation : op.getReassociationIndices()) {
-    int64_t numNonUnit = 0;
-    for (auto i : reassociation) {
-      if (srcType.getDimSize(i) != 1) {
-        numNonUnit++;
-      }
-    }
-    if (numNonUnit > 1) return false;
-  }
-  return true;
-}
-
 static LayoutAttr hoistLayoutThroughCollapseShape(LayoutAttr attr,
                                                   tensor::CollapseShapeOp op) {
-  auto rel = attr.getIntegerRelation();
-  auto srcType = op.getSrcType();
-  auto reassociationIndices = op.getReassociationIndices();
-
-  IntegerRelation mapRel(PresburgerSpace::getRelationSpace(
-      srcType.getRank(), op.getResultType().getRank(), 0, 0));
-
-  for (auto [j, reassociation] : llvm::enumerate(reassociationIndices)) {
-    int64_t nonUnitIdx = -1;
-    for (auto i : reassociation) {
-      if (srcType.getDimSize(i) != 1) {
-        nonUnitIdx = i;
-        break;
-      }
-    }
-    if (nonUnitIdx == -1) nonUnitIdx = reassociation[0];
-
-    for (auto i : reassociation) {
-      SmallVector<int64_t> eq(mapRel.getNumCols(), 0);
-      if (i == (int64_t)nonUnitIdx) {
-        // i_i - j_j = 0
-        eq[mapRel.getVarKindOffset(VarKind::Domain) + i] = 1;
-        eq[mapRel.getVarKindOffset(VarKind::Range) + j] = -1;
-      } else {
-        // i_i = 0
-        eq[mapRel.getVarKindOffset(VarKind::Domain) + i] = 1;
-      }
-      mapRel.addEquality(eq);
-    }
-  }
-
-  mapRel.compose(rel);
-  return LayoutAttr::getFromIntegerRelation(op.getContext(), mapRel);
+  return LayoutAttr::getFromIntegerRelation(
+      op.getContext(),
+      expandDimensions(attr.getIntegerRelation(), op.getSrcType(),
+                       op.getReassociationIndices()));
 }
 
 Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
-    if (!isTrivialRankReduction(op)) return failure();
-
     auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
     if (!fromLayout || !toLayout) return failure();
@@ -279,6 +253,32 @@ Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op) {
     result.newKernel = KernelName::Trivial;
 
     auto hoistedLayout = hoistLayoutThroughCollapseShape(toLayout, op);
+    result.newInputLayouts = SmallVector<Attribute>{hoistedLayout};
+
+    return result;
+  };
+}
+
+static LayoutAttr hoistLayoutThroughExpandShape(LayoutAttr attr,
+                                                tensor::ExpandShapeOp op) {
+  return LayoutAttr::getFromIntegerRelation(
+      op.getContext(),
+      collapseDimensions(attr.getIntegerRelation(), op.getResultType(),
+                         op.getReassociationIndices()));
+}
+
+Hoister createExpandShapeHoister(tensor::ExpandShapeOp op) {
+  return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+    if (!fromLayout || !toLayout) return failure();
+
+    HoistResult result;
+    result.convertLayoutOp = convertLayoutOp;
+    result.newOutputLayout = toLayout;
+    result.newKernel = KernelName::Trivial;
+
+    auto hoistedLayout = hoistLayoutThroughExpandShape(toLayout, op);
     result.newInputLayouts = SmallVector<Attribute>{hoistedLayout};
 
     return result;
@@ -315,6 +315,12 @@ Hoister createPadHoister(tensor::PadOp op) {
   };
 }
 
+static bool isSingleCiphertext1DVector(const IntegerRelation& rel) {
+  return rel.getNumDomainVars() == 1 &&
+         rel.getConstantBoundOnDimSize64(
+             rel.getVarKindOffset(VarKind::Range)) == 1;
+}
+
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
     HoistResult result;
@@ -322,6 +328,10 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
+    if (!isSingleCiphertext1DVector(fromLayout.getIntegerRelation()) ||
+        !isSingleCiphertext1DVector(toLayout.getIntegerRelation())) {
+      return failure();
+    }
 
     // Operand order for Matvec op is:
     //
@@ -364,6 +374,10 @@ Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
     auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
+    if (!isSingleCiphertext1DVector(fromLayout.getIntegerRelation()) ||
+        !isSingleCiphertext1DVector(toLayout.getIntegerRelation())) {
+      return failure();
+    }
 
     // Operand order for Conv_1d op is:
     //
@@ -410,6 +424,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   });
   registry.addExtension(+[](MLIRContext* ctx, tensor::TensorDialect* dialect) {
     tensor::CollapseShapeOp::attachInterface<CollapseShapeHoistingImpl>(*ctx);
+    tensor::ExpandShapeOp::attachInterface<ExpandShapeHoistingImpl>(*ctx);
     tensor::PadOp::attachInterface<PadHoistingImpl>(*ctx);
   });
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {

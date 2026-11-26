@@ -1,7 +1,7 @@
 // RUN: heir-opt --layout-propagation %s | FileCheck %s
 
 // Input layout is a flattened row-major layout.
-// CHECK-DAG: #[[layout1:.*]] = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and (-10i2 - i3 + slot) mod 128 = 0 and 0 <= i2 <= 9 and 0 <= i3 <= 9 and 0 <= slot <= 1023 }">
+// CHECK-DAG: #[[layout1:.*]] = #tensor_ext.layout<"{ [i0, i1, i2, i3] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and (-10i2 - i3 + slot) mod 128 = 0 and 0 <= i2 <= 9 and 0 <= i3 <= 127 - 10i2 and i3 <= 9 and 0 <= slot <= 1023 }">
 // CHECK-DAG: #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 
 // CHECK: @conv2d_nchw

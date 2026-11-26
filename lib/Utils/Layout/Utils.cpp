@@ -13,9 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/DynamicAPInt.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
@@ -655,71 +657,83 @@ bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation) {
-  std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
-  for (const ReassociationIndices& associationGroup : reassociation) {
-    // a single-entry association group is a no-op
-    if (associationGroup.size() == 1) {
-      continue;
-    }
-    // Iterate starting from the largest index so that earlier deletion do not
-    // impact later indices
-    for (int64_t reassocDim : llvm::reverse(associationGroup)) {
-      if (sourceType.getShape()[reassocDim] == 1) {
-        // Drop this unit dimension
-        clonedRelation->setAndEliminate(reassocDim, 0);
-      }
+  unsigned rank = sourceType.getRank();
+  unsigned numCollapsed = reassociation.size();
+  IntegerRelation collapsedToSource(PresburgerSpace::getRelationSpace(
+      numCollapsed, rank, /*numSymbol=*/0, /*numLocals=*/0));
+  for (unsigned d = 0; d < rank; ++d) {
+    if (sourceType.getDimSize(d) == 1) {
+      addConstraint(
+          collapsedToSource,
+          {{collapsedToSource.getVarKindOffset(VarKind::Range) + d, 1}},
+          /*equality=*/true);
     }
   }
-  return *clonedRelation;
+  for (unsigned g = 0; g < numCollapsed; ++g) {
+    unsigned collapsedCol =
+        collapsedToSource.getVarKindOffset(VarKind::Domain) + g;
+    int64_t groupSize = 1;
+    SmallVector<int64_t> nonUnitDims;
+    for (int64_t d : reassociation[g]) {
+      int64_t dimSize = sourceType.getDimSize(d);
+      groupSize *= dimSize;
+      if (dimSize > 1) nonUnitDims.push_back(d);
+    }
+    addBounds(collapsedToSource, collapsedCol, 0, groupSize - 1);
+    if (nonUnitDims.empty()) continue;
+
+    unsigned remCol = collapsedCol;
+    for (int64_t idx = static_cast<int64_t>(nonUnitDims.size()) - 1; idx >= 1;
+         --idx) {
+      int64_t d = nonUnitDims[idx];
+      int64_t dimSize = sourceType.getDimSize(d);
+      unsigned srcCol = collapsedToSource.getVarKindOffset(VarKind::Range) + d;
+      unsigned prevRemCol = remCol;
+      SmallVector<int64_t> dividend(collapsedToSource.getNumCols(), 0);
+      dividend[prevRemCol] = 1;
+      unsigned qCol = collapsedToSource.addLocalFloorDiv(dividend, dimSize);
+      addConstraint(collapsedToSource,
+                    {{srcCol, 1}, {prevRemCol, -1}, {qCol, dimSize}},
+                    /*equality=*/true);
+      remCol = qCol;
+    }
+    unsigned outerCol =
+        collapsedToSource.getVarKindOffset(VarKind::Range) + nonUnitDims[0];
+    addConstraint(collapsedToSource, {{outerCol, 1}, {remCol, -1}},
+                  /*equality=*/true);
+  }
+
+  collapsedToSource.compose(relation);
+  return collapsedToSource;
 }
 
 presburger::IntegerRelation expandDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType resultType,
     ArrayRef<ReassociationIndices> reassociation) {
-  // tensor indices correspond to layout dimensions, and adding a dimension of
-  // size 1 has no effect on the affine map expressions, so all we're doing is
-  // adding new dimensions for each reassociation group index corresponding to
-  // an output dimension of size 1. Mainly we have to ensure that the
-  // dimension we're adding is in the correct index of the integer relations
-  // domain variable list.
-  std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
-
-  // Handle the case where reassociation is empty
-  if (reassociation.empty()) {
-    for (int64_t i = 0; i < resultType.getRank(); ++i) {
-      auto newDimIndex = clonedRelation->insertVar(VarKind::Domain, i);
-      clonedRelation->addBound(BoundType::LB, newDimIndex, 0);
-      clonedRelation->addBound(BoundType::UB, newDimIndex, 0);
-    }
-    return *clonedRelation;
+  unsigned numCollapsed = reassociation.size();
+  unsigned rank = resultType.getRank();
+  IntegerRelation expandedToSource(PresburgerSpace::getRelationSpace(
+      rank, numCollapsed, /*numSymbol=*/0, /*numLocals=*/0));
+  for (unsigned d = 0; d < rank; ++d) {
+    addBounds(expandedToSource,
+              expandedToSource.getVarKindOffset(VarKind::Domain) + d, 0,
+              resultType.getDimSize(d) - 1);
   }
-
-  int oldDim = 0;
-  for (const ReassociationIndices& associationGroup : reassociation) {
-    // a single-entry association group is a no-op
-    if (associationGroup.size() == 1) {
-      ++oldDim;
-      continue;
+  for (unsigned g = 0; g < numCollapsed; ++g) {
+    unsigned collapsedCol =
+        expandedToSource.getVarKindOffset(VarKind::Range) + g;
+    SmallVector<int64_t> rowMajorCoeffs(expandedToSource.getNumCols(), 0);
+    int64_t product = 1;
+    for (int64_t d : llvm::reverse(reassociation[g])) {
+      rowMajorCoeffs[expandedToSource.getVarKindOffset(VarKind::Domain) + d] =
+          product;
+      product *= resultType.getDimSize(d);
     }
-
-    for (int64_t reassocDim : associationGroup) {
-      if (resultType.getShape()[reassocDim] > 1) {
-        ++oldDim;
-      } else {
-        // A new dimension of size 1 is being added, so add a new domain
-        // variable v with 0 <= v < 1.
-        auto newDimIndex = clonedRelation->insertVar(VarKind::Domain, oldDim);
-        clonedRelation->addBound(BoundType::LB, newDimIndex, 0);
-        clonedRelation->addBound(BoundType::UB, newDimIndex, 0);
-        ++oldDim;
-      }
-    }
+    rowMajorCoeffs[collapsedCol] = -1;
+    expandedToSource.addEquality(rowMajorCoeffs);
   }
-  assert(static_cast<int64_t>(clonedRelation->getNumDomainVars()) ==
-             resultType.getRank() &&
-         "expandDimensions: result relation domain rank must match the result "
-         "tensor rank");
-  return *clonedRelation;
+  expandedToSource.compose(relation);
+  return expandedToSource;
 }
 
 presburger::IntegerRelation fixVars(const presburger::IntegerRelation& relation,
@@ -772,18 +786,6 @@ void getRangePoints(const presburger::IntegerRelation& relation,
 }
 
 namespace {
-// Extract the first `n` set coordinates of `pnt` into `out`.
-void extractCoords(__isl_keep isl_point* pnt, int n,
-                   std::vector<int64_t>& out) {
-  for (int i = 0; i < n; i++) {
-    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
-    if (isl_val_is_int(coord)) {
-      out[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-}
-
 // Computes each domain variable's box bounds [lb, ub].
 //
 // It first tries a quick scan for single-variable equality/inequality rows of
@@ -860,116 +862,7 @@ void getDomainBox(const presburger::IntegerRelation& rel,
   }
 }
 
-// isl_set_foreach_point takes a plain C callback and a void* cookie. This
-// bridges that callback back to a richer llvm::function_ref, carrying along the
-// domain point currently being imaged, and frees the (owned) point afterwards.
-struct ImageCtx {
-  llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
-      onImagePoint;
-  ArrayRef<int64_t> domainPoint;
-};
-isl_stat imagePointTrampoline(__isl_take isl_point* pnt, void* user) {
-  auto* imageCtx = static_cast<ImageCtx*>(user);
-  imageCtx->onImagePoint(imageCtx->domainPoint, pnt);
-  isl_point_free(pnt);
-  return isl_stat_ok;
-}
-
-// Mutate `point` to hold the next point of a multi-dimensional coordinate grid
-// over the bounding box [lbs, ubs]. Returns false once the space is fully
-// traversed.
-bool nextGridPoint(SmallVectorImpl<int64_t>& point, ArrayRef<int64_t> lbs,
-                   ArrayRef<int64_t> ubs) {
-  for (int d = static_cast<int>(point.size()) - 1; d >= 0; --d) {
-    if (++point[d] <= ubs[d]) return true;
-    point[d] = lbs[d];
-  }
-  return false;
-}
-
-// Enumerates the domain box [lb, ub] explicitly and, for each concrete domain
-// point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
-// that domain point's image. `imagePoint` is borrowed (freed by this function).
-// Between domain points `shouldStop` is polled (when non-null); returning true
-// halts enumeration early. With `numRangeDims`, only the first that many range
-// dimensions of each image are enumerated.
-//
-// Fixing the domain to concrete integers collapses the relation's mod/floordiv
-// existentials into a non-parametric feasibility problem that isl resolves
-// cheaply. We deliberately do NOT ask isl to enumerate the domain set
-// (isl_set_foreach_point over isl_basic_map_domain): projecting the range out
-// leaves those existentials in the domain set, making that scan itself an
-// expensive parametric-ILP solve -- the very cost we are avoiding.
-void forEachDomainImagePoint(
-    __isl_keep isl_basic_map* bmap, ArrayRef<int64_t> lb, ArrayRef<int64_t> ub,
-    llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
-        onImagePoint,
-    llvm::function_ref<bool()> shouldStop = nullptr,
-    std::optional<unsigned> numRangeDims = std::nullopt) {
-  isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
-  unsigned numDomain = lb.size();
-  unsigned numRange = isl_basic_map_dim(bmap, isl_dim_out);
-  assert(!numRangeDims || *numRangeDims <= numRange);
-
-  // Fix the domain to `point`, then invoke onImagePoint for every point of the
-  // resulting (now fully concrete) range.
-  auto processImageOfPoint = [&](ArrayRef<int64_t> point) {
-    isl_basic_map* fixed = isl_basic_map_copy(bmap);
-    for (unsigned i = 0; i < numDomain; ++i) {
-      fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i,
-                                    isl_val_int_from_si(ctx, point[i]));
-    }
-    isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
-    if (numRangeDims)
-      image = isl_set_project_out(image, isl_dim_set, *numRangeDims,
-                                  numRange - *numRangeDims);
-    ImageCtx imageCtx{onImagePoint, point};
-    isl_set_foreach_point(image, imagePointTrampoline, &imageCtx);
-    isl_set_free(image);
-  };
-
-  // An empty box (some lb > ub) contains no points.
-  for (unsigned i = 0; i < numDomain; ++i)
-    if (lb[i] > ub[i]) return;
-
-  SmallVector<int64_t> point(lb.begin(), lb.end());
-  do {
-    processImageOfPoint(point);
-    if (shouldStop && shouldStop()) break;
-  } while (nextGridPoint(point, lb, ub));
-}
 }  // namespace
-
-struct WrapCallbackCtx {
-  PointPairCollector* collector;
-  int numDomain;
-  int numRange;
-};
-
-static isl_stat enumeratePointsCallback(__isl_take isl_point* pnt, void* user) {
-  auto* ctx = static_cast<WrapCallbackCtx*>(user);
-  std::vector<int64_t> domainPoint(ctx->numDomain);
-  std::vector<int64_t> rangePoint(ctx->numRange);
-  for (int i = 0; i < ctx->numDomain; i++) {
-    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
-    if (isl_val_is_int(coord)) {
-      domainPoint[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-  for (int i = 0; i < ctx->numRange; i++) {
-    isl_val* coord =
-        isl_point_get_coordinate_val(pnt, isl_dim_set, ctx->numDomain + i);
-    if (isl_val_is_int(coord)) {
-      rangePoint[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-  ctx->collector->points.emplace_back(std::move(domainPoint),
-                                      std::move(rangePoint));
-  isl_point_free(pnt);
-  return isl_stat_ok;
-}
 
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
@@ -979,51 +872,13 @@ void enumeratePoints(const presburger::IntegerRelation& relation,
   assert(relation.getNumRangeVars() ==
              static_cast<unsigned>(collector.rangeDims) &&
          "collector rangeDims must match the relation's range rank");
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
 
-  SmallVector<int64_t> lb, ub;
-  getDomainBox(relation, lb, ub);
-  int64_t volume = 1;
-  bool overflow = false;
-  for (size_t i = 0; i < lb.size(); ++i) {
-    int64_t diff = ub[i] - lb[i] + 1;
-    if (diff <= 0) {
-      volume = 0;
-      break;
-    }
-    if (volume > INT64_MAX / diff) {
-      overflow = true;
-      break;
-    }
-    volume *= diff;
-  }
-
-  // If the domain box is small enough, use the box-looping method.
-  bool useBoxLoop = false;
-  if (!overflow) {
-    if (volume <= 200000) {
-      useBoxLoop = true;
-    }
-  }
-
-  if (useBoxLoop) {
-    forEachDomainImagePoint(
-        bmap, lb, ub,
-        [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
-          std::vector<int64_t> rangePoint(collector.rangeDims);
-          extractCoords(imagePoint, collector.rangeDims, rangePoint);
-          collector.points.emplace_back(
-              std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
-              std::move(rangePoint));
-        });
-    isl_basic_map_free(bmap);
-  } else {
-    isl_basic_set* bset = isl_basic_map_wrap(bmap);
-    isl_set* set = isl_set_from_basic_set(bset);
-    WrapCallbackCtx ctx{&collector, collector.domainDims, collector.rangeDims};
-    isl_set_foreach_point(set, enumeratePointsCallback, &ctx);
-    isl_set_free(set);
-  }
+  forEachPoint(relation, [&](ArrayRef<int64_t> domainPoint,
+                             ArrayRef<int64_t> rangePoint) {
+    collector.points.emplace_back(
+        std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+        std::vector<int64_t>(rangePoint.begin(), rangePoint.end()));
+  });
 }
 
 std::vector<int64_t> anyRangePoint(
@@ -1033,7 +888,9 @@ std::vector<int64_t> anyRangePoint(
   isl_basic_set* bset = isl_basic_map_range(bmap);
   isl_point* point = isl_basic_set_sample_point(bset);
 
-  if (!point) {
+  if (!point || isl_point_is_void(point) != isl_bool_false) {
+    isl_point_free(point);
+    isl_ctx_free(ctx);
     return {};
   }
 
@@ -1063,45 +920,22 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   assert(outputType.getRank() == 2 && "Expected 2D output type.");
 
   int64_t numCts = outputType.getDimSize(0);
+  if (numCts <= 0) return;
 
-  SmallVector<int64_t> lb, ub;
-  getDomainBox(relation, lb, ub);
+  unsigned numDomain = relation.getNumDomainVars();
+  isl_basic_set* allPoints = isl_basic_set_lift(
+      isl_basic_map_wrap(convertRelationToBasicMap(relation, collector.ctx)));
 
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
-
-  // Mark which ct indices (range var 0) appear in the range, enumerating the
-  // domain box (see forEachDomainImagePoint). Once every ct is accounted for
-  // we can stop early instead of scanning the rest of a large domain.
-  std::vector<bool> seen(numCts, false);
-  int64_t seenCount = 0;
-  forEachDomainImagePoint(
-      bmap, lb, ub,
-      [&](ArrayRef<int64_t> /*domainPoint*/, __isl_keep isl_point* imagePoint) {
-        isl_val* coord =
-            isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
-        if (isl_val_is_int(coord)) {
-          int64_t ct = isl_val_get_num_si(coord);
-          if (ct >= 0 && ct < numCts && !seen[ct]) {
-            seen[ct] = true;
-            ++seenCount;
-          }
-        }
-        isl_val_free(coord);
-      },
-      /*shouldStop=*/[&]() { return seenCount == numCts; },
-      // Only the ct matters; enumerating slots too multiplies the points by
-      // the slot count.
-      /*numRangeDims=*/1);
-
-  isl_basic_map_free(bmap);
-
-  // The complement is every ct index in [0, numCts) that never appeared,
-  // emitted in ascending order.
   for (int64_t ct = 0; ct < numCts; ++ct) {
-    if (!seen[ct]) {
+    isl_basic_set* slice = isl_basic_set_fix_val(
+        isl_basic_set_copy(allPoints), isl_dim_set, numDomain,
+        isl_val_int_from_si(collector.ctx, ct));
+    if (isl_basic_set_is_empty(slice) == isl_bool_true) {
       collector.points.push_back({ct});
     }
+    isl_basic_set_free(slice);
   }
+  isl_basic_set_free(allPoints);
 }
 
 presburger::IntegerRelation getCollapsedRelation(

@@ -87,6 +87,18 @@ struct OnlyInputNeedsLayout
   }
 };
 
+// The generic kernel packs cleartext inputs per group itself, so only secret
+// inputs and the init need a layout.
+struct GenericLayoutRequirement
+    : public OperandLayoutRequirementOpInterface::ExternalModel<
+          GenericLayoutRequirement, linalg::GenericOp> {
+  bool operandRequiresLayout(Operation* op, unsigned operandIndex,
+                             bool isSecret) const {
+    return isSecret ||
+           operandIndex >= cast<linalg::GenericOp>(op).getNumDpsInputs();
+  }
+};
+
 }  // namespace
 
 void registerOperandLayoutRequirementOpInterface(DialectRegistry& registry) {
@@ -106,6 +118,7 @@ void registerOperandLayoutRequirementOpInterface(DialectRegistry& registry) {
         OnlyInputNeedsLayout<linalg::BroadcastOp>>(*ctx);
     linalg::TransposeOp::attachInterface<
         OnlyInputNeedsLayout<linalg::TransposeOp>>(*ctx);
+    linalg::GenericOp::attachInterface<GenericLayoutRequirement>(*ctx);
   });
 }
 

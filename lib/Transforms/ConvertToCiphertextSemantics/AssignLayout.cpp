@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -309,6 +310,20 @@ static FailureOr<Value> implementCyclicAssignLayoutStep(
   return loop.getResult(0);
 }
 
+// The value of a dense resource constant with a non-empty blob of whole-byte
+// elements, or null. Assign-layout folds such constants by default.
+static DenseResourceElementsAttr getByteAlignedResource(Value input) {
+  auto cstOp = input.getDefiningOp<arith::ConstantOp>();
+  if (!cstOp) return nullptr;
+  auto resourceAttr = dyn_cast<DenseResourceElementsAttr>(cstOp.getValue());
+  if (!resourceAttr || resourceAttr.getData().empty()) return nullptr;
+  Type elementType = resourceAttr.getElementType();
+  if (!elementType.isIntOrFloat() ||
+      elementType.getIntOrFloatBitWidth() % 8 != 0)
+    return nullptr;
+  return resourceAttr;
+}
+
 static FailureOr<Value> implementAssignLayoutStep(
     Value input, LayoutAttr layout, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
@@ -396,29 +411,16 @@ static FailureOr<Value> implementAssignLayoutStep(
   }
 
   DenseElementsAttr constantAttr;
-  DenseResourceElementsAttr resourceAttr;
-  ArrayRef<char> resourceRaw;
   bool isDenseConstant = matchPattern(input, m_Constant(&constantAttr));
-  if (!isDenseConstant) {
-    if (auto cstOp =
-            dyn_cast_or_null<arith::ConstantOp>(input.getDefiningOp())) {
-      if ((resourceAttr =
-               dyn_cast<DenseResourceElementsAttr>(cstOp.getValue()))) {
-        resourceRaw = resourceAttr.getData();
-      }
-    }
-  }
-  bool isResourceConstant = !resourceRaw.empty() &&
-                            elementType.isIntOrFloat() &&
-                            elementType.getIntOrFloatBitWidth() % 8 == 0;
+  DenseResourceElementsAttr resourceAttr =
+      isDenseConstant ? nullptr : getByteAlignedResource(input);
+  ArrayRef<char> resourceRaw =
+      resourceAttr ? resourceAttr.getData() : ArrayRef<char>();
+  bool isResourceConstant = static_cast<bool>(resourceAttr);
   auto tryFolding = [&]() -> FailureOr<Value> {
     if (!dataSemanticType) return failure();
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
     int64_t numTargetElements = targetType.getNumElements();
-
-    PointPairCollector collector(dataSemanticType.getRank(),
-                                 /*rangeDims=*/targetType.getRank());
-    enumeratePoints(rel, collector);
 
     // Row-major strides let us flatten a multi-dimensional point with plain
     // integer math, avoiding per-element getFlattenedIndex() interface lookups
@@ -437,6 +439,17 @@ static FailureOr<Value> implementAssignLayoutStep(
       return flat;
     };
     bool srcIsSplat = isDenseConstant && constantAttr.isSplat();
+    // The points are packed as they are scanned rather than collected first,
+    // since a packed filter can have hundreds of millions of them; packing a
+    // point twice writes the same value. The first slot that receives two
+    // distinct values, if any, fails the fold.
+    std::optional<int64_t> conflict;
+    auto conflictError = [&]() {
+      return builder.emitError()
+             << "layout maps two distinct data values to the same slot "
+             << *conflict << "; a non-replicated value cannot be packed "
+             << "into this (non-injective) layout";
+    };
 
     // Fast path: for byte-aligned int/float element types, pack directly into a
     // raw byte buffer rather than building an N-element SmallVector<Attribute>
@@ -450,25 +463,25 @@ static FailureOr<Value> implementAssignLayoutStep(
           static_cast<size_t>(numTargetElements) * byteWidth, 0);
 
       std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
-      for (const auto& [domainPoint, rangePoint] : collector.points) {
+      forEachPointUnordered(rel, [&](ArrayRef<int64_t> domainPoint,
+                                     ArrayRef<int64_t> rangePoint) {
         int64_t dstFlat = flatten(rangePoint, dstStrides);
-        if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
+        if (conflict || dstFlat < 0 || dstFlat >= numTargetElements) return;
         int64_t srcFlat = srcIsSplat ? 0 : flatten(domainPoint, srcStrides);
         if (!srcIsSplat && written[dstFlat] &&
             std::memcmp(
                 rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
                 srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
                 byteWidth) != 0) {
-          return builder.emitError()
-                 << "layout maps two distinct data values to the same slot "
-                 << dstFlat << "; a non-replicated value cannot be packed "
-                 << "into this (non-injective) layout";
+          conflict = dstFlat;
+          return;
         }
         if (!srcIsSplat) written[dstFlat] = true;
         std::memcpy(rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
                     srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
                     byteWidth);
-      }
+      });
+      if (conflict) return conflictError();
 
       TypedAttr packedConstantAttr;
       ArrayRef<char> packedRaw(rawBuffer.data(), rawBuffer.size());
@@ -499,21 +512,21 @@ static FailureOr<Value> implementAssignLayoutStep(
         srcIsSplat ? constantAttr.getSplatValue<Attribute>() : Attribute();
     auto srcValues = constantAttr.getValues<Attribute>();
     std::vector<bool> written(srcIsSplat ? 0 : numTargetElements, false);
-    for (const auto& [domainPoint, rangePoint] : collector.points) {
-      int64_t dstFlat = flatten(rangePoint, dstStrides);
-      if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
-      Attribute val = srcIsSplat ? splatValue
-                                 : srcValues[static_cast<size_t>(
-                                       flatten(domainPoint, srcStrides))];
-      if (!srcIsSplat && written[dstFlat] && packedValues[dstFlat] != val) {
-        return builder.emitError()
-               << "layout maps two distinct data values to the same slot "
-               << dstFlat << "; a non-replicated value cannot be packed "
-               << "into this (non-injective) layout";
-      }
-      if (!srcIsSplat) written[dstFlat] = true;
-      packedValues[dstFlat] = val;
-    }
+    forEachPointUnordered(
+        rel, [&](ArrayRef<int64_t> domainPoint, ArrayRef<int64_t> rangePoint) {
+          int64_t dstFlat = flatten(rangePoint, dstStrides);
+          if (conflict || dstFlat < 0 || dstFlat >= numTargetElements) return;
+          Attribute val = srcIsSplat ? splatValue
+                                     : srcValues[static_cast<size_t>(
+                                           flatten(domainPoint, srcStrides))];
+          if (!srcIsSplat && written[dstFlat] && packedValues[dstFlat] != val) {
+            conflict = dstFlat;
+            return;
+          }
+          if (!srcIsSplat) written[dstFlat] = true;
+          packedValues[dstFlat] = val;
+        });
+    if (conflict) return conflictError();
 
     auto packedConstantAttr =
         DenseElementsAttr::get(targetType, ArrayRef<Attribute>(packedValues));
@@ -643,13 +656,35 @@ FailureOr<Value> implementAssignLayout(
   OpBuilder::InsertionGuard guard(builder);
 
   if (auto arrayAttr = dyn_cast<ArrayAttr>(layout)) {
+    if (arrayAttr.empty() || !llvm::all_of(arrayAttr, [](Attribute a) {
+          return isa<LayoutAttr>(a);
+        }))
+      return builder.emitError() << "Expected a non-empty array of LayoutAttr";
+    // A constant that every step would fold (a resource constant, or any
+    // constant when folding is requested) is packed in one step through the
+    // composed layout. Folding enumerates the points of a layout, and the
+    // points of the composed layout are those of the packed result, while
+    // folding step by step builds every intermediate tensor, which can be far
+    // larger: for a 32x16x3x3 strided convolution filter at 16384 slots, one
+    // intermediate has 8192x16x16384 elements and the result 8192x16384.
+    bool isResource = static_cast<bool>(getByteAlignedResource(input));
+    bool foldsEveryStep =
+        isa<RankedTensorType>(input.getType()) &&
+        (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE
+             ? isResource || matchPattern(input, m_Constant())
+             : strategy == CodegenStrategy::AUTO && isResource);
+    if (foldsEveryStep) {
+      Type targetType = materializeLayout(
+          getElementTypeOrSelf(input.getType()),
+          cast<LayoutAttr>(arrayAttr.getValue().back()), minSlotCount);
+      return implementAssignLayoutStep(
+          input, LayoutAttr::composeLayouts(arrayAttr, builder.getContext()),
+          targetType, builder, createdOpCallback, /*isLast=*/true,
+          /*domainSchedule=*/{}, strategy);
+    }
     Value currentInput = input;
     for (size_t i = 0; i < arrayAttr.size(); ++i) {
-      auto layoutAttr = dyn_cast<LayoutAttr>(arrayAttr[i]);
-      if (!layoutAttr) {
-        return builder.emitError()
-               << "All layouts in the array must be LayoutAttr";
-      }
+      auto layoutAttr = cast<LayoutAttr>(arrayAttr[i]);
       bool isLast = (i == arrayAttr.size() - 1);
       Type targetType;
       auto elementType = getElementTypeOrSelf(currentInput.getType());

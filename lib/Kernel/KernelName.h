@@ -20,10 +20,6 @@ enum KernelName : int {
   // Plaintext-ciphertext matvec using the Halevi-Shoup diagonal method.
   MatvecDiagonal,
 
-  // Ciphertext-plaintext vecmat using the Halevi-Shoup diagonal method
-  // (transpose of MatvecDiagonal).
-  VecmatDiagonal,
-
   // LHS matrix is secret, RHS is a plaintext matrix. This expands the matmul
   // into a single matvec using the diagonal matrix vector kernel.
   MatmulDiagonal,

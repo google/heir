@@ -35,7 +35,7 @@ module {
 #layout_dst_2d = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : (7 - 5i0 - i1 + slot + 16*floor((-7 + 5i0 + i1)/16)) mod 32 = 0 and 0 < i0 <= 5 and 2 <= i1 <= 6 and -22 + 5i0 + i1 <= 16ct <= -7 + 5i0 + i1 and 0 <= slot <= 15 }">
 #original_type_dst_2d = #tensor_ext.original_type<originalType = tensor<6x7xf32>, layout = #layout_dst_2d>
 
-// CHECK: #[[layout_remap_2d:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = i0 and (-i1 + slot) mod 32 = 0 and i0 >= 0 and 0 <= i1 <= 24 - 16i0 and i1 <= 15 and 0 <= slot <= 15 }">
+// CHECK: #[[layout_remap_2d:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = i0 and (-i1 + slot) mod 32 = 0 and 0 <= i1 <= 15 and -15 - 256i0 <= 15i1 <= 384 - 256i0 and 0 <= slot <= 15 and -4 + i0 + i1 <= 5*floor((15 + 16i0 + 15i1)/80) <= i0 + i1 }">
 // CHECK: #[[original_type_dst_2d:.*]] = #tensor_ext.original_type<originalType = tensor<6x7xf32>, layout = #[[layout_dst_2d:.*]]>
 
 module {

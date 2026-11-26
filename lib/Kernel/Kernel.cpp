@@ -30,8 +30,6 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "MatvecDiagonal";
     case KernelName::MatmulDiagonal:
       return "MatmulDiagonal";
-    case KernelName::VecmatDiagonal:
-      return "VecmatDiagonal";
     case KernelName::MatmulBicyclic:
       return "MatmulBicyclic";
     case KernelName::MatmulBicyclicDiagonal:

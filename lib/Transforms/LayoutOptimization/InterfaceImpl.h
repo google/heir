@@ -18,9 +18,10 @@ Hoister createTrivialHoister(Operation* op);
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op);
 
 Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op);
-/// Construct a hoister that hoists a layout conversion through a trivial
-/// rank-reducing collapse_shape operation.
+/// Construct a hoister that hoists a layout conversion through a
+/// collapse_shape operation.
 Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op);
+Hoister createExpandShapeHoister(tensor::ExpandShapeOp op);
 Hoister createPadHoister(tensor::PadOp op);
 
 void registerLayoutConversionHoistableInterface(DialectRegistry& registry);
