@@ -353,7 +353,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
 }
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
-    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+    isl_ast_node* node, BodyBuilderFn bodyBuilder, ValueRange iterArgs) {
   OpBuilder::InsertionGuard guard(builder_);
   // Collect the string names of the iterators
   isl_ast_expr* iter = isl_ast_node_for_get_iterator(node);
@@ -398,7 +398,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
 
   // Create the scf for loop
   auto loop = scf::ForOp::create(
-      builder_, currentLoc_, lbInt, ubVal, stepInt, currentIterArgs_,
+      builder_, currentLoc_, lbInt, ubVal, stepInt, iterArgs,
       [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
           ValueRange args) {
         Value ivCast = iv;
@@ -448,7 +448,6 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
         }
         // It is safe to store ValueRange args because it points to block
         // arguments of a loop operation that we also own.
-        currentIterArgs_ = args;
         currentLoc_ = nestedLoc;
       });
   createdOpCallback_(loop);
@@ -457,7 +456,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   loops_.push_back(loop);
 
   isl_ast_node* tmp = isl_ast_node_for_get_body(node);
-  auto visitBody = visitAstNode(tmp, bodyBuilder);
+  auto visitBody = visitAstNode(tmp, bodyBuilder, loop.getRegionIterArgs());
   if (failed(visitBody)) {
     if (oldIv) {
       ivToValue_[nameStr] = oldIv;
@@ -487,7 +486,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
 }
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
-    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+    isl_ast_node* node, BodyBuilderFn bodyBuilder, ValueRange iterArgs) {
   OpBuilder::InsertionGuard guard(builder_);
   isl_ast_expr* cond = isl_ast_node_if_get_cond(node);
   Value condVal = buildIslExpr(cond, ivToValue_, builder_, createdOpCallback_);
@@ -498,8 +497,6 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   // visiting a nested for loop overwrites currentIterArgs_ to point at that
   // inner loop's block arguments (see visitAstNodeFor), which live in the then
   // region and would not dominate a yield in the else region.
-  SmallVector<Value> incomingIterArgs(currentIterArgs_.begin(),
-                                      currentIterArgs_.end());
 
   Value condValI1 = condVal;
   if (!condValI1.getType().isInteger(1)) {
@@ -508,14 +505,14 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
     createdOpCallback_(cast);
     condValI1 = cast->getResult(0);
   }
-  auto ifOp = scf::IfOp::create(builder_, currentLoc_,
-                                TypeRange(incomingIterArgs), condValI1,
-                                /*addThenBlock=*/true, /*addElseBlock=*/true);
+  auto ifOp =
+      scf::IfOp::create(builder_, currentLoc_, TypeRange(iterArgs), condValI1,
+                        /*addThenBlock=*/true, /*addElseBlock=*/true);
   createdOpCallback_(ifOp);
 
   isl_ast_node* thenNode = isl_ast_node_if_get_then_node(node);
   builder_.setInsertionPointToStart(&ifOp.getThenRegion().front());
-  auto visitThenBody = visitAstNode(thenNode, bodyBuilder);
+  auto visitThenBody = visitAstNode(thenNode, bodyBuilder, iterArgs);
   isl_ast_node_free(thenNode);
   if (failed(visitThenBody)) {
     return failure();
@@ -525,9 +522,8 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   bool hasElse = (elseNode != nullptr);
   FailureOr<scf::ValueVector> visitElseBody;
   if (hasElse) {
-    currentIterArgs_ = incomingIterArgs;
     builder_.setInsertionPointToStart(&ifOp.getElseRegion().front());
-    visitElseBody = visitAstNode(elseNode, bodyBuilder);
+    visitElseBody = visitAstNode(elseNode, bodyBuilder, iterArgs);
     isl_ast_node_free(elseNode);
     if (failed(visitElseBody)) {
       return failure();
@@ -550,7 +546,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
       yieldOp =
           scf::YieldOp::create(builder_, currentLoc_, visitElseBody.value());
     } else {
-      yieldOp = scf::YieldOp::create(builder_, currentLoc_, incomingIterArgs);
+      yieldOp = scf::YieldOp::create(builder_, currentLoc_, iterArgs);
     }
     createdOpCallback_(yieldOp);
   }
@@ -560,7 +556,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
 }
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
-    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+    isl_ast_node* node, BodyBuilderFn bodyBuilder, ValueRange iterArgs) {
   isl_ast_expr* expr = isl_ast_node_user_get_expr(node);
 
   SmallVector<Value> exprs;
@@ -575,8 +571,8 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
   // In the body of the innermost loop, call the body building function using
   // the generated indexing expressions and yield its results.
   scf::ValueVector results =
-      bodyBuilder(builder_, currentLoc_, exprs, currentIterArgs_);
-  assert(results.size() == currentIterArgs_.size() &&
+      bodyBuilder(builder_, currentLoc_, exprs, iterArgs);
+  assert(results.size() == iterArgs.size() &&
          "loop nest body must return as many values as loop has iteration "
          "arguments");
   isl_ast_expr_free(expr);
@@ -585,14 +581,13 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
 }
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeBlock(
-    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+    isl_ast_node* node, BodyBuilderFn bodyBuilder, ValueRange iterArgs) {
   isl_ast_node_list* list = isl_ast_node_block_get_children(node);
   int n = isl_ast_node_list_n_ast_node(list);
-  scf::ValueVector results = currentIterArgs_;
+  scf::ValueVector results(iterArgs.begin(), iterArgs.end());
   for (int i = 0; i < n; ++i) {
     isl_ast_node* child = isl_ast_node_list_get_ast_node(list, i);
-    currentIterArgs_ = results;
-    auto childResults = visitAstNode(child, bodyBuilder);
+    auto childResults = visitAstNode(child, bodyBuilder, results);
     isl_ast_node_free(child);
     if (failed(childResults)) {
       isl_ast_node_list_free(list);
@@ -605,16 +600,16 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeBlock(
 }
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNode(
-    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+    isl_ast_node* node, BodyBuilderFn bodyBuilder, ValueRange iterArgs) {
   switch (isl_ast_node_get_type(node)) {
     case isl_ast_node_for:
-      return visitAstNodeFor(node, bodyBuilder);
+      return visitAstNodeFor(node, bodyBuilder, iterArgs);
     case isl_ast_node_if:
-      return visitAstNodeIf(node, bodyBuilder);
+      return visitAstNodeIf(node, bodyBuilder, iterArgs);
     case isl_ast_node_block:
-      return visitAstNodeBlock(node, bodyBuilder);
+      return visitAstNodeBlock(node, bodyBuilder, iterArgs);
     case isl_ast_node_user:
-      return visitAstNodeUser(node, bodyBuilder);
+      return visitAstNodeUser(node, bodyBuilder, iterArgs);
     default:
       char* cStr = isl_ast_node_to_C_str(node);
       emitError(builder_.getLoc()) << "unhandled ISL node type: " << cStr;
@@ -635,9 +630,7 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
   }
 
   isl_ast_node* node = tree;
-  currentIterArgs_ = initArgs;
-
-  auto result = visitAstNode(node, bodyBuilder);
+  auto result = visitAstNode(node, bodyBuilder, initArgs);
   if (failed(result)) {
     return failure();
   }
